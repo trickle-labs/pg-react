@@ -1,7 +1,7 @@
 # `pg-reason`: A PostgreSQL-Native Incremental Rule and Reasoning Engine
 
 **Status:** Proposed design  
-**Document version:** 0.2  
+**Document version:** 0.4  
 **Date:** 2026-08-07  
 **Project and repository name:** `pg-reason`  
 **PostgreSQL extension name:** `pg_reason`  
@@ -23,30 +23,38 @@
 
 This document describes both the product semantics and the implementation architecture. The first part explains what a rule means, how a continuously maintained SQL result becomes an activation, and how command rules are scheduled and executed. The middle part describes the SQL API, the catalog, the integration contract with `pg_trickle`, and the behavior during full refreshes, crashes, and rule upgrades. The final part covers the Rust codebase, worker process, security model, testing strategy, phased delivery plan, risks, and a complete end-to-end example. Readers who only need the product model can focus on Sections 1 through 12, while implementers should also read the remaining sections in order because later decisions build on earlier semantic guarantees.
 
+### Revision 0.4
+
+This revision incorporates the most useful parts of the external design feedback and makes the entire document consistent with them. A PostgreSQL view is now the canonical rule-condition contract, typed PostgreSQL functions are the preferred database-local consequences, and lifecycle behavior is modeled explicitly as activation, change, and deactivation events. The catalog, Rust architecture, worker protocol, recovery model, tests, rollout plan, and example now use the same model throughout. The revision also strengthens one-episode-at-a-time execution, definition-drift detection, PostgreSQL-major upgrade behavior, and the published concurrency and isolation contract. The raw-query API remains only as convenience syntax that creates a private versioned view.
+
+
 ---
 
 ## 1. Executive summary
 
-`pg-reason` is a separate PostgreSQL extension that turns the changing result of an SQL query into durable rule state. A rule contains a declarative query that describes every situation in which the rule is currently true, together with an optional consequence that should be scheduled when a match first becomes true. The query is maintained by `pg_trickle`, which already knows how to incrementally propagate inserts, updates, and deletes through filters, joins, aggregates, subqueries, windows, and supported recursive computations. `pg-reason` does not replace that engine and does not implement RETE internally. Instead, it adds the production-rule concepts that incremental view maintenance deliberately does not provide: stable activation identity, detection of false-to-true and true-to-false transitions, refraction, priorities, conflict handling, a durable agenda, leases and retries, action execution, rule versioning, recovery, and audit history.
+`pg-reason` is a separate PostgreSQL extension that turns the changing result of an ordinary SQL query into durable rule state. The preferred authoring model uses three native PostgreSQL objects: a view that defines the condition, one or more typed SQL functions that define the consequences, and a small `pgreason.create_rule` call that registers those objects and their execution policy. The rows returned by the view are the matches that are true now. When a semantic match enters that result, `pg-reason` records an activation; when it leaves, `pg-reason` records a deactivation; and when the row remains present but its non-key values change, `pg-reason` records a change. This makes the system easy to reason about because the rule language is SQL, the action language is PostgreSQL functions or outbox messages, and the runtime metadata is explicit rather than hidden inside a second expression language.
 
-The central design separates current truth from historical work. Each active rule version owns a generated `pg_trickle` stream table whose rows represent the matches that are true now. `pg-reason` mirrors the semantic state of those matches in an activation table and records command work in an agenda table. When a new match appears, the activation moves from inactive to active and a command rule may create one agenda episode. When the same match remains true but its payload changes, the activation is updated without firing again by default. When the match disappears, pending work may be withdrawn, but completed execution history remains intact. This separation makes the system understandable: the match table answers “what is true now?”, activation state answers “how has this match evolved?”, and the agenda answers “what work was requested and what happened to it?”.
+`pg_trickle` remains the incremental matching engine. At deployment time, `pg-reason` snapshots and validates the registered view definition, wraps it with deterministic activation metadata, and asks `pg_trickle` to maintain a generated match stream table. `pg-reason` does not implement RETE, DBSP, source-table change capture, joins, aggregation, negation, windows, or recursion a second time. Instead, it adds the production-rule concerns that an incremental view does not provide: stable semantic identity, activation generations and revisions, lifecycle events, refraction, salience, agenda groups, conflict handling, durable leases and retries, typed consequence invocation, rule versioning, reconciliation, recovery, and audit history.
 
-The extension is implemented in Rust with `pgrx`, stores all authoritative state in PostgreSQL, and integrates with `pg_trickle` through a versioned SQL contract rather than through Rust ABI linkage. A companion Rust process, `pg-reasond`, is recommended for claiming and executing agenda work. Database-local actions can run transactionally through registered PostgreSQL functions, while external effects such as HTTP calls, email, message publication, and LLM requests are represented through an idempotent transactional outbox. This keeps slow or non-transactional work outside PostgreSQL refresh transactions and gives operators durable retry, lease, and failure semantics.
+The design separates current truth from historical work. A generated match relation answers “which conditions are true now?”, activation state answers “how has each semantic match evolved?”, and the agenda answers “which lifecycle consequences were requested and what happened to them?”. A command rule may define `on_activate`, `on_deactivate`, and `on_change` consequences. Each consequence is optional, and each scheduled event has its own deterministic idempotency key. Constraint rules need no worker at all; they simply expose the maintained result as a live relation. Database-local consequences run through registered typed PostgreSQL functions, while external effects such as HTTP calls, email, message publication, and LLM requests are written to an idempotent transactional outbox and delivered by a separate process.
 
-The initial production scope contains two rule kinds. A **constraint rule** continuously exposes all current matches and is useful for live policy violations, data-quality findings, and operational conditions. A **command rule** additionally creates durable agenda episodes on rising edges and is useful for creating tasks, emitting events, requesting classifications, or invoking database handlers. A later derivation layer can add logical support, truth maintenance, and fixed-point reasoning, allowing multiple rules to justify the same derived fact without prematurely retracting it when one justification disappears.
+The initial identity model is deliberately semantic. Rule authors declare one or more non-null key columns from the condition view, such as `order_id` or `(tenant_id, account_id, policy_id)`, and the view must produce at most one row for each key. The system does not require authors to expose every primary key from every participating base-table alias merely for internal bookkeeping. A future `FACT_TUPLE` identity mode may derive activation identity from participating source facts for rules that truly need classical tuple-level activations, but the first release uses explicit semantic keys because they are more predictable for business commands, aggregates, and desired-state rules.
+
+The extension is implemented in Rust with `pgrx`, stores all authoritative state in PostgreSQL, and communicates with `pg_trickle` through a versioned SQL contract rather than through Rust ABI linkage. A companion Rust service, `pg-reasond`, claims bounded sets of agenda rows but executes one episode per transaction by default. Immediately before calling a consequence, the server revalidates the lease and the event’s current eligibility so that one action can invalidate later work before it executes. Batching is an explicit opt-in for consequences that are declared and tested as commutative and unable to invalidate one another.
 
 ```mermaid
 flowchart LR
-    A[Base PostgreSQL tables] --> B[pg_trickle change capture and incremental maintenance]
-    B --> C[Generated rule match stream table]
-    C --> D[pg-reason activation transition layer]
-    D --> E[Current activation state]
-    D --> F[Durable agenda]
-    F --> G[pg-reasond or application worker]
-    G --> H[Transactional database action]
-    G --> I[Transactional outbox]
-    H --> A
-    I --> J[External systems]
+    V[Condition view] --> C[pg-reason compiler and immutable rule version]
+    C --> T[pg_trickle maintained match stream table]
+    T --> A[Activation lifecycle state]
+    A --> Q[Durable agenda episodes]
+    F[Typed consequence functions] --> C
+    Q --> W[pg-reasond or application worker]
+    W --> D[Transactional database consequence]
+    W --> O[Transactional outbox]
+    D --> B[Base PostgreSQL facts]
+    O --> X[External systems]
+    B --> T
 ```
 
 ---
@@ -63,103 +71,126 @@ The resulting architecture is more general than a classical RETE clone. The left
 
 ## 3. Scope, goals, and non-goals
 
-The primary goal is to provide a PostgreSQL-native rule system whose behavior remains deterministic, durable, and inspectable even when source data, rule definitions, workers, or the database itself change. Every authoritative object—rule definitions, activation state, agenda episodes, attempts, leases, and outbox entries—must live in PostgreSQL so that normal transactions, backups, replication, and point-in-time recovery apply. Activation identity must be based on declared semantic keys rather than on physical row identifiers. Match-to-agenda transitions must be transactional, workers must claim work safely under concurrency, and external actions must be retryable through deterministic idempotency keys. The extension must remain useful even when no worker is running, because constraint rules should continue to expose current maintained findings as queryable relations.
+The primary goal is to provide a PostgreSQL-native rule system whose behavior remains deterministic, durable, and inspectable even when source data, rule definitions, workers, or the database itself change. Every authoritative object—logical rules, immutable versions, source-definition fingerprints, activation state, lifecycle episodes, typed event payloads, execution attempts, leases, and outbox entries—must live in PostgreSQL so that normal transactions, backups, replication, and point-in-time recovery apply. Rule authors should be able to debug a condition with normal `SELECT` and `EXPLAIN`, PostgreSQL should type-check database consequences when they are created, and the runtime should reject ambiguous activation keys or incompatible function signatures before a rule becomes active.
 
-The design also aims to leave a clean path toward richer reasoning. Future releases should be able to represent logical support for derived facts, evaluate monotone rule sets to a fixed point, apply stratified negation, maintain temporal rules, coordinate LLM tasks, and share expensive common conditions. These capabilities should extend the same core model rather than requiring a second execution architecture. In particular, a future derivation rule should still be compiled into maintained relational state, and a future support graph should still use PostgreSQL transactions and `pg_trickle` dependency management.
+The first production release focuses on constraint and command rules. Constraint rules continuously expose the current result of a registered view. Command rules additionally schedule optional activation, deactivation, and change consequences. The default execution model is epochal: committed source changes are incorporated by `pg_trickle`, semantic transitions and agenda rows commit with the maintained match state, and workers execute consequences in later transactions. This model provides durable concurrency, recovery, and audit semantics without making application writes wait for arbitrary user code or external systems.
 
-The first production release deliberately avoids several tempting expansions. It will not implement RETE or DBSP again, will not provide a CLIPS- or Drools-compatible parser, and will not attempt to hide PostgreSQL concepts from rule authors. It will not execute arbitrary remote calls inside backend processes, promise exactly-once behavior for unrelated external systems, infer a semantically correct activation key for every possible SQL query, or guarantee the exact one-activation-at-a-time global ordering of a classical single-threaded production system. It will also avoid depending on private `pg_trickle` catalogs, Rust types, or `__pgt_*` columns. Those boundaries keep the first release focused on correctness and make the dependency relationship maintainable.
+The design also leaves a clean path toward richer reasoning. Future releases should be able to represent logical support for derived facts, evaluate monotone rule sets to a fixed point, apply stratified negation, maintain temporal rules, coordinate LLM tasks, and share expensive common conditions. These features should extend the same relational and transactional model. In particular, a future derivation rule should still compile to maintained relations, and a future support graph should still rely on PostgreSQL durability and `pg_trickle` dependency management rather than introducing a second in-memory truth store.
+
+Several boundaries are intentional. `pg-reason` will not implement RETE or DBSP again, install a second set of source-table change-capture triggers, or maintain its own alpha and beta memories. It will not invent a custom top-level command such as `CREATE REASON RULE`, because PostgreSQL already has an unrelated `CREATE RULE` statement and extensions do not have a portable raw-grammar extension point. It will not execute arbitrary remote calls inside backend processes, promise exactly-once behavior for unrelated external systems, infer the business meaning of an activation key for every possible query, or promise one global firing order across independent workers. It will also avoid depending on private `pg_trickle` catalogs, Rust types, or `__pgt_*` storage columns. These limits keep the first release understandable and allow both extensions to evolve independently.
 
 ---
 
 ## 4. Core concepts and terminology
 
-A **rule** is the stable logical object that users name, own, enable, pause, replace, and inspect. A rule has one or more immutable **rule versions**, because changing the query, key definition, handler, or firing policy changes the meaning of past and future executions. Each rule version has a **match query**, which is an SQL `SELECT` describing all current situations in which the rule is true. The compiler wraps this query and asks `pg_trickle` to maintain a generated **match stream table**. Every row in that relation is a current **activation**.
+A **rule** is the stable logical object that users name, own, enable, pause, replace, and inspect. A rule has one or more immutable **rule versions**, because changing the condition, activation key, consequence functions, or firing policy changes the meaning of both past and future work. The preferred source definition for a version is a PostgreSQL **condition view**. Its selected columns are the typed bindings available to consequences, and its rows describe the situations in which the rule is true. A raw `SELECT` may be accepted as convenience input, but the extension converts it into a private versioned view so that every compilation path has the same named row type and dependency model.
 
-An activation is identified by user-declared **activation key columns**. These columns should describe the semantic object or tuple to which the rule applies, such as an `order_id`, an `(account_id, policy_id)` pair, or a `(tenant_id, invoice_id, reminder_stage)` tuple. `pg-reason` converts the typed key values and the rule-version identifier into a deterministic **activation ID**. The ID is stable while that rule version remains active and does not change when unrelated payload fields change, when indexes are rebuilt, when PostgreSQL restarts, or when `pg_trickle` changes its internal row hashing strategy.
+The source view is an authoring object, not mutable runtime state. When a version is deployed, `pg-reason` records the view OID and qualified name, its row type and columns, `pg_get_viewdef` output, a definition hash, resolved dependencies, and the PostgreSQL objects used by the analyzed query. The generated `pg_trickle` stream table is built from that snapshotted definition. Replacing the source view later does not silently alter an active version; it creates detectable **source drift** and requires an explicit new rule version.
 
-A continuous interval during which one activation remains true is an **episode**. The transition from absent to present is a **rising edge**, the transition from present to absent is a **falling edge**, and a payload change while the activation remains present is an **update**. A command rule normally creates one agenda episode on the rising edge and does not create another while the same activation remains continuously true. This behavior is called **refraction**. If the activation later becomes false and then true again, a new episode is created even though the stable activation ID is the same.
+Every row in the maintained match relation is a current **activation**. In the default `SEMANTIC_KEY` identity mode, the author declares one or more view columns that identify the subject of the rule. `pg-reason` encodes those typed values together with the rule-version UUID to produce a deterministic **activation ID**. A continuous interval during which the activation remains present is an **activation generation**. The false-to-true transition is an **activation event**, the true-to-false transition is a **deactivation event**, and a meaningful non-key payload change while the match remains present is a **change event**. Changes within one generation receive monotonically increasing revision numbers.
 
-The **agenda** is the durable set of command episodes that are pending, leased, retrying, completed, failed, withdrawn, or cancelled. **Salience** is the priority assigned to a rule or an individual match. An **agenda group** is a routing label such as `risk`, `billing`, or `llm`. A **conflict key** identifies actions that should not run concurrently, such as all work for the same account. A **handler** describes how an episode is processed, either by invoking a registered database function, by creating an outbox message, or by leaving it for a manual or application-specific consumer.
+A **consequence** is the declared response to one lifecycle event. A command rule may have an `on_activate` consequence, an `on_deactivate` consequence, an `on_change` consequence, or any combination of them. The preferred database consequence is a typed PostgreSQL function that accepts `pgreason.activation_context` and the composite row type of the condition view. An activation consequence receives the new match, a deactivation consequence receives the last match from the generation that ended, and a change consequence receives both the previous and new match values. Outbox and manual consequences use a stable JSON envelope but retain the same event identity and idempotency model.
 
-**Reconciliation** is the process of comparing the generated match relation with durable activation state and repairing any differences. It is required after initialization, full refresh, reinitialization, restore, or any event in which per-row semantic transitions might not have been observed. A **frontier** is the `pg_trickle` progress marker associated with a completed refresh and is recorded for correlation and recovery. Later derivation features will add **supports**, where one activation justifies a derived fact, and **truth maintenance**, where that fact remains true for as long as at least one active support remains.
+An **episode** is one durable agenda item for one lifecycle event. Its identity includes the rule version, activation ID, activation generation, event kind, and, for change events, the revision. The **agenda** contains episodes that are pending, leased, retrying, completed, failed, withdrawn, skipped, or cancelled. **Salience** is the priority assigned to a rule or match. An **agenda group** routes work to an appropriate worker pool. A **conflict key** identifies episodes that should not execute concurrently, such as all actions for the same account. A **lease** gives a worker temporary authority to execute one episode, and a deterministic **idempotency key** makes safe retry possible.
+
+**Reconciliation** compares the generated match relation with durable activation state and repairs differences after initialization, full refresh, reinitialization, restore, or uncertain recovery. A **frontier** is the `pg_trickle` progress marker associated with a completed refresh. Later derivation features will add **supports**, where one activation justifies a derived fact, and **truth maintenance**, where the fact remains true for as long as at least one active support remains.
 
 ---
 
 ## 5. Design principles
 
-### 5.1 Matching is declarative, while consequences are explicit
+### 5.1 SQL is the condition language
 
-The condition side of a rule is a pure relational query. It can select, filter, join, aggregate, use subqueries, and use any other construct that the selected `pg_trickle` mode can maintain correctly. The consequence side is not arbitrary code embedded after a textual `THEN`. Instead, a command rule refers to a registered handler with a declared execution kind, owner, role, retry policy, and timeout. This separation gives the compiler a stable query boundary and gives the runtime a clear security and failure boundary.
+The public condition language is PostgreSQL SQL. The preferred definition is a normal view because PostgreSQL parses and type-checks it, records native dependencies, gives it a named composite row type, allows authors to query it manually, and makes full-query `EXPLAIN` available without a second diagnostic language. `pg-reason` treats incremental execution as an implementation strategy supplied by `pg_trickle`; it does not expose alpha nodes, beta memories, or other execution-plan concepts in the authoring model.
 
-### 5.2 Current truth is different from historical work
+### 5.2 Consequences are explicit PostgreSQL objects
 
-A generated match table and the activation-state catalog represent what is true now. The agenda and execution history represent what work was requested and what occurred in the past. If a match disappears, its current activation is deactivated, but a task that already ran must remain in the audit history. Treating these as separate relations avoids a common mistake in simple trigger-based systems, where deleting current state accidentally erases or obscures the reason an earlier action happened.
+A consequence is not arbitrary code embedded after a textual `THEN`. Database consequences are registered `regprocedure` values whose signatures are checked against the source view’s composite type. SQL-standard `BEGIN ATOMIC` function bodies are recommended because PostgreSQL parses them at function creation and can record body-level dependencies. External consequences are represented as outbox messages. This gives the compiler a stable condition boundary and gives the runtime a clear security, idempotency, and failure boundary.
 
-### 5.3 Public identity must survive implementation changes
+### 5.3 Current truth is different from historical work
 
-A stable activation cannot depend on whether `pg_trickle` happened to express a semantic change as an SQL `UPDATE`, a `DELETE` followed by an `INSERT`, or a complete rebuild. It also cannot depend on relation OIDs, index layouts, hidden columns, or an internal row hash. `pg-reason` therefore generates activation identity from the rule version and the declared typed key values. Physical storage may change while the semantic identity remains understandable and testable.
+The generated match table and activation catalog represent what is true now. Agenda episodes and execution records represent historical lifecycle events and attempted work. If a match disappears, its activation becomes inactive, but a completed activation consequence remains part of the audit trail. If an optional deactivation consequence exists, it is scheduled as a new event rather than being treated as an automatic rollback of the earlier action. Separating current truth from historical work prevents cleanup of current state from erasing the reason a prior action happened.
 
-### 5.4 External effects are at-least-once and idempotent
+### 5.4 Semantic identity is the default
 
-PostgreSQL cannot atomically commit its transaction together with an unrelated HTTP API, email server, or model endpoint without a distributed transaction protocol. `pg-reason` therefore commits an outbox entry and the episode state in one PostgreSQL transaction, then allows a separate consumer to deliver the message at least once. Every external action receives a deterministic idempotency key. This design is honest about failure modes and makes duplicate delivery manageable instead of hiding it behind an impossible exactly-once promise.
+Public activation identity must survive index rebuilds, full refreshes, relation replacement, PostgreSQL restart, and changes in `pg_trickle`’s internal row-hashing strategy. The default identity is therefore based on explicit typed semantic keys selected from the condition view. The author does not need to expose every participating base-table key merely for internal matching. A future fact-tuple mode may derive identity from source aliases and stable source keys, including alias position for self-joins, but that mode is optional and never uses `ctid` as a durable identifier.
 
-### 5.5 Rule versions are immutable
+### 5.5 External effects are at least once and idempotent
 
-The query, key columns, handler, salience rules, and firing semantics of a deployed version are never edited in place. A change creates a new version that is compiled and initialized alongside the active one, then activated through a controlled cutover. Immutable versions make execution history meaningful, allow rollback, and prevent ambiguous situations in which an old episode is interpreted using a newly edited rule.
+PostgreSQL cannot atomically commit a local transaction together with an unrelated HTTP API, email server, or model endpoint without a distributed transaction protocol. `pg-reason` therefore commits an outbox row and the episode state in one PostgreSQL transaction, then allows a separate consumer to deliver the message at least once. Every external event has a deterministic idempotency key. This design makes failure behavior explicit and testable rather than promising impossible global exactly-once semantics.
 
-### 5.6 Epochal execution is the default
+### 5.6 Rule versions and source snapshots are immutable
 
-A traditional production system may select one activation, execute it immediately, update facts, and then select the next activation on the same call stack. `pg-reason` instead uses explicit transaction and refresh boundaries. Source changes commit, `pg_trickle` refreshes maintained match relations, `pg-reason` records activation transitions and agenda work, and workers execute that work in later transactions. Any new facts written by handlers are processed by a later refresh. This epochal model is easier to batch, parallelize, audit, recover, and reproduce. A stricter single-step mode can be explored later for workloads that truly depend on classical firing order.
+A deployed version records the exact condition definition, row signature, activation-key schema, consequence signatures, priority rules, and execution policies that gave the version its meaning. A source view may remain a convenient authoring object, but changing it does not mutate a deployed version. `pg-reason` detects definition or row-type drift and requires `replace_rule` to create and initialize a new version. Immutable versions make history interpretable and allow controlled rollback.
+
+### 5.7 Epochal execution is the default, and one episode executes at a time
+
+A traditional production system may select one activation, run it immediately, update facts, and then choose the next activation on the same call stack. `pg-reason` instead uses explicit refresh and transaction boundaries. Workers may claim several rows to reduce queue overhead, but each episode is revalidated and executed in its own transaction by default. This matters because one consequence can change facts and invalidate another pending activation. A consequence may opt into batching only when it is declared `batch_safe`, meaning that the batched operations are commutative and cannot invalidate or change the eligibility of another episode in the same batch.
+
+### 5.8 Durable definitions use SQL text and qualified identities, not serialized parse trees
+
+During compilation, Rust code may use PostgreSQL relation, function, operator, type, and collation OIDs to work with analyzed definitions safely. Those OIDs are cached compiled metadata, not the only durable representation. Rule versions also retain the source SQL, qualified object names, row signature, and fingerprints needed to resolve the definition again after dump and restore or a PostgreSQL major-version upgrade. Version-sensitive parser and planner access is isolated behind a small compatibility module, and compiled metadata is rebuilt rather than treating serialized parse trees as portable state.
 
 ---
 
 ## 6. High-level architecture
 
-The system is divided into three layers inside PostgreSQL and one optional process outside it. Base tables remain the application’s authoritative facts. `pg_trickle` observes those tables and maintains generated rule-match stream tables. `pg-reason` observes the semantic contents of those match tables, keeps activation state, creates or withdraws agenda episodes, records execution attempts, and writes outbox messages. The optional `pg-reasond` process claims agenda work and invokes the database-side execution functions. Because the worker is stateless, multiple instances can run concurrently and PostgreSQL remains the single source of truth.
+The architecture has an authoring layer, a matching layer, a lifecycle layer, and an execution layer. Authors create a condition view and, for command rules, one or more typed consequence functions. `pg-reason` validates and snapshots those objects into an immutable version. It then generates a wrapped SQL query containing activation metadata and asks `pg_trickle` to maintain the current match relation. As that relation changes, `pg-reason` coalesces physical maintenance operations into semantic activation, change, and deactivation events, updates durable activation state, and creates agenda episodes for lifecycle events that have registered consequences.
+
+`pg-reason` does not attach a second change-capture system to base fact tables. Source changes flow through `pg_trickle`’s trigger, WAL, immediate, or other supported CDC paths exactly once. The compatibility integration may attach transition-capture triggers to the generated match relation, because that relation is the boundary between incremental matching and rule lifecycle semantics. The preferred long-term integration is a synchronous `pg_trickle` refresh observer with an optional consolidated delta relation.
+
+Typed database consequences are invoked by a server-side execution function that validates the lease, event kind, generation, revision, source-definition compatibility, and current eligibility before calling the registered function under its configured execution role. The runtime stores an exact typed event payload for each database consequence so deactivation and change consequences can receive values even after the current match row has disappeared or changed. JSONB bindings are also stored for generic APIs, outbox delivery, diagnostics, and clients that do not know the view row type.
 
 ```mermaid
 flowchart TB
+    subgraph Authoring
+        V[Condition view]
+        FA[on_activate function]
+        FD[on_deactivate function]
+        FC[on_change function]
+        R[pgreason.create_rule]
+        V --> R
+        FA --> R
+        FD --> R
+        FC --> R
+    end
+
     subgraph PostgreSQL
         BT[Base fact tables]
 
         subgraph pg_trickle
-            CDC[Trigger or WAL change capture]
-            DVM[Differential view maintenance]
-            ST[Generated rule match stream tables]
+            CDC[Change capture]
+            DVM[Incremental maintenance]
+            MT[Generated match stream table]
         end
 
         subgraph pg_reason
-            TR[Activation capture and coalescing]
+            CP[Semantic transition capture]
             AS[Activation state]
+            EP[Typed event payloads]
             AG[Durable agenda]
-            EX[Execution history]
+            EH[Execution history]
             OB[Action outbox]
-            CAT[Rule, version, and handler catalogs]
-            RC[Reconciler]
         end
-
-        BT --> CDC
-        CDC --> DVM
-        DVM --> ST
-        ST --> TR
-        TR --> AS
-        TR --> AG
-        RC <--> ST
-        RC <--> AS
-        AG --> EX
-        AG --> OB
     end
 
-    W[pg-reasond or application workers] --> AG
-    W --> EX
+    R --> DVM
+    BT --> CDC --> DVM --> MT
+    MT --> CP
+    CP --> AS
+    CP --> EP
+    CP --> AG
+    AG --> EH
+    AG --> OB
+
+    W[pg-reasond or application worker] --> AG
+    W --> X[Typed database consequence]
     W --> OB
-    W --> BT
-    OB --> X[External systems]
+    X --> BT
+    OB --> EXT[External systems]
 ```
 
-The extension uses three SQL schemas. `pgreason` contains the supported public types, functions, and views. `pgreason_runtime` contains generated match stream tables and, later, generated shared conditions. `pgreason_internal` contains catalogs, buffers, agenda tables, outbox tables, and internal functions. Users may inspect public views but should never write directly to the runtime or internal schemas. Generated runtime relation names are deliberately not part of the compatibility contract, because the compiler may change naming or sharing strategies in later releases.
-
-The core extension does not need its own postmaster background worker. Command episodes can be processed by `pg-reasond`, by application workers that call the supported claim and completion functions, or eventually by an optional PostgreSQL worker for carefully restricted SQL-only handlers. Keeping the recommended worker outside the server avoids another `shared_preload_libraries` requirement and ensures that network calls, long-running model requests, and other unpredictable work do not block PostgreSQL backend processes.
+The core extension does not need its own postmaster background worker. Command episodes can be processed by `pg-reasond`, by application workers that use the supported claim and execution functions, or eventually by an optional PostgreSQL worker for carefully restricted SQL-only consequences. Keeping the recommended executor outside the server avoids another `shared_preload_libraries` requirement and ensures that slow model calls, network operations, and long-running external work cannot block PostgreSQL backend processes.
 
 ---
 
@@ -167,25 +198,17 @@ The core extension does not need its own postmaster background worker. Command e
 
 ### 7.1 Constraint rules
 
-A constraint rule continuously maintains the set of rows that satisfy or violate a condition. The result itself is the product; no agenda or worker is required. A security team might define all large refunds that do not have approval, a data platform might define malformed records, and an operations team might define all services currently outside an SLA. Applications can query the stable `pgreason.current_matches` interface, dashboards can count or group the matches, and operators can inspect the generated typed relation when deeper diagnostics are needed.
-
-```sql
-SELECT o.id AS order_id,
-       o.customer_id,
-       o.amount
-FROM orders AS o
-JOIN customers AS c ON c.id = o.customer_id
-WHERE o.amount > 10000
-  AND c.risk = 'high';
-```
+A constraint rule continuously maintains the set of rows that satisfy or violate a condition. The result itself is the product; no agenda or worker is required. A security team might define large refunds without approval, a data platform might define malformed records, and an operations team might define services currently outside an SLA. Applications can query `pgreason.current_matches`, inspect the original condition view, and use `pgreason.explain_rule` to connect the source definition to the maintained `pg_trickle` plan.
 
 ### 7.2 Command rules
 
-A command rule uses the same maintained match model but creates durable work when an activation has a rising edge. For example, the first time order 42 becomes both large and associated with a high-risk customer, the rule may create one manual-review task. Increasing the order amount while the condition remains true updates the current bindings but does not create another task under the default policy. If the condition later becomes false and then true again, a new episode is created. Command rules are suitable for task creation, event publication, notifications, database transitions, and requests to external systems such as an LLM classifier.
+A command rule adds lifecycle consequences to the same maintained match model. `on_activate` runs when a semantic match first becomes true in a generation. `on_deactivate` runs when that generation ends and receives the last typed match value. `on_change` runs when the activation remains true but its meaningful payload changes, and receives both the previous and current typed values. Every consequence is optional. A rule that only defines `on_activate` behaves like a conventional rising-edge command, while a rule with activation and deactivation consequences can act as a desired-state controller.
+
+The runtime does not assume that a deactivation consequence reverses the activation consequence. They are independent durable events with separate idempotency keys, retry histories, and recheck policies. This distinction matters for actions such as sending a notification, where no automatic reversal exists, and for external side effects that may already have completed by the time a condition becomes false.
 
 ### 7.3 Derivation rules
 
-A derivation rule will eventually produce logical support for a derived fact instead of scheduling an imperative action. One rule may support `Fever(patient)` because the temperature is high, while another supports the same fact because a test is positive. The derived fact remains true while at least one support exists. This is a stronger and safer model than having one rule directly insert the fact and later delete it without knowing whether another rule still justifies it. The initial release prepares the catalog boundaries needed for support and provenance but keeps derivation semantics experimental until fixed-point, deletion, and stratification behavior have been thoroughly tested.
+A derivation rule will eventually create logical support for a derived fact instead of scheduling an imperative consequence. One rule may support `Fever(patient)` because the temperature is high, while another supports the same fact because a test is positive. The derived fact remains true while at least one support exists. The initial release reserves the necessary catalog boundaries but keeps derivation semantics experimental until fixed-point evaluation, deletion, stratification, and deployment of recursive components have been tested thoroughly.
 
 ---
 
@@ -193,14 +216,14 @@ A derivation rule will eventually produce logical support for a derived fact ins
 
 ### 8.1 Installation and dependency validation
 
-Users install the dependency first and then install `pg_reason`:
+Users install `pg_trickle` first and then install `pg_reason`:
 
 ```sql
 CREATE EXTENSION pg_trickle;
 CREATE EXTENSION pg_reason;
 ```
 
-The extension control file uses the PostgreSQL-safe package name and declares the dependency:
+The extension control file declares the dependency using PostgreSQL’s package-safe name:
 
 ```ini
 comment = 'Incremental SQL rule and reasoning engine built on pg_trickle'
@@ -212,76 +235,122 @@ superuser = true
 trusted = false
 ```
 
-The `requires` field guarantees installation order but cannot express a compatible version range. The installation and startup checks therefore read `pg_extension.extversion`, compare it with the compatibility matrix compiled into `pg_reason`, and fail with a clear message when the installed `pg_trickle` line is unsupported. A public `pgreason.compatibility_status()` function exposes the detected versions and required integration capabilities.
+The `requires` field guarantees installation order but cannot express a compatible version range. Installation, rule compilation, worker startup, and `pgreason.health_check()` therefore read `pg_extension.extversion` and verify the installed `pg_trickle` line against the compatibility matrix compiled into `pg_reason`.
 
-### 8.2 Registering a database handler
+### 8.2 Defining a condition as a view
 
-A database handler is an explicitly registered PostgreSQL function with a fixed signature. It receives the activation ID, the latest bindings, and a context object that identifies the rule, episode, attempt, worker, and idempotency key. Registration records the execution role, retry policy, and timeout, so a rule cannot invoke arbitrary functions merely by naming them in its definition.
+The preferred condition is a normal PostgreSQL view. Its selected columns are the bindings exposed to the rule runtime and typed database consequences. The view must include the semantic activation-key columns, but it does not need to expose every primary key from every joined source merely for internal bookkeeping.
 
 ```sql
-CREATE FUNCTION app.create_manual_review(
-    activation_id uuid,
-    bindings      jsonb,
-    context       jsonb
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY INVOKER
-AS $$
-BEGIN
-    INSERT INTO app.manual_reviews (
-        activation_id,
-        order_id,
-        customer_id,
-        reason
-    )
-    VALUES (
-        activation_id,
-        (bindings->>'order_id')::bigint,
-        (bindings->>'customer_id')::bigint,
-        'high-risk large order'
-    )
-    ON CONFLICT (activation_id) DO NOTHING;
+CREATE SCHEMA IF NOT EXISTS rule_def;
 
-    RETURN jsonb_build_object('created', true);
-END
-$$;
+CREATE VIEW rule_def.high_value_risky_order AS
+SELECT
+    o.id          AS order_id,
+    o.customer_id AS customer_id,
+    o.amount      AS amount
+FROM app.orders AS o
+JOIN app.customers AS c
+  ON c.id = o.customer_id
+WHERE o.amount > 10000
+  AND c.risk_level = 'HIGH';
+```
 
-SELECT pgreason.register_handler(
-    name            => 'create_manual_review',
-    handler_kind    => 'DATABASE',
-    function_name   => 'app.create_manual_review(uuid,jsonb,jsonb)'::regprocedure,
-    run_as_role     => 'pgreason_worker',
-    max_attempts    => 8,
-    initial_backoff => interval '1 second',
-    max_backoff     => interval '15 minutes'
+This object can be queried directly while debugging, PostgreSQL validates its column types and dependencies, and `EXPLAIN SELECT * FROM rule_def.high_value_risky_order` shows the complete non-incremental evaluation plan. At rule deployment, `pg-reason` snapshots the view definition and row signature. Authors should treat a view used by an active rule as versioned source code: edits create detectable drift and are deployed through `replace_rule`, not picked up silently.
+
+### 8.3 Defining typed database consequences
+
+The extension provides a stable context type. The exact physical definition may grow by appending fields across major versions, but the initial logical fields are:
+
+```sql
+CREATE TYPE pgreason.activation_context AS (
+    activation_id   uuid,
+    episode_id      bigint,
+    rule_id         uuid,
+    rule_version_id uuid,
+    generation      bigint,
+    revision        bigint,
+    event_kind      text,
+    attempt_no      integer,
+    event_at        timestamptz,
+    worker_id       text,
+    idempotency_key text
 );
 ```
 
-### 8.3 Creating a command rule
+The preferred activation consequence accepts the context and the condition view’s composite row type, and returns `void`. A SQL-standard atomic body is recommended because PostgreSQL validates it when the function is created and records dependencies on referenced objects.
 
-The SQL-first creation API accepts one match query, a declared activation key, and optional scheduling and execution policies. The example below creates a command rule that produces one review episode for each order that first satisfies the condition. The order ID is the stable activation key, the customer ID forms the conflict key, and workers may route this work through the `risk` agenda group.
+```sql
+CREATE SCHEMA IF NOT EXISTS rule_action;
+
+CREATE FUNCTION rule_action.activate_high_value_risky_order(
+    context pgreason.activation_context,
+    match   rule_def.high_value_risky_order
+)
+RETURNS void
+LANGUAGE SQL
+SECURITY INVOKER
+BEGIN ATOMIC
+    INSERT INTO app.manual_review_tasks (
+        activation_id,
+        order_id,
+        customer_id,
+        amount
+    )
+    VALUES (
+        (context).activation_id,
+        (match).order_id,
+        (match).customer_id,
+        (match).amount
+    )
+    ON CONFLICT (activation_id) DO NOTHING;
+END;
+```
+
+A deactivation consequence uses the same row type and receives the last value from the generation that ended:
+
+```sql
+CREATE FUNCTION rule_action.deactivate_high_value_risky_order(
+    context    pgreason.activation_context,
+    last_match rule_def.high_value_risky_order
+)
+RETURNS void
+LANGUAGE SQL
+SECURITY INVOKER
+BEGIN ATOMIC
+    UPDATE app.manual_review_tasks
+       SET condition_active = false,
+           deactivated_at = clock_timestamp()
+     WHERE activation_id = (context).activation_id;
+END;
+```
+
+A change consequence, when used, has the signature `(pgreason.activation_context, definition_row_type, definition_row_type) RETURNS void` and receives the previous and current match values. The compiler verifies every `regprocedure`, return type, argument count, composite row type, owner, volatility, and execution-role policy before activation.
+
+### 8.4 Registering a command rule
+
+The canonical registration call connects the condition view to its lifecycle consequences and runtime policy. Function identities are passed as `regprocedure`, so `search_path` changes cannot silently redirect execution.
 
 ```sql
 SELECT pgreason.create_rule(
-    name => 'manual_review_required',
-    kind => 'COMMAND',
-
-    match_query => $rule$
-        SELECT
-            o.id          AS order_id,
-            o.customer_id AS customer_id,
-            o.amount      AS amount,
-            c.risk        AS customer_risk
-        FROM orders AS o
-        JOIN customers AS c
-          ON c.id = o.customer_id
-        WHERE o.amount > 10000
-          AND c.risk = 'high'
-    $rule$,
+    name       => 'manual_review_required',
+    kind       => 'COMMAND',
+    definition => 'rule_def.high_value_risky_order'::regclass,
 
     key_columns => ARRAY['order_id'],
-    handler => 'create_manual_review',
+
+    on_activate =>
+        'rule_action.activate_high_value_risky_order(
+            pgreason.activation_context,
+            rule_def.high_value_risky_order
+         )'::regprocedure,
+
+    on_deactivate =>
+        'rule_action.deactivate_high_value_risky_order(
+            pgreason.activation_context,
+            rule_def.high_value_risky_order
+         )'::regprocedure,
+
     salience => 100,
     conflict_key_columns => ARRAY['customer_id'],
     agenda_group => 'risk',
@@ -292,52 +361,74 @@ SELECT pgreason.create_rule(
     options => jsonb_build_object(
         'withdrawal_policy', 'CANCEL_PENDING',
         'recheck_before_execute', true,
-        'refire_policy', 'ON_REACTIVATION'
+        'refire_policy', 'ON_REACTIVATION',
+        'payload_policy', 'LATEST_UNTIL_CLAIM'
     )
 );
 ```
 
-### 8.4 Creating and querying a constraint rule
-
-A constraint rule uses the same compiler but omits the handler. Existing and future matches are simply current maintained findings. The generic public function returns a stable row shape with JSONB bindings, allowing applications to query any rule without knowing the generated table schema.
+A conceptual SQL signature is:
 
 ```sql
+pgreason.create_rule(
+    name text,
+    kind text,
+    definition regclass,
+    key_columns text[],
+    on_activate regprocedure DEFAULT NULL,
+    on_deactivate regprocedure DEFAULT NULL,
+    on_change regprocedure DEFAULT NULL,
+    salience integer DEFAULT 0,
+    conflict_key_columns text[] DEFAULT NULL,
+    agenda_group text DEFAULT 'default',
+    schedule text DEFAULT 'calculated',
+    refresh_mode text DEFAULT 'AUTO',
+    bootstrap_policy text DEFAULT 'SEED_CURRENT',
+    options jsonb DEFAULT '{}'::jsonb
+) RETURNS uuid;
+```
+
+The canonical API does not require a separate handler-registration step for typed database functions. Internally, each referenced consequence receives an immutable registry row containing its OID, qualified identity, row-type signature, execution role, retry policy, recheck policy, timeout, and enabled state. Reusable outbox and manual consequence templates may still be registered separately when no PostgreSQL function is involved.
+
+### 8.5 Constraint rules and raw-query convenience
+
+A constraint rule registers a condition view without lifecycle consequences:
+
+```sql
+CREATE VIEW rule_def.unapproved_large_refund AS
+SELECT
+    r.id AS refund_id,
+    r.customer_id,
+    r.amount
+FROM app.refunds AS r
+WHERE r.amount > 5000
+  AND NOT EXISTS (
+      SELECT 1
+      FROM app.refund_approvals AS a
+      WHERE a.refund_id = r.id
+  );
+
 SELECT pgreason.create_rule(
     name => 'unapproved_large_refunds',
     kind => 'CONSTRAINT',
-    match_query => $rule$
-        SELECT
-            r.id AS refund_id,
-            r.customer_id,
-            r.amount
-        FROM refunds AS r
-        WHERE r.amount > 5000
-          AND NOT EXISTS (
-              SELECT 1
-              FROM refund_approvals AS a
-              WHERE a.refund_id = r.id
-          )
-    $rule$,
+    definition => 'rule_def.unapproved_large_refund'::regclass,
     key_columns => ARRAY['refund_id'],
     schedule => '2s',
-    refresh_mode => 'DIFFERENTIAL',
-    bootstrap_policy => 'SEED_CURRENT'
+    refresh_mode => 'DIFFERENTIAL'
 );
 
 SELECT activation_id,
        activation_key,
        bindings,
-       salience,
-       conflict_key,
        active_since
 FROM pgreason.current_matches('unapproved_large_refunds');
 ```
 
-`pgreason.current_matches(name)` returns a fixed composite type containing the logical and version identifiers, activation ID, activation key, bindings, salience, conflict key, active timestamp, and payload hash. Advanced users can call `pgreason.match_relation(name)` to discover the generated typed relation for diagnostics or indexing, but its physical name is not guaranteed across versions.
+For migrations, generated code, or exploratory use, `pgreason.create_rule_from_query` may accept one `SELECT` string. It creates a private versioned view, then delegates to the same `regclass` compilation path. The raw query form is therefore convenience syntax rather than a separate semantic model.
 
-### 8.5 Rule lifecycle and runtime operations
+### 8.6 Rule lifecycle and worker operations
 
-Rules are paused and resumed without deleting their definitions or history. Replacing a rule creates an immutable new version, initializes it alongside the current version, and applies an explicit deployment policy. Rollback uses the same machinery rather than merely changing a catalog pointer, because the old and new match relations may have diverged while inactive.
+Replacing a rule creates an immutable new version from a new or changed source view and applies an explicit deployment policy. The existing version remains understandable because its snapshotted SQL and source fingerprints do not change.
 
 ```sql
 SELECT pgreason.pause_rule('manual_review_required');
@@ -345,7 +436,7 @@ SELECT pgreason.resume_rule('manual_review_required');
 
 SELECT pgreason.replace_rule(
     name => 'manual_review_required',
-    match_query => $rule$ ... $rule$,
+    definition => 'rule_def.high_value_risky_order_v2'::regclass,
     key_columns => ARRAY['order_id'],
     deployment_policy => 'PRESERVE_ACTIVE_KEYS'
 );
@@ -354,249 +445,251 @@ SELECT pgreason.rollback_rule(
     'manual_review_required',
     target_version => 3
 );
-
-SELECT pgreason.drop_rule(
-    name => 'manual_review_required',
-    pending_policy => 'CANCEL',
-    retain_history => true
-);
 ```
 
-Workers use supported functions rather than modifying agenda rows directly. Claiming returns a lease token, and every heartbeat, completion, or failure call must present that token so that a stale worker cannot complete work after another worker has reclaimed it.
+Workers use supported functions rather than modifying agenda rows directly. `claim` may reserve a bounded set efficiently, but the default worker executes each returned episode through `pgreason.execute_claimed_episode` in a separate transaction. Every heartbeat, completion, failure, or skip operation must present the current lease token.
 
 ```sql
 SELECT *
 FROM pgreason.claim(
     worker_id => 'worker-01',
-    max_items => 50,
+    max_items => 20,
     lease_for => interval '30 seconds',
     agenda_groups => ARRAY['risk']
 );
-
-SELECT pgreason.heartbeat(
-    episode_id => 1234,
-    worker_id => 'worker-01',
-    lease_token => '00000000-0000-0000-0000-000000000000'::uuid,
-    extend_by => interval '30 seconds'
-);
-
-SELECT pgreason.complete(
-    episode_id => 1234,
-    worker_id => 'worker-01',
-    lease_token => '00000000-0000-0000-0000-000000000000'::uuid,
-    result => '{"created":true}'::jsonb
-);
 ```
 
-The main diagnostic functions are `pgreason.rule_status()`, `pgreason.agenda_status()`, `pgreason.execution_history()`, `pgreason.explain_rule()`, `pgreason.reconcile_rule()`, and `pgreason.health_check()`. Each returns stable structured information rather than requiring users to inspect private catalogs.
+The main diagnostic functions are `pgreason.rule_status()`, `pgreason.agenda_status()`, `pgreason.execution_history()`, `pgreason.explain_rule()`, `pgreason.reconcile_rule()`, `pgreason.source_drift()`, and `pgreason.health_check()`.
+
+### 8.7 No custom top-level grammar
+
+The canonical representation remains valid PostgreSQL SQL: `CREATE VIEW`, `CREATE FUNCTION`, and `SELECT pgreason.create_rule(...)`. PostgreSQL already uses the term `CREATE RULE` for query-rewrite rules, which are unrelated to this system, and a portable extension cannot add arbitrary new raw grammar without a core patch or external preprocessor. A client-side DSL may later compile into these native objects, but it is never the durable source of truth.
 
 ---
 
 ## 9. Rule definition and query contract
 
-A rule definition records the stable rule name, kind, match query, key columns, optional handler, priority policy, agenda group, conflict-key definition, `pg_trickle` schedule and refresh mode, bootstrap behavior, and a versioned JSON options object. The match query must be exactly one `SELECT` statement with uniquely named output columns. It must return every declared key column, may not use reserved output names beginning with `__pgr_`, and must produce no more than one row for each activation key. Every key component must be non-null. Duplicate or null keys are treated as hard definition or runtime errors because ambiguous identity would make refraction and audit history unreliable.
+The preferred source definition is a regular PostgreSQL view referenced by `regclass`. Registration verifies that the relation is a view, that its output columns have unique names, that it contains every declared activation-key and policy column, and that those key values are non-null and unique for the current contents. The selected columns are the typed bindings exposed to consequences. Authors do not need to project every base-table identity unless those values are part of the semantic activation or are otherwise useful to the action.
 
-The compiler validates statement shape with PostgreSQL’s parser, resolves output names and type OIDs through SPI, verifies that the evaluation role can read all referenced objects, checks function volatility, and asks `pg_trickle` whether the query is maintainable in the requested mode. `IMMUTABLE` functions are accepted, `STABLE` functions are accepted with explicit temporal warnings where appropriate, and `VOLATILE` functions are rejected by default. A query using `now()` or another time-dependent expression must opt into a temporal maintenance policy, because the result can change even when no source row changes.
+At compilation, `pg-reason` records both human-readable and resolved forms of the definition. Durable metadata includes the qualified view name, `pg_get_viewdef` output, a normalized definition hash, the composite row type and ordered column signature, dependency identities, and the source role. Compiled metadata may additionally contain relation, function, operator, type, and collation OIDs obtained from PostgreSQL’s analyzed structures. The generated `pg_trickle` query is based on the snapshotted definition, so an in-place `CREATE OR REPLACE VIEW` does not mutate the behavior of a deployed version. A DDL hook or periodic verifier detects source drift and marks the authoring object as changed; deployment continues from the immutable snapshot until an operator creates a replacement version, unless row-type drift makes typed execution unsafe, in which case claims are blocked with an actionable error.
 
-Good activation keys identify the semantic subject of the rule and remain stable when payload fields change. An order rule should normally use `order_id`, while a policy rule might use `(customer_id, policy_id)`. Including mutable fields such as amount, status, or current timestamp in the key means that changing those values deactivates one activation and creates another. That behavior can be correct for staged reminders or threshold bands, but it must be an intentional part of the rule’s semantics.
+The query has PostgreSQL semantics, including null handling, collation, casts, operator resolution, and function behavior. `pg-reason` does not reinterpret those semantics through a custom rule language. `IMMUTABLE` functions are accepted. `VOLATILE` functions are rejected for maintained conditions. `STABLE` functions are accepted only when the selected `pg_trickle` mode and an explicit temporal policy make changes observable. A sliding predicate such as `expires_at < now()` should use `pg_trickle` temporal maintenance when supported; an explicit clock relation remains a valid deterministic alternative when users want time to be represented as ordinary data.
 
-The compiler wraps the user query and adds reserved generated columns. These include the rule-version ID, deterministic activation ID, canonical activation key, conflict key, effective salience, payload hash, and JSONB bindings. The original typed output columns remain present in the generated match relation so PostgreSQL can index and inspect them efficiently. JSONB is used at the runtime boundary, not as a substitute for typed relational processing.
+SQL support is defined by rule kind and by the capabilities of the compatible `pg_trickle` release rather than by an artificial RETE subset. Constraint rules may use any deterministic query that `pg_trickle` can maintain correctly in the requested mode. Command rules add stricter requirements: the activation key must be non-null and unique, transition volume must be bounded operationally, and lifecycle semantics must be well defined. Filters, joins, `EXISTS`, `NOT EXISTS`, algebraic aggregates, and supported temporal predicates are expected first-class use cases. Windows, Top-K queries, outer joins, set-returning functions, and recursion may be gated behind explicit capability flags until their transition behavior and performance have dedicated tests. Derivation rules initially allow monotone definitions and later add stratified non-monotone dependencies.
 
-A conceptual wrapper looks like this:
+The compiler asks `pg_trickle` to validate the requested refresh mode and remains conservative when a full fallback would make lifecycle transitions expensive or ambiguous. A query accepted for a constraint rule is not automatically accepted for a high-volume command rule. `pgreason.explain_rule` reports the SQL features found, the chosen `pg_trickle` strategy, temporal requirements, key uniqueness checks, expected update shape, and any command-specific warnings.
 
-```sql
-SELECT
-    '<rule-version-uuid>'::uuid AS __pgr_rule_version_id,
+The following conceptual mapping is useful for understanding the system, although these are compiler and execution details rather than user-visible language constructs:
 
-    pgreason.activation_id(
-        '<rule-version-uuid>'::uuid,
-        jsonb_build_array(q.order_id)
-    ) AS __pgr_activation_id,
+| SQL concept | Rule-runtime meaning |
+|---|---|
+| Base relation or source view | Facts available to the condition |
+| `WHERE` predicate | Filter on possible matches |
+| `JOIN` predicate | Combination of facts |
+| `EXISTS` / `NOT EXISTS` | Presence or absence condition |
+| `GROUP BY` and aggregate | Maintained summary condition |
+| Condition-view result row | Current semantic match |
+| Row enters result | Activation event |
+| Row changes under the same key | Change event |
+| Row leaves result | Deactivation event |
+| Typed function or outbox template | Consequence |
+| Salience and conflict policy | Agenda ordering and serialization |
 
-    jsonb_build_array(q.order_id) AS __pgr_activation_key,
-
-    pgreason.conflict_key(
-        jsonb_build_array(q.customer_id)
-    ) AS __pgr_conflict_key,
-
-    100::integer AS __pgr_salience,
-    pgreason.payload_hash(to_jsonb(q)) AS __pgr_payload_hash,
-    to_jsonb(q) AS __pgr_bindings,
-    q.*
-FROM (
-    -- user match query
-) AS q;
-```
-
-The production implementation must not depend on the textual rendering of JSONB for identity. Rust code will encode each value with its type OID, null marker, byte length, and stable binary representation before hashing. This prevents changes in formatting, collation, or ambiguous concatenation from altering the activation ID.
+The raw-query convenience API creates a private view and follows the same rules. No durable compiled state consists solely of serialized PostgreSQL parse trees, because internal node layouts and OIDs are not portable across PostgreSQL major versions or dump and restore. After such a transition, `pg-reason` resolves the stored SQL and qualified identities again, verifies fingerprints, and rebuilds its compiled metadata and generated runtime artifacts.
 
 ---
 
 ## 10. Activation identity
 
-The activation ID must be deterministic, collision-resistant, independent of physical relation OIDs, and stable across restart, replication, index rebuild, refresh-mode changes, and `pg_trickle` implementation changes. The proposed construction uses the rule-version UUID as a namespace and the typed canonical encoding of the activation key as the name. A SHA-256 digest is computed over the namespace and encoded key, the first 128 bits are stored as a UUID with an RFC-compatible variant and a private version nibble, and the complete digest may be retained for diagnostics. The generated match row also stores the human-readable activation key as JSONB, so an extremely unlikely UUID collision can be detected by comparing the canonical key and raising a hard invariant error.
+The default `SEMANTIC_KEY` identity mode uses the key columns declared by the rule author. Those values define the subject whose continuous truth interval should create one activation generation. An order rule normally uses `order_id`; an account-policy rule may use `(tenant_id, account_id, policy_id)`; and an aggregate rule may use its group-by key. Mutable fields such as amount, current status, or time should appear in the key only when changing them is intentionally meant to end one activation and begin another.
 
-A new rule version normally creates new activation IDs because the rule-version UUID is part of the namespace. This is desirable for audit clarity: an episode produced by version 4 should never be confused with one produced by version 3. When a deployment policy needs to preserve continuous activations across compatible versions, the deployment algorithm maps old and new rows using the declared canonical key schema and creates explicit continuity records. It never assumes that the version-specific UUID remains unchanged.
+Projected values alone are not automatically a safe identity. A view that selects only `country` from a customer-order join may return several identical `NO` rows that correspond to different orders. Under semantic identity, the author must decide whether those should be one country-level activation, one customer activation, or one order activation, and must expose and declare the corresponding key. If the desired semantics are one row per country, the query should aggregate or deduplicate accordingly. If duplicate rows exist for one declared key, compilation or runtime validation fails instead of silently choosing one.
+
+The activation ID is deterministic, collision-resistant, independent of physical relation OIDs, and stable across restart, replication, index rebuild, refresh-mode changes, and `pg_trickle` implementation changes. The rule-version UUID acts as a namespace, and Rust encodes each key value using its resolved PostgreSQL type OID, null marker, byte length, and stable binary representation before hashing. A SHA-256 digest is computed over the namespace and canonical key; the first 128 bits are stored as a UUID with an RFC-compatible variant and a private version nibble, while the complete digest or canonical key may be retained for collision diagnostics.
+
+A future `FACT_TUPLE` identity mode may be useful for rules whose semantics truly require one activation for each exact combination of participating source facts. That compiler mode would derive identity from each source alias and its primary key or explicitly registered non-null unique key. Alias position must be included for self-joins, and a primary-key update is treated as removal of the old fact followed by insertion of the new fact. `ctid` is never a persistent identity because it names a physical row version and can change after ordinary maintenance. `FACT_TUPLE` is not required for semantic command rules and is not part of the first release.
+
+A new rule version normally creates new activation IDs because the version UUID is part of the namespace. Deployment policies that preserve continuous activations across compatible versions map rows using the declared canonical semantic key and record explicit continuity. They do not pretend that two version-specific IDs are the same historical object.
 
 ---
 
 ## 11. Activation transitions and semantic coalescing
 
-The runtime recognizes four semantic outcomes. An inactive activation that is present at the end of the refresh has a rising edge. An active activation that remains present has either no meaningful change or a payload update. An active activation that is absent has a falling edge. An inactive activation that remains absent has no transition. Command behavior is based on these semantic states, not on the physical SQL statements used to maintain the generated table.
+The runtime recognizes three meaningful lifecycle events and one no-op outcome. An inactive activation that is present at the end of maintenance produces `ACTIVATE`. An active activation that remains present produces either `CHANGE` when its meaningful payload hash differs or `NOOP` when it does not. An active activation that is absent produces `DEACTIVATE`. An inactive activation that remains absent produces no event. The activation generation increments on `ACTIVATE`; the revision begins at zero and increments on each `CHANGE` within that generation; `DEACTIVATE` closes the generation.
 
-This distinction matters because one logical update may be implemented as an SQL `UPDATE`, as a `DELETE` followed by an `INSERT`, or as several physical operations that collapse to the same final row. Firing a new command merely because an internal delete and insert occurred would leak storage strategy into rule semantics. `pg-reason` therefore compares the durable activation state before the refresh with final membership in the match relation after all maintenance for that transaction has completed.
+These outcomes are semantic rather than physical. One logical update may be maintained as an SQL `UPDATE`, a `DELETE` followed by an `INSERT`, or several operations that collapse to the same final row. Scheduling a deactivation and a fresh activation merely because an internal maintenance plan emitted delete-plus-insert would leak storage strategy into rule semantics. `pg-reason` therefore compares durable activation state before the refresh with final membership and payload after all maintenance for the transaction has completed.
 
-The compatibility implementation uses transaction-deferred coalescing. A generic row trigger attached to each generated match table writes one buffer row for `(rule_version_id, activation_id, current_xid)`. It records whether inserts, updates, or deletes were observed and retains the newest bindings and payload hash. A `DEFERRABLE INITIALLY DEFERRED` constraint trigger on the buffer finalizes the activation near transaction end. The first finalizer invocation locks the buffer row, loads prior activation state, queries the generated match relation by activation ID, determines the final state, applies exactly one semantic transition, and marks the buffer entry processed. Any additional deferred invocations for the same activation become no-ops.
-
-This means that the physical sequence below is interpreted as one active-to-active update rather than as a falling edge followed by a new rising edge:
-
-```text
-DELETE activation 42
-INSERT activation 42 with new payload
-```
-
-The finalizer follows this logic:
+The compatibility implementation uses transaction-deferred coalescing. A generic trigger on each generated match table writes one buffer row for `(rule_version_id, activation_id, current_xid)`, recording which physical operations were observed and retaining the newest visible values. A deferred finalizer locks the buffer entry, loads prior activation state, looks up final match membership, and applies exactly one semantic outcome. The preferred production integration receives a consolidated delta or synchronous refresh callback from `pg_trickle`, but it applies the same state machine.
 
 ```text
 finalize(rule_version_id, activation_id, xid):
-    lock the matching delta-buffer row
-
-    if the row is already processed:
-        return
-
-    previous = durable activation state
-    current  = row in the generated match relation, if present
+    lock the coalesced transition record
+    previous = durable activation state and last typed snapshot
+    current  = final row in the generated match relation, if present
 
     if previous is inactive and current exists:
-        apply RISE
-    else if previous is active and current exists:
-        apply UPDATE or NOOP
-    else if previous is active and current is absent:
-        apply FALL
-    else:
-        apply NOOP
+        generation += 1
+        revision = 0
+        emit ACTIVATE(new = current)
 
-    mark the buffer row processed
+    else if previous is active and current exists:
+        if meaningful payload changed:
+            revision += 1
+            emit CHANGE(old = previous, new = current)
+        else:
+            emit NOOP
+
+    else if previous is active and current is absent:
+        emit DEACTIVATE(old = previous)
+        mark generation inactive
+
+    else:
+        emit NOOP
 ```
 
-Activation-state writes and agenda writes occur in the same PostgreSQL transaction as the `pg_trickle` refresh. If the refresh rolls back, the generated match changes, activation transition, and agenda change all roll back together. The deferred-trigger path is a compatibility mechanism rather than the ideal long-term boundary; a synchronous `pg_trickle` refresh observer described later provides a cleaner production contract and avoids assumptions about constraint timing.
+For typed database consequences, the runtime creates a durable typed event payload before the current row can disappear or be overwritten. Each rule version owns a generated payload relation whose composite columns use the source view row type. An activation event stores `new_match`; a deactivation event stores `old_match`; and a change event stores both. Generic JSONB bindings and payload hashes are recorded alongside the typed values for stable cross-rule APIs, outbox delivery, diagnostics, and replay tooling. Pending activation episodes may follow a configured latest-value policy, but the typed payload freezes when execution begins.
+
+Activation-state writes, typed payload writes, and agenda writes occur in the same PostgreSQL transaction as the `pg_trickle` refresh. If the refresh rolls back, all of them roll back together. Full refreshes, restores, and other paths that cannot expose row-level semantic deltas use reconciliation, which applies this same state machine from set differences and an explicit event-emission policy.
 
 ---
+
 ## 12. Refraction, priority, conflict resolution, and the agenda
 
-### 12.1 Default refraction behavior
+### 12.1 Lifecycle refraction
 
-The default firing policy is `ON_REACTIVATION`. One command episode is created for each continuous interval in which an activation is true. A false-to-true transition creates an episode, changes to non-key payload fields while the activation remains true update the current state without creating another episode, a true-to-false transition closes the active interval, and a later false-to-true transition creates a new episode. This policy provides the most useful form of “no repeated firing” without requiring every source write to carry causal metadata.
+The default activation policy is `ON_REACTIVATION`. One `ACTIVATE` episode is created for each continuous generation in which a semantic activation is true. Payload changes under the same key do not create another activation episode. If an `on_change` consequence is registered, each meaningful revision may create one `CHANGE` episode. When the generation ends, an optional `on_deactivate` consequence creates one `DEACTIVATE` episode. The uniqueness key therefore includes `(rule_version_id, activation_id, generation, event_kind, revision)`, with revision zero for activation and deactivation events.
 
-Other policies can be added for explicit use cases. `ON_PAYLOAD_CHANGE` creates a new episode when the payload hash changes, which is useful for staged notifications but dangerous when volatile fields are included. `ON_EACH_REFRESH` creates at most one episode per successful refresh while a match remains true and should be discouraged because it couples action volume to scheduling. `MANUAL_RESET` fires once until an operator resets the activation, while `NEVER` gives constraint-only behavior. Each policy must define an enforceable uniqueness rule for open episodes and must be visible in execution history.
+Other explicit policies may be useful. `ON_PAYLOAD_CHANGE` may route changes through the activation consequence rather than a separate change consequence. `MANUAL_RESET` may suppress later activation generations until an operator resets state. `NEVER` gives constraint-only behavior. Every policy must have an enforceable database uniqueness rule and must be visible in the immutable version and execution history.
 
-Classical Drools-style `no-loop`, where a rule is prevented from reactivating solely because of facts written by its own consequence, is not claimed in the first release. Generic PostgreSQL DML does not carry durable causation metadata through CDC and later refresh transactions. `pg-reason` instead provides rising-edge refraction, idempotent handlers, optional origin metadata for writes made through managed APIs, loop diagnostics, bounded retries, and operational limits. A stricter causal suppression model can later be added for applications that write facts through a `pg-reason` fact API.
+Classical causal `no-loop`, where a rule is suppressed solely because its own consequence wrote the facts that matched it, is not claimed in the first release. Ordinary PostgreSQL DML and later CDC do not carry universal durable causation metadata. `pg-reason` instead provides generation-based refraction, deterministic idempotency, optional origin metadata for managed writes, loop diagnostics, episode-rate limits, and future causal suppression for applications that opt into a managed fact API.
 
 ### 12.2 Salience and deterministic claim order
 
-Salience expresses priority but does not by itself define the entire conflict-resolution strategy. A rule can declare static salience, or it can name an output column that supplies dynamic salience for each activation. Dynamic salience is materialized in the match relation and copied into pending episodes. If it changes before an episode is claimed, the pending episode is reordered; once the episode is running, its priority is not retroactively changed.
-
-The default claim order is deterministic: agenda-group priority descending, salience descending, activation time ascending, and episode ID ascending. The final episode-ID tie-breaker ensures that equal-priority work is returned in a stable order. This ordering is local to claimable work and does not imply a global serial history across all rules, databases, or worker groups. Applications that require one serial order can route work through one agenda group and one shared conflict key, accepting the resulting throughput limit.
+Salience is an integer evaluated when an episode is created or updated. A rule can use one static value or a validated integer column from the condition view. Eligible episodes are ordered by descending salience, then event time, then episode ID. This produces deterministic order among rows visible to one claim transaction. It is not a promise of one global execution order across independent worker transactions, because locks, conflict keys, retries, agenda-group routing, and concurrent commits affect what is eligible at any moment.
 
 ### 12.3 Agenda groups and conflict keys
 
-Agenda groups provide coarse routing and operational isolation. Groups such as `risk`, `billing`, `notifications`, `llm`, and `maintenance` allow independent worker pools, connection limits, and service-level objectives. A worker declares the groups it is allowed to claim, and the database authorizes that routing rather than trusting the client to filter arbitrary rows.
+Agenda groups provide coarse routing and operational isolation. Groups such as `risk`, `billing`, `notifications`, `llm`, and `maintenance` allow independent worker pools, connection budgets, and service-level objectives. A worker declares the groups it may claim, and PostgreSQL authorizes that routing.
 
-A conflict key identifies work that must not execute concurrently. Examples include `customer:42`, `account:7`, or `tenant:4:invoice:991`. The simplest policy, `SERIALIZE`, allows at most one running episode for the same key. `FIRST_SUCCESS_WINS` serializes candidates and cancels remaining pending episodes after one succeeds. `LATEST_WINS` keeps the newest pending request, while `HIGHEST_SALIENCE_WINS` retains the most important candidate. These policies are useful when different rules propose incompatible or redundant actions for the same entity.
+Conflict keys provide finer serialization. `SERIALIZE` allows at most one running episode for a key. `DROP_LOWER` keeps the highest-priority pending episode and supersedes lower-priority work. `KEEP_ALL` retains all episodes but still allows workers to serialize execution. `NONE` adds no conflict behavior. A common policy serializes by tenant and account while permitting unrelated accounts to run concurrently.
 
-Claiming with conflicts happens inside one PostgreSQL transaction. The Rust implementation selects candidates with `FOR UPDATE SKIP LOCKED`, attempts to acquire durable conflict leases, skips candidates whose key is already held, marks accepted episodes as running, and returns the accepted rows together with unique lease tokens. A simpler SQL-only path can be used when no conflict policy is configured.
+### 12.4 Episode lifecycle and event payloads
 
-### 12.4 Episode lifecycle
-
-An agenda episode begins in `PENDING`, may become `RUNNING` when claimed, and then ends as `SUCCEEDED`, `FAILED`, `WITHDRAWN`, or `CANCELLED`. A retryable failure moves it to `RETRY_WAIT` until its next `available_at` time. A running episode whose lease expires is considered stale and can be reclaimed. Staleness may be represented as a derived status rather than as a separate persisted state, which keeps the state machine smaller while still exposing stale work through public views.
+A newly scheduled episode begins `PENDING`, becomes `RUNNING` when leased, moves to `RETRY_WAIT` after a retryable failure, and ends as `SUCCEEDED`, `FAILED`, `WITHDRAWN`, `SKIPPED`, `CANCELLED`, or `SUPERSEDED`. Each episode identifies its lifecycle event and typed payload row. The event kind determines which registered consequence is called and which eligibility check applies.
 
 ```mermaid
 stateDiagram-v2
     [*] --> PENDING
     PENDING --> RUNNING: claim
-    PENDING --> WITHDRAWN: match disappears
-    PENDING --> CANCELLED: operator or conflict policy
-    RUNNING --> SUCCEEDED: complete
+    PENDING --> WITHDRAWN: condition invalidated
+    PENDING --> CANCELLED: operator or deployment
+    PENDING --> SUPERSEDED: conflict policy
+    RUNNING --> SUCCEEDED: consequence commits
     RUNNING --> RETRY_WAIT: retryable failure
     RUNNING --> FAILED: terminal failure
-    RETRY_WAIT --> PENDING: retry due
-    RUNNING --> PENDING: lease expires and item is reclaimed
-    SUCCEEDED --> [*]
-    FAILED --> [*]
-    WITHDRAWN --> [*]
-    CANCELLED --> [*]
+    RUNNING --> SKIPPED: pre-execution recheck fails
+    RETRY_WAIT --> PENDING: retry becomes due
+    RETRY_WAIT --> WITHDRAWN: no longer eligible
 ```
 
-Under default refraction, at most one open episode may exist for a `(rule_version_id, activation_id)` pair. A partial unique index enforces this invariant for `PENDING`, `RUNNING`, and `RETRY_WAIT` states. Completed or terminal episodes remain in history and do not block a new episode after a later reactivation.
+When an activation deactivates, a pending activation episode is normally withdrawn if its policy requires the condition still to be true. A separate deactivation episode may be created in the same transition. If the activation reappears before that deactivation episode executes, its configured recheck policy decides whether the historical deactivation event still matters or whether it is now superseded by the new active generation.
 
-### 12.5 Payload updates and withdrawals
+### 12.5 Payload-update policy
 
-When an activation remains true but its payload changes, `activation_state` always records the latest bindings and payload hash. The treatment of an existing episode is policy-controlled. The recommended default updates a pending or retry-wait episode to the newest bindings but freezes the snapshot once execution begins. This gives workers a current view before claim while ensuring that an execution attempt has a stable input. An alternative immutable-snapshot policy can preserve the exact bindings from the rising edge, and `ON_PAYLOAD_CHANGE` can deliberately create additional episodes.
+`activation_state` always records the latest bindings and payload hash. Under `LATEST_UNTIL_CLAIM`, a pending activation episode’s typed and JSON payload is updated when the activation changes, but it freezes once claimed. `RISING_EDGE_SNAPSHOT` preserves the original activation row. Change episodes always preserve their explicit old and new revision values. Deactivation episodes preserve the last row from the generation that ended.
 
-When a match disappears, a pending episode is normally marked `WITHDRAWN`. A running episode cannot always be stopped safely, so the withdrawal policy must be explicit. `RECHECK_BEFORE_EXECUTE` is recommended for actions that should occur only while the condition remains true; the database execution function verifies current activation state immediately before invoking the handler. Other policies may allow a running action to finish, request compensation after success, or ignore withdrawal entirely. The runtime records both the withdrawal time and the policy decision so operators can explain why an action did or did not proceed.
+### 12.6 One-at-a-time execution and pre-execution rechecks
 
-### 12.6 Leases, heartbeats, and retries
+`claim(max_items => N)` may reserve several episodes to amortize queue access, but the standard worker executes each episode in a separate transaction. Before invocation, `pgreason.execute_claimed_episode` revalidates the lease and applies the consequence’s recheck policy. For an activation event, the default requires the same generation to remain active. For a deactivation event, the default desired-state policy skips the episode if a newer generation is active. For a change event, the default requires that the revision has not been superseded unless the consequence is explicitly historical.
 
-Every claim stores the worker ID, a random lease token, claim time, lease expiry, and incremented attempt count. Heartbeat, completion, and failure operations require both the worker identity and the lease token. This prevents a worker that paused or lost connectivity from completing an episode after another worker reclaimed it. Worker IDs are useful for observability, but the unguessable lease token is the authority.
+Batch execution is an advanced opt-in. A consequence may be declared `batch_safe` only when operations are commutative, use compatible execution roles and policies, and cannot invalidate or alter another activation in the batch. Merely accepting an array argument does not make a consequence batch safe.
 
-Retry timing uses the handler’s configured initial delay, exponential multiplier, maximum delay, optional jitter, and current attempt count. The resulting next-attempt timestamp is stored in `available_at`, making PostgreSQL the source of truth. When the attempt limit is reached, the episode becomes terminally failed and emits an operational event. Operators can later retry or cancel it through audited public functions.
+### 12.7 Leases, heartbeats, and retries
+
+Every claim stores the worker ID, a random lease token, claim time, lease expiry, and incremented attempt number. Heartbeat, completion, failure, and skip operations require both the worker identity and the lease token. This prevents a paused or partitioned worker from completing an episode after another worker has reclaimed it.
+
+Retry timing uses the consequence’s configured initial delay, multiplier, maximum delay, optional jitter, and attempt count. The next eligible time is stored in PostgreSQL. When the attempt limit is reached, the episode becomes terminally failed and emits an operational event. Operators may retry or cancel it through audited public functions.
 
 ---
 
-## 13. Action execution and the feedback loop
+## 13. Consequence execution and the feedback loop
 
-### 13.1 Handler kinds
+### 13.1 Consequence kinds
 
-The initial runtime supports four handler kinds. A `DATABASE` handler calls a registered PostgreSQL function. An `OUTBOX` handler writes a durable message that another process delivers. A `MANUAL` handler leaves the episode for an application or operator that follows the claim protocol. A `NOOP` handler records successful scheduling without performing work and is useful for dry runs, testing, and staged deployments. The handler kind is part of the immutable rule version because it changes failure and transactional semantics.
+The initial runtime supports four consequence kinds. `DATABASE_TYPED` invokes a registered PostgreSQL function whose arguments are validated against the condition view’s row type. `OUTBOX` writes a durable message for external delivery. `MANUAL` leaves the episode for an application or operator that follows the claim protocol. `NOOP` records successful scheduling without performing work and is useful for dry runs and staged deployments. The consequence kind and signature are part of the immutable rule version.
 
-### 13.2 Database handlers
+A generic `DATABASE_JSON` adapter may be retained for generated integrations and backwards compatibility, but it is not the preferred authoring form. Typed consequences make schema mistakes visible during DDL and rule registration instead of failing later while unpacking arbitrary JSON.
 
-A database handler has the following signature:
+### 13.2 Typed database consequences
 
-```sql
-handler(
-    activation_id uuid,
-    bindings      jsonb,
-    context       jsonb
-) RETURNS jsonb
+The accepted signatures are:
+
+```text
+on_activate(context pgreason.activation_context,
+            match   <condition-view-row-type>) RETURNS void
+
+on_deactivate(context    pgreason.activation_context,
+              last_match <condition-view-row-type>) RETURNS void
+
+on_change(context  pgreason.activation_context,
+          old_match <condition-view-row-type>,
+          new_match <condition-view-row-type>) RETURNS void
 ```
 
-The context object contains the rule ID, rule-version ID, episode ID, attempt number, activation time, worker ID, and deterministic idempotency key. The worker does not call the user handler directly and then update the agenda in separate client statements. Instead, it invokes a server-side function such as `pgreason.execute_claimed_episode`, which revalidates the lease, applies `SET LOCAL ROLE`, optionally rechecks the activation, calls the registered handler, records the attempt, and completes the episode in one PostgreSQL transaction. If the transaction aborts, both the handler’s database writes and the completion record roll back.
+A simpler one-argument form without context may be supported for local rules, but the two- or three-argument context form is recommended because it exposes the episode, generation, revision, attempt, and idempotency key. `pg-reason` invokes these functions through a server-side function rather than through several client statements. `pgreason.execute_claimed_episode` revalidates the lease, source and signature fingerprints, event eligibility, and conflict lease; applies `SET LOCAL ROLE`; loads the typed payload; invokes the consequence; records the execution attempt; and completes or skips the episode in one PostgreSQL transaction.
 
-This gives exactly-once commit semantics relative to PostgreSQL state, but it does not make arbitrary code exactly once. A transaction may be retried after an ambiguous client disconnect, and a handler may be invoked again after a prior attempt aborted. Database handlers must therefore avoid non-transactional side effects and should normally use the activation ID or episode idempotency key in unique constraints.
+This gives exactly-once commit semantics relative to PostgreSQL state, not global exactly-once invocation. A transaction may be retried after an ambiguous client disconnect, and a consequence may be entered again after a prior transaction aborted. Database consequences must avoid irreversible non-transactional effects and should use the context idempotency key or activation ID in unique constraints when duplicate invocation would otherwise matter.
 
-### 13.3 Outbox handlers
+### 13.3 Typed event payload storage
 
-An outbox handler constructs a message containing the episode ID, idempotency key, topic, partition key, payload, and headers. The outbox row and successful episode completion commit atomically. A relay or application consumer later delivers the message at least once and records delivery progress. The consumer must deduplicate using the idempotency key, because a network timeout can make it impossible to know whether the external system accepted a previous delivery.
+The current match row may no longer exist when a deactivation consequence executes, and a change episode needs both the previous and current values. Each command-rule version therefore owns a small generated payload relation with composite columns of the condition view’s row type. A conceptual shape is:
 
-`pg_tide` may be supported as an optional companion when installed, but `pg-reason` must not require it. The core extension therefore includes a small generic outbox contract or an adapter interface. External HTTP calls, email, local file writes, LLM requests, and other irreversible effects are prohibited inside registered database handlers and belong behind this outbox boundary.
+```sql
+CREATE TABLE pgreason_runtime.<version_payload_table> (
+    episode_id bigint PRIMARY KEY,
+    event_kind text NOT NULL,
+    old_match  rule_def.high_value_risky_order,
+    new_match  rule_def.high_value_risky_order,
+    created_at timestamptz NOT NULL
+);
+```
 
-### 13.4 Feedback-loop semantics
+The exact table uses the immutable version’s recorded row type and may be implemented with generated composite columns or an equivalent typed layout. The agenda stores a reference to this row plus JSONB bindings for generic consumers. Payload retention follows episode retention, and PostgreSQL dependencies protect incompatible source-type changes unless an administrator uses `CASCADE`, in which case health checks block further execution.
 
-A successful action may write new PostgreSQL facts, which can cause other rules—or the same rule—to match during a later `pg_trickle` refresh. The default loop is therefore explicit and epochal:
+### 13.4 Outbox consequences
+
+An outbox consequence constructs a message containing the rule, event kind, activation ID, generation, revision, episode ID, idempotency key, payload, topic, partition key, and headers. The outbox row and successful episode completion commit atomically. A relay later delivers the message at least once. Consumers deduplicate using the idempotency key because a network timeout may make it impossible to know whether a prior delivery succeeded.
+
+`pg_tide` may be supported as an optional companion, but `pg-reason` must not require it. External HTTP calls, email, local file writes, LLM requests, and other irreversible effects are prohibited inside database consequences and belong behind this outbox boundary.
+
+### 13.5 Feedback-loop semantics
+
+A successful consequence may write new PostgreSQL facts, which can cause other rules—or the same rule—to match during a later `pg_trickle` refresh. The default loop is explicit and epochal:
 
 ```text
 source transaction commits
-    → pg_trickle refreshes match relations
-    → pg-reason records activation transitions and agenda episodes
-    → worker executes one or more episodes in later transactions
-    → handler writes new facts
+    → pg_trickle refreshes maintained match relations
+    → pg-reason records lifecycle events and agenda episodes
+    → worker executes one eligible episode in its own transaction
+    → the consequence writes new facts or an outbox row
     → a later pg_trickle refresh observes those facts
 ```
 
-This design avoids hidden recursive execution on a backend call stack and gives every step a visible transaction boundary. The system is operationally quiescent when relevant source changes have been consumed, match tables are current, no pending or retryable command episodes remain, and no running handler is producing new facts. A future `SINGLE_STEP` mode could execute one episode, synchronously refresh affected rules, and repeat, but it would trade throughput and parallelism for stronger classical production-system ordering and is not part of the first release.
+This model avoids hidden recursive execution on one backend call stack and gives every step a visible transaction boundary. A pending episode is rechecked immediately before execution, so a previous consequence can invalidate it. A future strict `SINGLE_STEP` mode could execute one episode, synchronously refresh affected rules, and repeat until quiescence, but it would have much stronger locking and isolation requirements and is not part of the first release.
 
 ---
 
 ## 14. Compiling rules into `pg_trickle`
 
-Each immutable rule version normally owns one generated match stream table, one unique activation-ID index, optional secondary indexes for conflict keys and inspection, one transition-capture binding, and catalog metadata that links the logical rule version to its generated relation. A generated name might look like `pgreason_runtime.r_7c12d4_v_0003_matches`, but applications must discover it through `pgreason.match_relation` rather than depending on the naming convention.
+Each immutable rule version normally owns one generated match stream table, one unique activation-ID index, optional indexes for conflict keys and diagnostics, one transition-capture binding, and, for typed command consequences, one generated typed event-payload relation. Applications discover generated relations through public functions and never rely on physical naming conventions.
 
-Compilation begins with a `RuleSpec`. The compiler parses and validates the SQL shape, resolves output columns and types, checks key and policy columns, verifies volatility and permissions, creates the wrapped query with generated metadata columns, and asks the `pg_trickle` adapter to validate the requested refresh mode. It then creates the stream table, builds indexes, attaches activation capture, performs initialization and reconciliation, and finally marks the version ready or active. Failure leaves a structured error in the version catalog and either rolls back all transactional DDL or records artifacts that the repair subsystem can remove safely.
+Compilation begins by resolving the registered view and capturing an immutable `DefinitionSnapshot`. The compiler verifies that the object is a view, obtains its exact SQL, ordered output columns, composite row type, dependencies, owner, and definition fingerprint, and resolves key, salience, and conflict columns. It validates each consequence `regprocedure` against the expected event signature and records both its OID and qualified identity. It then constructs the wrapped match query with generated activation metadata, asks the `PgTrickleAdapter` to validate and create the stream table, creates runtime indexes and typed payload storage, attaches transition observation, initializes and reconciles state, and finally marks the version ready or active.
 
-PostgreSQL remains the SQL parser and type authority. Rust code uses PostgreSQL parser entry points for statement-shape checks, SPI prepare and describe operations for resolved column names and OIDs, and system catalogs for volatility and dependency inspection. `pg_trickle` remains the final authority on whether the query can be maintained differentially, immediately, or only through a full fallback. `pg-reason` does not maintain a competing SQL grammar or a private copy of `pg_trickle`’s operator rules.
+PostgreSQL remains the parser and type authority. Rust code may inspect analyzed `Query` structures, catalogs, and OIDs through a small version-specific compatibility layer, while SPI prepare and describe calls provide resolved output information. `pg_trickle` remains the final authority on whether the snapshotted query can be maintained differentially, immediately, temporally, recursively, or only with fallback. `pg-reason` does not maintain a competing grammar or a private copy of `pg_trickle`’s operator rules.
 
-All generated identifiers are quoted with PostgreSQL-safe utilities, and all value parameters use parameterized SPI. The match query itself is executable SQL supplied by an authorized rule author, so it is treated as code rather than as untrusted data. Rule names, column names, handler names, and role names are never interpolated into raw statements without identifier validation and quoting.
+The durable version stores source SQL, qualified identities, row and dependency signatures, and fingerprints. Cached analyzed metadata and generated artifacts are rebuildable. PostgreSQL major-version upgrade, logical dump and restore, or object re-resolution therefore triggers recompilation from durable SQL rather than reuse of serialized parse trees or blind trust in old OIDs.
+
+All generated identifiers use PostgreSQL-safe quoting, and all runtime values use parameterized SPI. The condition definition and consequence functions are executable database code supplied by authorized authors, so creation privileges are treated as code-deployment privileges. Rule names, object names, roles, and options are never interpolated into raw SQL without validation and quoting.
 
 ---
 
@@ -604,48 +697,53 @@ All generated identifiers are quoted with PostgreSQL-safe utilities, and all val
 
 ### 15.1 Dependency boundary
 
-`pg-reason` depends on `pg_trickle` as an installed PostgreSQL extension and communicates through public SQL functions and documented relation behavior. It does not import `pg_trickle` Rust modules, link to private symbols, read private catalogs, or assume the layout of internal Rust structures. This boundary allows the two projects to release independently, keeps packaging straightforward, makes version mismatch detectable, and avoids unstable Rust ABI coupling inside one PostgreSQL process.
+`pg-reason` depends on `pg_trickle` as an installed PostgreSQL extension and communicates through public SQL functions and documented relation behavior. It does not import `pg_trickle` Rust modules, link to private symbols, read private catalogs, or assume private row-ID layouts. This boundary allows independent releases and avoids unstable Rust ABI coupling inside one PostgreSQL process.
 
-The baseline capabilities required from `pg_trickle` are stream-table creation and lifecycle functions, differential and immediate maintenance where supported, ordinary PostgreSQL storage relations for stream-table results, dependency-aware scheduling, health and explain diagnostics, and a reliable way to observe completed refreshes. The compatibility implementation can attach user triggers to differentially maintained stream-table storage and can reconcile after full or reinitializing refreshes, but a stable observer contract is strongly preferred for production.
+The required capabilities are stream-table creation and lifecycle operations, differential and immediate maintenance where supported, ordinary PostgreSQL result relations, dependency-aware scheduling, explain and health diagnostics, temporal maintenance where requested, and a reliable way to observe completed refreshes. The generated match relation—not the source tables—is the semantic handoff from `pg_trickle` to `pg-reason`.
 
-### 15.2 Compatibility implementation
+### 15.2 No duplicate source change capture
 
-With the current public surface, `pg-reason` can create a generated match stream table, attach transition-capture triggers, coalesce differential DML transactionally, seed activation state after initialization, and monitor for full refreshes or reinitialization that require reconciliation. This path proves the architecture and can support an early release, but it depends on details such as user-trigger behavior and deferred finalization timing. Compatibility tests must therefore pin each `pg-reason` minor line to an explicitly supported `pg_trickle` minor line.
+`pg-reason` must not install its own statement triggers on every base fact table or maintain independent alpha and beta memories. Doing so would duplicate `pg_trickle`’s CDC, query maintenance, scheduling, persistence, and recovery, and could produce inconsistent results when the two systems observe different transaction boundaries. The compatibility path may use user triggers on the generated match table because those triggers observe the final maintained relation. The production path should use a general refresh-observer or delta-consumer API supplied by `pg_trickle`.
 
-### 15.3 Required refresh-observer contract
+### 15.3 Compatibility implementation
 
-The recommended production contract is a synchronous observer API owned by `pg_trickle`. `pg-reason` registers one critical callback, and `pg_trickle` invokes it after the stream-table storage has reached its final transaction state but before commit. A conceptual registration looks like this:
+With the current public surface, `pg-reason` can create the generated match stream table, attach transition-capture triggers, coalesce differential DML transactionally, seed activation state after initialization, and reconcile after full refresh or reinitialization. This is sufficient for an integration spike and early release, but it depends on details such as user-trigger behavior and deferred finalization timing. Every `pg-reason` minor line therefore pins an explicitly tested `pg_trickle` minor line until a stable observer contract exists.
+
+### 15.4 Required refresh-observer and delta contract
+
+The recommended production contract is a synchronous critical observer owned by `pg_trickle`. `pg-reason` registers one callback, and `pg_trickle` invokes it after the stream-table storage has reached its final transaction state but before commit. The callback receives the result relation, refresh ID, action, frontier, and change counts. A later extension may expose a consolidated temporary delta relation containing the final old and new rows, allowing `pg-reason` to process lifecycle transitions set-wise without per-row user triggers.
 
 ```sql
 SELECT pgtrickle.register_refresh_observer(
     observer_name => 'pg_reason',
     callback =>
-        'pgreason_internal.on_stream_table_refresh(regclass,bigint,text,jsonb,bigint,bigint)'
-        ::regprocedure,
+        'pgreason_internal.on_stream_table_refresh(
+            regclass,bigint,text,jsonb,bigint,bigint
+         )'::regprocedure,
     critical => true
 );
 ```
 
-The callback receives the stream-table relation, refresh ID, refresh action, frontier, and inserted and deleted row counts. For `DIFFERENTIAL` and `IMMEDIATE` refreshes, row-transition coalescing handles the detailed changes and the callback records correlation metadata. For `FULL`, `REINITIALIZE`, or `RESTORE`, the callback performs or schedules reconciliation while claims remain blocked. If a critical observer fails, the refresh transaction must fail and roll back, preserving atomicity between the maintained match state and rule-runtime state.
+If a critical observer fails, the refresh transaction fails and rolls back, preserving atomicity between the maintained match relation and rule-runtime state. For `FULL`, `REINITIALIZE`, or `RESTORE`, the observer establishes a reconciliation barrier before claims resume. Even when a detailed delta relation is available, the public activation identity remains owned by `pg-reason`.
 
-A later optimization may expose a consolidated temporary delta relation to registered consumers. That would allow `pg-reason` to process one set-based delta instead of per-row user triggers. Even with such an API, full-refresh reconciliation remains necessary, and the public activation identity remains owned by `pg-reason` rather than by `pg_trickle`.
+### 15.5 Version compatibility
 
-### 15.4 Version compatibility
-
-Before the observer and lifecycle APIs are declared stable, compatibility should be exact and conservative, for example `pg_reason 0.1.x` supporting `pg_trickle 0.81.x`. After stable integration contracts exist, the accepted range may widen. Installation, startup, rule compilation, and `pgreason.health_check()` all verify the installed dependency version and required functions. An incompatible version prevents new deployments and marks existing runtime state as requiring operator attention rather than attempting an unsafe best effort.
+Before the integration API is stable, compatibility should be exact and conservative, for example `pg_reason 0.1.x` supporting one `pg_trickle 0.81.x` line. Installation, startup, compilation, health checks, and worker protocol negotiation verify the installed version and required functions. An incompatible dependency prevents new deployment and marks existing rules unclaimable rather than attempting an unsafe best effort.
 
 ---
 
 ## 16. Full refresh, initialization, and reconciliation
 
-Per-row triggers cannot be assumed to observe every semantic transition during a full rebuild, restore, or reinitialization. The authoritative invariant after reconciliation is simple: the rows marked active in `pgreason_internal.activation_state` must exactly equal the rows currently present in the generated match stream table, with matching payload hashes, salience values, conflict keys, and current bindings.
+A full rebuild, restore, or reinitialization may replace the contents of a generated match table without exposing every row-level lifecycle transition. `pg-reason` therefore treats reconciliation as a normal execution path rather than as an emergency-only repair. The authoritative invariant is that active rows in `pgreason_internal.activation_state` exactly equal the semantic rows currently present in the generated match relation for the same rule version, with compatible activation keys, payload hashes, salience values, conflict keys, and typed latest-value snapshots.
 
-For one rule version, reconciliation acquires a rule-version advisory lock, marks the version `RECONCILING`, and prevents new claims. It then identifies current match rows that are missing from active state and applies rising transitions, identifies active-state rows that are missing from the match relation and applies falling transitions, and updates rows whose payload or priority metadata differs. Finally, it records the observed refresh ID and frontier, marks the version ready, and releases the lock. The same transition functions used by normal differential finalization are reused, making reconciliation idempotent and preventing duplicate agenda episodes.
+Reconciliation acquires a rule-version lock, changes the version state to `RECONCILING`, and blocks new claims. It compares current match rows with durable activation state. Present rows that have no active state are planned as activations; active rows that are missing are planned as deactivations; rows present in both places with changed payloads are planned as changes; and identical rows are no-ops. It rebuilds or updates typed latest-value and event-payload state before claims resume. The same pure transition planner used for differential maintenance is reused, making repeated reconciliation idempotent.
+
+Lifecycle event emission during reconciliation is controlled explicitly because a restored current state does not always imply that historical commands should run. `STATE_ONLY` repairs activation state without creating command episodes and is the safest default after PITR or uncertain recovery. `EMIT_MISSING_EVENTS` creates lifecycle episodes only when durable evidence shows that a committed transition was missed. Initial deployment uses a bootstrap policy: `FIRE_CURRENT` treats current matches as activation events, `SEED_CURRENT` records them as already active without firing, and `REQUIRE_EMPTY` rejects deployment if any current match exists. Constraint rules always expose current matches regardless of command bootstrap policy.
 
 Representative set comparisons are:
 
 ```sql
--- Matches that are currently present but not recorded as active.
+-- Current matches not recorded as active.
 SELECT m.*
 FROM pgreason_runtime.generated_match AS m
 LEFT JOIN pgreason_internal.activation_state AS s
@@ -654,7 +752,7 @@ LEFT JOIN pgreason_internal.activation_state AS s
  AND s.active
 WHERE s.activation_id IS NULL;
 
--- Activations recorded as active but no longer present.
+-- Activations recorded as active but absent from the maintained result.
 SELECT s.activation_id
 FROM pgreason_internal.activation_state AS s
 LEFT JOIN pgreason_runtime.generated_match AS m
@@ -663,7 +761,7 @@ WHERE s.rule_version_id = $1
   AND s.active
   AND m.__pgr_activation_id IS NULL;
 
--- Activations present in both places with changed payload.
+-- Continuously active rows whose meaningful payload changed.
 SELECT m.*
 FROM pgreason_runtime.generated_match AS m
 JOIN pgreason_internal.activation_state AS s
@@ -673,34 +771,37 @@ WHERE s.active
   AND s.payload_hash IS DISTINCT FROM m.__pgr_payload_hash;
 ```
 
-Initial deployment uses an explicit bootstrap policy. `FIRE_CURRENT` treats all existing matches as rising edges and creates command episodes. `SEED_CURRENT` records them as already active without firing, which is the recommended default for command rules. `REQUIRE_EMPTY` rejects deployment when the query already matches rows and is useful when historical actions would be unsafe. Constraint rules simply expose all current matches regardless of bootstrap choice. The selected policy is stored in the immutable version so later audits can explain why pre-existing conditions did or did not produce work.
+The preferred `pg_trickle` observer establishes the reconciliation barrier inside the refresh transaction for `FULL`, `REINITIALIZE`, and `RESTORE`, or records a durable barrier that prevents claims until reconciliation completes in a new transaction. The compatibility path detects an uncertain generation or frontier after startup and marks the version unclaimable. At no point should workers execute new lifecycle episodes against match state whose relationship to activation state is unknown.
 
 ---
 
 ## 17. Rule versioning and deployment
 
-The stable `rules` catalog identifies a logical rule, while `rule_versions` contains immutable definitions and generated artifact references. Version states include `DRAFT`, `COMPILING`, `INITIALIZING`, `READY`, `ACTIVE`, `DRAINING`, `RETIRED`, and `ERROR`. Only one version is normally active for a logical rule, although the previous version may remain draining while already claimed work completes.
+The stable `rules` catalog identifies a logical rule, while `rule_versions` contains immutable source snapshots, consequence bindings, and generated artifact references. Version states include `DRAFT`, `COMPILING`, `INITIALIZING`, `READY`, `ACTIVE`, `RECONCILING`, `SOURCE_DRIFT`, `DRAINING`, `RETIRED`, and `ERROR`. Only one version is normally active for a logical rule, although a previous version may remain draining while already claimed work completes.
 
-An initial deployment inserts the logical rule if necessary, creates a draft version, validates and compiles it, creates its match relation and indexes, reconciles according to the bootstrap policy, and then atomically marks it active. A replacement uses a blue/green process. The new version is compiled and initialized alongside the old version, its key and match statistics can be compared, and an explicit deployment policy determines how active keys and pending episodes cross the cutover. Only after the new runtime state is ready does the active-version pointer change.
+An initial deployment resolves the source view, records its SQL and row signature, validates consequence signatures, creates the wrapped match relation and typed payload relation, initializes and reconciles according to bootstrap policy, and then atomically marks the version active. The deployed version continues to use the snapshotted definition even if the authoring view is later replaced with a textually different but row-compatible definition. Such a change is reported as source drift so authors know that the live authoring object and deployed version differ. An incompatible row-type change or dropped consequence function blocks typed execution until an explicit replacement or repair restores a valid contract.
 
-`REFIRE_ALL` treats every match in the new version as a new rising edge. `SEED_NEW` initializes matches without firing. `PRESERVE_ACTIVE_KEYS` maps compatible canonical keys from the old version to the new one and preserves continuous episodes. `DRAIN_OLD` allows old pending and running episodes to finish while new rising edges use the new version. `CANCEL_OLD` cancels old pending work at cutover. Policies that preserve continuity are allowed only when key schemas are type-compatible and the mapping is unambiguous.
+Replacement is blue/green. A new source view or revised function set produces a new immutable version alongside the old one. The compiler compares key schemas, row signatures, consequence signatures, source dependencies, current match counts, and optional sample differences before cutover. `REFIRE_ALL` treats every current match in the new version as a fresh activation. `SEED_NEW` records current matches without firing. `PRESERVE_ACTIVE_KEYS` maps compatible semantic keys across versions and preserves continuous generations. `DRAIN_OLD` allows old pending and running episodes to finish while new lifecycle events use the new version. `CANCEL_OLD` cancels old pending work. Continuity policies are allowed only when the key types and mapping are unambiguous.
 
-Rollback reactivates a retained version through the same initialization and reconciliation machinery. It is not a raw pointer update, because source data and match contents may have changed while that version was inactive. Retired runtime relations are kept for a configurable rollback window and then dropped, while rule, activation, agenda, and execution history remain according to retention policy.
+Typed consequence functions make incompatible DDL visible early, but they also create a deliberate dependency between the deployed rule and the source view’s composite type. The recommended authoring practice is to create a new view name for incompatible row-shape changes, such as `rule_def.high_value_risky_order_v2`, and deploy it as a new rule version. Compatible definition changes with the same row type may reuse a view name, but they still require `replace_rule`; they never silently mutate an active version.
+
+Rollback reactivates a retained version through the same resolution, verification, initialization, and reconciliation machinery. It is not a raw catalog-pointer update because source data, object OIDs, and current matches may have changed while that version was inactive. Retired generated relations are kept for a configurable rollback window and then dropped, while logical rule, activation, agenda, typed payload, and execution history follow independent retention policies.
 
 ---
+
 ## 18. Catalog and storage design
 
-The catalogs below are authoritative PostgreSQL state. Exact physical column types can evolve during implementation, but the ownership boundaries and invariants should remain stable. Public functions mediate all writes so that catalog changes, generated artifacts, activation state, and audit events remain consistent. Direct privileges on `pgreason_internal` are revoked from `PUBLIC`, and even administrative tooling should prefer supported functions over ad hoc DML.
+The catalogs below are authoritative PostgreSQL state. Exact physical types may evolve, but the ownership boundaries and invariants should remain stable. Public functions mediate all writes so source snapshots, generated artifacts, activation state, typed payloads, agenda episodes, and audit records stay consistent. Direct privileges on `pgreason_internal` are revoked from `PUBLIC`, and administrative tooling should prefer supported functions over ad hoc DML.
 
 ### 18.1 Logical rules
 
-`pgreason_internal.rules` stores the stable identity and ownership of each logical rule. It contains `rule_id uuid` as the primary key, user-visible schema and rule names, the owner role OID, the rule kind, the currently active version ID, an enabled flag, and audit timestamps. A unique constraint on `(schema_name, rule_name)` gives familiar PostgreSQL-style naming. The table intentionally does not store mutable query text or handler policy; those belong to immutable versions.
+`pgreason_internal.rules` stores the stable identity and ownership of each logical rule. It contains the user-visible schema and name, owner, rule kind, current version pointer, enabled state, and audit timestamps. Query text and consequence policy do not live here because they belong to immutable versions.
 
 | Column | Type | Meaning |
 |---|---|---|
 | `rule_id` | `uuid` | Stable logical identity |
 | `schema_name` | `name` | User-visible namespace |
-| `rule_name` | `name` | User-visible name |
+| `rule_name` | `name` | User-visible rule name |
 | `owner_oid` | `oid` | Owning PostgreSQL role |
 | `kind` | enum | `CONSTRAINT`, `COMMAND`, or later `DERIVE` |
 | `active_version_id` | `uuid` nullable | Current deployed version |
@@ -708,71 +809,106 @@ The catalogs below are authoritative PostgreSQL state. Exact physical column typ
 | `created_at` | `timestamptz` | Creation time |
 | `updated_at` | `timestamptz` | Last metadata change |
 
+A unique constraint on `(schema_name, rule_name)` gives familiar PostgreSQL-style naming.
+
 ### 18.2 Immutable rule versions
 
-`pgreason_internal.rule_versions` contains the complete immutable definition and deployment state. It stores the original match query, wrapped compiled query, key columns and type OIDs, handler reference, salience settings, agenda and conflict policies, refire and withdrawal behavior, schedule, refresh mode, generated relation identifiers, query and schema fingerprints, options, creator, state timestamps, and the last structured error. The relation links to `pg_trickle` using public identifiers such as the stream-table ID or result relation OID when those are part of the documented integration surface.
+`pgreason_internal.rule_versions` contains the complete source snapshot and deployment state. Local OIDs make dispatch efficient inside the current cluster, while SQL text, qualified identities, row signatures, and fingerprints provide portable rebuild inputs after restore or PostgreSQL-major upgrade.
 
 ```text
 rule_version_id uuid primary key
 rule_id uuid references pgreason_internal.rules
 version_no bigint
 state enum
-match_query text
+kind enum
+
+source_definition_relid oid null
+source_definition_name text
+source_definition_sql text
+source_definition_hash bytea
+source_dependency_fingerprint bytea
+binding_rowtype_oid oid null
+binding_columns jsonb
+binding_schema_hash bytea
+
 compiled_query text
+compiled_metadata jsonb null
+compiled_metadata_version integer
+
+identity_mode enum default 'SEMANTIC_KEY'
 key_columns text[]
 key_type_oids oid[]
-kind enum
-handler_id uuid null
 static_salience integer
 salience_column text null
-agenda_group text null
+agenda_group text
 conflict_key_columns text[] null
 conflict_policy enum
 refire_policy enum
+payload_policy enum
 withdrawal_policy enum
 bootstrap_policy enum
+reconciliation_policy enum
+
 schedule text
 refresh_mode text
 pgtrickle_pgt_id bigint null
 match_relid oid null
+payload_relid oid null
 match_schema name null
 match_table name null
-query_fingerprint bytea
-schema_fingerprint bytea
+payload_table name null
+
 options jsonb
 created_by oid
 created_at timestamptz
 activated_at timestamptz null
 retired_at timestamptz null
+last_verified_at timestamptz null
 last_error jsonb null
 ```
 
-A unique constraint on `(rule_id, version_no)` provides a readable monotonically increasing version number within the logical rule, while the UUID remains the durable global identity used by generated artifacts and execution records.
+The source definition fields describe exactly what was compiled. `source_definition_relid` and `binding_rowtype_oid` may change after logical restore, so health and upgrade procedures resolve the stored qualified identities again and verify their SQL and row signatures. `compiled_metadata` is a rebuildable cache and never the sole durable definition.
 
-### 18.3 Handler registry
+### 18.3 Lifecycle consequence bindings
 
-`pgreason_internal.handlers` records every approved execution target. A handler has a stable UUID and unique name, a kind, an optional function OID, optional execution role, optional outbox topic, default headers, retry limits, backoff settings, timeout, enabled flag, owner, and creation time. Storing function OIDs rather than unresolved text prevents `search_path` changes from silently redirecting execution. DDL hooks or validation checks mark handlers invalid when referenced functions are dropped or their signatures change.
+`pgreason_internal.consequences` stores at most one binding for each lifecycle event of a rule version. It records whether the consequence is a typed database function, outbox template, manual action, or no-op. Typed functions are stored by exact OID and qualified `regprocedure` identity, together with the signature and binding row type that were validated at deployment.
 
 ```text
-handler_id uuid primary key
-handler_name name unique
-handler_kind enum
+consequence_id uuid primary key
+rule_version_id uuid references pgreason_internal.rule_versions
+event_kind enum  -- ACTIVATE, CHANGE, DEACTIVATE
+consequence_kind enum  -- DATABASE_TYPED, OUTBOX, MANUAL, NOOP
+
 function_oid oid null
+function_identity text null
+signature_kind enum null
+binding_rowtype_oid oid null
+function_fingerprint bytea null
 run_as_role oid null
-topic text null
+
+outbox_topic text null
+outbox_partition_expression text null
 default_headers jsonb
+
+recheck_policy enum
 max_attempts integer
 initial_backoff interval
+backoff_multiplier numeric
 max_backoff interval
 timeout interval
+batch_safe boolean default false
 enabled boolean
 owner_oid oid
 created_at timestamptz
+
+unique (rule_version_id, event_kind)
 ```
+
+Activation and deactivation functions must accept context plus one value of the pinned binding row type and return `void`. Change functions must accept context plus two values of that type and return `void`. DDL monitoring invalidates a binding if the function disappears, changes signature, changes owner unexpectedly, or no longer satisfies its execution policy.
 
 ### 18.4 Activation state
 
-`pgreason_internal.activation_state` is the durable semantic mirror of current match membership. It records whether an activation is active, its generation number, canonical key, current payload hash and bindings, salience, conflict key, first and last seen times, deactivation time, open episode reference, latest transition, source transaction, refresh ID, and frontier. The generation increments on every rising edge, allowing repeated active intervals to be distinguished while retaining the same activation ID within one rule version.
+`pgreason_internal.activation_state` is the durable semantic mirror of current match membership. It records the key, active generation, revision, latest current row, last active row, priority metadata, transition times, and refresh correlation. The last active snapshot remains available after deactivation so a delayed deactivation consequence can still receive a typed value.
 
 ```text
 rule_version_id uuid
@@ -780,26 +916,43 @@ activation_id uuid
 activation_key jsonb
 active boolean
 generation bigint
-payload_hash bytea
-bindings jsonb
+revision bigint
+payload_hash bytea null
+current_bindings jsonb null
+last_active_bindings jsonb null
 salience integer
 conflict_key text null
 first_seen_at timestamptz
 last_seen_at timestamptz
 deactivated_at timestamptz null
-open_episode_id bigint null
-last_transition text
+last_event_kind enum null
 last_transition_xid xid8 null
 last_refresh_id bigint null
 last_frontier jsonb null
 primary key (rule_version_id, activation_id)
 ```
 
-Indexes cover active scans by rule version, conflict-key lookup among active rows, and non-null open episode references. Typed key columns remain available in generated match relations; the JSONB activation key in this catalog is for generic APIs, audit, and cross-version mapping rather than for large relational joins.
+Typed columns remain in the generated match relation. JSONB is retained here for stable generic APIs, reconciliation, cross-version continuity, and diagnostics rather than as the primary relational processing format.
 
-### 18.5 Transition buffer
+### 18.5 Typed lifecycle event payloads
 
-`pgreason_internal.activation_delta_buffer` supports transaction-deferred coalescing in the compatibility integration. One row exists for each activation touched by a transaction. It records the observed DML shapes, latest payload, source relation, processed flag, and timestamps. The primary key is `(rule_version_id, activation_id, xid)`. Rows are short-lived and removed after successful finalization or by bounded cleanup. They are not an event log and must not grow indefinitely.
+Each command-rule version owns a generated payload relation whose composite columns use the pinned binding row type. The table preserves the exact values passed to typed functions even after the current match row changes or disappears.
+
+```text
+episode_id bigint primary key
+event_kind enum
+old_match <pinned condition-view row type> null
+new_match <pinned condition-view row type> null
+old_bindings jsonb null
+new_bindings jsonb null
+created_at timestamptz
+```
+
+An activation event stores `new_match`, a deactivation event stores `old_match`, and a change event stores both. The agenda references this row. The generated table is protected by PostgreSQL dependencies on the source composite type and by the version’s stored schema fingerprint. Incompatible drift blocks typed execution until a replacement or repair restores the contract.
+
+### 18.6 Transition buffer
+
+`pgreason_internal.activation_delta_buffer` supports transaction-deferred coalescing in the compatibility integration. One row exists for each activation touched by a refresh transaction. It records the physical DML shapes and the earliest and latest generic snapshots needed to calculate one final semantic outcome.
 
 ```text
 rule_version_id uuid
@@ -809,32 +962,40 @@ source_relid oid
 saw_insert boolean
 saw_update boolean
 saw_delete boolean
-latest_payload_hash bytea null
-latest_bindings jsonb null
+before_payload_hash bytea null
+before_bindings jsonb null
+after_payload_hash bytea null
+after_bindings jsonb null
 processed boolean
 created_at timestamptz
 processed_at timestamptz null
 primary key (rule_version_id, activation_id, xid)
 ```
 
-### 18.6 Durable agenda
+The buffer is short-lived coalescing state, not a business event log. It is deleted after successful finalization or by bounded cleanup after recovery.
 
-`pgreason_internal.agenda` stores one row per command episode. The row identifies the rule, version, activation, and activation generation; holds its state, routing and priority values, bindings, payload hash, lifecycle timestamps, lease data, attempt counters, failure detail, result, and idempotency key. The idempotency key is deterministic for the episode and may be used by database handlers, outbox consumers, and external APIs.
+### 18.7 Durable agenda
+
+`pgreason_internal.agenda` stores one row per lifecycle consequence episode. The row identifies the exact version, activation generation, revision, event kind, and consequence binding. It contains routing, priority, state, lease, retry, result, typed-payload reference, generic snapshots, and deterministic idempotency information.
 
 ```text
 episode_id bigserial primary key
 rule_id uuid
 rule_version_id uuid
+consequence_id uuid
 activation_id uuid
 activation_generation bigint
+activation_revision bigint
+event_kind enum
 state enum
 agenda_group text
 salience integer
 conflict_key text null
 conflict_policy enum
-bindings jsonb
-payload_hash bytea
-activated_at timestamptz
+typed_payload_id bigint null
+old_bindings jsonb null
+new_bindings jsonb null
+transitioned_at timestamptz
 available_at timestamptz
 withdrawn_at timestamptz null
 claimed_at timestamptz null
@@ -847,19 +1008,20 @@ attempt_count integer
 max_attempts integer
 last_error jsonb null
 result jsonb null
-idempotency_key text
+idempotency_key text unique
 ```
 
-The primary claim index begins with state and availability, then agenda group, descending salience, activation time, and episode ID. Additional indexes support lookup by activation, conflict key, and expired running lease. A partial unique index enforces the open-episode invariant for the default refraction policy.
+The main claim index starts with state and availability, then agenda group, descending salience, transition time, and episode ID. Partial uniqueness enforces one open activation or deactivation event for a generation and one open change event for a revision. A coalescing payload policy may update an unclaimed activation episode, but a claimed attempt always uses a frozen typed payload.
 
-### 18.7 Execution attempts
+### 18.8 Execution attempts
 
-`pgreason_internal.executions` is an append-only attempt history. It records the episode, attempt number, worker, lease token, start and finish times, result status, error code and detail, handler result, measured duration, and PostgreSQL transaction ID. The agenda row provides current status, while the execution table preserves the full sequence needed for debugging, compliance, and reliability analysis.
+`pgreason_internal.executions` is append-only attempt history. It records the episode, event kind, attempt number, worker, lease, start and finish times, outcome, error details, measured duration, and PostgreSQL transaction ID. The agenda row gives current state, while this table preserves every retry and skip decision.
 
 ```text
 execution_id bigserial primary key
 episode_id bigint
 attempt_no integer
+event_kind enum
 worker_id text
 lease_token uuid
 started_at timestamptz
@@ -868,17 +1030,18 @@ status text
 error_code text null
 error_detail jsonb null
 result jsonb null
-handler_duration_ms bigint null
+consequence_duration_ms bigint null
 transaction_id xid8 null
 ```
 
-### 18.8 Action outbox
+### 18.9 Action outbox
 
-`pgreason_internal.action_outbox` stores external messages. Each row has a unique outbox ID, unique episode reference, unique idempotency key, topic, partition key, payload, headers, delivery state, attempt count, next availability time, optional delivery lease, creation time, delivered time, and last error. Retention can remove delivered entries after an acknowledgement window, while failed and pending entries remain queryable through public views.
+`pgreason_internal.action_outbox` stores external lifecycle messages. The envelope includes the event kind, activation and generation, episode, idempotency key, old and new generic bindings, topic, partition key, and headers. Outbox insertion and successful episode completion commit together.
 
 ```text
 outbox_id bigserial primary key
 episode_id bigint unique
+event_kind enum
 idempotency_key text unique
 topic text
 partition_key text null
@@ -893,9 +1056,9 @@ delivered_at timestamptz null
 last_error jsonb null
 ```
 
-### 18.9 Runtime events and conflict leases
+### 18.10 Runtime events and conflict leases
 
-`pgreason_internal.runtime_events` is an append-only operational stream containing severity, event type, rule and version identifiers, optional episode and refresh IDs, timestamp, and structured detail. It records deployments, reconciliation, automatic suspension, repeated failures, compatibility problems, and repair actions. A separate `conflict_leases` table may be used when policies require serialization across episodes. The lease table is deliberately small and contains only the conflict key, owning episode, token, expiry, and update time.
+`pgreason_internal.runtime_events` is an append-only operational stream containing severity, event type, rule and version identifiers, optional activation, episode, refresh, and worker identifiers, timestamp, and structured detail. It records deployment, source drift, action invalidation, reconciliation, automatic suspension, repeated failures, compatibility problems, and repair. A small `conflict_leases` table serializes episodes that share a conflict key and contains only the key, owning episode, token, expiry, and update time.
 
 ---
 
@@ -913,23 +1076,23 @@ Negation, aggregates, and other non-monotone dependencies require stratification
 
 ## 20. Shared conditions and common subplans
 
-A simple compiler creates one match stream table for each active rule version. This isolation is attractive because it makes ownership, scheduling, diagnostics, deployment, and rollback easy to understand. It can, however, repeat expensive conditions when many rules use the same filters and joins. A hundred rules may all begin with “high-risk customers” or with the same customer-order join.
-
-The initial solution is explicit named conditions. A user can create a maintained condition with its own key and then reference the public condition view from multiple rules. Because the sharing is explicit, security and scheduling remain visible and there is no need to prove arbitrary SQL plan equivalence.
+One match stream table per active rule version provides strong isolation and simple deployment, but many rules may repeat the same expensive filters and joins. The first solution is explicit sharing through normal PostgreSQL views or named maintained conditions. Authors may define a reusable condition view such as `rule_def.high_risk_customers` and reference it from several rule views. PostgreSQL records the dependency, and `pg_trickle` can maintain a deliberately materialized shared condition when the author requests it.
 
 ```sql
+CREATE VIEW rule_def.high_risk_customers AS
+SELECT id AS customer_id
+FROM app.customers
+WHERE risk_level = 'HIGH';
+
 SELECT pgreason.create_condition(
     name => 'high_risk_customers',
-    query => $condition$
-        SELECT id AS customer_id
-        FROM customers
-        WHERE risk = 'high'
-    $condition$,
-    key_columns => ARRAY['customer_id']
+    definition => 'rule_def.high_risk_customers'::regclass,
+    key_columns => ARRAY['customer_id'],
+    schedule => 'calculated'
 );
 ```
 
-A later compiler can use normalized operator fingerprints or a public `pg_trickle` plan representation to discover repeated subplans automatically. It should materialize a subplan only when multiple active versions use it, the computation is sufficiently expensive or selective, the state size is acceptable, and refresh cadence and security contexts are compatible. Automatic sharing is an optimization and must never change activation identity, visibility, or rule semantics.
+A later compiler may discover repeated subplans using resolved operator fingerprints or a public `pg_trickle` plan representation. It should materialize a subplan only when multiple active versions use it, the computation is expensive or selective enough to justify state, refresh cadence and security contexts are compatible, and the additional catalog and storage cost is acceptable. Automatic sharing is an optimization and must never change source-view semantics, activation identity, or visibility.
 
 ---
 
@@ -937,7 +1100,7 @@ A later compiler can use normalized operator fingerprints or a public `pg_trickl
 
 ### 21.1 Repository layout
 
-The repository uses the public project name `pg-reason`, while the crate and extension library use `pg_reason`. The optional daemon is a separate binary target named `pg-reasond`. The module structure keeps PostgreSQL-facing APIs, catalog access, compilation, activation semantics, agenda logic, action execution, integration adapters, and reconciliation separate enough to test independently.
+The public project is `pg-reason`; the Rust crate and extension library are `pg_reason`; the optional daemon is `pg-reasond`. The module layout separates source-view analysis, PostgreSQL-major compatibility, `pg_trickle` integration, lifecycle transitions, typed consequence dispatch, agenda coordination, and reconciliation so that pure logic can be tested independently of a backend.
 
 ```text
 pg-reason/
@@ -947,49 +1110,48 @@ pg-reason/
 ├── src/
 │   ├── lib.rs
 │   ├── api/
-│   │   ├── mod.rs
 │   │   ├── rules.rs
-│   │   ├── handlers.rs
 │   │   ├── agenda.rs
 │   │   ├── diagnostics.rs
 │   │   └── reconcile.rs
 │   ├── catalog/
-│   │   ├── mod.rs
 │   │   ├── rules.rs
 │   │   ├── versions.rs
+│   │   ├── consequences.rs
 │   │   ├── activations.rs
 │   │   ├── agenda.rs
 │   │   └── outbox.rs
 │   ├── compiler/
-│   │   ├── mod.rs
-│   │   ├── validate.rs
-│   │   ├── describe.rs
+│   │   ├── source_view.rs
+│   │   ├── analyze.rs
+│   │   ├── signatures.rs
 │   │   ├── identity.rs
 │   │   ├── query_wrap.rs
 │   │   └── deploy.rs
+│   ├── compat/
+│   │   ├── mod.rs
+│   │   └── pg18.rs
 │   ├── integration/
-│   │   ├── mod.rs
 │   │   └── pg_trickle.rs
-│   ├── activation/
-│   │   ├── mod.rs
+│   ├── lifecycle/
 │   │   ├── trigger.rs
 │   │   ├── buffer.rs
 │   │   ├── finalize.rs
-│   │   └── transition.rs
+│   │   ├── transition.rs
+│   │   └── payload.rs
 │   ├── agenda/
-│   │   ├── mod.rs
 │   │   ├── claim.rs
 │   │   ├── lease.rs
 │   │   ├── retry.rs
 │   │   └── conflicts.rs
-│   ├── actions/
-│   │   ├── mod.rs
-│   │   ├── database.rs
+│   ├── consequences/
+│   │   ├── typed.rs
+│   │   ├── execute.rs
 │   │   ├── outbox.rs
-│   │   └── registry.rs
+│   │   └── batch.rs
 │   ├── reconciliation/
-│   │   ├── mod.rs
 │   │   └── diff.rs
+│   ├── ddl.rs
 │   ├── security.rs
 │   ├── telemetry.rs
 │   ├── error.rs
@@ -998,14 +1160,12 @@ pg-reason/
 │   └── pg_reasond.rs
 ├── sql/
 ├── tests/
-│   ├── integration/
-│   └── e2e/
 └── docs/
 ```
 
 ### 21.2 Cargo and platform baseline
 
-The initial build should align exactly with the supported `pg_trickle` baseline. At the time of this design, the referenced `pg_trickle` main branch targets PostgreSQL 18, Rust edition 2024, and `pgrx` 0.18.0. Representative extension dependencies are shown below; exact versions should follow the project’s security and compatibility policy.
+The initial build follows the supported `pg_trickle` line exactly. The reference baseline is PostgreSQL 18, Rust edition 2024, and `pgrx` 0.18.0. Asynchronous networking dependencies belong primarily to `pg-reasond`, not to the loaded extension library.
 
 ```toml
 [package]
@@ -1025,25 +1185,16 @@ uuid = { version = "1", features = ["v4", "serde"] }
 sha2 = "0.11"
 chrono = "0.4"
 rand = "0.9"
-
-[dev-dependencies]
-pgrx-tests = "=0.18.0"
-proptest = "1"
-testcontainers = "0.27"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
-tokio-postgres = "0.7"
 ```
 
-The `pg-reasond` binary additionally uses an asynchronous runtime, PostgreSQL client, command-line parser, and structured tracing stack. Its dependencies do not become part of the loaded PostgreSQL extension library unless shared deliberately.
+### 21.3 Compiler and PostgreSQL compatibility boundary
 
-### 21.3 Adapter and core traits
+`SourceDefinitionCompiler` resolves the registered view, captures SQL and row signatures, validates consequence functions, classifies query capabilities, and builds the wrapped match query. Its current analyzed representation may use relation, function, operator, type, and collation OIDs. Only the `compat` module may access PostgreSQL-major-sensitive parse nodes or internal catalog details. Durable versions retain SQL and qualified identities so analyzed state can be rebuilt after restore or upgrade.
 
-The `PgTrickleAdapter` encapsulates every cross-extension call. It reads the installed version, creates and drops stream tables, requests refresh and explain information, registers observers, and translates dependency errors into `PgReasonError`. This adapter is exercised against real supported `pg_trickle` versions in compatibility tests. No other module issues ad hoc calls to `pgtrickle.*`, which keeps the integration surface reviewable.
-
-Representative internal traits make pure logic testable without a running backend:
+`PgTrickleAdapter` encapsulates every cross-extension call. No other module issues ad hoc calls to `pgtrickle.*`. Representative internal traits are:
 
 ```rust
-trait RuleCompiler {
+trait SourceDefinitionCompiler {
     fn validate(&self, spec: &RuleSpec) -> Result<ValidatedRule, PgReasonError>;
     fn compile(&self, rule: &ValidatedRule) -> Result<CompiledRule, PgReasonError>;
     fn deploy(&self, compiled: &CompiledRule) -> Result<DeployedRule, PgReasonError>;
@@ -1055,7 +1206,6 @@ trait PgTrickleAdapter {
         &self,
         spec: &StreamTableSpec,
     ) -> Result<StreamTableRef, PgReasonError>;
-    fn drop_stream_table(&self, table: &StreamTableRef) -> Result<(), PgReasonError>;
     fn refresh_stream_table(
         &self,
         table: &StreamTableRef,
@@ -1064,139 +1214,151 @@ trait PgTrickleAdapter {
         -> Result<serde_json::Value, PgReasonError>;
 }
 
-trait ActivationTransitionSink {
-    fn rise(&self, activation: &ActivationRow) -> Result<(), PgReasonError>;
-    fn update(&self, activation: &ActivationRow) -> Result<(), PgReasonError>;
-    fn fall(&self, key: &ActivationKey) -> Result<(), PgReasonError>;
+trait LifecycleTransitionSink {
+    fn activate(&self, event: &LifecycleEvent) -> Result<(), PgReasonError>;
+    fn change(&self, event: &LifecycleEvent) -> Result<(), PgReasonError>;
+    fn deactivate(&self, event: &LifecycleEvent) -> Result<(), PgReasonError>;
 }
 
-trait ActionExecutor {
+trait TypedConsequenceExecutor {
     fn execute(&self, episode: &ClaimedEpisode)
-        -> Result<ActionResult, PgReasonError>;
+        -> Result<ConsequenceResult, PgReasonError>;
 }
 ```
 
-Inside the extension, database transactions are controlled by PostgreSQL rather than by a custom transaction object exposed through these public traits. Pure transition planning can return a set of intended catalog mutations, while a thin backend layer applies them through SPI in the current transaction.
+PostgreSQL controls transactions. Pure lifecycle planning may return intended catalog mutations and typed payload data, while thin backend code applies them through SPI in the current transaction.
 
 ### 21.4 Error model
 
-The Rust error type is `PgReasonError`. It includes structured categories such as invalid rule, unsupported query, duplicate or null activation key, incompatible `pg_trickle`, compilation or deployment failure, reconciliation required, lease lost, handler failure, permission denied, catalog corruption, and invariant violation. Public errors include a stable code, rule name and version when known, relevant generated artifact, and a practical remediation hint. Internal causes are logged with correlation identifiers, while sensitive bindings are excluded unless an authorized diagnostic mode is enabled.
+`PgReasonError` includes invalid source view, source drift, unsupported query capability, duplicate or null semantic key, invalid consequence signature, incompatible `pg_trickle`, compilation failure, reconciliation required, lease lost, stale lifecycle event, typed payload failure, permission denied, catalog corruption, and invariant violation. Public errors include stable codes, relevant rule and version identifiers, the affected object, and a practical remediation hint. Sensitive bindings are excluded unless an authorized diagnostic mode is enabled.
 
 ---
 
 ## 22. `pg-reasond` worker process
 
-`pg-reasond` is the recommended executor for command episodes. It listens for agenda notifications, claims bounded batches, invokes database execution functions or outbox operations, sends heartbeats for long-running work, reports success or failure, sweeps expired leases and due retries, triggers reconciliation when the compatibility integration detects a full refresh, and emits metrics and structured logs. It does not own rule definitions or keep durable offsets in local files.
+`pg-reasond` is the recommended executor for command episodes. It listens for agenda hints, claims bounded sets to reduce queue round trips, and then executes each episode through a separate `pgreason.execute_claimed_episode` transaction. Claiming several rows is an efficiency optimization; it is not permission to call one consequence with an unchecked batch. Each episode receives a fresh lease, source-definition check, consequence-signature check, conflict check, and event-eligibility recheck after earlier episodes have committed.
 
-Workers are stateless and horizontally scalable. Any number may run, constrained only by PostgreSQL connections, agenda-group routing, handler concurrency settings, and conflict keys. All coordination uses catalog rows and leases, so terminating or replacing a worker does not lose committed work. A worker identity should combine deployment, host, process, and random instance information for observability, while the lease token remains the actual authority for state transitions.
+The daemon sends heartbeats for long-running work, reports retryable and terminal failures, sweeps expired leases, triggers reconciliation when required, and emits structured logs and metrics. It does not own rule definitions or local durable offsets. PostgreSQL remains the single source of truth, so workers are stateless and horizontally scalable subject to connection limits, agenda groups, execution roles, and conflict keys.
 
-`LISTEN/NOTIFY` is used as a wake-up optimization rather than as a queue. A worker polls immediately on startup, subscribes to `pgreason_agenda`, claims after notifications, and also polls periodically so lost notifications cannot strand work. On graceful shutdown, it stops claiming, continues heartbeating work that it intends to finish, and releases or allows leases to expire according to a configured grace period. A forced exit requires no special recovery beyond lease expiry and idempotent execution semantics.
+`LISTEN/NOTIFY` is only a wake-up hint. A worker polls on startup, subscribes to `pgreason_agenda`, and polls periodically so lost notifications cannot strand work. During graceful shutdown it stops claiming new rows and either finishes or releases current leases according to policy. A forced exit requires no local recovery beyond database lease expiry and idempotent consequences.
+
+Batch execution uses a separate endpoint and is disabled unless the consequence is explicitly `batch_safe`. The endpoint accepts only episodes with the same version, consequence, event kind, execution role, recheck policy, and compatible conflict scope. The standard worker never turns an arbitrary claimed set into one array invocation.
+
+---
+
+## 23. Transactions, consistency, isolation, and recovery
+
+### 23.1 Scheduled epochal mode
+
+Scheduled `DIFFERENTIAL` maintenance is the default. Source transactions commit normally. `pg_trickle` consumes committed changes according to the configured cadence and updates the generated match relation in a refresh transaction. `pg-reason` records lifecycle state, typed payloads, and agenda episodes in that same transaction. Consequences execute later and cannot roll back the original source transaction. This is the most scalable and operationally transparent mode.
+
+### 23.2 Immediate match mode
+
+A rule may use `pg_trickle` `IMMEDIATE` maintenance when it needs read-your-writes match state. The exact isolation and locking contract is inherited from the supported `pg_trickle` version and must be published in the compatibility matrix. `pg-reason` does not assume that every PostgreSQL isolation level is safe for concurrent maintenance across several source tables. If a combination cannot produce a correct visible match state, rule creation or conflicting DML fails explicitly rather than leaving the result incomplete.
+
+Immediate match maintenance still schedules consequences. It does not execute external or arbitrary user code inside the source statement. A strict synchronous consequence loop is a separate future mode.
+
+### 23.3 Strict synchronous consequence mode is future work
+
+A future strict mode may choose one episode, execute a database-local consequence, refresh affected rules, and repeat until quiescence. Such a mode would require serialization per ruleset, maximum firings per transaction, maximum cycles, deterministic tie-breaking, causal or no-loop controls, a deliberately restricted query and consequence subset, and explicit isolation restrictions. It is not part of version one.
+
+### 23.4 Match-to-agenda atomicity
+
+For every supported maintenance mode, final match state, activation state, typed payload creation, and agenda insertion or withdrawal commit together. A failure in the critical observer or lifecycle finalizer aborts the refresh. Workers see only committed episodes and therefore never act on a match that rolled back in the same transaction.
+
+### 23.5 Consequence atomicity and independent rechecks
+
+For a typed database consequence, lease validation, source and function fingerprint checks, event eligibility recheck, `SET LOCAL ROLE`, typed invocation, attempt history, and episode completion commit in one transaction. For outbox consequences, outbox insertion and episode completion commit together. Workers execute one episode per transaction by default, which allows an earlier consequence to invalidate later claimed work before that work runs.
+
+### 23.6 Concurrency and isolation contract
+
+Concurrency behavior is part of the public semantics rather than an implementation footnote. Release tests include two transactions changing opposite sides of a join, concurrent updates to one semantic key, source changes racing with claims, source-view replacement racing with execution, and lease expiry racing with completion. The supported behavior is documented for `READ COMMITTED`, `REPEATABLE READ`, and `SERIALIZABLE` separately. Unsafe immediate-mode combinations are rejected with a clear error. Scheduled mode derives its consistency from committed CDC frontiers and the configured `pg_trickle` dependency and diamond guarantees.
+
+Relation or advisory locks may serialize immediate maintenance for one generated match relation when required. Such locking is scoped narrowly so unrelated rules or keys can proceed concurrently. The design follows the principle that a correct explicit failure is preferable to a silently missed activation.
+
+### 23.7 Crashes, PITR, and repair
+
+A PostgreSQL crash during refresh leaves either all or none of the match, lifecycle, typed payload, and agenda changes committed. A worker crash leaves a finite lease that another worker may reclaim. Deterministic idempotency keys address the possibility that the previous worker completed an effect but failed before recording success.
+
+After PITR, snapshot restore, logical migration, or PostgreSQL-major upgrade, workers remain stopped until `pg_trickle` repair and `pgreason.health_check` succeed. `pg-reason` resolves stored qualified identities, rebuilds transient OID-based metadata from durable SQL, verifies source-view and consequence fingerprints, reconciles match and activation state, expires invalid leases, and only then removes claim barriers. Restore policy decides whether differences emit lifecycle events or repair state only.
 
 ---
 
-## 23. Transactions, consistency, and recovery
-
-### 23.1 Match-to-agenda atomicity
-
-For differential maintenance, the generated match-table change, activation-state transition, and agenda insertion or withdrawal commit together. If any critical step fails, the `pg_trickle` refresh transaction aborts. Workers see only committed agenda rows, so they can never act on a match that was later rolled back in the same transaction. This is the most important consistency guarantee in the system.
-
-### 23.2 Database and outbox action atomicity
-
-For database handlers, lease validation, optional activation recheck, handler database writes, execution-attempt completion, and episode success commit in one transaction. For outbox handlers, outbox insertion and episode completion commit together. External delivery remains separate and at least once. These boundaries make ambiguous client disconnects safe: a worker can query the authoritative episode state and retry according to lease and idempotency rules.
-
-### 23.3 Snapshot and dependency consistency
-
-A worker claims committed rows under normal PostgreSQL MVCC and cannot see an in-progress refresh. When a rule depends on multiple derived branches sharing a common ancestor, its generated match table should use `pg_trickle` atomic diamond consistency where available so it does not observe one new branch and one stale branch. There is no implied total ordering across independent rules beyond PostgreSQL commit visibility and configured agenda policies.
-
-### 23.4 PostgreSQL and worker crashes
-
-A PostgreSQL crash during refresh either leaves the entire refresh, activation transition, and agenda update committed or leaves none of them committed. A worker crash leaves a running episode with a finite lease. After expiry, another worker may reclaim it, and execution history records the stale attempt. Handlers and external consumers use deterministic idempotency keys to tolerate the possibility that the previous worker completed an effect but failed before recording its success.
-
-A crash during full refresh is handled through the synchronous observer when available. Under the compatibility path, the version records the last observed refresh generation or frontier, and the post-restart reconciler compares it with `pg_trickle` state. A rule marked as requiring reconciliation is not claimable until repaired, preventing actions from being scheduled against an uncertain activation snapshot.
-
-### 23.5 PITR, restore, and repair
-
-After point-in-time recovery or restoration, operators first run the documented `pg_trickle` health and repair procedures. `pg-reason` then verifies generated relations and transition bindings, compares stored refresh identifiers and frontiers, reconciles every active rule version, expires invalid worker leases, and checks outbox state against its relay or consumers. These operations are exposed through `pgreason.repair_rule`, `pgreason.repair_all`, and `pgreason.rebuild_runtime_artifacts`. Repair actions are explicit, transactional where possible, and written to runtime events; they never silently delete execution history.
-
-`pgreason.health_check()` detects active versions without match relations, orphan generated relations, missing transition bindings, activation rows referencing missing versions, incompatible open episodes, stale leases, unsupported dependency versions, reconciliation lag, duplicate activation keys, and disabled or missing handlers. The output contains severity and remediation guidance so it can be used by monitoring systems and deployment gates.
-
----
 ## 24. Security model
 
-Security is based on PostgreSQL roles, object ownership, and explicit execution identities. The extension creates no broad grants to `PUBLIC`. Recommended predefined roles are `pgreason_admin`, `pgreason_author`, `pgreason_operator`, `pgreason_worker`, and `pgreason_reader`. Administrators manage all rules, handlers, compatibility settings, and repairs. Authors create and replace rules they own. Operators pause, resume, reconcile, retry, and cancel work. Workers claim episodes and invoke only registered execution paths. Readers inspect public status, current matches, and history subject to normal grants.
+Security is based on PostgreSQL roles, object ownership, and exact execution identities. The extension grants nothing broadly to `PUBLIC`. Recommended roles are `pgreason_admin`, `pgreason_author`, `pgreason_operator`, `pgreason_worker`, and `pgreason_reader`. Administrators manage compatibility, repair, and all rules. Authors create views, functions, and rules they own. Operators pause, resume, reconcile, retry, and cancel work. Workers claim and execute only enabled registered consequences. Readers inspect permitted current matches and history.
 
-Installation initially requires superuser because `pg_trickle` itself has privileged requirements, generated schemas and triggers must be created, and observer registration may require elevated rights. Normal rule authoring should not require superuser. Every rule version records an evaluation role, and compilation verifies that this role can read every referenced object. A critical integration question is whether `pg_trickle` refresh execution preserves the intended role and row-level-security semantics. Until that guarantee is explicit and tested, production rule creation over RLS-protected multi-tenant data should be restricted to trusted administrators, and generated match relations should not be broadly readable.
+Installation initially requires superuser because `pg_trickle` has privileged requirements and the extension creates protected schemas, generated relations, DDL observers, and integration callbacks. Normal authoring should not require superuser, but it is code deployment: the author must own or have suitable privileges on the condition view and consequence functions. Every version records an evaluation role, and compilation verifies read privileges for referenced objects. Production use over RLS-protected multi-tenant data remains restricted until the compatible `pg_trickle` line has an explicit, tested evaluation-role and RLS contract.
 
-Every handler records a `run_as_role`. The server-side execution function uses `SET LOCAL ROLE` only after verifying that the worker may execute the episode and that the registered role remains valid. The role should have the minimum privileges required by the handler. Public management functions may use `SECURITY DEFINER` only where necessary, and every such function must set a fixed safe `search_path`, resolve object OIDs before execution, check ownership explicitly, and use parameterized SPI. User-controlled identifiers are validated and quoted rather than concatenated into raw SQL.
+Each typed consequence binding records an exact function OID, qualified signature, owner, and `run_as_role`. `pgreason.execute_claimed_episode` uses `SET LOCAL ROLE` only after verifying the worker, lease, version, event, and consequence binding. Public management functions use `SECURITY DEFINER` only where necessary, set a fixed safe `search_path`, resolve OIDs before execution, check ownership explicitly, and use parameterized SPI. A changed or dropped function is invalidated by DDL monitoring and cannot be invoked merely because another function later acquires the same name.
 
-Bindings can contain sensitive values, so rule queries should project only what the consequence actually needs. Retention and visibility policies apply separately to current matches, activation state, agenda payloads, execution history, and outbox messages. Tenant identifiers should normally participate in activation keys, conflict keys, routing, indexes, and authorization checks. Generic JSONB filtering is not treated as a security boundary. A later release may provide tenant-partitioned runtime catalogs, but the first release should make no claim of secure self-service rule authoring across tenants without dedicated evaluation and RLS guarantees.
+Condition views and typed payloads can contain sensitive data. Authors should project only values needed by consequences and diagnostics. Grants and retention apply separately to source views, generated match relations, activation state, typed payload tables, generic JSONB snapshots, execution history, and outbox messages. Tenant identifiers should normally participate in semantic keys, conflict keys, routing, indexes, and authorization checks. Generic JSONB predicates are not treated as a security boundary.
 
 ---
 
 ## 25. Observability and explainability
 
-The public schema exposes stable views for logical rules, versions, current activations, pending and running agenda work, failures, execution attempts, outbox state, and runtime health. These views join private identifiers into understandable names, hide implementation-only columns, and apply ownership or reader-role checks. Operators should not need to query `pgreason_internal` to answer ordinary questions.
+The public schema exposes stable views for logical rules, immutable versions, source snapshots, source drift, lifecycle consequence bindings, current activations, agenda episodes, failures, execution attempts, outbox state, and runtime health. These views translate internal identifiers into understandable names and apply ownership or reader-role checks. Ordinary operations should not require direct access to `pgreason_internal`.
 
-`pgreason.explain_rule(name)` returns a JSON document that combines the logical rule definition, active version, generated match relation, activation-key columns, handler, priority and conflict policies, `pg_trickle` refresh configuration and explain output, current match count, agenda depth, last refresh and frontier, and whether reconciliation is required. This gives one entry point for both query-planning and runtime diagnostics.
+`pgreason.explain_rule(name)` combines the pinned source-view SQL and fingerprint, current authoring-view fingerprint, binding row signature, semantic key, lifecycle consequence signatures, priority and conflict policies, `pg_trickle` refresh configuration and explain output, current match count, event counts, agenda depth by event kind, last frontier, and reconciliation status.
 
 ```json
 {
   "rule": "manual_review_required",
   "kind": "COMMAND",
   "active_version": 3,
-  "match_relation": "pgreason_runtime.r_7c12d4_v_0003_matches",
+  "source_definition": "rule_def.high_value_risky_order",
+  "source_drift": false,
+  "binding_row_type": "rule_def.high_value_risky_order",
   "activation_key_columns": ["order_id"],
-  "handler": "create_manual_review",
-  "salience": 100,
-  "agenda_group": "risk",
-  "conflict_policy": "SERIALIZE",
+  "consequences": {
+    "ACTIVATE": "rule_action.activate_high_value_risky_order(...)" ,
+    "CHANGE": null,
+    "DEACTIVATE": "rule_action.deactivate_high_value_risky_order(...)"
+  },
+  "match_relation": "pgreason_runtime.r_7c12d4_v_0003_matches",
   "refresh_mode": "DIFFERENTIAL",
   "schedule": "1s",
-  "pg_trickle_plan": {},
   "current_matches": 18,
-  "pending_episodes": 4,
-  "running_episodes": 2,
+  "pending_by_event": {"ACTIVATE": 4, "CHANGE": 0, "DEACTIVATE": 1},
   "last_refresh_id": 991,
-  "last_frontier": {},
   "reconciliation_required": false
 }
 ```
 
-Every log and runtime event carries the available rule ID, version ID, activation ID, episode ID, execution ID, refresh ID, frontier, worker ID, and lease token. The lease token should be redacted in ordinary logs but retained in protected attempt records where needed for forensic analysis. This correlation makes it possible to follow one source condition from a `pg_trickle` refresh through activation, claim, handler execution, outbox delivery, and any new facts it creates.
+Every log and runtime event carries available rule, version, activation, generation, revision, event kind, episode, attempt, refresh, frontier, and worker identifiers. The system can explain which source view and immutable snapshot produced a match, which key identified it, which old and new typed values belonged to an event, which consequence was selected, why a pending episode was withdrawn or skipped, and what happened on every retry.
 
-Core metrics include the number of rules by kind and state, current activations per rule, agenda items by state and group, transition counts, episode creation and completion rates, end-to-end episode latency, handler duration, lease expirations, reconciliation runs and lag, and outbox delivery state. PostgreSQL notifications such as `pgreason_agenda`, `pgreason_alert`, `pgreason_rule_changed`, and `pgreason_reconciliation_required` provide low-latency hints, but catalog state remains authoritative because notifications are not durable.
-
-Explainability for constraint and command rules is straightforward because the current match row contains the typed outputs and JSON bindings that caused the activation. The system can show the exact rule version and query, key, first-seen time, current payload, and execution history. Future derivation support adds explicit provenance edges so the system can explain not only which rule matched but which supports currently justify a derived fact.
+Core metrics include rules by state, source-drift count, invalid consequence bindings, current activations, lifecycle transitions, agenda items by state and event kind, end-to-end latency, consequence duration, lease expiry, reconciliation lag, and outbox delivery. Notifications are low-latency hints only; catalog state remains authoritative.
 
 ---
 
 ## 26. Performance and scaling
 
-The end-to-end cost has six main components: source change capture and match maintenance in `pg_trickle`, storage for generated match relations, activation-transition processing, agenda and history writes, action execution, and retention or vacuum overhead. When the selected query operators are maintained differentially, matching work should remain proportional to the source delta rather than the full source size. `pg-reason` must avoid turning that gain into excessive per-activation overhead.
+End-to-end cost includes `pg_trickle` source capture and match maintenance, generated match and typed payload storage, semantic transition processing, agenda and history writes, consequence execution, and retention or vacuum overhead. When the selected operators are maintained differentially, matching work should remain proportional to the source delta. `pg-reason` must keep lifecycle overhead similarly proportional to the number of changed semantic activations.
 
-One match stream table per active rule version provides strong isolation and simple lifecycle management, but it creates catalog and scheduler overhead and may repeat common subplans. Early releases should accept this clear model, retire old versions promptly, encourage explicit shared conditions, and use batch deployment APIs. Automatic subplan sharing should follow measurements rather than precede them. `pg_trickle` already shares source change capture across dependent stream tables, which reduces some fan-out cost even when terminal match relations remain separate.
+One match stream table per active version and one typed payload relation per typed command version provide clear ownership and reliable DDL dependencies, but they increase catalog size. Early releases should favor this explicit model, retire generated artifacts promptly, and measure real fan-out before attempting automatic sharing. Constraint-only rules need no typed payload relation.
 
-The compatibility trigger path may cause `pg_trickle` to use an explicit-DML maintenance path rather than its fastest merge path. Benchmarks must measure no-change refreshes, insert-only deltas, update-shaped deltas, delete-plus-insert coalescing, large activation batches, and high rule fan-out. A future set-based delta-consumer API is expected to reduce trigger overhead and should be designed as a general `pg_trickle` feature rather than as a private exception for `pg-reason`.
+The compatibility trigger path may force `pg_trickle` onto an explicit-DML maintenance path. Benchmarks must cover no-change refreshes, inserts, direct updates, delete-plus-insert coalescing, activation and deactivation bursts, large change-event volume, full reconciliation, and many rules sharing one source. A set-based delta-consumer API should be designed as a general `pg_trickle` capability and is expected to reduce per-row trigger overhead.
 
-Typed columns remain in match relations and are used for indexes, joins, and inspection. JSONB bindings are produced only at the terminal runtime boundary and must not become the basis for high-volume joins or conflict searches. Agenda claims are index-driven, bounded, and batched. Workers may claim several items at once but execute each in its own transaction by default so one slow or failing handler does not hold locks for an entire batch. A handler can explicitly declare batch safety in a future release.
+Workers may claim several episodes in one query, but default execution remains one episode per transaction. This increases transaction count compared with bulk actions but preserves eligibility semantics and limits lock duration. Measurements should separate queue-claim cost from consequence cost. Explicit `batch_safe` execution can be introduced for proven commutative workloads and should have separate correctness and performance benchmarks.
 
-Large installations may eventually partition agenda, execution history, outbox, and activation state by time, rule, state, or tenant. Partitioning complicates partial uniqueness and cross-partition claim order, so it should be introduced only after measured need. Retention defaults should keep current activation state for the lifetime of a rule version, terminal agenda rows for a moderate audit window such as 30 days, execution attempts for a longer period such as 90 days, delivered outbox rows only until consumer acknowledgement is safely retained, and retired generated match tables for a short rollback window.
+Typed event payloads avoid unsafe JSON reconstruction but consume storage. Payload relations should store only the condition view’s selected columns, freeze rows at claim, and follow configurable episode retention. Generic JSONB remains for APIs and outbox messages, not for high-volume relational joins. Large deployments may eventually partition agenda, executions, outbox, and generic activation state, but partitioning should follow measured need because it complicates partial uniqueness and deterministic claims.
 
-`IMMEDIATE` `pg_trickle` maintenance is appropriate only for simple conditions, low fan-out, and applications that require read-your-writes rule state inside the source transaction. It adds rule-maintenance cost directly to application writes and can make action scheduling part of a latency-sensitive transaction. Scheduled `DIFFERENTIAL` mode is the default because it batches changes, protects OLTP latency, and fits the epochal execution model.
+Scheduled `DIFFERENTIAL` mode is the default because it batches changes and protects OLTP latency. `IMMEDIATE` mode is appropriate only for simple, low-fan-out rules that require same-transaction match state and accept its `READ COMMITTED` and serialization contract.
 
 ---
 
 ## 27. Testing and verification strategy
 
-The testing strategy treats semantic correctness as more important than raw feature count. Pure Rust unit tests cover typed activation-key encoding, deterministic UUID generation, transition planning, refraction policies, retry backoff, conflict selection, state-machine transitions, deployment compatibility, and error mapping. Property-based tests generate long sequences of physical match-table changes and verify that the final activation state equals the semantic set of current matches, that default refraction creates at most one open episode per continuous active interval, that reconciliation is idempotent, and that claim and lease operations never allow two successful owners.
+Testing treats semantic correctness and PostgreSQL compatibility as release gates. Pure Rust tests cover typed key encoding, deterministic activation IDs, generation and revision planning, old-and-new payload construction, refraction, payload policies, retry backoff, conflict selection, lease transitions, source fingerprints, and consequence-signature classification. Property tests generate long sequences of physical insert, update, delete, delete-plus-insert, full refresh, and reconciliation operations and verify that final activation state equals final match membership and that lifecycle events obey their configured uniqueness rules.
 
-Integration tests run PostgreSQL with both extensions installed. They create rules over filters, joins, aggregates, anti-joins, windows, temporal predicates, and supported recursion; exercise `INSERT`, `UPDATE`, `DELETE`, `TRUNCATE`, full refresh, reinitialization, pause, replacement, and rollback; and verify catalog, match, activation, agenda, and execution state after each step. Every DML shape that `pg_trickle` may use must be tested explicitly, including direct `UPDATE`, delete-plus-insert, merge-style maintenance, explicit DML used for user-trigger support, and full rebuilds that suppress row-level transitions.
+Integration tests install both extensions and use normal views and typed SQL functions. They verify that registration rejects non-view definitions, duplicate or null semantic keys, wrong composite argument types, incorrect argument counts, non-void returns, invalid execution roles, volatile maintained conditions, and unsupported query capabilities. They replace registered views and functions to prove that compatible source drift is reported, incompatible row-type drift blocks typed execution, and dropped or changed functions invalidate only the affected consequence binding.
 
-Failure injection is essential. Tests terminate workers after external delivery but before completion, abort handler transactions, expire leases during execution, fail observer callbacks, restart PostgreSQL during refresh, drop generated triggers, corrupt or remove runtime artifacts in controlled environments, and restore from a backup with pending work. The expected recovery path must either repair state automatically under a proven invariant or mark the affected version unclaimable with a precise health error.
+Lifecycle tests exercise `ACTIVATE`, `CHANGE`, and `DEACTIVATE`; generation and revision numbering; pending activation withdrawal; desired-state deactivation skipping after reactivation; typed old and new values; JSON outbox envelopes; full-refresh reconciliation; bootstrap policy; and state-only recovery. Differential, immediate, and full-plus-reconcile histories must produce equivalent current activation state where the release claims equivalence.
 
-Concurrency tests run multiple workers claiming the same agenda groups, overlapping conflict keys, and mixed priority levels. They verify deterministic ordering where promised, fairness under sustained high-priority load, stale-worker rejection, and absence of duplicate open episodes. Upgrade tests install an older extension version, create active rules and pending episodes, upgrade both `pg_reason` and supported `pg_trickle` versions, and confirm that active state, history, leases, and outbox data survive.
+Concurrency tests are mandatory. Separate transactions change opposite sides of a join, update the same semantic key, delete a match while a worker claims it, pause or replace a rule during execution, and race lease expiry with completion. The suite runs under every isolation level the release claims to support. Unsupported immediate-mode combinations must fail explicitly. A dedicated test proves that a worker may claim A and B, execute A, have A invalidate B, and then skip B during its independent pre-execution recheck.
 
-Compatibility tests are maintained for every supported `pg_trickle` minor line and cover installation, rule compilation, refresh observation, differential transitions, full-refresh reconciliation, and health diagnostics. Benchmarks report source-write overhead, refresh latency, transition throughput, agenda claim rate, handler transaction cost, reconciliation speed, and the effect of rule fan-out. Performance gates should be tied to realistic workloads and clearly separate time spent in PostgreSQL planning, `pg_trickle` maintenance, `pg-reason` runtime work, and user handlers.
+Batch tests are separate from normal execution tests. A batch-safe endpoint refuses mixed versions, consequences, event kinds, execution roles, or incompatible conflict scopes, and no consequence is batchable without an explicit catalog declaration. Crash injection covers refresh rollback, server restart, worker death after consequence commit, ambiguous client disconnect, outbox delivery ambiguity, PITR, and dependency upgrade. Upgrade tests rebuild transient OID metadata from SQL while preserving active state, typed payloads, pending work, and history.
 
 ---
 
@@ -1214,33 +1376,33 @@ Connection poolers are supported because the public API is transaction-oriented 
 
 ## 29. Phased delivery plan
 
-### Phase 0: integration spike
+### Phase 0: view, typed consequence, and integration spike
 
-The first phase proves the critical boundary with the current `pg_trickle` release. It creates one generated match stream table, attaches the compatibility transition triggers, demonstrates correct coalescing for insert, update, delete, and delete-plus-insert maintenance, and reconciles after a full refresh. It also validates extension dependency checks and documents the proposed synchronous observer API. This phase is successful only if the semantic transition invariant can be demonstrated under transaction rollback and PostgreSQL restart.
+The first phase proves that an ordinary view can be snapshotted, compiled into a `pg_trickle` match relation, observed transactionally, and paired with typed activation and deactivation functions. It validates function signatures, typed payload storage, source-drift detection, delete-plus-insert coalescing, full-refresh reconciliation, extension compatibility checks, and the proposed synchronous observer API. The phase is successful only if rollback, restart, and concurrent join changes preserve the lifecycle invariant.
 
-### Phase 1: constraint rules
+### Phase 1: view-backed constraint rules
 
-The first usable product release implements rule and version catalogs, SQL query validation, deterministic activation identity, generated match relations, stable `current_matches` views, pause and resume, explain and health functions, bootstrap and reconciliation, ownership checks, and basic deployment and rollback. Constraint rules deliver immediate value without requiring agenda or worker semantics and exercise most of the compiler and integration surface.
+The first usable release implements logical rules and immutable versions, `definition regclass` authoring, the raw-query convenience API, deterministic semantic identity, generated match relations, current-match views, pause and resume, source fingerprints, explain and health functions, bootstrap, reconciliation, ownership checks, rollback, and rebuildable compiler metadata. Constraint rules deliver value without worker semantics while exercising the complete source-view compiler.
 
-### Phase 2: command rules and durable agenda
+### Phase 2: lifecycle command rules and durable agenda
 
-The next phase adds handler registration, rising-edge episodes, refraction, payload updates, withdrawals, salience, agenda groups, claim and lease APIs, retry behavior, database handlers, execution history, the generic outbox, and the first `pg-reasond` implementation. The phase is gated by concurrency, crash, and idempotency tests rather than by API breadth.
+This phase adds `pgreason.activation_context`, typed `on_activate`, `on_change`, and `on_deactivate` consequences, exact signature validation, typed event payloads, generation and revision refraction, salience, agenda groups, conflict keys, claims, leases, retries, independent pre-execution rechecks, execution history, the generic outbox, and the first `pg-reasond`. The release is gated by concurrency, crash, and idempotency tests rather than API breadth.
 
 ### Phase 3: production hardening
 
-This phase adds the stable `pg_trickle` observer integration if available, automated compatibility matrices, stronger repair tooling, metrics, structured runtime events, PITR procedures, rolling-upgrade support, retention management, performance gates, and security review. It also resolves the evaluation-role and RLS contract or clearly documents remaining limitations.
+Production hardening adds a stable `pg_trickle` observer if available, a published compatibility and isolation matrix, source and function drift repair, PITR procedures, rolling-upgrade support, retention management, performance gates, RLS and evaluation-role decisions, and security review. Batch-safe execution is introduced only after the one-at-a-time path is stable and measured.
 
 ### Phase 4: reusable conditions and optimization
 
-Explicit named conditions, rule packs, batch deployment, schedule coordination, and better cost diagnostics are introduced. Compiler-assisted common-subplan sharing remains experimental until plan fingerprints and security compatibility can be proven.
+Named conditions, rule packs, batch deployment, schedule coordination, and cost diagnostics are introduced. Compiler-assisted common-subplan sharing remains experimental until fingerprints, security contexts, and versioned definitions can be proven compatible.
 
-### Phase 5: logical support and derivation rules
+### Phase 5: logical support and derivation
 
-The truth-maintenance phase implements supports, derived facts, provenance, monotone fixed-point evaluation, and atomic deployment of recursive components. Stratified negation and aggregate recursion are added only where `pg_trickle` provides a sound execution model and the deletion semantics have passed property and end-to-end tests.
+The truth-maintenance phase implements supports, derived facts, provenance, monotone fixed-point evaluation, and atomic deployment of recursive components. Stratified negation and aggregate recursion are added only where `pg_trickle` provides a sound execution model and deletion semantics pass property and end-to-end tests.
 
 ### Phase 6: richer authoring and ecosystem integration
 
-A higher-level rule DSL, natural-language-assisted rule authoring with validation, optional `pg_tide` adapters, LLM task patterns, visual dependency graphs, and domain-specific rule packages can be built on the stable SQL and catalog model. These are product layers rather than changes to the foundational runtime semantics.
+A client-side DSL, natural-language-assisted authoring with validation, optional `pg_tide` adapters, LLM task patterns, visual dependency graphs, and domain packages can be built on the stable view, typed-function, and registration model. They do not replace the canonical PostgreSQL objects.
 
 ---
 
@@ -1248,161 +1410,247 @@ A higher-level rule DSL, natural-language-assisted rule authoring with validatio
 
 | Risk | Consequence | Mitigation |
 |---|---|---|
-| `pg_trickle` changes its public behavior | Missed or duplicate transitions | Pin compatible versions, maintain integration tests, and establish a stable observer API |
-| Full refresh bypasses row triggers | Activation state diverges | Block claims and reconcile in the refresh transaction or immediately through a recorded generation barrier |
-| Poor activation keys | Duplicate or surprising episodes | Require explicit keys, validate uniqueness, reject nulls, and document key design prominently |
-| User handlers perform irreversible effects in PostgreSQL | Unsafe retries and blocked refreshes | Prohibit such handlers by policy and route external work through the outbox |
+| `pg_trickle` changes public behavior | Missed or duplicate lifecycle events | Pin tested versions, maintain compatibility tests, and establish a stable critical observer API |
+| A registered source view changes | Live authoring object diverges from deployed semantics | Snapshot SQL and row signatures, detect drift, block unsafe typed execution, and require replacement |
+| A typed consequence function changes or disappears | Dispatch becomes unsafe or ambiguous | Store exact `regprocedure`, monitor DDL, invalidate the binding, and require repair or replacement |
+| Full refresh lacks detailed row deltas | Activation state can diverge | Establish a claim barrier and reconcile with explicit event-emission policy |
+| Poor semantic key choice | Distinct matches collapse or one subject fires repeatedly | Require explicit non-null keys, enforce uniqueness, and explain semantic identity prominently |
+| Authors expect projected values to identify source tuples | Duplicate visible rows have surprising behavior | Keep semantic keys explicit and offer a future opt-in fact-tuple identity mode |
+| Database consequence performs irreversible external work | Unsafe retries and blocked database transactions | Prohibit by policy and route external work through the outbox |
 | Worker dies after an external effect | Duplicate delivery on retry | Deterministic idempotency keys, leases, attempt history, and consumer deduplication |
-| One stream table per rule creates overhead | Catalog growth and repeated work | Retention, explicit shared conditions, batch deployment, measurements, and later plan sharing |
-| Security context differs during refresh | Data leakage or incorrect matches | Restrict trusted authors, validate roles, require explicit `pg_trickle` RLS guarantees before multi-tenant self-service |
-| Rule feedback creates oscillation or storms | Endless work and database load | Refraction, retry and episode limits, loop diagnostics, rate limits, and fixed-point restrictions |
-| JSONB payloads become large | Storage and vacuum pressure | Project minimal bindings, retain typed columns, apply configurable history and outbox retention |
-| Rule replacement duplicates actions | Incorrect business effects | Immutable versions, explicit deployment policy, key compatibility checks, and dry-run comparison |
-| Global priority expectations exceed the distributed model | Surprising order | Clearly define local ordering and offer explicit serialization through groups and conflict keys |
+| Claimed set executes as one unchecked batch | Later work runs after an earlier action invalidates it | Execute one episode per transaction and recheck immediately before invocation |
+| `batch_safe` is declared incorrectly | Order-dependent work runs together | Make it explicit, audited, narrow, observable, and disabled by default |
+| Immediate maintenance has unsafe isolation behavior | Cross-table match can be missed | Publish a tested matrix, serialize where necessary, and fail explicitly for unsupported combinations |
+| PostgreSQL upgrade remaps OIDs or parse structures | Cached compiled state becomes invalid | Persist SQL and qualified identities, isolate compatibility code, and rebuild analyzed metadata |
+| One match relation per version creates overhead | Catalog growth and repeated work | Retention, explicit shared conditions, measurement, and later safe plan sharing |
+| Feedback creates oscillation or storms | Endless work and database load | Refraction, episode limits, loop diagnostics, rate limits, and fixed-point restrictions |
+| Typed event payloads grow large | Storage and vacuum pressure | Project minimal bindings, configure retention, and use outbox claim-check patterns for large payloads |
 
-The most important technical risk is the refresh-observation boundary. A superficially simple design that attaches a trigger to a maintained relation can silently produce duplicate rising edges when maintenance uses delete-plus-insert, or miss transitions during a full rebuild. The architecture therefore treats semantic coalescing and reconciliation as first-class features, not as repair work added after the agenda exists.
+The most important technical risk remains the refresh-observation boundary. A simple trigger can misread delete-plus-insert maintenance or miss full rebuild transitions. The most important product risk is mutable authoring DDL. Views and typed functions are excellent rule objects only when deployed versions pin their meaning and detect drift.
 
 ---
 
 ## 31. Open design questions
 
-The implementation should resolve several questions through targeted prototypes and explicit decisions. The first is whether `pg_trickle` will provide a synchronous critical refresh observer and, later, a consolidated delta relation. The second is whether `pg_trickle` can accept a stable external row-identity hint that improves storage and update efficiency without making its internal row ID part of rule semantics. The third is the exact evaluation-role and RLS behavior during scheduled and immediate refreshes.
+The first integration question is whether `pg_trickle` will provide a synchronous critical refresh observer and later a consolidated delta relation. The second is the exact isolation and locking contract for immediate maintenance across several source tables. The third is whether `pg_trickle` can accept a stable external row-identity hint for storage efficiency without making that identifier part of `pg-reason` semantics.
 
-Product decisions also remain. The team must choose whether command rules default to `SEED_CURRENT` or require every author to state a bootstrap policy, whether pending episodes use latest-value or rising-edge snapshots by default, how running work behaves when a version is retired, and which metadata changes are safe without creating a new version. The outbox may remain a small built-in primitive or delegate more strongly to optional `pg_tide` integration. Named conditions may be visible as public relations or only through stable views.
+Product policy still needs measured decisions. The team must choose whether command rules default to `SEED_CURRENT` or require an explicit bootstrap policy, whether pending activation episodes use latest-until-claim or rising-edge snapshots by default, how a live full refresh differs from PITR reconciliation, and whether compatible source drift merely warns or automatically pauses command execution. A context-free typed function signature may be added later, but the context-bearing form is the version-one contract because it supports idempotency and audit.
 
-The future derivation layer must decide whether logical facts use one generic JSONB relation, typed user-defined fact tables, or a hybrid registry. It must also define atomic deployment across recursive strongly connected components and the supported boundary for stratified negation. These questions should not delay constraint and command rules, but the initial catalog and naming choices should avoid blocking the later design.
+The future fact-tuple identity mode must define its query subset, source-key registration, alias semantics, and primary-key update behavior. The derivation layer must decide how typed logical facts are represented and how recursive components are deployed atomically. These questions do not block view-backed constraint and command rules.
 
 ---
 
 ## 32. Initial release acceptance criteria
 
-A release candidate is correct only when a source change that creates a match creates exactly one active activation, a continuously true activation fires no more than once under default refraction, a non-key payload update does not create a new episode, and a physical delete-plus-insert update is coalesced into an active-to-active update. A falling edge must withdraw pending work according to policy, full refresh followed by reconciliation must produce the same activation state as equivalent differential maintenance, reconciliation must be idempotent, and rule replacement must follow its declared deployment policy without silent duplication.
+A release candidate must prove that an ordinary PostgreSQL view can be registered, snapshotted, compiled, queried, explained, and detected as drifted after DDL. Non-view definitions, null or duplicate semantic keys, wrong typed function arguments, non-void return types, unsafe execution roles, and unsupported maintained queries must be rejected before activation. Restore and PostgreSQL-major upgrade tests must rebuild transient OID-based metadata from stored SQL and signatures.
 
-The agenda and worker protocol must prove that two workers cannot successfully own the same lease, a stale worker cannot complete an episode that another worker reclaimed, retry timing is durable, and every external action has a deterministic idempotency key. PostgreSQL restart must lose no committed agenda work, worker restart must resume pending and expired work, an aborted refresh must create neither activation state nor agenda transitions, an aborted database-handler transaction must create neither handler writes nor completion, and outbox insertion must be atomic with episode completion.
+Semantic correctness requires exactly one activation generation when a key enters the result, no repeated activation event while it remains continuously true, revisioned change events under the configured policy, and exactly one deactivation event when a generation ends. Physical delete-plus-insert maintenance must coalesce into the correct semantic result. Typed activation, change, and deactivation functions must receive the correct context and old or new composite values. Full refresh followed by reconciliation must produce the same current activation state as equivalent differential maintenance, and reconciliation must be idempotent.
 
-Security acceptance requires that public users cannot modify private catalogs, authors can manage only rules they own unless broader rights are granted, workers can execute only enabled registered handlers, generated SQL is injection-safe, and every `SECURITY DEFINER` function has a fixed safe search path and ownership checks. Operational acceptance requires health checks for missing relations and triggers, incompatible dependency versions, stale leases, and reconciliation requirements; metrics for queue depth, failures, latency, and reconciliation lag; upgrade tests that preserve active and pending state; and a documented PITR procedure that succeeds in end-to-end testing.
+The worker protocol must prove that two workers cannot own one lease, a stale worker cannot complete reclaimed work, and a claim containing several episodes still executes them in independent transactions with fresh rechecks. A test must show that consequence A can invalidate pending B and that B is then skipped or withdrawn. Batch execution must remain unavailable unless the binding is explicitly `batch_safe` and every compatibility check succeeds.
+
+Concurrency acceptance includes opposite-side join inserts in concurrent transactions, concurrent changes to one semantic key, source changes racing with claims, source-view replacement racing with execution, and lease expiry racing with completion under every documented isolation level. Unsupported immediate-mode combinations must fail clearly. Crash, restart, PITR, outbox ambiguity, and idempotency tests must lose no committed work and create no silent duplicate business effect.
+
+Security acceptance requires private catalogs and generated typed payloads to be protected, authors to manage only owned objects, workers to invoke only enabled exact function OIDs, every `SECURITY DEFINER` function to use a fixed safe search path, and sensitive bindings to be controlled by projection and grants. Operational acceptance requires health checks for source drift, invalid consequence functions, missing generated relations or observers, stale leases, incompatible dependency versions, and reconciliation barriers.
 
 ---
 
 ## 33. End-to-end example
 
-The following example creates a rule that opens one review task whenever an order first becomes both large and associated with a high-risk customer.
+The following example opens one review task when an order becomes both large and associated with a high-risk customer, keeps the task amount synchronized while the condition remains true, and closes the task when the condition ceases to be true.
 
-### 33.1 Source facts
+### 33.1 Source facts and action state
 
 ```sql
-CREATE TABLE customers (
+CREATE SCHEMA IF NOT EXISTS app;
+
+CREATE TABLE app.customers (
     id bigint PRIMARY KEY,
-    risk text NOT NULL
+    risk_level text NOT NULL
 );
 
-CREATE TABLE orders (
+CREATE TABLE app.orders (
     id bigint PRIMARY KEY,
-    customer_id bigint NOT NULL REFERENCES customers(id),
+    customer_id bigint NOT NULL REFERENCES app.customers(id),
     amount numeric NOT NULL
 );
-```
 
-### 33.2 Transactional handler
-
-The task table uses the activation ID as a unique idempotency key. Reinvoking the handler after an aborted or ambiguous attempt does not create a duplicate task.
-
-```sql
-CREATE TABLE manual_review_tasks (
+CREATE TABLE app.manual_review_tasks (
     activation_id uuid PRIMARY KEY,
     order_id bigint NOT NULL,
     customer_id bigint NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now()
-);
-
-CREATE FUNCTION app.create_review_task(
-    activation_id uuid,
-    bindings jsonb,
-    context jsonb
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY INVOKER
-AS $$
-DECLARE
-    inserted_count bigint;
-BEGIN
-    INSERT INTO manual_review_tasks (
-        activation_id,
-        order_id,
-        customer_id
-    )
-    VALUES (
-        activation_id,
-        (bindings->>'order_id')::bigint,
-        (bindings->>'customer_id')::bigint
-    )
-    ON CONFLICT (activation_id) DO NOTHING;
-
-    GET DIAGNOSTICS inserted_count = ROW_COUNT;
-    RETURN jsonb_build_object('created', inserted_count > 0);
-END
-$$;
-
-SELECT pgreason.register_handler(
-    name => 'create_review_task',
-    handler_kind => 'DATABASE',
-    function_name => 'app.create_review_task(uuid,jsonb,jsonb)'::regprocedure,
-    run_as_role => current_user
+    amount numeric NOT NULL,
+    condition_active boolean NOT NULL DEFAULT true,
+    created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    deactivated_at timestamptz
 );
 ```
 
-### 33.3 Rule definition
+### 33.2 Condition view
+
+```sql
+CREATE SCHEMA IF NOT EXISTS rule_def;
+
+CREATE VIEW rule_def.high_value_risky_order AS
+SELECT
+    o.id AS order_id,
+    o.customer_id,
+    o.amount
+FROM app.orders AS o
+JOIN app.customers AS c
+  ON c.id = o.customer_id
+WHERE o.amount > 10000
+  AND c.risk_level = 'HIGH';
+```
+
+The view can be queried and explained before registration. Its row type, `rule_def.high_value_risky_order`, becomes the typed binding contract for this version.
+
+### 33.3 Typed lifecycle consequences
+
+```sql
+CREATE SCHEMA IF NOT EXISTS rule_action;
+
+CREATE FUNCTION rule_action.activate_review(
+    context pgreason.activation_context,
+    match   rule_def.high_value_risky_order
+)
+RETURNS void
+LANGUAGE SQL
+SECURITY INVOKER
+BEGIN ATOMIC
+    INSERT INTO app.manual_review_tasks (
+        activation_id,
+        order_id,
+        customer_id,
+        amount,
+        condition_active
+    )
+    VALUES (
+        (context).activation_id,
+        (match).order_id,
+        (match).customer_id,
+        (match).amount,
+        true
+    )
+    ON CONFLICT (activation_id) DO UPDATE
+       SET amount = EXCLUDED.amount,
+           condition_active = true,
+           updated_at = clock_timestamp(),
+           deactivated_at = NULL;
+END;
+
+CREATE FUNCTION rule_action.change_review(
+    context   pgreason.activation_context,
+    old_match rule_def.high_value_risky_order,
+    new_match rule_def.high_value_risky_order
+)
+RETURNS void
+LANGUAGE SQL
+SECURITY INVOKER
+BEGIN ATOMIC
+    UPDATE app.manual_review_tasks
+       SET amount = (new_match).amount,
+           updated_at = clock_timestamp()
+     WHERE activation_id = (context).activation_id
+       AND condition_active
+       AND amount IS DISTINCT FROM (new_match).amount;
+END;
+
+CREATE FUNCTION rule_action.deactivate_review(
+    context    pgreason.activation_context,
+    last_match rule_def.high_value_risky_order
+)
+RETURNS void
+LANGUAGE SQL
+SECURITY INVOKER
+BEGIN ATOMIC
+    UPDATE app.manual_review_tasks
+       SET condition_active = false,
+           deactivated_at = clock_timestamp(),
+           updated_at = clock_timestamp()
+     WHERE activation_id = (context).activation_id
+       AND condition_active;
+END;
+```
+
+### 33.4 Rule registration
 
 ```sql
 SELECT pgreason.create_rule(
-    name => 'high_risk_large_order',
-    kind => 'COMMAND',
-    match_query => $rule$
-        SELECT
-            o.id AS order_id,
-            o.customer_id,
-            o.amount
-        FROM orders AS o
-        JOIN customers AS c ON c.id = o.customer_id
-        WHERE c.risk = 'high'
-          AND o.amount > 10000
-    $rule$,
+    name       => 'high_value_risky_order',
+    kind       => 'COMMAND',
+    definition => 'rule_def.high_value_risky_order'::regclass,
     key_columns => ARRAY['order_id'],
-    handler => 'create_review_task',
-    salience => 100,
     conflict_key_columns => ARRAY['customer_id'],
+
+    on_activate =>
+        'rule_action.activate_review(
+            pgreason.activation_context,
+            rule_def.high_value_risky_order
+         )'::regprocedure,
+
+    on_change =>
+        'rule_action.change_review(
+            pgreason.activation_context,
+            rule_def.high_value_risky_order,
+            rule_def.high_value_risky_order
+         )'::regprocedure,
+
+    on_deactivate =>
+        'rule_action.deactivate_review(
+            pgreason.activation_context,
+            rule_def.high_value_risky_order
+         )'::regprocedure,
+
+    salience => 100,
     agenda_group => 'risk',
     schedule => '1s',
     refresh_mode => 'DIFFERENTIAL',
-    bootstrap_policy => 'SEED_CURRENT'
+    bootstrap_policy => 'SEED_CURRENT',
+    options => jsonb_build_object(
+        'recheck_before_execute', true,
+        'payload_policy', 'LATEST_UNTIL_CLAIM',
+        'batch_safe', false
+    )
 );
 ```
 
-### 33.4 Rising edge and execution
-
-The application inserts a high-risk customer and a large order:
+### 33.5 Lifecycle behavior
 
 ```sql
-INSERT INTO customers VALUES (7, 'high');
-INSERT INTO orders VALUES (42, 7, 15000);
+INSERT INTO app.customers VALUES (7, 'HIGH');
+INSERT INTO app.orders VALUES (42, 7, 15000);
 ```
 
-After the relevant `pg_trickle` refresh, the generated match relation contains one row with a deterministic activation ID, `order_id = 42`, `customer_id = 7`, and `amount = 15000`. The transition finalizer sees that the prior state was inactive and the final match is present, so it records generation 1 as active and inserts one pending agenda episode with salience 100 and conflict key derived from customer 7. `pg-reasond` claims the episode, invokes `pgreason.execute_claimed_episode`, and the handler, execution attempt, task row, and successful episode completion commit together.
+After refresh, order 42 enters the match relation. `pg-reason` creates activation generation 1 and one `ACTIVATE` episode. `pg-reasond` claims it, and `pgreason.execute_claimed_episode` invokes the typed activation function in one transaction. The task row uses the activation ID as its idempotency key.
 
-### 33.5 Updates, falling edge, and reactivation
+```sql
+UPDATE app.orders SET amount = 17000 WHERE id = 42;
+```
 
-If the order amount changes from 15000 to 17000, the activation key remains `order_id = 42`, so the match remains continuously true. The current bindings and payload hash are updated, but no new episode is created under `ON_REACTIVATION`. If the amount later falls to 9000, the match disappears and the activation becomes inactive. A pending episode would be withdrawn according to policy, while the already completed task and history remain. If the amount later rises to 20000, the same activation ID enters generation 2 and a new agenda episode is created because a new continuous active interval has begun.
+The semantic key remains `order_id = 42`, so generation 1 remains active. The payload revision changes, one `CHANGE` episode receives old amount 15000 and new amount 17000, and the typed change function updates the task. No second activation event is created.
+
+```sql
+UPDATE app.orders SET amount = 9000 WHERE id = 42;
+```
+
+The match leaves the result. The generation closes, stale pending activation work is withdrawn according to policy, and one `DEACTIVATE` episode receives the last typed row with amount 17000. The deactivation function marks the task inactive. If the amount later rises above the threshold again, the same version-specific activation ID enters generation 2 and creates a new activation episode.
 
 ---
 
 ## 34. Alternatives considered
 
-Adding agenda, retry, handler, and side-effect semantics directly to `pg_trickle` was rejected because those are not incremental view-maintenance responsibilities. Keeping a separate extension allows both projects to remain coherent and gives the rule runtime its own release cadence. Implementing classical RETE in Rust was rejected because it would duplicate PostgreSQL and `pg_trickle` functionality for parsing, joins, persistence, indexing, recovery, aggregates, and recursion while providing a less familiar authoring language.
+Adding agenda, retry, and consequence semantics directly to `pg_trickle` was rejected because they are not incremental view-maintenance responsibilities. A separate extension gives both projects coherent boundaries and independent release cadences.
 
-Using only triggers on base tables was rejected because multi-table joins, negation, aggregates, windows, and recursive conditions become difficult to maintain correctly. Polling every match query was rejected because it discards incremental maintenance and repeats full computation. Executing actions directly from match-table triggers was rejected because slow or external work would block refresh transactions, retries would be unsafe, and unrelated rules could be stalled by one handler failure.
+Implementing a standalone RETE engine with its own source-table triggers, alpha and beta memories, and transaction-local firing loop was rejected because it would duplicate `pg_trickle` CDC, SQL incrementalization, persistence, dependency ordering, and recovery. It would also force a much narrower SQL subset. `pg-reason` treats the maintained SQL result as the match relation and builds lifecycle semantics above it.
 
-`NOTIFY` was rejected as the agenda because it is not durable and cannot provide leases, replay, or large payloads. `pg_trickle` internal row IDs were rejected as public activation identity because they are execution details rather than semantic keys. Making an external service own all rule state was also rejected as the default because it would introduce a second authoritative state system and complicate backup, restore, and transactionality. The external worker should execute work, not own it.
+Using only raw query strings was rejected as the preferred authoring model because views provide named row types, native dependencies, grants, direct debugging, and `EXPLAIN`. The raw-query API remains convenience syntax that creates a private view. JSONB-only database consequences were rejected as the primary local interface because typed composite arguments expose schema problems during DDL and remove repetitive field parsing. JSONB remains the durable generic format for cross-rule APIs and external messages.
+
+Inferring identity from all projected values was rejected because duplicate visible rows and aggregates do not necessarily match the intended business subject. Inferring identity from every participating fact was also rejected as the universal default because many rules intentionally collapse several facts into one semantic state. Explicit semantic keys are the version-one contract; a future fact-tuple mode serves rules that truly need tuple-level activation. Physical `ctid` is never acceptable identity.
+
+Executing typed consequences directly from match-table triggers was rejected because slow or failing actions would block refresh, retries would be unsafe, and external effects would run inside database maintenance. Claiming a large set and executing it as one default batch was rejected because an early consequence may invalidate later episodes. `NOTIFY` was rejected as the agenda because it is not durable.
+
+A custom statement such as `CREATE REASON RULE` was rejected as the canonical interface. PostgreSQL already uses `CREATE RULE` for query rewriting, and portable extensions cannot add arbitrary top-level grammar without a core patch or external preprocessor. The canonical form remains `CREATE VIEW`, `CREATE FUNCTION`, and `SELECT pgreason.create_rule(...)`.
 
 ---
 
@@ -1416,6 +1664,13 @@ At the time this document was rewritten, the referenced `pg_trickle` main branch
 
 ## 36. Final recommendation
 
-Build **pg-reason** as a PostgreSQL-native runtime around three durable concepts: current matches, current activation state, and agenda episodes. Let `pg_trickle` own incremental maintenance of current matches. Let `pg-reason` own semantic identity, transitions, priorities, versioning, reconciliation, and execution history. Keep database-local effects inside controlled transactional handlers and place every external effect behind an idempotent outbox.
+Build **pg-reason** around three native PostgreSQL authoring objects and three durable runtime concepts. A normal view defines the condition, typed functions define optional activation, change, and deactivation consequences, and one registration call creates an immutable rule version. At runtime, `pg_trickle` owns current match maintenance, `pg-reason` owns semantic activation lifecycle state, and the agenda owns durable consequence work.
 
-The first implementation should favor correctness over breadth. Deterministic activation keys, semantic coalescing of physical DML, full-refresh reconciliation, immutable deployment, worker leases, and explicit external idempotency are the areas where a seemingly simple “trigger on a maintained table” design otherwise loses or duplicates work. Once those guarantees are stable, named conditions, logical support, fixed-point derivation, stratified reasoning, LLM orchestration, and compiler optimization can expand the product without changing its foundational architecture.
+Keep semantic keys explicit. Snapshot source-view SQL, row signatures, and exact consequence identities into immutable versions, and detect DDL drift instead of silently changing live behavior. Use OIDs for efficient analysis and dispatch inside one cluster, but retain SQL, qualified identities, and fingerprints as portable durable definitions. Never use physical tuple locations or private `pg_trickle` hashes as public rule identity.
+
+Execute typed database consequences one episode per transaction by default and recheck eligibility immediately before invocation. Permit batching only through a separate audited `batch_safe` path. Keep every irreversible external effect behind an idempotent outbox. Publish the concurrency and isolation contract for every supported `pg_trickle` mode and fail explicitly where correctness cannot be guaranteed.
+
+This architecture uses PostgreSQL’s strengths rather than recreating them. SQL provides the condition language, views provide named typed contracts, functions provide controlled consequences, PostgreSQL transactions provide durability, `pg_trickle` provides incremental matching, and `pg-reason` provides the lifecycle, agenda, recovery, and future reasoning semantics that connect them.
+
+---
+
