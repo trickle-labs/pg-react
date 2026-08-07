@@ -2,11 +2,13 @@
 
 PostgreSQL is excellent at storing facts. An order was placed, an account balance changed, a customer entered a new risk category, or a service crossed an error threshold. The difficult part often begins after the transaction is committed. A derived result needs to be recalculated, someone must decide whether the change matters, and an event or command may need to reach another system. What begins as a simple database update can quickly turn into a collection of refresh jobs, change-data-capture pipelines, rule engines, message brokers, retry workers, and custom application code.
 
-[pg_trickle](https://github.com/trickle-labs/pg-trickle), [pg_reason](https://github.com/trickle-labs/pg-reason), and [pg_tide](https://github.com/trickle-labs/pg-tide) offer a more direct way to solve that problem. Together, they create a clear path from changing data to reliable action, while keeping PostgreSQL at the center of the architecture.
+[pg_trickle](https://github.com/trickle-labs/pg-trickle) and [pg_tide](https://github.com/trickle-labs/pg-tide) provide two deployable PostgreSQL-native pieces of that path today. [pg_reason](https://github.com/trickle-labs/pg-reason) is a proposed rule layer that would depend on pg_trickle and can use pg_tide for external effects. Together, they describe a path from changing data to reliable action while keeping PostgreSQL at the center of the architecture.
 
-Each project has a distinct role. pg_trickle keeps important query results continuously up to date. pg_reason interprets those changing results as meaningful business conditions and decides when work should be created. pg_tide carries the resulting events and commands safely to other systems. Put more simply, pg_trickle answers **“What is true now?”**, pg_reason answers **“What does that truth mean?”**, and pg_tide answers **“How do we deliver the consequence reliably?”**
+Each layer has a distinct role. pg_trickle keeps important query results continuously up to date. The proposed pg_reason layer interprets those changing results as meaningful business conditions and decides when work should be created. pg_tide carries resulting events and commands safely to other systems. Put more simply, pg_trickle answers **“What is true now?”**, pg_reason answers **“What does that truth mean?”**, and pg_tide answers **“How do we deliver the consequence reliably?”**
 
 ```text
+Intended architecture
+
 Application data
       │
       ▼
@@ -14,7 +16,7 @@ Application data
 Maintains current derived truth
       │
       ▼
-  pg_reason
+  pg_reason (proposed)
 Recognizes conditions and schedules work
       │
       ▼
@@ -22,9 +24,9 @@ Recognizes conditions and schedules work
 Delivers events to other systems
 ```
 
-This separation is what makes the combination valuable. The three projects work together, but they do not blur into one large platform. Each one solves a specific problem and can also be used independently.
+This separation is what makes the combination valuable. pg_trickle and pg_tide can each be used independently. pg_reason, when available, will require pg_trickle; pg_tide remains optional when a rule has no external consequence.
 
-> **Project status:** pg_reason is currently described as a proposed design rather than a completed production release. pg_trickle is also under active pre-1.0 development, so APIs and compatibility requirements may still change. Teams evaluating the stack should check the current release status of each project.
+> **Project status:** pg_reason is currently a proposed design rather than a completed production release. pg_trickle is also under active pre-1.0 development, so APIs and compatibility requirements may still change. Teams evaluating the stack should check the current release status and compatibility requirements of each component.
 
 ## pg_trickle: Keeping derived data fresh
 
@@ -50,17 +52,17 @@ That is where pg_reason fits.
 
 pg_reason is designed as a PostgreSQL-native rule and reasoning layer built on top of pg_trickle. Its purpose is not to replace SQL query processing or incremental view maintenance. Instead, it adds the concepts needed to interpret changing query results as durable business events.
 
-A rule begins with a normal SQL query. Every row returned by that query represents a situation in which the rule is currently true. For example, a rule might select orders over €10,000 where the customer is classified as high risk. pg_trickle keeps that result current as orders and customer records change. pg_reason then watches how each logical match changes over time.
+A rule condition is ordinary SQL, preferably expressed as a PostgreSQL view. Every row returned by that condition represents a situation in which the rule is currently true. For example, a rule might select orders over €10,000 where the customer is classified as high risk. pg_trickle keeps that result current as orders and customer records change. pg_reason then watches how each logical match changes over time.
 
-This distinction is important because a rule should usually respond to a meaningful transition, not to every physical database update. Imagine that order 42 becomes eligible for manual review when its value rises from €9,000 to €12,000. That is a new condition, so creating a review task makes sense. If the order value later changes from €12,000 to €13,000, the condition is still true, but creating a second identical review task probably does not make sense. If the value falls below the threshold and later rises above it again, a new review episode may be appropriate.
+This distinction is important because a rule should usually respond to a meaningful transition, not to every physical database update. Imagine that order 42 becomes eligible for manual review when its value rises from €9,000 to €12,000. That is a new condition, so creating a review task makes sense. If the value falls below the threshold and later rises above it again, a new activation generation may be appropriate.
 
 pg_reason is designed to understand those differences. It gives each match a stable identity and tracks whether it is currently active, when it became active, whether it has already caused work to be created, and when it stops being true. This prevents application behavior from depending on whether pg_trickle happened to express an internal change as an update, a delete followed by an insert, or a full rebuild.
 
-The design refers to one continuous period during which a condition remains true as an **episode**. When a condition changes from false to true, the episode begins. When it changes back to false, the episode ends. Under the default behavior, a command rule creates work when a new episode begins, but does not repeatedly create the same work while the condition remains continuously true. This behavior is often called refraction.
+The design calls one continuous false-to-true-to-false interval an **activation generation**. An **episode** is one durable agenda item for one lifecycle event, such as activation, deactivation, or a meaningful change. An activation-only rule creates work when a generation begins but does not repeatedly create the same activation work while the condition remains true. This behavior is called refraction. A rule that defines an `on_change` consequence can create a distinct change episode when its meaningful payload changes.
 
-That model makes rules more intuitive. A rule can say, in effect, “Create one review request when an order first becomes high risk,” rather than “Run this action after every row-level change and hope the application can remove the duplicates.”
+That model lets a rule say, in effect, “Create one review request when an order first becomes high risk,” while still allowing a different consequence to respond when the active order changes.
 
-pg_reason also introduces the operational concepts required for a dependable rule system. Rules can have priorities, so urgent conditions are handled first. Agenda groups can route different kinds of work to different workers. Conflict keys can prevent two incompatible actions for the same account or customer from running at the same time. Durable leases and retries allow work to survive worker crashes. Immutable rule versions preserve the meaning of historical executions even after a rule is updated.
+The proposed runtime also includes the operational concepts required for a dependable rule system. Priorities influence episode selection within configured workers but do not promise one global firing order. Agenda groups can route different kinds of work to different workers. Conflict keys can prevent two incompatible actions for the same account or customer from running at the same time. Durable leases and retries allow work to survive worker crashes. Immutable rule versions preserve the meaning of historical executions even after a rule is updated.
 
 One of the strongest ideas in the design is the separation between **what is currently true** and **what work has happened because of it**. The pg_trickle match table represents the current condition. The pg_reason activation state records how that condition has evolved. The pg_reason agenda records the work that was requested, claimed, completed, failed, withdrawn, or cancelled.
 
@@ -84,11 +86,11 @@ A transactional outbox solves the problem by writing the business change and the
 
 pg_tide provides that outbox as a PostgreSQL extension and adds the surrounding operational features needed to use it in production. Messages can be retried, grouped, observed, replayed, and routed to different destinations. The relay can deliver to messaging systems, cloud services, HTTP endpoints, notification platforms, analytical stores, object storage, or another PostgreSQL deployment.
 
-Delivery to an external system is generally at least once. That means a message may occasionally be delivered more than once, especially when a network failure makes it unclear whether the destination received the first attempt. pg_tide addresses this by using stable event identities and idempotent processing. A receiving system can recognize that two deliveries represent the same logical message and safely ignore the duplicate.
+Delivery to an external system is generally at least once. That means a message may occasionally be delivered more than once, especially when a network failure makes it unclear whether the destination received the first attempt. pg_tide gives each message a stable event identity, but an arbitrary destination is idempotent only when it persists and honors that identity. The identity makes duplicate handling possible; it does not make an unmodified HTTP endpoint or third-party service deduplicate automatically.
 
-The idempotent inbox provides the same protection for messages entering PostgreSQL. When a message arrives with an event identifier that has already been processed, the consumer can recognize the repeat rather than applying the same operation twice.
+The idempotent inbox provides that protection for messages entering PostgreSQL. When a message arrives with an event identifier that has already been processed, the consumer can recognize the repeat rather than applying the same operation twice. Other receivers need an equivalent deduplication contract.
 
-This approach is more honest and practical than promising universal “exactly once” behavior. PostgreSQL cannot atomically commit a transaction together with an unrelated email provider, HTTP service, or message broker unless every participant supports a shared distributed transaction protocol. pg_tide instead makes each boundary explicit: the database commit is atomic, delivery is durable and retryable, and duplicate handling is based on stable identities.
+This approach is more honest and practical than promising universal “exactly once” behavior. PostgreSQL cannot atomically commit a transaction together with an unrelated email provider, HTTP service, or message broker unless every participant supports a shared distributed transaction protocol. pg_tide instead makes each boundary explicit: the database commit is atomic, delivery is durable and retryable, and stable identities support duplicate handling when the destination participates.
 
 ## How the three projects work together
 
@@ -102,15 +104,15 @@ The application continues to write normal business data. It inserts orders, upda
 
 pg_trickle maintains a stream table containing the orders that currently satisfy the condition. The query can join orders with customers and filter by both order value and customer risk. When an order amount or customer classification changes, pg_trickle calculates the effect of that change and updates the maintained result.
 
-Suppose order 42 moves from €9,000 to €12,000 while its customer is already classified as high risk. The order now appears in the stream table. pg_reason recognizes that this is a false-to-true transition for the activation identified by order 42. It records the activation and creates one durable agenda episode for manual review.
+Suppose order 42 moves from €9,000 to €12,000 while its customer is already classified as high risk. The order now appears in the stream table. pg_reason recognizes that this is a false-to-true transition for the activation identified by order 42 and records the activation. When the rule declares an activation consequence, it creates one durable agenda episode for manual review.
 
-If the order value later rises to €14,000, pg_trickle updates the matching row. pg_reason sees that the same activation is still true. It can update the latest payload, but it does not create another review task under its default refraction policy.
+If the order value later rises to €14,000, pg_trickle updates the matching row. For a rule that defines only an activation consequence, pg_reason can update the latest payload without creating another activation episode. If the rule also defines an `on_change` consequence, that meaningful payload change creates a separate change episode instead.
 
-A worker then claims the agenda episode. For a database-local consequence, it might insert a row into a `manual_review_tasks` table and mark the episode complete in the same PostgreSQL transaction. For an external consequence, it creates a message in a pg_tide outbox using a deterministic idempotency key.
+A worker then claims the activation episode. For a database-local consequence, it might insert a row into a `manual_review_tasks` table and mark the episode complete in the same PostgreSQL transaction. For an external consequence, it creates a message in a pg_tide outbox using a deterministic idempotency key in the same transaction that marks the external episode complete.
 
-The outbox message and the successful rule execution are committed together. If the transaction fails, neither is recorded. If it succeeds, pg_tide’s relay can deliver the message to the risk platform, a Kafka topic, a NATS subject, a webhook, or another configured destination.
+The outbox message and completion of that external episode are committed together. If the transaction fails, neither is recorded. If it succeeds, pg_tide’s relay can deliver the message to the risk platform, a Kafka topic, a NATS subject, a webhook, or another configured destination.
 
-If the relay crashes, the message remains in PostgreSQL and can be attempted again. If the destination receives the event twice because of an ambiguous network failure, the idempotency key allows it to recognize both deliveries as the same review request.
+If the relay crashes, the message remains in PostgreSQL and can be attempted again. If the destination receives the event twice because of an ambiguous network failure, it must use the idempotency key to recognize both deliveries as the same review request.
 
 The risk platform may eventually return a decision. That decision can be written back to PostgreSQL directly or delivered through a pg_tide inbox. Once stored as a new fact, it may affect another pg_trickle stream table, which may activate another pg_reason rule and produce another event.
 
@@ -137,48 +139,46 @@ The external result becomes a new PostgreSQL fact
 
 Each step has a clear responsibility. pg_trickle does not decide what business action should occur. pg_reason does not need to implement incremental joins and aggregates. pg_tide does not need to understand why a particular event matters. The projects cooperate through durable state while remaining independently understandable.
 
-## Clear transaction boundaries
+## Clear transaction boundaries and timing
 
-An important strength of this architecture is that it does not hide its transaction boundaries.
+An important strength of this architecture is that it does not hide its transaction boundaries. It also does not make every transition synchronous with the source-data write.
+
+In the proposed default epochal flow, an application first commits its ordinary source-data transaction. pg_trickle incorporates that committed change at its configured refresh boundary. pg_reason then records lifecycle state and agenda work with the maintained match, and a worker executes the consequence in a later transaction. Freshness therefore depends on the configured refresh mode and schedule, and independent workers do not promise one global firing order.
 
 Within pg_trickle, changes to a maintained result can be committed as part of a PostgreSQL transaction. pg_trickle can also publish refresh summaries into a pg_tide outbox in the same transaction as a non-empty refresh. If that refresh rolls back, the outbox event rolls back as well.
 
 Within the proposed pg_reason design, changes to activation state and agenda state are intended to commit with the maintained rule match. A database handler can commit its application changes together with the execution record. An external action can commit an outbox message together with the completion of the agenda episode.
 
-Once the message leaves PostgreSQL, delivery becomes at least once and idempotent. That boundary is explicit rather than hidden behind an unrealistic end-to-end exactly-once claim.
+Once the message leaves PostgreSQL, delivery becomes at least once. The stable event identity supports idempotent handling when the destination participates; it does not create an end-to-end exactly-once guarantee.
 
-This gives the system a series of understandable guarantees. A maintained condition cannot be committed without its associated rule transition. A rule episode cannot be marked successfully scheduled without its committed outbox message. An outgoing message cannot disappear merely because a relay process restarted. A repeated delivery can be recognized by its stable identity.
+The proposed integration therefore has narrow, understandable guarantees. A processed maintained match and its lifecycle transition are intended to commit together. For an external consequence, episode completion cannot commit without its outbox message. An outgoing message cannot disappear merely because a relay process restarted. A repeated delivery can be recognized only by a destination that implements the required deduplication contract.
 
 ## Useful separately, stronger together
 
-The three projects form a coherent stack, but they do not have to be adopted as a bundle.
+The components form a coherent stack, but they do not have to be adopted as a bundle. pg_trickle and pg_tide can be used independently; pg_reason, once available, requires pg_trickle and only needs pg_tide for external consequences.
 
 A team that only needs fresh derived tables can use pg_trickle by itself. It may be enough for live dashboards, operational summaries, search candidates, or continuously maintained aggregates.
 
 A team that needs reliable database messaging can use pg_tide by itself. An application transaction can publish to an outbox without using stream tables or a rule engine.
 
-A team that needs continuously evaluated constraints or database-local automation could use pg_trickle together with pg_reason. pg_trickle maintains the condition, while pg_reason interprets its transitions and manages the resulting work.
+A team that needs continuously evaluated constraints or database-local automation could, once pg_reason is available, use it with pg_trickle without adopting pg_tide. pg_trickle maintains the condition, while pg_reason interprets its transitions and manages the resulting work.
 
 pg_trickle and pg_tide also have a direct integration. A stream table can be attached to a pg_tide outbox so that non-empty refreshes publish transactional summary events. These events contain metadata such as the source stream table and the number of inserted or deleted rows. They are useful for downstream invalidation, refresh coordination, or orchestration, although they are not a complete row-level change feed.
 
-The full trifecta becomes especially useful when an application needs to maintain a complex condition, understand when that condition meaningfully changes, and communicate the consequence beyond PostgreSQL.
+The intended full stack becomes especially useful when an application needs to maintain a complex condition, understand when that condition meaningfully changes, and communicate the consequence beyond PostgreSQL.
 
 ## Why this model is valuable
 
-The immediate value is reduced application plumbing. Teams no longer need to build separate systems for refreshing derived data, deduplicating rule executions, recording task history, coordinating retries, and solving dual writes. More of that behavior can be expressed through SQL and represented as durable PostgreSQL state.
+The intended value is reduced application plumbing. The components can express derived-data maintenance, durable rule state, retries, and transactional messaging as PostgreSQL state rather than as disconnected application code and logs.
 
-The operational value is just as important. Stream tables, rule matches, activations, agenda episodes, execution attempts, outbox messages, inbox records, and relay configuration can all be inspected using familiar database tools. They can participate in normal backup, recovery, replication, permission, and auditing practices.
+The operational value is just as important. Stream tables, rule matches, activations, agenda episodes, execution attempts, outbox messages, inbox records, and relay configuration can be inspected with familiar database tools and participate in normal backup, recovery, replication, permission, and auditing practices. An operator can trace an external notification back through its message, episode, activation, maintained match, and source rows.
 
-The architecture is also easier to explain. When an external notification is questioned, an operator can trace it back through the pg_tide message, the pg_reason episode, the activation that created it, the pg_trickle match, and finally the source rows that made the condition true. That is much clearer than piecing together a decision from several services, queues, and partial logs.
+The model fits best when the condition is relational, PostgreSQL is the authoritative source of facts, and a configured refresh boundary plus later worker execution is acceptable. It is not a replacement for a globally ordered workflow engine, a cross-system atomic transaction, or an action that must execute synchronously with every source-data write.
 
-Most importantly, the design keeps its responsibilities clean. pg_trickle remains focused on incremental data maintenance. pg_reason remains focused on rule meaning, activation history, and durable work. pg_tide remains focused on reliable messaging and delivery. Each project can improve without forcing the others to absorb unrelated complexity.
+The boundaries remain clean: pg_trickle focuses on incremental data maintenance, the proposed pg_reason layer on rule meaning and durable work, and pg_tide on reliable messaging and delivery.
 
 ## PostgreSQL as a system of action
 
-PostgreSQL is traditionally described as a system of record: the place where authoritative facts are stored.
+PostgreSQL is traditionally described as a system of record: the place where authoritative facts are stored. pg_trickle makes those facts continuously queryable as derived truth; the proposed pg_reason layer can turn meaningful transitions into durable work; pg_tide can carry that work into the wider architecture.
 
-This trifecta extends that role in a natural way.
-
-pg_trickle makes PostgreSQL a system of continuously maintained truth. pg_reason adds the ability to recognize when that truth has business meaning and to create durable work from it. pg_tide provides a reliable way to carry that work into the wider architecture.
-
-Together, they create a clear progression from **data**, to **decision**, to **delivery**. The result is not an attempt to place every part of a distributed system inside PostgreSQL. It is an attempt to keep the most important transitions durable, understandable, and close to the data that caused them.
+Together, they describe a progression from **data**, to **decision**, to **delivery**. The aim is not to place every part of a distributed system inside PostgreSQL, but to keep the important transitions durable, understandable, and close to the data that caused them.
