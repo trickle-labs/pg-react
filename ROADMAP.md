@@ -1,7 +1,7 @@
 # pg-react roadmap
 
 > **Status:** Living delivery plan  
-> **Last updated:** 2026-08-08  
+> **Last updated:** 2026-08-09\
 > **Design authority:** [`DESIGN.md`](DESIGN.md) defines product semantics. This file defines delivery order, release scope, and evidence required to ship.
 
 `pg-react` should become the easiest safe way to turn changing PostgreSQL data into durable, inspectable decisions and work. The roadmap is therefore organized around two outcomes:
@@ -18,7 +18,7 @@ The stages below are **evidence gates, not calendar promises**. Parallel work is
 A successful v1 lets a PostgreSQL developer:
 
 1. Define a condition with a normal view.
-2. Define an optional consequence with a typed PostgreSQL function or transactional outbox message.
+2. Define an optional consequence with a typed PostgreSQL function or registered transactional outbox sink.
 3. Register the rule with one `pgreact.create_rule` call.
 4. Inspect current matches, lifecycle state, pending work, attempts, drift, and health through documented SQL views and functions.
 5. Pause, replace, reconcile, retry, and recover a rule without editing internal tables.
@@ -30,7 +30,7 @@ A successful v1 lets an operator trust that:
 - match state, activation state, payloads, and agenda work commit atomically;
 - two workers cannot own the same lease;
 - stale or invalidated work cannot execute successfully;
-- database-local consequences and outbox insertion are transactional;
+- database-local consequences and transactional outbox-sink enqueue are atomic with episode completion;
 - external delivery is at least once and uses deterministic idempotency keys;
 - reconciliation is explicit and idempotent;
 - source and function drift are visible and block unsafe execution;
@@ -38,7 +38,7 @@ A successful v1 lets an operator trust that:
 
 ---
 
-## Initial v1 contract
+## v1 GA contract
 
 The first release should support a deliberately narrow, dependable surface.
 
@@ -51,7 +51,7 @@ The first release should support a deliberately narrow, dependable surface.
 | `ACTIVATE`, `CHANGE`, and `DEACTIVATE` lifecycle events | Strict synchronous firing loops |
 | Scheduled `DIFFERENTIAL` maintenance as the default | Broad `IMMEDIATE`-mode support before its isolation contract is proven |
 | Typed PostgreSQL consequence functions | Arbitrary remote calls inside PostgreSQL backends |
-| Transactional outbox for external effects | Claims of global exactly-once external delivery |
+| Registered transactional outbox sink for external effects, with a `pg_tide` adapter | A second pg-react-owned relay or claims of global exactly-once delivery |
 | One episode per transaction with a fresh eligibility check | General unchecked batching |
 | Immutable rule versions, source snapshots, and drift detection | Mutable deployed rule definitions |
 | PostgreSQL as the only authoritative state store | Worker-local durable offsets or a second truth store |
@@ -86,6 +86,19 @@ These are not late-stage cleanup tasks. Each release stage advances all of them.
 
 **Outcome:** prove the architecture before committing to the full public API.
 
+**Entry gate:** none. M0 is the only implementation work authorized by this roadmap until its exit and decision gates pass.
+
+### Fixed M0 contract
+
+- One reference command rule with one non-null `bigint` semantic key and one `ACTIVATE` consequence.
+- Scheduled, explicitly selected `DIFFERENTIAL` maintenance under `READ COMMITTED` against one exact `pg_trickle` source revision; `AUTO`, `FULL`, `IMMEDIATE`, adaptive fallback, and other maintenance actions are rejected or claim-barriered.
+- The trigger/deferred-finalizer path is a disposable experiment. It is not an alpha compatibility promise.
+- One in-test executor calls the server-side execution function. M0 does not build `pg-reactd` or freeze a public worker protocol.
+- Reconciliation is claim-barriered `STATE_ONLY`; bootstrap is `SEED_CURRENT` or `REQUIRE_EMPTY`. Neither path emits historical command work.
+- Activation payloads are immutable rising-edge snapshots.
+- No `CHANGE` events, `DEACTIVATE` consequences or episodes, automatic retry, outbox, raw-query authoring, live replacement, custom execution role, or RLS-protected source is in scope. M0 still records the state-closing `DEACTIVATE` ledger event required for correct reactivation generations.
+- The in-test consequence runs as the rule owner through the same lease checks and binding-specific, fixed-search-path `SECURITY DEFINER` dispatcher intended for M1. A shared binding lock spans fingerprint verification and invocation; conflicting DDL takes the exclusive lock. The design never attempts `SET ROLE` inside a security-definer function.
+
 The first implementation must be a narrow end-to-end path, not a collection of disconnected subsystems:
 
 ```text
@@ -93,6 +106,7 @@ source transaction
   -> pg_trickle refresh
   -> final semantic match delta
   -> activation transition
+  -> durable lifecycle event
   -> durable agenda episode
   -> one typed PostgreSQL consequence
   -> inspectable completion history
@@ -100,14 +114,16 @@ source transaction
 
 ### Deliverables
 
-- Buildable Rust workspace with a `pgrx` extension skeleton and a minimal `pg-reactd` process.
-- Reproducible PostgreSQL 18 development and CI environment with pinned dependency versions.
+- Buildable Rust workspace with a `pgrx` extension skeleton and an in-test episode executor.
+- Reproducible PostgreSQL 18 development and CI environment pinning the exact `pg_trickle` version and source revision, `pgrx` version, required GUCs, and isolation level.
 - A documented, versioned `pg_trickle` integration boundary owned by one adapter module.
-- A synchronous critical refresh-observer or consolidated-delta mechanism that sees the final semantic result of a refresh transaction.
-- A pure lifecycle transition planner for semantic identity, activation generations, and coalescing of physical delete-plus-insert maintenance.
-- A minimal catalog containing immutable rule identity, current activation state, one agenda state path, and execution history.
+- A trigger-based experiment plus the proposed synchronous critical refresh-observer contract, both tested against final semantic state.
+- A pure lifecycle transition planner for activation generations and coalescing of physical delete-plus-insert maintenance.
+- Versioned canonical-key codec v1 for non-null `bigint`, using no local OIDs and retaining canonical bytes plus the complete digest.
+- A minimal catalog containing immutable rule identity, current activation state, a permanent lifecycle-event uniqueness ledger, one agenda state path, and execution history.
+- A pre-refresh durable `REFRESHING` barrier committed while an exclusive session-level rule lock blocks claims' shared transaction-level lock; success clears it only after lifecycle commit, while failure or disconnect leaves it in place.
 - One reference rule using `ACTIVATE` and a typed database-local consequence.
-- Property and integration test harnesses established before feature expansion.
+- Seed-replayable property and integration harnesses with a simple reference-state oracle.
 
 ### Exit gates
 
@@ -115,8 +131,14 @@ source transaction
 - Restart preserves committed lifecycle and agenda state.
 - Concurrent transactions changing opposite sides of a join do not silently miss or duplicate the semantic transition.
 - A physical delete-plus-insert that leaves the same semantic key present does not create a false deactivation and reactivation.
-- A full rebuild followed by reconciliation reaches the same current activation state as equivalent differential maintenance.
+- A true delete followed by reinsertion records the generation-1 deactivation, creates generation 2, and schedules a second `ACTIVATE` episode without creating a deactivation episode.
+- A null or duplicate key introduced after registration aborts refresh without partial lifecycle work; claims remain barred until correction and successful repair.
+- Claims cannot pass between pre-refresh barrier creation, refresh commit or rollback, and post-success barrier clearing; driver disconnect leaves the committed barrier in place. If the pinned integration cannot prove this ordering, M0 records a negative result.
+- `STATE_ONLY` reconciliation runs behind a claim barrier, is idempotent, emits no command work, and reaches the same current activation state as equivalent differential maintenance.
 - The typed consequence and episode completion commit atomically.
+- Concurrent `CREATE OR REPLACE`, `ALTER`, or `DROP` cannot change the consequence or dispatcher between verification and invocation.
+- Canonical key and activation-ID fixtures survive restart and logical dump/restore unchanged.
+- The same deterministic property-test seed reproduces the same physical history and reference outcome.
 
 ### Decision gate
 
@@ -127,7 +149,7 @@ If `pg_trickle` cannot provide a sound observation boundary, the project must ex
 3. redesign the integration boundary; or
 4. pause the command-rule implementation.
 
-A trigger-only approximation must not silently become the production contract.
+A trigger-only approximation must not silently become the production contract. M0 may complete with a documented negative result, but no further implementation milestone begins until this roadmap is explicitly amended or option 1, 2, or 3 yields a sound, tested final-state boundary.
 
 ---
 
@@ -135,20 +157,25 @@ A trigger-only approximation must not silently become the production contract.
 
 **Outcome:** deliver the smallest release that users can understand, install, and use for real PostgreSQL-local rules.
 
+**Entry gate:** every M0 exit gate passes; the command observation boundary is sound and available; the exact compatibility tuple is pinned; and the alpha decisions listed below are closed in `DESIGN.md` and executable fixtures.
+
 ### User-visible scope
 
 - `CREATE EXTENSION pg_react` with a documented compatible `pg_trickle` installation.
 - View-backed constraint rules.
 - Activate-only command rules through typed PostgreSQL functions.
-- `pgreact.create_rule`, pause, resume, drained replacement, and inspect operations. Alpha replacement requires a paused rule with no pending, retrying, or leased work; live cutover arrives in beta.
-- Explicit semantic keys with non-null and uniqueness validation.
+- Internal deactivation state and ledger events close generations; deactivation consequences and episodes remain beta scope.
+- `pgreact.create_rule`, pause, resume, drained replacement, and inspect operations. Alpha replacement requires a paused rule with no pending or leased work; live cutover arrives in beta.
+- Explicit semantic keys with portable versioned codecs plus registration-time and runtime non-null/uniqueness enforcement.
 - Immutable versions, source snapshots, row signatures, and source drift reporting.
+- Built-in condition functions, operators, casts, types, and deterministic collations covered by the pinned suite; user-defined executable condition dependencies are deferred until their DDL race is solved.
 - Generated current-match views and stable public inspection views.
 - Deterministic activation IDs and one activation generation per continuous truth interval.
-- Bootstrap and reconciliation with an explicit, documented policy.
+- `SEED_CURRENT`/`REQUIRE_EMPTY` bootstrap and claim-barriered `STATE_ONLY` reconciliation. `FIRE_CURRENT` and event-emitting reconciliation remain beta features.
 - `pgreact.validate_rule` and `pgreact.preview_rule` before durable deployment.
 - `pgreact.explain_rule`, `pgreact.explain_activation`, `pgreact.explain_episode`, and `pgreact.health_check` with practical remediation hints.
-- A minimal worker that executes one episode per transaction and performs a fresh pre-execution check.
+- A minimal worker that claims one episode, uses a finite lease and one durable attempt row, executes one episode per transaction, and performs a fresh pre-execution check. It has no automatic retry or heartbeat; expired work is swept back to pending and failures require an audited manual requeue.
+- Alpha removal drains executable work before dropping generated match/payload artifacts and retains the compact lifecycle-event ledger and audit history. Automated pruning is deferred, so alpha is not approved for unbounded production retention.
 - Scale smoke workloads for one rule with many matches, many rules with few matches, no-change refreshes, activation bursts, repeated replacement, and payload growth.
 
 ### Usability requirements
@@ -156,7 +183,7 @@ A trigger-only approximation must not silently become the production contract.
 - The canonical example remains a three-step workflow: create a view, create a typed function, register the rule.
 - The common command path requires only name, definition, semantic key, and activation consequence; advanced lifecycle and scheduling policy remains optional.
 - Common configuration has safe defaults; policies that can create surprising work require an explicit choice.
-- Preflight reports maintenance support, key and watched-column problems, consequence compatibility, expected refresh mode, dependencies, generated objects, and bootstrap or external-effect warnings.
+- Preflight reports maintenance support, key-codec problems, consequence compatibility, expected refresh mode, dependencies, generated objects, and bootstrap warnings. Watched-column and external-effect diagnostics arrive with those features.
 - Validation errors name the rule, object, invalid property, and corrective action.
 - Users do not need to query or update `pgreact_internal`.
 - The README example is executable in CI as documentation-as-test.
@@ -164,8 +191,11 @@ A trigger-only approximation must not silently become the production contract.
 ### Exit gates
 
 - A new user can complete the reference example using only public documentation and public SQL APIs.
-- Registration rejects non-view definitions, null or duplicate semantic keys, incomparable watched columns, incompatible typed signatures, unsafe roles, and unsupported query capabilities before activation.
+- Registration rejects non-view definitions, null or duplicate semantic keys, unsupported key codecs, incompatible typed signatures, unsafe roles, RLS-protected sources, and unsupported query capabilities before activation.
+- A later null or duplicate semantic key aborts refresh, commits no partial lifecycle work, appears in health output, and blocks claims until corrected.
 - Replacing or dropping a source view or consequence function produces visible drift or invalidation rather than ambiguous dispatch.
+- Alpha security tests prove owner authorization, exact function dispatch, binding-lock serialization against DDL, fixed safe `search_path` for extension `SECURITY DEFINER` code, no ordinary access to private catalogs or payloads, and rejection of RLS-protected sources.
+- Restart and worker-death tests prove lease recovery, atomic consequence completion, inspectable failure, and audited manual requeue without lost committed work.
 - Property tests cover long insert, update, delete, delete-plus-insert, rebuild, and reconciliation histories.
 - Scale smoke tests publish baselines and reveal architectural cliffs before storage and catalog layouts harden; final release budgets are not required yet.
 - Constraint and activate-only command rules can be installed, explained, paused, resumed, replaced after draining, and removed cleanly.
@@ -175,6 +205,8 @@ A trigger-only approximation must not silently become the production contract.
 ## Stage 2 — Reliability beta: complete lifecycle and durable execution
 
 **Outcome:** make command rules dependable under concurrency, retries, crashes, and changing source data.
+
+**Entry gate:** every M1 exit gate passes and every pre-beta decision below is normative in the design and covered by planned tests.
 
 ### Deliverables
 
@@ -186,7 +218,7 @@ A trigger-only approximation must not silently become the production contract.
 - Salience, agenda groups, conflict keys, and deterministic claim ordering within the documented scope.
 - Independent pre-execution eligibility, source-fingerprint, function-fingerprint, lease, and conflict checks.
 - Blue/green replacement implementing the design's cutover matrix for active, pending, retrying, and leased work.
-- Generic transactional outbox with deterministic idempotency keys, a stable event envelope, replay behavior, and a normative consumer contract.
+- Transactional outbox-sink contract with deterministic idempotency keys, a stable event envelope, replay behavior, a normative consumer contract, and a `pg_tide` adapter. Core pg-react owns no relay or duplicate delivery-state table.
 - Execution-attempt and reconciliation-audit history plus operator APIs for retry, cancel, reconcile, and lease repair.
 - Stateless, horizontally scalable `pg-reactd` with polling as the authority and `LISTEN/NOTIFY` only as a wake-up hint.
 - Feedback-loop limits and diagnostics for rules whose consequences change their own source facts.
@@ -197,8 +229,8 @@ A trigger-only approximation must not silently become the production contract.
 - A stale worker cannot complete work after lease reclamation.
 - A worker may claim episodes A and B, execute A, have A invalidate B, and then skip or withdraw B during B's fresh recheck.
 - Database consequence execution and episode completion are atomic.
-- Outbox insertion and episode completion are atomic; duplicate delivery, replay, and out-of-order retry tests exercise the consumer contract.
-- Crash injection covers refresh rollback, server restart, worker death around consequence commit, ambiguous disconnects, lease expiry races, and outbox delivery ambiguity.
+- Outbox-sink enqueue and episode completion are atomic; duplicate delivery, replay, and out-of-order retry tests exercise the adapter and consumer contract.
+- Crash injection covers refresh rollback, server restart, worker death around consequence commit, ambiguous disconnects, lease expiry races, and outbox-sink enqueue ambiguity.
 - Replacement races prove that old work dispatches only through its exact old binding or is rejected according to the declared cutover policy.
 - No committed work is silently lost in the supported failure scenarios.
 - Reconciliation is idempotent, respects its configured event-emission policy, and records an audit result even for state-only repair.
@@ -210,6 +242,8 @@ A trigger-only approximation must not silently become the production contract.
 
 **Outcome:** make pg-react supportable in a controlled production environment.
 
+**Entry gate:** every M2 exit gate passes and the supported platform, isolation, RLS, retention, fairness, and performance decisions are closed.
+
 ### Deliverables
 
 - Published compatibility matrix for PostgreSQL, `pgrx`, `pg_trickle`, operating systems, architectures, maintenance modes, and isolation levels.
@@ -217,11 +251,11 @@ A trigger-only approximation must not silently become the production contract.
 - Tested PITR, physical failover, logical migration, PostgreSQL-major upgrade, and rolling worker-upgrade procedures.
 - Source and function drift repair workflows with explicit claim barriers.
 - Documented PostgreSQL roles for administration, authoring, operation, workers, and readers.
-- Security review of ownership checks, `SET LOCAL ROLE`, exact function dispatch, `SECURITY DEFINER` functions, search paths, generated relations, and payload access.
+- Security review of ownership checks, exact binding-specific dispatch, `SECURITY DEFINER` functions, search paths, generated relations, and payload access.
 - An explicit RLS and evaluation-role support decision; unsupported combinations are documented and rejected where necessary.
 - Retention, cleanup, vacuum, and catalog-growth controls, including audited pruning and minimum history that survives payload cleanup.
 - Fairness windows, starvation prevention, claim-size bounds, agenda-group and connection budgets, overload backpressure, lock ordering, and bounded deadlock retry behavior.
-- Metrics, structured logs, health endpoints, and alerts for drift, invalid bindings, reconciliation, agenda depth and oldest age, hot conflict keys, claim saturation, per-rule backlog, latency, failures, lease expiry, and outbox state.
+- Metrics, structured logs, health endpoints, and alerts for drift, invalid bindings, reconciliation, agenda depth and oldest age, hot conflict keys, claim saturation, per-rule backlog, latency, failures, lease expiry, and outbox-sink failures; delivery state remains observable through the sink.
 - Reproducible packages or images for every supported platform.
 - Benchmark suite covering no-change refreshes, activation bursts, high change-event volume, many rules, repeated replacement, payload retention, reconciliation, claims, and consequence execution.
 - At least one real pilot use case operated through failure, sustained load, and recovery exercises.
@@ -242,6 +276,8 @@ A trigger-only approximation must not silently become the production contract.
 
 **Outcome:** freeze and support the first dependable public contract.
 
+**Entry gate:** every M3 exit gate and published performance budget passes on release artifacts, not development builds.
+
 ### GA requirements
 
 - The v1 SQL API, worker protocol, catalog migration policy, compatibility policy, and external-delivery guarantees are documented and versioned.
@@ -258,6 +294,8 @@ The first GA should prefer a small, explicit support matrix over broad best-effo
 ## Stage 5 — Post-GA expansion
 
 Post-GA work is divided into two tracks. Neither may weaken the v1 lifecycle and recovery guarantees.
+
+**Entry gate:** v1 GA is released and supported; each expansion has its own compatibility and regression evidence.
 
 ### v1.x: usability and scale
 
@@ -277,7 +315,7 @@ Post-GA work is divided into two tracks. Neither may weaken the v1 lifecycle and
 - Carefully bounded stratified negation and aggregate recursion where deletion semantics are proven.
 - Temporal conditions with explicit event-time and database-time semantics, timers or scheduled reevaluation, retention, late-arriving data, and defined interaction with fixed points and negation.
 - Optional fact-tuple identity for an explicitly defined query subset.
-- Client-side DSLs, visual dependency tooling, natural-language-assisted authoring with validation, `pg_tide` adapters, LLM task patterns, and domain packages.
+- Raw-query convenience, client-side DSLs, visual dependency tooling, natural-language-assisted authoring with validation, LLM task patterns, and domain packages.
 
 Canonical PostgreSQL views, typed functions, and explicit registration remain the foundation even when richer authoring tools are added.
 
@@ -297,7 +335,7 @@ Canonical PostgreSQL views, typed functions, and explicit registration remain th
 | **Operations** | Health, metrics, retention, repair, fairness, backpressure, and runbooks cover each supported failure mode |
 | **Performance** | Alpha smoke baselines expose cliffs; RC benchmarks publish regression budgets appropriate to the supported scale |
 
-Feature count is never a substitute for this evidence.
+Feature count is never a substitute for this evidence. Each row becomes mandatory when its feature first enters scope; M0 and M1 are judged only by the narrower evidence named in their own exit gates, while every row is mandatory by GA.
 
 ---
 
@@ -305,13 +343,11 @@ Feature count is never a substitute for this evidence.
 
 ### Before developer alpha
 
-- The exact `pg_trickle` observation contract.
-- The pinned compatibility tuple.
-- Watched-column defaults, comparison support, and schema-change behavior.
-- The bootstrap defaults, including `SEED_CURRENT` for command rules, and the warnings required before explicit `FIRE_CURRENT` deployment.
-- Whether pending activation payloads use latest-until-claim or rising-edge snapshots.
-- The default behavior when compatible or incompatible source drift is detected.
-- The stable output contract for validation, preview, and explanation.
+- Close during M0: the exact `pg_trickle` observation contract and pinned compatibility tuple.
+- Close during M0: the M1 canonical-key codec support matrix and cross-restore fixtures. M0 itself is `bigint` only.
+- Already fixed in the design: `SEED_CURRENT`/`REQUIRE_EMPTY`, `STATE_ONLY` reconciliation, immutable rising-edge payloads, warning-only compatible source drift, claim-blocking incompatible drift, and the versioned diagnostic envelope.
+- Already fixed in the design: rule-owner evaluation/execution, rejection of RLS-protected sources, exact function dispatch, and the bounded one-item alpha worker/failure protocol.
+- Deferred to beta with `CHANGE`: watched-column defaults, comparison support, and schema-change behavior.
 
 ### Before reliability beta
 
@@ -332,7 +368,7 @@ Feature count is never a substitute for this evidence.
 - Fairness window, backpressure thresholds, claim bounds, lock ordering, and deadlock retry limits.
 - Performance budgets and pilot workload.
 
-Decisions should be recorded as short architecture decision records and linked from issues and pull requests.
+Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a hard-to-reverse, surprising trade-off whose alternatives and consequences would otherwise be lost; link it from the implementing issue and pull request.
 
 ---
 
@@ -356,12 +392,12 @@ Each implementation issue should belong to one milestone and one primary workstr
 The next concrete target is **M0 — Feasibility and walking skeleton**. It should be represented by a small set of epics:
 
 1. PostgreSQL 18, `pgrx`, and `pg_trickle` development environment.
-2. Critical refresh-observer contract.
-3. Pure semantic lifecycle transition planner.
-4. View snapshotting, semantic-key encoding, and deterministic activation identity.
-5. Minimal match-to-agenda atomic finalizer.
-6. One typed consequence executed through one durable episode.
-7. Property, concurrency, rollback, restart, and reconciliation test harness.
+2. Trigger-path experiment and critical refresh-observer contract.
+3. Pure semantic lifecycle transition planner and reference-state oracle.
+4. View snapshotting, `bigint` canonical-key codec, and deterministic activation identity.
+5. Minimal match-to-event-to-agenda atomic finalizer with runtime key-invariant failure.
+6. One typed consequence executed through one durable episode by the in-test executor.
+7. Seed-replayable property, concurrency, rollback, restart, dump/restore, and `STATE_ONLY` reconciliation harness.
 8. Executable high-value/high-risk order example from [`README.md`](README.md).
 
 The milestone is complete only when the example survives the defined failure and concurrency tests. Everything else depends on that proof.

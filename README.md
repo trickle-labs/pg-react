@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react is currently a **design proposal**, not a released extension. The SQL API below describes the intended interface. Start with the [design document](DESIGN.md) for the complete semantics and implementation plan.
+> pg-react is currently a **design proposal**, not a released extension. The SQL API below describes the intended interface. Start with the [design document](DESIGN.md) for semantics and architecture, and the [roadmap](ROADMAP.md) for the implementation plan.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -184,13 +184,14 @@ These mechanisms make rule behavior more explicit, durable, and explainable, but
 
 The repository currently contains the design, not an implementation. The initial target is PostgreSQL 18 with Rust, `pgrx`, and a compatible pg_trickle release.
 
-The planned delivery path starts with an integration spike and view-backed constraint rules, then adds lifecycle command rules, the durable agenda, and `pg-reactd`. Production hardening comes before shared-condition optimization or logical derivation.
+The planned delivery path starts with an M0 integration walking skeleton. The developer alpha then adds view-backed constraint rules, activate-only command rules, a bounded durable episode path, and the first `pg-reactd`; complete change/deactivation lifecycle, retries, and multi-worker reliability follow in beta. Production hardening comes before shared-condition optimization or logical derivation.
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
 ## Read more
 
-- [DESIGN.md](DESIGN.md) contains the complete product semantics, SQL API, catalog, worker architecture, security model, testing strategy, and phased plan.
+- [CONTEXT.md](CONTEXT.md) defines the canonical rule-lifecycle vocabulary.
+- [DESIGN.md](DESIGN.md) contains the product semantics, SQL API, catalog, worker architecture, security model, and testing strategy; [ROADMAP.md](ROADMAP.md) is the delivery plan.
 - [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
 - [PostgreSQL as an Operational Data Platform](operational-data-platform.md) places the projects in a broader operational loop.
 - [pg_trickle](https://github.com/trickle-labs/pg-trickle) is the incremental view-maintenance engine pg-react is designed to build on.
