@@ -57,15 +57,19 @@ RETURNS void
 LANGUAGE SQL
 BEGIN ATOMIC
     INSERT INTO app.manual_review_tasks (
-        activation_id, order_id, customer_id, amount
+        activation_id, order_id, customer_id, amount, condition_active
     )
     VALUES (
         (context).activation_id,
         (match).order_id,
         (match).customer_id,
-        (match).amount
+        (match).amount,
+        true
     )
-    ON CONFLICT (activation_id) DO NOTHING;
+    ON CONFLICT (activation_id) DO UPDATE
+       SET customer_id = EXCLUDED.customer_id,
+           amount = EXCLUDED.amount,
+           condition_active = true;
 END;
 ```
 
@@ -73,15 +77,13 @@ Finally, register the view, its semantic key, and the consequence:
 
 ```sql
 SELECT pgreact.create_rule(
-    name         => 'manual_review_required',
-    kind         => 'COMMAND',
-    definition   => 'rule_def.high_value_risky_order'::regclass,
-    key_columns  => ARRAY['order_id'],
-    on_activate  => 'rule_action.open_review(
+    name        => 'manual_review_required',
+    definition  => 'rule_def.high_value_risky_order'::regclass,
+    key_columns => ARRAY['order_id'],
+    on_activate => 'rule_action.open_review(
         pgreact.activation_context,
         rule_def.high_value_risky_order
-    )'::regprocedure,
-    agenda_group => 'risk'
+    )'::regprocedure
 );
 ```
 
@@ -96,9 +98,11 @@ A maintained result tells you which conditions are true now. pg-react is designe
 | Transition | Meaning | Optional consequence |
 |---|---|---|
 | A keyed row enters the result | A condition became true | `on_activate` |
-| Its non-key values change | The same condition evolved | `on_change` |
+| Its watched values change | The same condition evolved | `on_change` |
 | The row leaves the result | The condition stopped being true | `on_deactivate` |
 | The row stays unchanged | Nothing new happened | None |
+
+All projected non-key columns are watched by default. A rule can choose a smaller `change_columns` set when some values are needed by a consequence but should not create a new revision.
 
 Three kinds of state stay separate:
 
@@ -114,8 +118,8 @@ This separation preserves history when a condition disappears, prevents a rebuil
 - Reuse incremental query maintenance. pg_trickle owns joins, aggregates, negation, windows, recursion, change capture, and refresh ordering.
 - Give business matches stable identity. Authors choose semantic keys such as `order_id` or `(tenant_id, account_id, policy_id)` instead of relying on physical rows.
 - Make work durable. Activations, immutable rule versions, agenda episodes, attempts, leases, retries, and audit history live in PostgreSQL.
-- Keep side effects honest. Database consequences run transactionally; external effects use an idempotent outbox with at-least-once delivery.
-- Stay inspectable. Conditions, current matches, pending work, execution history, source drift, and reconciliation state are all available through SQL.
+- Keep side effects honest. Database consequences run transactionally; external effects use an at-least-once outbox with deterministic event identity that receivers must deduplicate.
+- Stay inspectable. Conditions, current matches, pending work, execution history, source drift, and reconciliation state are available through SQL. Version one explains operational causality but does not promise automatic base-tuple lineage for every query.
 - Leave room for reasoning. Later releases can add logical support, derived facts, provenance, and fixed-point evaluation without introducing a second truth store.
 
 ## Architecture
@@ -147,11 +151,18 @@ The proposed `pg-reactd` service executes command episodes outside PostgreSQL ba
 
 ## Where it fits
 
-pg-react is aimed at systems where PostgreSQL holds the authoritative facts, the condition is naturally relational, and the response may run after the source transaction commits.
+pg-react is a good fit when PostgreSQL holds the authoritative facts, conditions are naturally relational, actions may run asynchronously after commit, and durable SQL-visible lifecycle state matters. Examples include risk review, inventory intervention, billing controls, entitlement changes, fraud signals, SLA violations, approval queues, and data-quality remediation.
 
-Good candidates include risk review, inventory intervention, billing controls, entitlement changes, fraud signals, SLA violations, approval queues, and data-quality remediation.
+It is a poor fit when:
 
-It is not intended for consequences that must complete before the original write returns, workflows that require one global order across all workers, or atomic commits spanning PostgreSQL and an unrelated external system. Those requirements need a synchronous application path, an ordered workflow engine, or a distributed transaction protocol.
+- the source write must wait for the action;
+- one global total order is required;
+- several systems must commit atomically;
+- the workload is warehouse-scale distributed processing;
+- the primary abstraction is a long-running human workflow; or
+- arbitrary untrusted code must execute dynamically.
+
+Those requirements need a synchronous application path, an ordered workflow engine, a distributed transaction protocol, a batch platform, or a sandbox designed for untrusted code. Any future synchronous pg-react mode would be a narrowly restricted database-local fixed-point facility, not a general workflow engine.
 
 ## Project status
 
