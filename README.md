@@ -164,6 +164,22 @@ It is a poor fit when:
 
 Those requirements need a synchronous application path, an ordered workflow engine, a distributed transaction protocol, a batch platform, or a sandbox designed for untrusted code. Any future synchronous pg-react mode would be a narrowly restricted database-local fixed-point facility, not a general workflow engine.
 
+## Relation to traditional rules engines
+
+Martin Fowler’s [critique of rules engines](https://martinfowler.com/bliki/RulesEngine.html) warns that they can become difficult to understand when rules form implicit chains: one action changes facts, activates other rules, and creates control flow that is distributed across the rule set. He also cautions against treating rule engines as a way for non-programmers to maintain complex application behavior without normal engineering discipline.
+
+`pg-react` treats those concerns as design constraints. It is not intended to be a universal workflow or no-code programming system. Instead, it provides a durable reaction layer for bounded domains where PostgreSQL contains the authoritative facts:
+
+* Conditions are ordinary, directly queryable PostgreSQL views rather than a proprietary rule language.
+* Consequences are explicit typed functions or transactional outbox messages.
+* Current matches, activations, agenda episodes, retries, leases, and execution history remain visible through SQL.
+* Immutable rule versions and definition fingerprints prevent deployed behavior from changing silently.
+* Each episode executes in its own transaction by default and is revalidated immediately before execution.
+* Priorities and agenda groups help coordinate work but do not pretend to provide one global firing order.
+* External effects use at-least-once delivery and deterministic idempotency keys rather than an unrealistic exactly-once guarantee.
+
+These mechanisms make rule behavior more explicit, durable, and explainable, but they do not eliminate the complexity of interacting rules. Rule sets should remain narrowly scoped, feedback loops should be bounded, and views and consequence functions should be reviewed, tested, versioned, and deployed like other application code.
+
 ## Project status
 
 The repository currently contains the design, not an implementation. The initial target is PostgreSQL 18 with Rust, `pgrx`, and a compatible pg_trickle release.
