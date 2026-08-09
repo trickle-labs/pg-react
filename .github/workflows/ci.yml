@@ -25,10 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: docker build --tag pg-react-m0 .
       - run: docker compose config --quiet
       - run: |
-          docker compose up -d
+          docker compose up -d --build
           trap 'docker compose down' EXIT
           until docker compose exec -T postgres psql -X -U postgres -d postgres -Atc "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'pgreact')" | grep -qx t; do sleep 1; done
           docker compose exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "SELECT extversion FROM pg_extension WHERE extname = 'pg_trickle';"
@@ -36,3 +35,6 @@ jobs:
           bash tests/m0.sh
           bash tests/m1.sh
           bash tests/m1-scale.sh
+          bash tests/m2.sh
+          bash tests/m3.sh
+          bash tests/m3-upgrade.sh

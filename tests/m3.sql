@@ -22,6 +22,8 @@ GRANT USAGE ON SCHEMA pgreact TO m3_operator, m3_reader, m3_intruder;
 GRANT EXECUTE ON FUNCTION pgreact.configure_operations(integer, integer, interval, integer) TO m3_operator;
 GRANT SELECT ON pgreact.operational_status TO m3_reader;
 GRANT EXECUTE ON FUNCTION pgreact.pause_rule(uuid) TO m3_intruder;
+GRANT EXECUTE ON FUNCTION pgreact.begin_refresh(uuid, bigint), pgreact.refresh_rule(uuid),
+    pgreact.clear_refresh_barrier(uuid) TO m3_intruder;
 GRANT SELECT ON pgreact.rules TO m3_intruder;
 
 SET SESSION AUTHORIZATION m3_operator;
@@ -97,13 +99,29 @@ FROM pgreact_internal.agenda WHERE episode_id = :episode_id \gset
 
 SELECT count(*) AS pending_before_rebuild FROM pgreact_internal.agenda WHERE rule_version_id = :'pilot_version'::uuid \gset
 UPDATE pgreact_internal.rule_versions SET source_view_oid = 0, match_relid = NULL WHERE rule_version_id = :'pilot_version'::uuid;
+SELECT set_config('m3.pilot_version', :'pilot_version', false);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM pgreact.reconcile_rule(current_setting('m3.pilot_version')::uuid, 'STATE_ONLY');
+    RAISE EXCEPTION 'reconciliation unexpectedly ran without a committed barrier';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE 'reconciliation requires a committed claim barrier%' THEN RAISE; END IF;
+  END;
+END $$;
 SELECT pgreact.prepare_recovery() >= 1 AS recovery_barriered \gset
 \if :recovery_barriered
 \else
   \quit 1
 \endif
-SELECT rebuilt_rules >= 2 AND blocked_rules = 0 AS oid_metadata_rebuilt FROM pgreact.rebuild_transient_metadata() \gset
+SELECT rebuilt_rules >= 2 AS oid_metadata_rebuilt FROM pgreact.rebuild_transient_metadata() \gset
 \if :oid_metadata_rebuilt
+\else
+  \quit 1
+\endif
+SELECT source_view_oid <> 0 AND match_relid IS NOT NULL AS pilot_metadata_rebuilt
+FROM pgreact_internal.rule_versions WHERE rule_version_id = :'pilot_version'::uuid \gset
+\if :pilot_metadata_rebuilt
 \else
   \quit 1
 \endif
@@ -137,6 +155,27 @@ BEGIN
   RAISE EXCEPTION 'intruder unexpectedly paused pilot rule';
 EXCEPTION WHEN OTHERS THEN
   IF SQLERRM NOT LIKE 'only the rule owner or pgreact_admin%' THEN RAISE; END IF;
+END $$;
+DO $$
+BEGIN
+  BEGIN
+    PERFORM pgreact.begin_refresh(current_setting('m3.pilot_version')::uuid, 39999);
+    RAISE EXCEPTION 'intruder unexpectedly began a refresh';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE 'only the rule owner or pgreact_admin%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM pgreact.refresh_rule(current_setting('m3.pilot_version')::uuid);
+    RAISE EXCEPTION 'intruder unexpectedly refreshed a rule';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE 'only the rule owner or pgreact_admin%' THEN RAISE; END IF;
+  END;
+  BEGIN
+    PERFORM pgreact.clear_refresh_barrier(current_setting('m3.pilot_version')::uuid);
+    RAISE EXCEPTION 'intruder unexpectedly cleared a refresh barrier';
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE 'only the rule owner or pgreact_admin%' THEN RAISE; END IF;
+  END;
 END $$;
 RESET SESSION AUTHORIZATION;
 SELECT NOT has_schema_privilege('m3_reader', 'pgreact_internal', 'USAGE')

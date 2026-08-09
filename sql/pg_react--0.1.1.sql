@@ -1947,20 +1947,36 @@ BEGIN
     RETURN next_version;
 END $$;
 
+DROP FUNCTION pgreact.reconcile_rule(uuid);
 CREATE OR REPLACE FUNCTION pgreact.reconcile_rule(target_version_id uuid, emission_mode text DEFAULT 'STATE_ONLY')
 RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
 DECLARE version_row pgreact_internal.rule_versions%ROWTYPE; audit_id bigint; repaired bigint := 0;
     events bigint := 0; match_row record; state_row pgreact_internal.activation_state%ROWTYPE;
     canonical bytea; digest bytea; activation uuid; present boolean;
+    null_count bigint; duplicate_count bigint;
 BEGIN
     PERFORM pgreact_internal.assert_rule_owner(target_version_id);
     IF emission_mode NOT IN ('STATE_ONLY', 'EMIT_MISSING_EVENTS') THEN RAISE EXCEPTION 'emission_mode must be STATE_ONLY or EMIT_MISSING_EVENTS'; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pgreact_internal.rule_barriers
+                   WHERE rule_version_id = target_version_id AND reason = 'RECONCILING') THEN
+        RAISE EXCEPTION 'reconciliation requires a committed claim barrier for rule version %', target_version_id
+            USING HINT = 'Commit pgreact.begin_reconciliation(version), then retry reconciliation in a new transaction.';
+    END IF;
     PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200000);
     SELECT * INTO STRICT version_row FROM pgreact_internal.rule_versions WHERE rule_version_id = target_version_id;
-    INSERT INTO pgreact_internal.rule_barriers (rule_version_id, reason) VALUES (target_version_id, 'RECONCILING')
-    ON CONFLICT (rule_version_id) DO UPDATE SET reason = 'RECONCILING', created_at = clock_timestamp();
     INSERT INTO pgreact_internal.reconciliation_audit (rule_version_id, mode, started_at, status, requested_by, reason)
     VALUES (target_version_id, emission_mode, clock_timestamp(), 'RUNNING', current_user, 'OPERATOR') RETURNING reconciliation_id INTO audit_id;
+    EXECUTE format('SELECT count(*) FROM %s WHERE %I IS NULL',
+                   version_row.match_relid::regclass, version_row.key_column)
+        INTO null_count;
+    EXECUTE format(
+        'SELECT count(*) FROM (SELECT %I FROM %s GROUP BY %I HAVING count(*) > 1) d',
+        version_row.key_column, version_row.match_relid::regclass, version_row.key_column
+    ) INTO duplicate_count;
+    IF null_count > 0 OR duplicate_count > 0 THEN
+        RAISE EXCEPTION 'cannot reconcile: % null and % duplicate semantic keys', null_count, duplicate_count
+            USING HINT = 'Correct the match relation, then retry while the reconciliation barrier remains in place.';
+    END IF;
     FOR state_row IN SELECT * FROM pgreact_internal.activation_state WHERE rule_version_id = target_version_id FOR UPDATE LOOP
         EXECUTE format('SELECT EXISTS (SELECT 1 FROM %s WHERE %I = $1)', version_row.match_relid::regclass, version_row.key_column)
             INTO present USING state_row.semantic_key;
@@ -2003,7 +2019,8 @@ BEGIN
             repaired := repaired + 1;
         END IF;
     END LOOP;
-    DELETE FROM pgreact_internal.rule_barriers WHERE rule_version_id = target_version_id;
+    DELETE FROM pgreact_internal.rule_barriers
+    WHERE rule_version_id = target_version_id AND reason = 'RECONCILING';
     UPDATE pgreact_internal.reconciliation_audit SET completed_at = clock_timestamp(), rows_repaired = repaired,
         events_emitted = events, status = 'COMPLETED' WHERE reconciliation_id = audit_id;
     RETURN repaired;
@@ -2149,6 +2166,49 @@ BEGIN
 END
 $$;
 
+CREATE OR REPLACE FUNCTION pgreact.begin_refresh(target_version_id uuid, refresh_id bigint)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+BEGIN
+    PERFORM pgreact_internal.assert_rule_owner(target_version_id);
+    PERFORM pgreact_internal.begin_refresh(target_version_id, refresh_id);
+END
+$$;
+
+CREATE OR REPLACE FUNCTION pgreact.refresh_rule(target_version_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+BEGIN
+    PERFORM pgreact_internal.assert_rule_owner(target_version_id);
+    PERFORM pgreact_internal.refresh_rule(target_version_id);
+END
+$$;
+
+CREATE OR REPLACE FUNCTION pgreact.clear_refresh_barrier(target_version_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+BEGIN
+    PERFORM pgreact_internal.assert_rule_owner(target_version_id);
+    PERFORM pgreact_internal.clear_refresh_barrier(target_version_id);
+END
+$$;
+
+CREATE FUNCTION pgreact.begin_reconciliation(target_version_id uuid)
+RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, pg_temp AS $$
+BEGIN
+    PERFORM pgreact_internal.assert_rule_owner(target_version_id);
+    PERFORM pg_catalog.pg_advisory_lock(5788046901200000);
+    INSERT INTO pgreact_internal.rule_barriers (
+        rule_version_id, reason, refresh_id, created_by, created_at
+    ) VALUES (
+        target_version_id, 'RECONCILING', NULL, session_user, clock_timestamp()
+    ) ON CONFLICT (rule_version_id) DO UPDATE SET
+        reason = 'RECONCILING', refresh_id = NULL,
+        created_by = session_user, created_at = clock_timestamp();
+END
+$$;
+
 CREATE FUNCTION pgreact_internal.record_runtime_event(
     target_severity text, target_type text, target_version_id uuid DEFAULT NULL,
     target_episode_id bigint DEFAULT NULL, target_worker_id text DEFAULT NULL,
@@ -2261,6 +2321,7 @@ BEGIN
     END IF;
     expires_at := clock_timestamp() + make_interval(secs => lease_seconds);
     PERFORM pg_catalog.pg_advisory_xact_lock_shared(5788046901200000);
+    PERFORM pgreact.sweep_expired_leases(target_version_id);
     IF EXISTS (SELECT 1 FROM pgreact_internal.rule_barriers WHERE rule_version_id = target_version_id) THEN
         RAISE EXCEPTION 'pg-react claims are blocked for rule version %', target_version_id;
     END IF;

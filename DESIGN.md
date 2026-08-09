@@ -1476,7 +1476,7 @@ A PostgreSQL deployment installs `pg_trickle` and `pg_react` in every database t
 
 Durable does not mean retained forever: authoritative records remain durable until an explicit, authorized retention policy removes them. Pruning is audited and cannot remove rows still needed by pending work, replay, rollback, or the published deduplication window. After detailed typed or generic payload cleanup, the minimum retained history still identifies the rule and immutable version, semantic activation key or protected hash, event kind, generation and revision, consequence identity, attempt outcomes, idempotency key, source fingerprint, reconciliation context, and timestamps. Retention documentation states which explanation and replay capabilities are lost at each tier.
 
-`pg-reactd` runs as a normal service, container, or Kubernetes deployment. It uses a dedicated database role with only the public worker privileges, maintains a bounded connection pool, advertises selected agenda groups, and exposes health and metrics endpoints. Multiple replicas are safe because claims use row locks and leases. During rolling upgrades, old and new worker versions may overlap only when the database extension reports protocol compatibility; otherwise workers stop claiming before the extension upgrade and resume afterward.
+`pg-reactd` runs as a normal service, container, or Kubernetes deployment. Its claim and execution connection uses a dedicated role with only public worker privileges; its coordinator connection uses a rule owner or operator identity for the explicit refresh protocol. It maintains a bounded connection pool, advertises selected agenda groups, and exposes health and metrics endpoints. Multiple replicas are safe because claims use row locks and leases. During rolling upgrades, old and new worker versions may overlap only when the database extension reports protocol compatibility; otherwise workers stop claiming before the extension upgrade and resume afterward.
 
 On a physical standby, generated match tables, activation state, agenda, and history replicate as ordinary PostgreSQL data and remain readable. Workers must not claim from a read-only standby. After promotion, the normal health and lease sweep verifies that the database is writable, refresh scheduling is active, and stale leases can be reclaimed. Backups include all catalogs and runtime state. Restore procedures always include `pg_trickle` repair followed by `pg-react` verification and reconciliation before workers resume.
 
@@ -1488,7 +1488,7 @@ Connection poolers are supported because the public API is transaction-oriented 
 
 [`ROADMAP.md`](ROADMAP.md) is the sole authority for milestone names, scope, entry gates, and exit evidence. This design defines semantics and architecture; it does not maintain a second phased plan.
 
-M2 is complete on the coordinator-owned compatibility boundary recorded in [`ROADMAP.md`](ROADMAP.md). The next target is **M3 — Operational release candidate**. It must retain M2's pinned `DIFFERENTIAL` boundary, scheduler disablement, RLS rejection, and `bigint` codec v1 until new compatibility evidence expands them.
+M3 is complete on the coordinator-owned compatibility boundary recorded in [`ROADMAP.md`](ROADMAP.md). The next target is **M4 — v1 general availability**. It must freeze and publish this pinned `DIFFERENTIAL`, scheduler-disabled, RLS-rejecting, `bigint` codec-v1 contract before any compatibility expansion.
 
 ---
 

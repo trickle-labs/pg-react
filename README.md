@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react is currently a **design proposal**, not a released extension. The SQL API below describes the intended interface. Start with the [design document](DESIGN.md) for semantics and architecture, and the [roadmap](ROADMAP.md) for the implementation plan.
+> pg-react is currently an **operational release candidate**, not a GA release. The supported M3 contract is intentionally narrow; see the [compatibility matrix](docs/m3-compatibility.md) before testing it. Start with the [design document](DESIGN.md) for semantics and architecture, and the [roadmap](ROADMAP.md) for the implementation plan.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -194,6 +194,7 @@ The design is specific about the difficult parts up front: semantic transition c
 
 - [CONTEXT.md](CONTEXT.md) defines the canonical rule-lifecycle vocabulary.
 - [DESIGN.md](DESIGN.md) contains the product semantics, SQL API, catalog, worker architecture, security model, and testing strategy; [ROADMAP.md](ROADMAP.md) is the delivery plan.
+- [M4 readiness](docs/m4-readiness.md) records the remaining evidence required before v1 GA.
 - [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
 - [PostgreSQL as an Operational Data Platform](operational-data-platform.md) places the projects in a broader operational loop.
 - [pg_trickle](https://github.com/trickle-labs/pg-trickle) is the incremental view-maintenance engine pg-react is designed to build on.

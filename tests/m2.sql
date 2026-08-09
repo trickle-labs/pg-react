@@ -153,12 +153,26 @@ SELECT pgreact.clear_refresh_barrier(:'lifecycle_version'::uuid); SELECT pgreact
 SELECT episode_id, lease_token FROM pgreact.claim_episode(:'lifecycle_version'::uuid, 'm2-stale', 1) \gset
 SELECT set_config('m2.stale_episode', :'episode_id', false), set_config('m2.stale_token', :'lease_token', false);
 SELECT pg_sleep(1.1);
-SELECT pgreact.sweep_expired_leases(:'lifecycle_version'::uuid) >= 1 AS reclaimed \gset
-\if :reclaimed
+CREATE TEMP TABLE m2_reclaimed_claim AS
+  SELECT * FROM pgreact.claim_episode(:'lifecycle_version'::uuid, 'm2-fresh', 30);
+SELECT count(*) = 1
+  AND EXISTS (
+    SELECT 1 FROM pgreact_internal.agenda a
+    WHERE a.episode_id = current_setting('m2.stale_episode')::bigint
+      AND a.state IN ('PENDING', 'LEASED')
+      AND a.lease_token IS DISTINCT FROM current_setting('m2.stale_token')::uuid
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM pgreact_internal.conflict_leases l
+    WHERE l.episode_id = current_setting('m2.stale_episode')::bigint
+      AND l.lease_token = current_setting('m2.stale_token')::uuid
+  ) AS reclaimed_automatically
+FROM m2_reclaimed_claim \gset
+\if :reclaimed_automatically
 \else
   \quit 1
 \endif
-SELECT episode_id, lease_token FROM pgreact.claim_episode(:'lifecycle_version'::uuid, 'm2-fresh', 30) \gset
+SELECT episode_id, lease_token FROM m2_reclaimed_claim \gset
 SELECT set_config('m2.fresh_episode', :'episode_id', false), set_config('m2.fresh_token', :'lease_token', false);
 DO $$
 BEGIN
@@ -173,7 +187,9 @@ SELECT pgreact.execute_claimed_episode(current_setting('m2.fresh_episode')::bigi
   \quit 1
 \endif
 
-SELECT pgreact.reconcile_rule(:'lifecycle_version'::uuid, 'STATE_ONLY') >= 0 AS reconciliation_audited \gset
+SELECT pgreact.begin_reconciliation(:'lifecycle_version'::uuid);
+SELECT pgreact.reconcile_rule(:'lifecycle_version'::uuid) >= 0 AS reconciliation_audited \gset
+SELECT pgreact.release_refresh_lock();
 \if :reconciliation_audited
 \else
   \quit 1

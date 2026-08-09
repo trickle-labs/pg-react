@@ -14,3 +14,5 @@ Run the full release-candidate evidence from a clean Compose database:
 bash tests/m0.sh && bash tests/m1.sh && bash tests/m1-scale.sh && bash tests/m2.sh && bash tests/m3.sh && bash tests/m3-upgrade.sh
 cargo test --no-default-features
 ```
+
+CI runs this complete sequence, including the packaged `0.1.0 -> 0.1.1` upgrade gate. M4 must rerun it against the exact release artifact rather than infer artifact correctness from a development build.

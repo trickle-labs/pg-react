@@ -1,4 +1,4 @@
-comment = 'Durable rule lifecycle experiment over pg_trickle'
+comment = 'Durable rule lifecycle engine over pg_trickle'
 default_version = '0.1.1'
 relocatable = false
 superuser = true
