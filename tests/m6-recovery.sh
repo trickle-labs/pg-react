@@ -2,7 +2,14 @@
 set -euo pipefail
 
 compose=(docker compose)
-resource_prefix="${COMPOSE_PROJECT_NAME}-m6-physical"
+recovery_milestone="${RECOVERY_MILESTONE:-m6}"
+case "$recovery_milestone" in
+  m6) restart_fixture=m6-restart ;;
+  m7) restart_fixture=m7-recovery-restore ;;
+  *) echo "unsupported recovery milestone: $recovery_milestone" >&2; exit 1 ;;
+esac
+recovery_db="${recovery_milestone}_recovery"
+resource_prefix="${COMPOSE_PROJECT_NAME}-${recovery_milestone}-physical"
 restore_container="${resource_prefix}-postgres"
 restore_helper="${resource_prefix}-restore"
 restore_volume="${resource_prefix}-data"
@@ -28,26 +35,29 @@ cleanup_physical() {
 }
 trap cleanup_physical EXIT
 
-"${compose[@]}" exec -T postgres createdb -U postgres m6_recovery
-for fixture in m6-recovery-setup m6-restart m6-recovery-restore; do
+"${compose[@]}" exec -T postgres createdb -U postgres "$recovery_db"
+for fixture in "${recovery_milestone}-recovery-setup" "$restart_fixture" "${recovery_milestone}-recovery-restore"; do
   "${compose[@]}" cp "tests/$fixture.sql" "postgres:/tmp/$fixture.sql" >/dev/null
 done
-"${compose[@]}" exec -T postgres psql -X -U postgres -d m6_recovery \
-  -v ON_ERROR_STOP=1 -f /tmp/m6-recovery-setup.sql
+if test "$recovery_milestone" = m7; then
+  "${compose[@]}" cp tests/m7.sql postgres:/tmp/m7.sql >/dev/null
+fi
+"${compose[@]}" exec -T postgres psql -X -U postgres -d "$recovery_db" \
+  -v ON_ERROR_STOP=1 -f "/tmp/${recovery_milestone}-recovery-setup.sql"
 
 "${compose[@]}" kill -s SIGKILL postgres >/dev/null
 "${compose[@]}" up -d --no-build postgres >/dev/null
 ready=false
 for _ in {1..120}; do
-  if "${compose[@]}" exec -T postgres pg_isready -U postgres -d m6_recovery >/dev/null 2>&1; then
+  if "${compose[@]}" exec -T postgres pg_isready -U postgres -d "$recovery_db" >/dev/null 2>&1; then
     ready=true
     break
   fi
   sleep 1
 done
 test "$ready" = true
-"${compose[@]}" exec -T postgres psql -X -U postgres -d m6_recovery \
-  -v ON_ERROR_STOP=1 -f /tmp/m6-restart.sql
+"${compose[@]}" exec -T postgres psql -X -U postgres -d "$recovery_db" \
+  -v ON_ERROR_STOP=1 -f "/tmp/$restart_fixture.sql"
 
 "${compose[@]}" exec -T postgres pg_basebackup -U postgres -D "$backup_dir" -Fp -Xs --checkpoint=fast
 "${compose[@]}" exec -T postgres pg_verifybackup "$backup_dir"
@@ -78,7 +88,7 @@ docker run -d --name "$restore_container" --platform "$PG_REACT_PLATFORM" \
 
 ready=false
 for _ in {1..120}; do
-  if docker exec "$restore_container" pg_isready -U postgres -d m6_recovery >/dev/null 2>&1; then
+  if docker exec "$restore_container" pg_isready -U postgres -d "$recovery_db" >/dev/null 2>&1; then
     ready=true
     break
   fi
@@ -91,8 +101,9 @@ done
 test "$ready" = true
 test "$(docker inspect "$restore_container" --format '{{.Image}}')" = \
   "$(docker image inspect "$PG_REACT_IMAGE" --format '{{.Id}}')"
-docker cp tests/m6-recovery-restore.sql "$restore_container:/tmp/m6-recovery-restore.sql" >/dev/null
-docker exec "$restore_container" psql -X -U postgres -d m6_recovery -v ON_ERROR_STOP=1 \
-  -f /tmp/m6-recovery-restore.sql
+docker cp "tests/${recovery_milestone}-recovery-restore.sql" \
+  "$restore_container:/tmp/${recovery_milestone}-recovery-restore.sql" >/dev/null
+docker exec "$restore_container" psql -X -U postgres -d "$recovery_db" -v ON_ERROR_STOP=1 \
+  -f "/tmp/${recovery_milestone}-recovery-restore.sql"
 
-echo "M6 crash restart and physical recovery passed"
+echo "${recovery_milestone^^} crash restart and physical recovery passed"

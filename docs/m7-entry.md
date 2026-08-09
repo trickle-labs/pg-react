@@ -102,11 +102,16 @@ supported cluster. The complete normalized current fact, support history,
 explanation, downstream lifecycle history, dependencies, and frontier must be
 byte-for-byte equal to the F4 output. Refreshing after restore is a no-op.
 
-## Remaining entry gate
+## Entry gate evidence
 
-As verified on 2026-08-09, GitHub has no public `v0.3.0` release, and public
-tag `v0.2.0` points to `0.3.0` commit `ba3f184` rather than the `0.2.0`
-release-prep commit `7bc6c04`. Repair and verify the inherited M6 release gate,
-then publish and independently verify the exact `v0.3.0` tag, archive,
-checksum, OCI digest, disclosures, and direct `0.2.0 -> 0.3.0` upgrade evidence
-before any M7 product change merges.
+Verified on 2026-08-09: public tag `v0.3.0` and its release resolve to exact
+commit `0d54b392292847eea1a07f91d721ff536b7eb8ad`. Release workflow run
+`31322283638` passed the complete M6 gate, including the direct
+`0.2.0 -> 0.3.0` upgrade, before publishing the disclosed archive and OCI
+image. GitHub reports archive SHA-256
+`6cc146276f26fae9a5178d06eac2d6103e811d516dcd7e999322e9ff5675a107`;
+the attached checksum manifest agrees and records OCI digest
+`sha256:620b7492c054e826fe8665239e2d833b4f90a10ed94425d7e26a1abccacda8a5`,
+which the public `linux/amd64` tag resolves to. The release notes include the
+upgrade procedure, support boundary, limitations, and artifact disclosures.
+M7 product work may begin.

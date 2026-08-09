@@ -4,7 +4,13 @@ set -euo pipefail
 image=${1:-pg-react:v0.3.0}
 platform=linux/amd64
 project=${COMPOSE_PROJECT_NAME:-pgreact-m6-${GITHUB_RUN_ID:-$$}}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.3.0}
 test_log_dir=$(mktemp -d)
+
+case "$expected_version" in
+  0.3.0|0.4.0) ;;
+  *) echo "unsupported M6 compatibility version: $expected_version" >&2; exit 1 ;;
+esac
 
 cleanup() {
   COMPOSE_PROJECT_NAME=$project docker compose down --volumes --remove-orphans >/dev/null 2>&1 || true
@@ -91,7 +97,7 @@ done
 test "$ready" = true
 test "$(docker image inspect "$image" --format '{{.Os}}/{{.Architecture}}')" = "$platform"
 docker compose exec -T postgres psql -X -A -t -U postgres -d postgres -c \
-  "SELECT extversion = '0.3.0' FROM pg_extension WHERE extname = 'pg_react'" | grep -qx t
+  "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" | grep -qx t
 
 docker compose exec -T postgres createdb -U postgres m6_api
 docker compose exec -T postgres psql -X -U postgres -d m6_api -v ON_ERROR_STOP=1 -c \

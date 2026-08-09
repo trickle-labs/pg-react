@@ -23,9 +23,14 @@ END $$;
 -- the complete callable declaration separately so named calls remain stable.
 DO $$
 DECLARE
-    expected text := '16c2ae7a2cabe0326a6339f0b7ce51f1';
+    expected text;
     actual text;
 BEGIN
+    SELECT CASE extversion
+             WHEN '0.4.0' THEN 'bc3843191affe863a5dfb916761a9a2d'
+             ELSE '16c2ae7a2cabe0326a6339f0b7ce51f1'
+           END INTO expected
+      FROM pg_catalog.pg_extension WHERE extname = 'pg_react';
     SELECT md5(string_agg(
              format('%I(%s) -> %s', p.proname,
                pg_get_function_arguments(p.oid), pg_get_function_result(p.oid)),
@@ -94,7 +99,25 @@ DECLARE
       'worker_protocol_compatible(integer) -> boolean'
     ];
     actual text[];
+    missing text[];
+    unexpected text[];
 BEGIN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.4.0' THEN
+      SELECT array_agg(signature ORDER BY signature) INTO expected
+      FROM unnest(expected || ARRAY[
+        'create_derivation_rule(text, regclass, name[], uuid, integer, text) -> uuid',
+        'create_derived_relation(text, regtype, name[], integer) -> uuid',
+        'current_facts(uuid, bigint) -> SETOF pgreact.derived_facts',
+        'explain_fact(uuid, bigint) -> jsonb',
+        'reconcile_derived_relation(uuid) -> bigint',
+        'refresh_derived_relation(uuid) -> bigint',
+        'remove_derivation_rule(uuid) -> void',
+        'remove_derived_relation(uuid) -> void',
+        'replace_derivation_rule(uuid, regclass, name[], integer, text) -> uuid',
+        'validate_derivation_rule(regclass, uuid, name[], integer) -> TABLE(contract_version integer, code text, severity text, object_identity text, message text, hint text, details jsonb)',
+        'validate_derived_relation(text, regtype, name[], integer) -> TABLE(contract_version integer, code text, severity text, object_identity text, message text, hint text, details jsonb)'
+      ]) signature;
+    END IF;
     SELECT array_agg(
              format('%s(%s) -> %s', p.proname, oidvectortypes(p.proargtypes), pg_get_function_result(p.oid))
              ORDER BY p.proname, oidvectortypes(p.proargtypes)
@@ -103,8 +126,14 @@ BEGIN
       FROM pg_catalog.pg_proc p
       JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
      WHERE n.nspname = 'pgreact' AND p.prokind = 'f';
-    IF actual IS DISTINCT FROM expected THEN
-      RAISE EXCEPTION 'public pgreact function inventory changed: %', to_jsonb(actual);
+    SELECT array_agg(signature ORDER BY signature) INTO missing
+    FROM (SELECT unnest(expected) signature EXCEPT SELECT unnest(actual)) diff;
+    SELECT array_agg(signature ORDER BY signature) INTO unexpected
+    FROM (SELECT unnest(actual) signature EXCEPT SELECT unnest(expected)) diff;
+    IF missing IS NOT NULL OR unexpected IS NOT NULL
+       OR cardinality(actual) <> cardinality(expected) THEN
+      RAISE EXCEPTION 'public pgreact function inventory changed; missing %, unexpected %',
+        to_jsonb(missing), to_jsonb(unexpected);
     END IF;
 END $$;
 
@@ -119,6 +148,15 @@ DECLARE
     ];
     actual text[];
 BEGIN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.4.0' THEN
+      SELECT array_agg(signature ORDER BY signature) INTO expected
+      FROM unnest(expected || ARRAY[
+        'derived_facts(relation_version_id uuid, relation_name text, relation_version integer, fact_id uuid, semantic_key bigint, fact jsonb, support_count bigint, first_frontier bigint, last_frontier bigint, first_derived_at timestamp with time zone, last_changed_at timestamp with time zone)',
+        'derived_relations(relation_id uuid, relation_name text, relation_version_id uuid, relation_version integer, owner name, row_type text, key_column name, public_view_name text, state text, created_at timestamp with time zone)',
+        'derived_repair_diagnostics(reconciliation_id bigint, relation_version_id uuid, relation_name text, relation_version integer, diagnostic_order integer, code text, object_identity text, details jsonb, started_at timestamp with time zone, completed_at timestamp with time zone)',
+        'support_history(support_id uuid, relation_version_id uuid, relation_name text, relation_version integer, rule_name text, rule_version integer, rule_version_id uuid, activation_id uuid, activation_generation bigint, activation_revision bigint, semantic_key bigint, fact jsonb, source_binding jsonb, active boolean, first_frontier bigint, last_frontier bigint, created_at timestamp with time zone, invalidated_at timestamp with time zone)'
+      ]) signature;
+    END IF;
     SELECT array_agg(signature ORDER BY signature)
       INTO actual
       FROM (

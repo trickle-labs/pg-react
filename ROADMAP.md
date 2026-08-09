@@ -470,6 +470,10 @@ The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs
 - The complete M0–M6 gates, v1 single-rule APIs, rule packs, both worker protocols, and default and batch execution outputs remain backward compatible.
 - A user can define, validate, deploy, query, explain, retract, reconcile, replace, promote, and recover the reference derived relation using only public APIs and documentation.
 
+### M7 completion record — 2026-08-09
+
+M7 is implemented as the `0.4.0` repository candidate. The frozen two-support workload, opposite delta orderings, conflicting-payload rollback, non-recursion and mutation boundaries, atomic pack lifecycle, exact reconciliation, direct `0.3.0 -> 0.4.0` upgrade, crash restart, physical restore, and inherited M0–M6 gates are executable in `tests/m7.sh`. The public contract and evidence are recorded in `docs/m7-contract.md`, `docs/m7-evidence.md`, and `docs/m7-readiness.md`.
+
 ---
 
 ## Post-GA product directions
@@ -582,6 +586,6 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 ## Active and next milestones
 
-**M6 — Execution maturity** is the next implementation milestone, focused on audited batch execution. Planning, workload capture, and executable gate design may begin immediately; no M6 product change merges until the exact `v0.2.0` release is published and the entry benchmark proves that per-episode execution overhead is the material bottleneck. Start by freezing the batch signature, transaction/failure contract, recheck boundary, worker protocol, and benchmark budget. Do not widen the inherited support matrix or begin another post-GA direction without its own promotion and evidence.
+**M7 — Maintained derived knowledge** is implemented. The next work is release qualification and publication of the exact `v0.4.0` archive and `linux/amd64` image, followed by digest and direct-upgrade verification against those published bytes.
 
-**M7 — Maintained derived knowledge** is the next defined milestone after M6. Its entry workload and semantic fixtures may be designed before `v0.3.0` publication, but no M7 product change merges until that exact release satisfies the entry gate. Do not pull recursion, derivation chains, negation, temporal semantics, or support-matrix expansion into M7.
+No M8 is defined. Promote one post-GA direction only after demonstrated demand, a bounded contract, and executable entry evidence; until then, do not add recursion, derivation chains, negation, temporal semantics, or support-matrix expansion.

@@ -1,5 +1,5 @@
 comment = 'Durable rule lifecycle engine over pg_trickle'
-default_version = '0.3.0'
+default_version = '0.4.0'
 relocatable = false
 superuser = true
 trusted = false

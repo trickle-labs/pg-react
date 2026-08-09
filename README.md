@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react v1 is extension `0.1.1`; M5 is `0.2.0`; the M6 repository candidate is `0.3.0`. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. The exact `v0.1.1` release is verified; the published `v0.2.0` tag points to `0.3.0` code and does not satisfy the M6 entry gate. Read the [v1 contract](docs/v1-contract.md), [M5 rule-pack guide](docs/m5-rule-packs.md), and [M6 batch contract](docs/m6-contract.md). Physical backup/PITR is supported; logical restore of live rule state is not.
+> pg-react v1 is extension `0.1.1`; M5 is `0.2.0`; M6 is `0.3.0`; and the M7 repository candidate is `0.4.0`. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. The exact `v0.3.0` release is verified. Read the [v1 contract](docs/v1-contract.md), [M6 batch contract](docs/m6-contract.md), and [M7 derived-knowledge contract](docs/m7-contract.md). Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -197,7 +197,9 @@ and the [internal pilot record](docs/m4-pilot.md).
 
 M5 safe rule-set deployment is complete as the `0.2.0` repository candidate. A portable versioned manifest can validate, preview, atomically add/replace/remove related rules, reject stale or invalid plans, preserve declared old-work behavior, and expose deployment history and diagnostics. The `v0.1.1` publication entry gate and complete M0–M5 artifact gate pass, including rollback injection, DDL/deployment races, direct upgrade, and two-environment promotion. See the [rule-pack guide](docs/m5-rule-packs.md), [evidence](docs/m5-evidence.md), and [readiness record](docs/m5-readiness.md).
 
-M6 execution maturity is implemented as the `0.3.0` repository candidate behind the still-unmet exact `v0.2.0` release gate. The published tag points to the M6 commit rather than the M5 release-prep commit, so its artifacts are not an exact `0.2.0` release. Reviewed typed database consequences can opt into immutable `batch_safe` execution through a separate bounded endpoint and worker protocol `2`; protocol `1` and one episode per transaction remain the default. Exact rejection, partial failure, disconnect, concurrency, restart, physical restore, direct-upgrade, compatibility, and five-sample benchmark gates are executable in `tests/m6.sh`. See the [batch contract](docs/m6-contract.md), [evidence](docs/m6-evidence.md), and [readiness record](docs/m6-readiness.md).
+M6 execution maturity is released as `0.3.0`. Reviewed typed database consequences can opt into immutable `batch_safe` execution through a separate bounded endpoint and worker protocol `2`; protocol `1` and one episode per transaction remain the default. Exact rejection, partial failure, disconnect, concurrency, restart, physical restore, direct-upgrade, compatibility, and five-sample benchmark gates are executable in `tests/m6.sh`. See the [batch contract](docs/m6-contract.md), [evidence](docs/m6-evidence.md), and [readiness record](docs/m6-readiness.md).
+
+M7 maintained derived knowledge is implemented as the `0.4.0` repository candidate. Non-recursive derivation rules maintain durable logical supports and typed current facts without creating agenda work. Multiple supports collapse to one fact, last-support removal retracts it, and public provenance, reconciliation, rule-pack deployment, direct-upgrade, ordering, failure, and physical-recovery gates are executable in `tests/m7.sh`. See the [contract](docs/m7-contract.md), [evidence](docs/m7-evidence.md), and [readiness record](docs/m7-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
@@ -208,6 +210,7 @@ The design is specific about the difficult parts up front: semantic transition c
 - [v1 contract](docs/v1-contract.md) freezes the supported API and compatibility boundary; [M4 evidence](docs/m4-evidence.md) records the GA qualification.
 - [M5 rule packs](docs/m5-rule-packs.md) documents portable preview and atomic deployment; [M5 evidence](docs/m5-evidence.md) records the executable gate.
 - [M6 audited batching](docs/m6-contract.md) documents opt-in execution and public diagnostics; [M6 evidence](docs/m6-evidence.md) records the executable gate.
+- [M7 derived knowledge](docs/m7-contract.md) documents non-recursive truth maintenance and provenance; [M7 evidence](docs/m7-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
 - [PostgreSQL as an Operational Data Platform](operational-data-platform.md) places the projects in a broader operational loop.
