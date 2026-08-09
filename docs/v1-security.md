@@ -15,6 +15,19 @@ Apply the tested role and grant recipe in [M3 operations](m3-operations.md#roles
 
 Authors need `USAGE` on `pgreact` plus only the validation, preview, creation, replacement, and inspection functions they use. Grant access to their own application schemas separately. Do not grant `pgreact_internal` or `pgreact_runtime`.
 
+For M5 packs, grant the owner only the public pack functions it needs:
+
+```sql
+GRANT EXECUTE ON FUNCTION pgreact.validate_pack(jsonb, jsonb),
+                          pgreact.preview_pack(jsonb, jsonb),
+                          pgreact.deploy_pack(jsonb, text, jsonb),
+                          pgreact.pack_history(text),
+                          pgreact.explain_pack(text)
+TO rule_author;
+```
+
+The logical owner may map to a different role name in each environment, but `deploy_pack` still requires that mapped role to equal `session_user`. Object mappings resolve names only and never grant access or bypass view/function ownership checks.
+
 ## Authoring checklist
 
 - The author owns the condition view and every bound consequence function.

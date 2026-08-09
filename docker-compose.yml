@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: ${PG_REACT_IMAGE:-pg-react:v0.1.1}
+    image: ${PG_REACT_IMAGE:-pg-react:v0.2.0}
     platform: ${PG_REACT_PLATFORM:-linux/amd64}
     build:
       context: .

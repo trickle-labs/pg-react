@@ -1,7 +1,7 @@
 # `pg-react`: A PostgreSQL-Native Incremental Rule and Reasoning Engine
 
-**Status:** Proposed design; M0 implementation contract ready\
-**Document version:** 0.6\
+**Status:** M5 repository contract implemented; release entry gate pending\
+**Document version:** 0.7\
 **Date:** 2026-08-09\
 **Project and repository name:** `pg-react`  
 **PostgreSQL extension name:** `pg_react`  
@@ -23,6 +23,10 @@
 ## Reading guide
 
 [`CONTEXT.md`](CONTEXT.md) is the canonical project vocabulary. This document describes both the product semantics and the implementation architecture. The first part explains what a rule means, how a continuously maintained SQL result becomes an activation, and how command rules are scheduled and executed. The middle part describes the SQL API, the catalog, the integration contract with `pg_trickle`, and the behavior during full refreshes, crashes, and rule upgrades. The final part covers the Rust codebase, worker process, security model, testing strategy, delivery authority, risks, and a complete end-to-end example. Readers who only need the product model can focus on Sections 1 through 12, while implementers should also read the remaining sections in order because later decisions build on earlier semantic guarantees.
+
+### Revision 0.7
+
+This revision fixes the M5 rule-pack contract. A format-versioned JSON manifest names existing view-backed constraint and command rules through logical identities; environment maps resolve those identities without storing OIDs. Preview returns an object- and work-sensitive digest, deployment revalidates it under the existing lifecycle and DDL locks, and one PostgreSQL transaction commits or rolls back the complete pack. Dependencies, removals, old-work policy, history, diagnostics, and portable promotion are explicit.
 
 ### Revision 0.6
 
@@ -513,7 +517,21 @@ FROM pgreact.claim(
 
 The main diagnostic functions are `pgreact.validate_rule()`, `pgreact.preview_rule()`, `pgreact.rule_status()`, `pgreact.agenda_status()`, `pgreact.execution_history()`, `pgreact.explain_rule()`, `pgreact.explain_activation()`, `pgreact.explain_episode()`, `pgreact.reconcile_rule()`, `pgreact.source_drift()`, and `pgreact.health_check()`.
 
-### 8.7 No custom top-level grammar
+### 8.7 Safe rule-pack deployment
+
+Extension `0.2.0` adds a deployment layer over the frozen v1 single-rule APIs; worker protocol `1`, outbox envelope `1`, lifecycle semantics, and the compatibility matrix do not change. A pack is an immutable manifest with `format_version`, logical `pack`, `version`, and `owner` strings, an ordered `rules` array, and an explicit `remove` array. Each rule uses the existing v1 fields and may bind typed or outbox consequences. Unknown fields and unsupported format versions fail validation so misspellings cannot silently change a deployment.
+
+Pack names are globally unique and owned by the session role. Version strings are immutable within a pack. The durable manifest contains qualified logical names only. A separate `objects` map resolves view and exact function identities in each environment, while a `roles` map resolves the logical owner; the mapped owner must still be `session_user`. Neither definition nor promotion copies relation OIDs, function OIDs, generated names, or private catalog rows.
+
+Dependencies are deployment-order `REQUIRES` edges only; they do not add runtime firing semantics. Every dependency must name a rule in the same version and appear earlier in the manifest. Missing edges, cycles, duplicate rules, and invalid order fail before deployment. Removal is never inferred: every former member omitted from `rules` must appear in `remove`, and a remaining rule cannot depend on a removed member.
+
+`pgreact.validate_pack` returns the versioned diagnostic envelope without durable mutation. `pgreact.preview_pack` reports `ADD`, `REPLACE`, and `REMOVE` actions, ordered dependencies, generated-object changes, old work, and lifecycle risks. One SHA-256 plan digest covers the canonical manifest and mappings, mapped owner and object fingerprints, current pack and rule versions, generated bindings, and agenda states. `pgreact.deploy_pack` accepts that digest, acquires the existing refresh/claim lock and the expanded source/consequence DDL lock in their established order, repeats validation and digest calculation, and rejects stale previews.
+
+The atomicity boundary is one PostgreSQL transaction, including pg_trickle stream creation and retirement, pack catalogs, rule catalogs, active-version changes, and history. An error therefore preserves the complete old pack and rolls back new generated objects. Successful history is public through `pgreact.pack_history`; failed attempts are diagnosed by the raised public error and leave no misleading durable deployment row. `pgreact.explain_pack` reports current members, source drift, outstanding work, draining old versions, and complete successful history.
+
+Every replacement or removal declares `DRAIN_OLD` or `CANCEL_OLD`. `DRAIN_OLD` leaves pending, retrying, and leased episodes executable through their exact immutable binding. `CANCEL_OLD` cancels only unleased pending or retrying episodes; leased work is never ambiguously revoked and continues under the immutable binding. The retired match stream is removed in the deployment transaction because old episodes use durable payloads and dispatchers, not live match state. Generated bindings needed by draining work remain version-owned history rather than orphans.
+
+### 8.8 No custom top-level grammar
 
 The canonical representation remains valid PostgreSQL SQL: `CREATE VIEW`, `CREATE FUNCTION`, and `SELECT pgreact.create_rule(...)`. PostgreSQL already uses the term `CREATE RULE` for query-rewrite rules, which are unrelated to this system, and a portable extension cannot add arbitrary new raw grammar without a core patch or external preprocessor. A client-side DSL may later compile into these native objects, but it is never the durable source of truth.
 

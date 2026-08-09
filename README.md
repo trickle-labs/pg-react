@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react v1 is extension version `0.1.1` with worker protocol `1`. Its GA contract is intentionally narrow; read the [v1 contract](docs/v1-contract.md), [installation guide](docs/v1-installation.md), and [known limitations](docs/v1-release-notes.md#known-limitations) before deploying it. Physical backup/PITR is supported; logical restore of live rule state is not.
+> pg-react v1 is extension version `0.1.1`; the M5 repository candidate is extension `0.2.0`. Both use worker protocol `1`. The v1 contract remains intentionally narrow, and the M5 candidate must not merge until the exact `v0.1.1` release artifacts are published and verified. Read the [v1 contract](docs/v1-contract.md), [M5 rule-pack guide](docs/m5-rule-packs.md), and [known limitations](docs/v1-release-notes.md#known-limitations). Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -195,6 +195,8 @@ gate, the README workflow, a physical backup/restore pilot, and the direct
 upgrade exercise before publication. See [M4 evidence](docs/m4-evidence.md)
 and the [internal pilot record](docs/m4-pilot.md).
 
+M5 safe rule-set deployment is implemented as the `0.2.0` repository candidate. A portable versioned manifest can validate, preview, atomically add/replace/remove related rules, reject stale or invalid plans, preserve declared old-work behavior, and expose deployment history and diagnostics. The complete M0–M5 artifact gate passes, including rollback injection, DDL/deployment races, direct upgrade, and two-environment promotion. The external `v0.1.1` publication entry gate is still unmet, so M5 is not release-ready. See the [rule-pack guide](docs/m5-rule-packs.md), [evidence](docs/m5-evidence.md), and [readiness record](docs/m5-readiness.md).
+
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
 ## Read more
@@ -202,6 +204,7 @@ The design is specific about the difficult parts up front: semantic transition c
 - [CONTEXT.md](CONTEXT.md) defines the canonical rule-lifecycle vocabulary.
 - [DESIGN.md](DESIGN.md) contains the product semantics, SQL API, catalog, worker architecture, security model, and testing strategy; [ROADMAP.md](ROADMAP.md) is the delivery plan.
 - [v1 contract](docs/v1-contract.md) freezes the supported API and compatibility boundary; [M4 evidence](docs/m4-evidence.md) records the GA qualification.
+- [M5 rule packs](docs/m5-rule-packs.md) documents portable preview and atomic deployment; [M5 evidence](docs/m5-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
 - [PostgreSQL as an Operational Data Platform](operational-data-platform.md) places the projects in a broader operational loop.
