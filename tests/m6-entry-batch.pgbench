@@ -1,0 +1,1 @@
+SELECT m6_entry.execute_prototype_batch(32);
