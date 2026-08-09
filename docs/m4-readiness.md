@@ -15,15 +15,15 @@ architectures.
 | Task-oriented documentation | v1 [installation](v1-installation.md), [authoring](v1-authoring.md), [operations](m3-operations.md), [security](v1-security.md), [backup/restore](v1-backup-restore.md), [upgrade](v1-upgrades.md), and [troubleshooting](v1-troubleshooting.md) guides | Complete |
 | Exact README workflow runs on the artifact | [`tests/m4-reference.sh`](../tests/m4-reference.sh) executes the copied example through the packaged `pg-reactd` | Complete |
 | Correctness and recoverability audit | M0–M3 suites plus the physical recovery pilot; unsupported logical live-rule restore is rejected and published as a limitation | Complete within the supported matrix |
-| Artifacts, checksums, notes, and limitations publish together | [release workflow](../.github/workflows/release.yml) gates, pushes, packages, checksums, records the OCI digest, and creates the exact `v0.1.1` release | Ready on tag |
+| Artifacts, checksums, notes, and limitations publish together | [release workflow](../.github/workflows/release.yml) gates, pushes, packages, checksums, records the OCI digest, and creates the exact `v0.1.1` release | Published and verified |
 | Internal production exercise | [`m4-pilot.md`](m4-pilot.md) records install, normal operation, injected failure, physical restore, resumed work, and direct upgrade | Complete |
 
 The requirement-by-requirement record is in [`m4-evidence.md`](m4-evidence.md).
-The release must be cut only from this validated commit: push it, create the
-exact `v0.1.1` tag, let the release workflow publish the tested bytes, and
-verify the attached checksum and registry digest. M5 planning and executable
-gate design may begin earlier, but no M5 product change merges until that
-publication succeeds.
+The exact [`v0.1.1`](https://github.com/trickle-labs/pg-react/releases/tag/v0.1.1)
+release was published from validated commit
+`31a2b4d85f6bb1cdd94a21337d94a98b40ee6b3d` by successful
+[release run 31312006930](https://github.com/trickle-labs/pg-react/actions/runs/31312006930).
+The attached archive checksum and registry digest were independently verified.
 
 ## Important recovery boundary
 

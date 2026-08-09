@@ -358,11 +358,11 @@ The recovery audit deliberately excludes logical `pg_dump`/`pg_restore` of live 
 - Existing single-rule APIs and v1 behavior remain backward compatible.
 - A user can complete the reference workflow, inspect its history, and recover from a failed deployment using only public APIs and documentation.
 
-### M5 repository implementation record — 2026-08-09
+### M5 completion record — 2026-08-09
 
 The extension `0.2.0` repository candidate implements the pack definition, validation, preview digest, atomic deployment, explicit dependency/removal and old-work policies, portable object/role mapping, public history, diagnostics, direct `0.1.1 -> 0.2.0` upgrade, and documented development-to-production workflow. `tests/m5.sh` reruns every earlier compatibility/reference/recovery gate and adds exact-output failure-phase rollback, stale preview, invalid graph/binding/ownership/removal, immutable old-work, concurrent deployment/source/function DDL, history/diagnostics, upgrade, and two-environment promotion evidence recorded in [`docs/m5-evidence.md`](docs/m5-evidence.md).
 
-This is not yet an M5 completion record. The required exact `v0.1.1` GitHub release, checksum, OCI digest, release notes, and limitations have not been published, so the milestone remains blocked from merge/release at its external entry gate. [`docs/m5-readiness.md`](docs/m5-readiness.md) records the remaining action.
+The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs/pg-react/releases/tag/v0.1.1) publishes the tested `31a2b4d85f6bb1cdd94a21337d94a98b40ee6b3d` bytes through successful [release run 31312006930](https://github.com/trickle-labs/pg-react/actions/runs/31312006930), with verified archive checksum, OCI digest, release notes, and limitations. The complete M5 gate was rerun against implementation commit `0d6d37a749fe25ad0a44c860af548720f081f85e`; all entry, deliverable, and exit requirements pass. [`docs/m5-readiness.md`](docs/m5-readiness.md) records the verification.
 
 ---
 
@@ -473,4 +473,4 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 ## Immediate next milestone
 
-**M5 — Safe rule-set deployment** remains the active milestone. Its `0.2.0` repository implementation and executable gates are complete, but no product change may merge until the exact `v0.1.1` release workflow publishes and verifies the tested image, checksum, digest, release notes, and limitations. After that external gate, rerun `tests/m5.sh`, convert the repository implementation record into the completion record, and only then choose whether any unnumbered post-GA direction has enough evidence to become a new milestone. No M6 currently exists. Do not widen the maintenance, RLS, key-codec, backup, platform, or worker matrix without separate compatibility and regression evidence.
+**M5 — Safe rule-set deployment** is complete. No M6 currently exists. The next planning action is to choose whether any unnumbered post-GA direction has enough demonstrated need, bounded prerequisites, non-goals, support matrix, and executable exit evidence to become a new milestone. Do not begin implementation or widen the maintenance, RLS, key-codec, backup, platform, or worker matrix before that promotion and its separate compatibility and regression evidence.

@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react v1 is extension version `0.1.1`; the M5 repository candidate is extension `0.2.0`. Both use worker protocol `1`. The v1 contract remains intentionally narrow, and the M5 candidate must not merge until the exact `v0.1.1` release artifacts are published and verified. Read the [v1 contract](docs/v1-contract.md), [M5 rule-pack guide](docs/m5-rule-packs.md), and [known limitations](docs/v1-release-notes.md#known-limitations). Physical backup/PITR is supported; logical restore of live rule state is not.
+> pg-react v1 is extension version `0.1.1`; M5 is repository extension `0.2.0`. Both use worker protocol `1`. The exact `v0.1.1` release artifacts, checksum, and OCI digest are published and verified. Read the [v1 contract](docs/v1-contract.md), [M5 rule-pack guide](docs/m5-rule-packs.md), and [known limitations](docs/v1-release-notes.md#known-limitations). Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -195,7 +195,7 @@ gate, the README workflow, a physical backup/restore pilot, and the direct
 upgrade exercise before publication. See [M4 evidence](docs/m4-evidence.md)
 and the [internal pilot record](docs/m4-pilot.md).
 
-M5 safe rule-set deployment is implemented as the `0.2.0` repository candidate. A portable versioned manifest can validate, preview, atomically add/replace/remove related rules, reject stale or invalid plans, preserve declared old-work behavior, and expose deployment history and diagnostics. The complete M0–M5 artifact gate passes, including rollback injection, DDL/deployment races, direct upgrade, and two-environment promotion. The external `v0.1.1` publication entry gate is still unmet, so M5 is not release-ready. See the [rule-pack guide](docs/m5-rule-packs.md), [evidence](docs/m5-evidence.md), and [readiness record](docs/m5-readiness.md).
+M5 safe rule-set deployment is complete as the `0.2.0` repository candidate. A portable versioned manifest can validate, preview, atomically add/replace/remove related rules, reject stale or invalid plans, preserve declared old-work behavior, and expose deployment history and diagnostics. The `v0.1.1` publication entry gate and complete M0–M5 artifact gate pass, including rollback injection, DDL/deployment races, direct upgrade, and two-environment promotion. See the [rule-pack guide](docs/m5-rule-packs.md), [evidence](docs/m5-evidence.md), and [readiness record](docs/m5-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 

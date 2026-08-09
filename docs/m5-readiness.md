@@ -4,15 +4,16 @@
 
 The `0.2.0` implementation, direct `0.1.1 -> 0.2.0` migration, public pack API, documentation, and complete Docker-backed M5 gate are implemented. The gate proves every M5 exit scenario on the existing supported `linux/amd64` PostgreSQL 18.3 / pg_trickle 0.81.0 boundary without widening RLS, key codec, recovery, platform, maintenance, or worker support.
 
-## External entry-gate blocker
+## External entry gate — complete
 
-M5 is not complete for merge or release. On 2026-08-09, the GitHub tag lookup returned `404`, `gh release view v0.1.1 --repo trickle-labs/pg-react` returned `release not found`, and the release workflow had no runs. The local tag alone does not satisfy `ROADMAP.md` or `docs/m4-readiness.md`.
+On 2026-08-09, the public `v0.1.1` tag resolved to validated commit `31a2b4d85f6bb1cdd94a21337d94a98b40ee6b3d`. [Release run 31312006930](https://github.com/trickle-labs/pg-react/actions/runs/31312006930) completed successfully and published [release `v0.1.1`](https://github.com/trickle-labs/pg-react/releases/tag/v0.1.1) with its notes, limitations, archive, and checksum.
 
-Before M5 can be declared complete:
+Independent verification matched:
 
-1. Push the exact validated local `v0.1.1` tag to GitHub.
-2. Let `.github/workflows/release.yml` rerun the frozen gates and publish the tested image.
-3. Verify the GitHub release notes/limitations, OCI digest, archive, and attached SHA-256 checksum against the workflow outputs.
-4. Rerun `bash tests/m5.sh pg-react:v0.2.0` on the commit intended to merge.
+- archive SHA-256: `81fcb7a839f5be91a9daf148fe649cfde9e8a8cb889a851b976e1d798d3979bc`
+- OCI image: `ghcr.io/trickle-labs/pg-react:v0.1.1@sha256:9367198b3eec2832719f2fe15af6ad815ed1750d6a78c212cf9cf1063b2a2579`
+- release notes: `linux/amd64`, physical recovery, RLS, dependency, and other supported-boundary disclosures are present
 
-After those steps, update this record and the M5 completion record in `ROADMAP.md`. No M6 exists in the authoritative roadmap; do not begin an unnumbered post-GA direction until it is promoted with a demonstrated need, bounded prerequisites, non-goals, support matrix, and executable exit evidence.
+The complete `tests/m5.sh pg-react:m5-dev` gate was then rerun against implementation commit `0d6d37a749fe25ad0a44c860af548720f081f85e` and passed every compatibility, API, upgrade, rollback, concurrency, and promotion phase. Formatting, host tests, the pinned PostgreSQL 18 builder check, and Compose validation also pass. M5 is complete.
+
+No M6 exists in the authoritative roadmap. Do not begin an unnumbered post-GA direction until it is promoted with a demonstrated need, bounded prerequisites, non-goals, support matrix, and executable exit evidence.

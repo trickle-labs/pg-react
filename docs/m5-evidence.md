@@ -26,4 +26,4 @@ M5 atomic acceptance and concurrency
 M5 development-to-production promotion
 ```
 
-The plan's external entry gate is not repository evidence. GitHub currently has no published `v0.1.1` release and no release-workflow run, so M5 cannot be declared release-ready or merged until that publication is completed and verified. See `docs/m5-readiness.md`.
+The external entry gate is complete. Public release [`v0.1.1`](https://github.com/trickle-labs/pg-react/releases/tag/v0.1.1) and successful [release run 31312006930](https://github.com/trickle-labs/pg-react/actions/runs/31312006930) resolve to the validated commit. The downloaded archive matches its attached SHA-256 checksum, GHCR matches the recorded OCI digest, and the release publishes the required notes and limitations. See [`m5-readiness.md`](m5-readiness.md).
