@@ -2531,4 +2531,4 @@ REVOKE ALL ON ALL FUNCTIONS IN SCHEMA pgreact FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA pgreact FROM PUBLIC;
 
 COMMENT ON EXTENSION pg_react IS
-    'M3 operational release candidate: coordinated DIFFERENTIAL lifecycle, bounded fair agenda, recovery, audited retention, and SQL health metrics';
+    'v1 GA: coordinated DIFFERENTIAL lifecycle, bounded fair agenda, recovery, audited retention, and SQL health metrics';

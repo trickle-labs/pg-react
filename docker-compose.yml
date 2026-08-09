@@ -1,11 +1,13 @@
 services:
   postgres:
+    image: ${PG_REACT_IMAGE:-pg-react:v0.1.1}
+    platform: ${PG_REACT_PLATFORM:-linux/amd64}
     build:
       context: .
     environment:
       POSTGRES_PASSWORD: pgreact
     ports:
-      - "5432:5432"
+      - "${PG_REACT_PORT_BINDING:-5432:5432}"
     command:
       - postgres
       - -c

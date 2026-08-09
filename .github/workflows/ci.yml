@@ -26,15 +26,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose config --quiet
-      - run: |
-          docker compose up -d --build
-          trap 'docker compose down' EXIT
-          until docker compose exec -T postgres psql -X -U postgres -d postgres -Atc "SELECT EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'pgreact')" | grep -qx t; do sleep 1; done
-          docker compose exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "SELECT extversion FROM pg_extension WHERE extname = 'pg_trickle';"
-          docker compose exec -T postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1 -c "SHOW pg_trickle.user_triggers; SHOW pg_trickle.enabled; SHOW default_transaction_isolation;"
-          bash tests/m0.sh
-          bash tests/m1.sh
-          bash tests/m1-scale.sh
-          bash tests/m2.sh
-          bash tests/m3.sh
-          bash tests/m3-upgrade.sh
+      - run: bash tests/m4.sh pg-react:v0.1.1

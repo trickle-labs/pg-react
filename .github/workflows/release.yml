@@ -1,0 +1,60 @@
+name: Release v0.1.1
+
+on:
+  push:
+    tags:
+      - v0.1.1
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --check
+      - run: cargo test --no-default-features
+      - name: Check pgrx PostgreSQL 18 skeleton
+        run: >-
+          docker run --rm
+          -v "$PWD:/work:ro"
+          -v /work/target
+          -w /work
+          ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95
+          cargo check --features pg18
+      - name: Name image
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.1.1" >> "$GITHUB_ENV"
+      - name: Build and test release image
+        run: bash tests/m4.sh "$IMAGE"
+      - name: Publish image
+        run: |
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          push_output=$(docker push "$IMAGE" 2>&1)
+          printf '%s\n' "$push_output"
+          image_digest=$(printf '%s\n' "$push_output" | sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' | tail -n 1)
+          test -n "$image_digest"
+          echo "IMAGE_DIGEST=$image_digest" >> "$GITHUB_ENV"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Package image and checksum
+        run: |
+          artifact=pg-react-v0.1.1-linux-amd64.tar.gz
+          docker save "$IMAGE" | gzip -n -9 > "$artifact"
+          sha256sum "$artifact" > "$artifact.sha256"
+          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> "$artifact.sha256"
+          sha256sum --check "$artifact.sha256"
+      - name: Publish release artifacts
+        run: |
+          artifact=pg-react-v0.1.1-linux-amd64.tar.gz
+          if gh release view v0.1.1 >/dev/null 2>&1; then
+            gh release upload v0.1.1 "$artifact" "$artifact.sha256" --clobber
+            gh release edit v0.1.1 --notes-file docs/v1-release-notes.md
+          else
+            gh release create v0.1.1 "$artifact" "$artifact.sha256" --verify-tag \
+              --notes-file docs/v1-release-notes.md --title v0.1.1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

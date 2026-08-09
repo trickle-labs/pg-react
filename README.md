@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react is currently an **operational release candidate**, not a GA release. The supported M3 contract is intentionally narrow; see the [compatibility matrix](docs/m3-compatibility.md) before testing it. Start with the [design document](DESIGN.md) for semantics and architecture, and the [roadmap](ROADMAP.md) for the implementation plan.
+> pg-react v1 is extension version `0.1.1` with worker protocol `1`. Its GA contract is intentionally narrow; read the [v1 contract](docs/v1-contract.md), [installation guide](docs/v1-installation.md), and [known limitations](docs/v1-release-notes.md#known-limitations) before deploying it. Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -188,13 +188,21 @@ M1 developer alpha is implemented on that same coordinator-owned boundary: view-
 
 M2 reliability beta is implemented on that same boundary: complete lifecycle payloads, heartbeats, bounded multi-worker claims, retry backoff, stale-lease rejection, audited reconciliation, and registered transactional outbox sinks. M3 operational RC is implemented as extension 0.1.1: compatibility/recovery runbooks, migration and OID rebuild, private-by-default role access, audited retention, fair bounded claims, backpressure, health/metrics, and a controlled pilot. The executable evidence is [M3 evidence](docs/m3-evidence.md).
 
+M4 v1 GA is implemented without widening that boundary: the public SQL API,
+worker protocol, migration and delivery policies are frozen; task guides and
+release notes are complete; and one exact `linux/amd64` image runs every prior
+gate, the README workflow, a physical backup/restore pilot, and the direct
+upgrade exercise before publication. See [M4 evidence](docs/m4-evidence.md)
+and the [internal pilot record](docs/m4-pilot.md).
+
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
 ## Read more
 
 - [CONTEXT.md](CONTEXT.md) defines the canonical rule-lifecycle vocabulary.
 - [DESIGN.md](DESIGN.md) contains the product semantics, SQL API, catalog, worker architecture, security model, and testing strategy; [ROADMAP.md](ROADMAP.md) is the delivery plan.
-- [M4 readiness](docs/m4-readiness.md) records the remaining evidence required before v1 GA.
+- [v1 contract](docs/v1-contract.md) freezes the supported API and compatibility boundary; [M4 evidence](docs/m4-evidence.md) records the GA qualification.
+- The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
 - [PostgreSQL as an Operational Data Platform](operational-data-platform.md) places the projects in a broader operational loop.
 - [pg_trickle](https://github.com/trickle-labs/pg-trickle) is the incremental view-maintenance engine pg-react is designed to build on.

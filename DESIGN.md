@@ -563,7 +563,7 @@ The default `SEMANTIC_KEY` identity mode uses the key columns declared by the ru
 
 Projected values alone are not automatically a safe identity. A view that selects only `country` from a customer-order join may return several identical `NO` rows that correspond to different orders. Under semantic identity, the author must decide whether those should be one country-level activation, one customer activation, or one order activation, and must expose and declare the corresponding key. If the desired semantics are one row per country, the query should aggregate or deduplicate accordingly. If duplicate rows exist for one declared key, compilation or runtime validation fails instead of silently choosing one.
 
-The activation ID is deterministic, collision-resistant, independent of physical relation OIDs, and stable across restart, replication, index rebuild, logical restore, refresh-mode changes, and `pg_trickle` implementation changes within the codec's published compatibility contract. The rule-version UUID acts as a namespace. A versioned canonical key codec writes a codec version, a portable type tag, and a length-delimited canonical value for each key column; it never hashes a local type OID, `regtype` output, session-dependent text output, or an undocumented type send format. Equal supported PostgreSQL values must encode identically. Collatable keys require a deterministic collation, and unsupported types are rejected unless a future explicitly versioned codec is registered.
+The activation ID is deterministic, collision-resistant, independent of physical relation OIDs, and stable across restart, replication, index rebuild, physical restore, refresh-mode changes, and `pg_trickle` implementation changes within the codec's published compatibility contract. The rule-version UUID acts as a namespace. A versioned canonical key codec writes a codec version, a portable type tag, and a length-delimited canonical value for each key column; it never hashes a local type OID, `regtype` output, session-dependent text output, or an undocumented type send format. Equal supported PostgreSQL values must encode identically. Collatable keys require a deterministic collation, and unsupported types are rejected unless a future explicitly versioned codec is registered.
 
 M0 supports only the reference rule's non-null `bigint` key, encoded as signed 64-bit network-order bytes. M1 may add types only with cross-restart and logical dump/restore fixtures, equality edge cases, and an immutable codec version. SHA-256 is computed over the rule-version UUID and canonical key; the first 128 bits are stored as a UUID with an RFC-compatible variant and private version nibble. The complete digest and canonical key bytes are stored with activation state. If a truncated UUID ever resolves to a different complete digest or key, the refresh fails as an invariant violation rather than merging the activations.
 
@@ -757,7 +757,7 @@ Compilation begins by resolving the registered view and capturing an immutable `
 
 PostgreSQL remains the parser and type authority. Rust code may inspect analyzed `Query` structures, catalogs, and OIDs through a small version-specific compatibility layer, while SPI prepare and describe calls provide resolved output information. `pg_trickle` remains the final authority on whether the snapshotted query can be maintained differentially, immediately, temporally, recursively, or only with fallback. `pg-react` does not maintain a competing grammar or a private copy of `pg_trickle`’s operator rules.
 
-The durable version stores source SQL, qualified identities, row and dependency signatures, and fingerprints. Cached analyzed metadata and generated artifacts are rebuildable. PostgreSQL major-version upgrade, logical dump and restore, or object re-resolution therefore triggers recompilation from durable SQL rather than reuse of serialized parse trees or blind trust in old OIDs.
+The durable version stores source SQL, qualified identities, row and dependency signatures, and fingerprints. Cached analyzed metadata and generated artifacts are rebuildable. Object re-resolution therefore recompiles from durable SQL rather than reusing serialized parse trees or blindly trusting old OIDs. A future logical migration or PostgreSQL-major-upgrade procedure must apply the same rule to pg-react and also prove that pg_trickle can safely reconstruct its corresponding metadata; v1 supports neither transition for live rule state.
 
 All generated identifiers use PostgreSQL-safe quoting, and all runtime values use parameterized SPI. The condition definition and consequence functions are executable database code supplied by authorized authors, so creation privileges are treated as code-deployment privileges. Rule names, object names, roles, and options are never interpolated into raw SQL without validation and quoting.
 
@@ -900,7 +900,7 @@ A unique constraint on `(schema_name, rule_name)` gives familiar PostgreSQL-styl
 
 ### 18.2 Immutable rule versions
 
-`pgreact_internal.rule_versions` contains the complete source snapshot and deployment state. Local OIDs make dispatch efficient inside the current cluster, while SQL text, qualified identities, row signatures, and fingerprints provide portable rebuild inputs after restore or PostgreSQL-major upgrade.
+`pgreact_internal.rule_versions` contains the complete source snapshot and deployment state. Local OIDs make dispatch efficient inside the current cluster, while SQL text, qualified identities, row signatures, and fingerprints provide portable inputs for verification and future rebuild procedures. Those inputs do not by themselves make a logical migration or PostgreSQL-major upgrade safe; the v1 dependency boundary explicitly excludes both.
 
 ```text
 rule_version_id uuid primary key
@@ -958,7 +958,7 @@ last_verified_at timestamptz null
 last_error jsonb null
 ```
 
-The source definition fields describe exactly what was compiled. `source_definition_relid` and `binding_rowtype_oid` may change after logical restore, so health and upgrade procedures resolve the stored qualified identities again and verify their SQL and row signatures. `compiled_metadata` is a rebuildable cache and never the sole durable definition.
+The source definition fields describe exactly what was compiled. Health and recovery procedures resolve the stored qualified identities again and verify their SQL and row signatures rather than trusting cached local OIDs. `compiled_metadata` is a rebuildable cache and never the sole durable definition. Future logical migration support would need to rebuild these fields and the corresponding pg_trickle state together.
 
 ### 18.3 Lifecycle consequence bindings
 
@@ -1380,7 +1380,7 @@ Operational concurrency is also part of the release contract. Claims have a serv
 
 A PostgreSQL crash during refresh leaves either all or none of the match, lifecycle, typed payload, and agenda changes committed. A worker crash leaves a finite lease that the M1 sweeper, or another worker from M2 onward, may reclaim. Deterministic idempotency keys address the possibility that the previous worker completed an effect but failed before recording success.
 
-After PITR, snapshot restore, logical migration, or PostgreSQL-major upgrade, workers remain stopped until `pg_trickle` repair and `pgreact.health_check` succeed. `pg-react` resolves stored qualified identities, rebuilds transient OID-based metadata from durable SQL, verifies source-view and consequence fingerprints, reconciles match and activation state, expires invalid leases, and only then removes claim barriers. Restore policy decides whether differences emit lifecycle events or repair state only.
+After a supported physical restore, PITR, failover, or promotion, workers remain stopped until pg-react installs claim barriers, resolves stored qualified identities, rebuilds transient OID-based metadata, verifies source-view and consequence fingerprints, reconciles match and activation state, expires invalid leases, and passes `pgreact.health_check`. Restore policy decides whether differences emit lifecycle events or repair state only. Version 1 does not support logical migration or PostgreSQL-major upgrade of live rule state because pinned pg_trickle cannot publicly rebuild its restored OID and differential-change metadata; a future support claim requires an end-to-end dependency repair procedure and regression evidence.
 
 ---
 
@@ -1478,7 +1478,7 @@ Durable does not mean retained forever: authoritative records remain durable unt
 
 `pg-reactd` runs as a normal service, container, or Kubernetes deployment. Its claim and execution connection uses a dedicated role with only public worker privileges; its coordinator connection uses a rule owner or operator identity for the explicit refresh protocol. It maintains a bounded connection pool, advertises selected agenda groups, and exposes health and metrics endpoints. Multiple replicas are safe because claims use row locks and leases. During rolling upgrades, old and new worker versions may overlap only when the database extension reports protocol compatibility; otherwise workers stop claiming before the extension upgrade and resume afterward.
 
-On a physical standby, generated match tables, activation state, agenda, and history replicate as ordinary PostgreSQL data and remain readable. Workers must not claim from a read-only standby. After promotion, the normal health and lease sweep verifies that the database is writable, refresh scheduling is active, and stale leases can be reclaimed. Backups include all catalogs and runtime state. Restore procedures always include `pg_trickle` repair followed by `pg-react` verification and reconciliation before workers resume.
+On a physical standby, generated match tables, activation state, agenda, and history replicate as ordinary PostgreSQL data and remain readable. Workers must not claim from a read-only standby. After promotion, the normal health and lease sweep verifies that the database is writable, refresh scheduling is active, and stale leases can be reclaimed. Physical backups include all catalogs, pg_trickle change tracking, and runtime state. Restore procedures include a pg-react claim barrier, verification, metadata rebuild, and reconciliation before workers resume. Logical restore of live rule state is outside the v1 support boundary because pinned pg_trickle does not publicly reconstruct its OID and differential-change metadata.
 
 Connection poolers are supported because the public API is transaction-oriented and does not depend on session-local queues. Worker connections that use `LISTEN` require session affinity or a direct connection, while claim and execution calls can use ordinary pooled connections. Prepared statements and temporary objects must follow the compatibility guidance of both extensions.
 
@@ -1488,7 +1488,7 @@ Connection poolers are supported because the public API is transaction-oriented 
 
 [`ROADMAP.md`](ROADMAP.md) is the sole authority for milestone names, scope, entry gates, and exit evidence. This design defines semantics and architecture; it does not maintain a second phased plan.
 
-M3 is complete on the coordinator-owned compatibility boundary recorded in [`ROADMAP.md`](ROADMAP.md). The next target is **M4 — v1 general availability**. It must freeze and publish this pinned `DIFFERENTIAL`, scheduler-disabled, RLS-rejecting, `bigint` codec-v1 contract before any compatibility expansion.
+M4 v1 GA is complete on the coordinator-owned compatibility boundary recorded in [`ROADMAP.md`](ROADMAP.md). The frozen contract remains pinned to explicit `DIFFERENTIAL` maintenance, a disabled scheduler, RLS rejection, and the `bigint` codec-v1 subset. M5 expansion must not begin until the validated `v0.1.1` tag is published, and every later compatibility addition needs its own evidence.
 
 ---
 
@@ -1530,7 +1530,7 @@ The future fact-tuple identity mode must define its query subset, source-key reg
 
 ## 32. v1 GA acceptance criteria
 
-A release candidate must prove that an ordinary PostgreSQL view can be registered, snapshotted, compiled, queried, explained, and detected as drifted after DDL. Non-view definitions, null or duplicate semantic keys, wrong typed function arguments, non-void return types, unsafe execution roles, and unsupported maintained queries must be rejected before activation. Restore and PostgreSQL-major upgrade tests must rebuild transient OID-based metadata from stored SQL and signatures.
+A release candidate must prove that an ordinary PostgreSQL view can be registered, snapshotted, compiled, queried, explained, and detected as drifted after DDL. Non-view definitions, null or duplicate semantic keys, wrong typed function arguments, non-void return types, unsafe execution roles, and unsupported maintained queries must be rejected before activation. Every claimed recovery mode needs an end-to-end test of pg-react and pg_trickle state: v1 proves physical restore and rejects logical restore and PostgreSQL-major upgrade; a later release must add explicit rebuild evidence before supporting either.
 
 Semantic correctness requires exactly one activation generation when a key enters the result, no repeated activation event while it remains continuously true, revisioned change events under the configured policy, and exactly one deactivation event when a generation ends. Physical delete-plus-insert maintenance must coalesce into the correct semantic result. Typed activation, change, and deactivation functions must receive the correct context and old or new composite values. Full refresh followed by reconciliation must produce the same current activation state as equivalent differential maintenance, and reconciliation must be idempotent.
 

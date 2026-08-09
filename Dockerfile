@@ -4,3 +4,4 @@ FROM ghcr.io/trickle-labs/pg_trickle@sha256:998ab948555e990dcffc9464f316b3abe6b0
 COPY pg_react.control /usr/share/postgresql/18/extension/pg_react.control
 COPY sql/ /usr/share/postgresql/18/extension/
 COPY docker/00-pg-trickle.sql /docker-entrypoint-initdb.d/10-pg-react.sql
+COPY --chmod=755 bin/pg-reactd /usr/local/bin/pg-reactd

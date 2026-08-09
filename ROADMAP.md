@@ -258,7 +258,9 @@ M2 completes on the existing coordinator-owned `DIFFERENTIAL` boundary. The beta
 
 - Published compatibility matrix for PostgreSQL, `pgrx`, `pg_trickle`, operating systems, architectures, maintenance modes, and isolation levels.
 - Stable extension migrations and rebuild procedures for transient OID-based metadata.
-- Tested PITR, physical failover, logical migration, PostgreSQL-major upgrade, and rolling worker-upgrade procedures.
+- Tested PITR, physical failover, and rolling worker-upgrade procedures, plus
+  explicit supported/unsupported decisions for logical migration and
+  PostgreSQL-major upgrade.
 - Source and function drift repair workflows with explicit claim barriers.
 - Documented PostgreSQL roles for administration, authoring, operation, workers, and readers.
 - Security review of ownership checks, exact binding-specific dispatch, `SECURITY DEFINER` functions, search paths, generated relations, and payload access.
@@ -302,6 +304,12 @@ M3 completes as extension `0.1.1` on the same coordinator-owned compatibility su
 - A pilot user or internal production deployment has completed installation, normal operation, failure injection, restore, and upgrade exercises.
 
 The first GA should prefer a small, explicit support matrix over broad best-effort compatibility.
+
+### M4 completion record — 2026-08-09
+
+M4 completes the repository implementation for extension `0.1.1`, worker protocol `1`, and outbox envelope `1` without widening the M3 compatibility boundary. The v1 contract freezes the public composite type, five views, 41 effective public function overloads, direct `0.1.0 -> 0.1.1` migration, external-delivery guarantee, and known limitations. The release-artifact gate builds one `linux/amd64` image and runs the complete M0–M3 suite, frozen API inventory, exact README workflow through the packaged worker, internal install/normal/failure/physical-restore/continued-operation pilot, retention checks, and direct upgrade. Task-oriented guides cover installation, authoring, operations, security, physical backup/restore, upgrades, and troubleshooting.
+
+The recovery audit deliberately excludes logical `pg_dump`/`pg_restore` of live rules: pinned pg_trickle `0.81.0` cannot publicly rebuild restored source OIDs and differential change tracking, which could silently miss later work. Physical backup/PITR and physical failover are the supported v1 recovery mechanisms. [`docs/m4-evidence.md`](docs/m4-evidence.md) and [`docs/m4-pilot.md`](docs/m4-pilot.md) record the evidence; the exact `v0.1.1` tag runs the publication workflow for the tested OCI image, digest, archive checksum, release notes, and limitations.
 
 ---
 
@@ -403,4 +411,4 @@ Each implementation issue should belong to one milestone and one primary workstr
 
 ## Immediate next milestone
 
-M3 operational RC is complete on the coordinator-owned M0 compatibility subset. The next concrete target is **M4 — v1 general availability**: freeze and version the SQL API, worker protocol, catalog-migration policy, compatibility policy, release artifacts, checksums, known limitations, and task-oriented documentation. Do not widen the maintenance, RLS, or key-codec matrix without new compatibility evidence.
+M4 v1 GA implementation is complete on the coordinator-owned compatibility subset. The immediate release action is to publish the validated commit under the exact `v0.1.1` tag, let the release workflow push the tested image and attach its checksum and disclosures, and verify those published bytes. Only after that succeeds may **M5 — Post-GA expansion** begin. Do not widen the maintenance, RLS, key-codec, backup, platform, or worker matrix without new compatibility and regression evidence.

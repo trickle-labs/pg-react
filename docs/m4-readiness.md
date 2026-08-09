@@ -1,27 +1,34 @@
 # M4 readiness: v1 general availability
 
-M4 freezes and publishes the first supported contract; it does not widen M3's compatibility matrix. The release candidate is extension and crate version `0.1.1`, with worker protocol `1` and an immutable `0.1.0 -> 0.1.1` migration.
+M4 is implemented for extension and crate version `0.1.1`, worker protocol `1`,
+outbox envelope `1`, and the immutable direct `0.1.0 -> 0.1.1` migration. It
+freezes the narrow M3 compatibility matrix; it does not widen maintenance
+modes, RLS, key codecs, PostgreSQL versions, operating systems, or
+architectures.
 
 ## Gate assessment
 
-| GA requirement | Current evidence | Status |
+| GA requirement | Direct evidence | Status |
 | --- | --- | --- |
-| M3 gates pass continuously | CI runs the Rust, M0, M1, scale, M2, M3, and upgrade suites | Ready for release-artifact rerun |
-| Compatibility policy | [`m3-compatibility.md`](m3-compatibility.md) fixes one supported tuple | Ready to freeze |
-| Catalog migration policy | Historical `0.1.0`, current `0.1.1`, and the tested upgrade script are separate | Ready to document |
-| SQL API and worker protocol | Public SQL functions exist and protocol `1` is checked at startup | Inventory and guarantees not yet published |
-| Task-oriented documentation | The README and [`m3-operations.md`](m3-operations.md) cover the example and core operations | Installation, authoring, security, backup/restore, upgrade, and troubleshooting guides remain |
-| Release artifacts | The Docker base and dependency tuple are pinned | Build/publish workflow, artifact checksum, upgrade notes, and known limitations remain |
-| Release-artifact reference test | Development-image integration tests exist | Exact README workflow must run against the packaged artifact |
-| Production exercise | The internal fixture covers load and recovery mechanics | A pilot deployment must complete install, normal operation, failure, restore, and upgrade |
-| GA correctness audit | Lifecycle, concurrency, recovery, dispatch, and operational suites exist | Rerun the full requirement-by-requirement audit on the packaged artifact |
+| M3 gates pass on the release artifact | [`tests/m4.sh`](../tests/m4.sh) builds one `linux/amd64` image, checks its image ID, and runs M0, M1, scale, M2, and M3 against it | Complete |
+| SQL API, protocol, migration, compatibility, and delivery are frozen | [`v1-contract.md`](v1-contract.md) and [`tests/m4-api.sql`](../tests/m4-api.sql) | Complete |
+| Task-oriented documentation | v1 [installation](v1-installation.md), [authoring](v1-authoring.md), [operations](m3-operations.md), [security](v1-security.md), [backup/restore](v1-backup-restore.md), [upgrade](v1-upgrades.md), and [troubleshooting](v1-troubleshooting.md) guides | Complete |
+| Exact README workflow runs on the artifact | [`tests/m4-reference.sh`](../tests/m4-reference.sh) executes the copied example through the packaged `pg-reactd` | Complete |
+| Correctness and recoverability audit | M0–M3 suites plus the physical recovery pilot; unsupported logical live-rule restore is rejected and published as a limitation | Complete within the supported matrix |
+| Artifacts, checksums, notes, and limitations publish together | [release workflow](../.github/workflows/release.yml) gates, pushes, packages, checksums, records the OCI digest, and creates the exact `v0.1.1` release | Ready on tag |
+| Internal production exercise | [`m4-pilot.md`](m4-pilot.md) records install, normal operation, injected failure, physical restore, resumed work, and direct upgrade | Complete |
 
-## Required order
+The requirement-by-requirement record is in [`m4-evidence.md`](m4-evidence.md).
+The release must be cut only from this validated commit: push it, create the
+exact `v0.1.1` tag, let the release workflow publish the tested bytes, and
+verify the attached checksum and registry digest. M5 work starts only after
+that publication succeeds.
 
-1. Freeze the public SQL signature inventory, worker protocol semantics, migration window, compatibility policy, and external-delivery guarantees.
-2. Produce one versioned image/package, checksum it, and run every existing gate plus the exact README example against that artifact.
-3. Finish the six task-oriented guides and publish upgrade notes and known limitations beside the artifact.
-4. Complete and record the production pilot exercise.
-5. Audit every GA requirement against direct evidence, then tag and publish v1 only if no correctness blocker remains.
+## Important recovery boundary
 
-No M4 work should add a maintenance mode, RLS support, key codec, PostgreSQL version, operating system, or architecture without its own compatibility evidence.
+Physical backup/PITR is the supported v1 recovery mechanism. A logical
+`pg_dump`/`pg_restore` of live pg-react rules is unsupported with pinned
+pg_trickle `0.81.0`: its public restore functions do not rebuild restored
+source OIDs and differential change tracking. Treating that path as supported
+could silently miss a later lifecycle transition, so M4 fails it closed and
+documents the boundary instead of shipping partial catalog repair.
