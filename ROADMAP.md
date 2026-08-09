@@ -421,7 +421,7 @@ The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs
 
 **Outcome:** maintain non-recursive derived facts as durable PostgreSQL state whose current truth, retraction, provenance, and recovery are explained by explicit logical supports rather than imperative consequence history.
 
-**Entry gate:** the exact `v0.3.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. A fixed reference model must require two independent derivations of one fact, removal of one and then the last support, downstream rule observation, reconciliation, and physical recovery; its expected public state and explanation output are frozen before the API contract is fixed.
+**Entry gate:** the exact `v0.3.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. The [fixed reference model](docs/m7-entry.md) requires two independent derivations of one fact, removal of one and then the last support, downstream rule observation, reconciliation, and physical recovery; its expected public state and explanation output are frozen before the API contract is fixed.
 
 ### Deliverables
 
