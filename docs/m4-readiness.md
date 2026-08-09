@@ -21,8 +21,9 @@ architectures.
 The requirement-by-requirement record is in [`m4-evidence.md`](m4-evidence.md).
 The release must be cut only from this validated commit: push it, create the
 exact `v0.1.1` tag, let the release workflow publish the tested bytes, and
-verify the attached checksum and registry digest. M5 work starts only after
-that publication succeeds.
+verify the attached checksum and registry digest. M5 planning and executable
+gate design may begin earlier, but no M5 product change merges until that
+publication succeeds.
 
 ## Important recovery boundary
 

@@ -87,4 +87,4 @@ Also record the release artifact digest, worker protocol result, worker stderr, 
 
 ## Known unsupported cases
 
-v1 does not cover PostgreSQL or pg_trickle versions outside the pinned tuple, non-`linux/amd64` deployments, workers on standbys, isolation other than `READ COMMITTED`, automatic/`AUTO`/`FULL`/`IMMEDIATE` maintenance, logical dump/restore or PostgreSQL-major upgrade of live rule state, RLS sources, multi-column or non-`bigint` keys, untrusted dynamic code, exactly-once external effects, global work ordering, synchronous source-write blocking, or M5 derivation and authoring features.
+v1 does not cover PostgreSQL or pg_trickle versions outside the pinned tuple, non-`linux/amd64` deployments, workers on standbys, isolation other than `READ COMMITTED`, automatic/`AUTO`/`FULL`/`IMMEDIATE` maintenance, logical dump/restore or PostgreSQL-major upgrade of live rule state, RLS sources, multi-column or non-`bigint` keys, untrusted dynamic code, exactly-once external effects, global work ordering, synchronous source-write blocking, or post-GA rule-pack, derivation, and higher-level authoring features.

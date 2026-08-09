@@ -4,6 +4,8 @@
 > **Last updated:** 2026-08-09\
 > **Design authority:** [`DESIGN.md`](DESIGN.md) defines product semantics. This file defines delivery order, release scope, and evidence required to ship.
 
+**Long-term direction:** `pg-react` is intended to evolve from a durable PostgreSQL-native production-rule runtime into a PostgreSQL-native rule and incremental reasoning engine. Later releases may add maintained logical derivation, provenance, monotone recursion, carefully bounded non-monotonic reasoning, and temporal semantics. Each new semantic capability must keep PostgreSQL authoritative and enter a numbered milestone only when it has a coherent correctness, recovery, security, and explanation contract.
+
 `pg-react` should become the easiest safe way to turn changing PostgreSQL data into durable, inspectable decisions and work. The roadmap is therefore organized around two outcomes:
 
 1. **Easy to use:** rules are authored with ordinary PostgreSQL views and typed functions, safe defaults handle the common case, errors explain how to recover, and normal operation never requires direct access to private catalogs.
@@ -313,33 +315,85 @@ The recovery audit deliberately excludes logical `pg_dump`/`pg_restore` of live 
 
 ---
 
-## Stage 5 — Post-GA expansion
+## Stage 5 — Safe rule-set deployment
 
-Post-GA work is divided into two tracks. Neither may weaken the v1 lifecycle and recovery guarantees.
+**Outcome:** let a team preview, apply, replace, and promote a related set of rules as one reviewed unit without partial deployment or direct access to private catalogs.
 
-**Entry gate:** v1 GA is released and supported; each expansion has its own compatibility and regression evidence.
+**Entry gate:** the validated `v0.1.1` release artifacts, checksums, and disclosures are published and verified; the reference multi-rule deployment and failure scenarios are agreed before the public contract is fixed.
 
-### v1.x: usability and scale
+### Deliverables
 
-- Named reusable conditions.
-- Rule packs and atomic batch deployment.
-- Schedule coordination and cost diagnostics.
-- Better rule-development previews and migration tooling.
-- Explicitly audited `batch_safe` execution for proven commutative workloads.
-- Measured catalog partitioning and retention improvements.
-- Experimental common-subplan sharing only when fingerprints, versions, ownership, and security contexts are compatible.
-- Selective `IMMEDIATE` mode only for combinations covered by a tested isolation and locking contract.
+- A versioned rule-pack definition for grouping existing v1 constraint and command rules into one deployable unit.
+- Public validation and preview that report additions, replacements, removals, dependencies, incompatible definitions, generated-object changes, and lifecycle risks without mutating durable state.
+- Atomic pack deployment and replacement: catalog state, generated objects, and active-version changes either commit together or leave the prior deployment intact.
+- Dependency inspection and rejection of missing, cyclic, or invalidly ordered dependencies before mutation.
+- Apply-time revalidation so concurrent DDL or drift cannot make an earlier preview silently stale.
+- A portable promotion path that does not copy internal OIDs or private catalog rows between environments.
+- Public deployment history and diagnostics, plus one documented and executable development-to-production workflow.
 
-### v2 and experimental reasoning
+### Explicit non-goals
 
-- Logical supports, derived facts, provenance, and truth maintenance.
-- Monotone fixed-point evaluation and atomic deployment of recursive components.
-- Carefully bounded stratified negation and aggregate recursion where deletion semantics are proven.
-- Temporal conditions with explicit event-time and database-time semantics, timers or scheduled reevaluation, retention, late-arriving data, and defined interaction with fixed points and negation.
-- Optional fact-tuple identity for an explicitly defined query subset.
-- Raw-query convenience, client-side DSLs, visual dependency tooling, natural-language-assisted authoring with validation, LLM task patterns, and domain packages.
+- New execution modes, including `batch_safe`, `IMMEDIATE`, or synchronous firing.
+- Automatic common-subplan sharing, catalog partitioning, or other speculative scaling work.
+- Derivation rules, recursive evaluation, negation, temporal semantics, or fact-tuple identity.
+- A custom rule language, client DSL, visual editor, AI authoring layer, or domain-package ecosystem.
+- Expansion of the v1 compatibility, RLS, key-codec, recovery, or platform matrix without separate evidence.
 
-Canonical PostgreSQL views, typed functions, and explicit registration remain the foundation even when richer authoring tools are added.
+### Decisions to close before the public API freezes
+
+- Pack identity, versioning, ownership, and the portable definition format.
+- The exact atomicity boundary across PostgreSQL and `pg_trickle` objects.
+- Replacement behavior for active, pending, retrying, and leased work across several rules.
+- Dependency kinds, cycle handling, and whether removal may be inferred or must be explicit.
+- Environment-specific name and role mapping without weakening exact object identity or authorization.
+
+### Exit gates
+
+- Injected failure at every deployment phase leaves either the complete old pack or the complete new pack, with no mixed active versions or orphaned generated objects.
+- Preview followed by apply produces the previewed plan, or apply rejects intervening drift and requires a new preview.
+- Missing dependencies, cycles, incompatible bindings, unsafe ownership, and invalid removal order fail before durable mutation.
+- Concurrent deployment, source DDL, and consequence DDL serialize or fail explicitly without ambiguous dispatch.
+- Old work follows the declared replacement policy and can execute only through its exact immutable binding.
+- The same pack definition can be validated and promoted in a second environment without copying internal identifiers.
+- Existing single-rule APIs and v1 behavior remain backward compatible.
+- A user can complete the reference workflow, inspect its history, and recover from a failed deployment using only public APIs and documentation.
+
+---
+
+## Post-GA product directions
+
+The directions below are intentional but are not implementation commitments and do not impose a fixed order. A direction becomes the next numbered milestone only when it has a demonstrated user or operational need, bounded prerequisites, explicit non-goals, a support matrix, and executable exit evidence. GitHub milestones represent only active or credible near-term implementation commitments.
+
+A future direction may constrain a semantic decision, but it does not authorize speculative catalogs, APIs, or abstractions. PostgreSQL views, typed functions, explicit registration, immutable versions, and durable PostgreSQL state remain the canonical model.
+
+### Product ergonomics
+
+- Named reusable conditions where ordinary shared PostgreSQL views are insufficient.
+- Schedule coordination, cost diagnostics, and targeted migration tooling driven by observed deployment friction.
+- Compatibility, RLS, key-codec, recovery, and platform expansion one supported combination at a time.
+
+### Execution and scale
+
+- `batch_safe` execution only for measured consequence-throughput bottlenecks and proven commutative workloads.
+- Selective `IMMEDIATE` mode only for demonstrated read-your-writes needs and combinations covered by a tested isolation and locking contract.
+- Explicit shared conditions before automatic common-subplan discovery; automatic sharing only when repeated work and compatible security contexts are measured.
+- Retention redesign, catalog partitioning, and other storage changes only after current limits are reproduced by benchmarks.
+
+These capabilities are independent; none is a prerequisite for derived knowledge unless its promoted milestone demonstrates that dependency.
+
+### Derived knowledge
+
+The first reasoning milestone should be the smallest useful semantic slice: non-recursive derived facts with multiple logical supports, retraction, provenance, reconciliation, recovery, retention, and “why is this true?” explanation.
+
+Positive recursive derivation and monotone fixed-point evaluation should be a later milestone after non-recursive support maintenance is proven. Stratified negation, deletion-sensitive reasoning, and recursive aggregation should remain separate later work and accept only programs with precise, testable semantics.
+
+### Temporal reasoning
+
+Temporal work may proceed independently where it does not require recursive or non-monotonic derivation. Any promoted milestone must define database time, event time, timers or scheduled reevaluation, durations, windows, lateness, corrections, retention, restart behavior, and interactions with any reasoning semantics it uses.
+
+### Authoring and ecosystem
+
+Raw-query convenience, client-side DSLs, visual tooling, AI-assisted authoring, LLM task patterns, and domain packages remain demand-driven layers. They must compile to, validate against, or inspect the canonical PostgreSQL-native model rather than define separate semantics.
 
 ---
 
@@ -403,12 +457,14 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M2 — Reliability beta** | Prove complete lifecycle and durable execution under failure |
 | **M3 — Operational RC** | Establish production support, security, recovery, and performance evidence |
 | **M4 — v1 GA** | Freeze and publish the supported contract |
-| **M5 — Post-GA expansion** | Improve usability, scale, reasoning, and ecosystem integration |
+| **M5 — Safe rule-set deployment** | Preview, atomically deploy, replace, and promote related rules |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
+
+Do not create GitHub milestones for the unnumbered post-GA directions. Promote only the next direction whose entry conditions and executable exit evidence are credible.
 
 ---
 
 ## Immediate next milestone
 
-M4 v1 GA implementation is complete on the coordinator-owned compatibility subset. The immediate release action is to publish the validated commit under the exact `v0.1.1` tag, let the release workflow push the tested image and attach its checksum and disclosures, and verify those published bytes. Only after that succeeds may **M5 — Post-GA expansion** begin. Do not widen the maintenance, RLS, key-codec, backup, platform, or worker matrix without new compatibility and regression evidence.
+**M5 — Safe rule-set deployment** is the next implementation milestone. Planning and executable gate design may begin immediately; before the first M5 product change merges, verify that the exact `v0.1.1` release workflow published the tested image, checksum, digest, release notes, and limitations. Start by closing the pack-definition, atomicity, replacement, dependency, and environment-mapping decisions, then encode the failure and promotion scenarios as executable acceptance fixtures. Do not widen the maintenance, RLS, key-codec, backup, platform, or worker matrix without separate compatibility and regression evidence.

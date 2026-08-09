@@ -1488,7 +1488,7 @@ Connection poolers are supported because the public API is transaction-oriented 
 
 [`ROADMAP.md`](ROADMAP.md) is the sole authority for milestone names, scope, entry gates, and exit evidence. This design defines semantics and architecture; it does not maintain a second phased plan.
 
-M4 v1 GA is complete on the coordinator-owned compatibility boundary recorded in [`ROADMAP.md`](ROADMAP.md). The frozen contract remains pinned to explicit `DIFFERENTIAL` maintenance, a disabled scheduler, RLS rejection, and the `bigint` codec-v1 subset. M5 expansion must not begin until the validated `v0.1.1` tag is published, and every later compatibility addition needs its own evidence.
+M4 v1 GA is complete on the coordinator-owned compatibility boundary recorded in [`ROADMAP.md`](ROADMAP.md). The frozen contract remains pinned to explicit `DIFFERENTIAL` maintenance, a disabled scheduler, RLS rejection, and the `bigint` codec-v1 subset. M5 product changes must not merge until the validated `v0.1.1` tag is published, and every later compatibility addition needs its own evidence.
 
 ---
 
