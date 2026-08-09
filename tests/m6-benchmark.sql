@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 
 CREATE EXTENSION pg_trickle;
-CREATE EXTENSION pg_react VERSION '0.2.0';
+CREATE EXTENSION pg_react;
 CREATE SCHEMA m6_entry;
 
 CREATE TABLE m6_entry.facts (
@@ -30,6 +30,7 @@ SELECT pgreact.create_rule(
     'COMMAND',
     'm6_entry.record_fact(pgreact.activation_context,m6_entry.active_fact)'::regprocedure
 ) AS rule_version_id \gset
+SELECT pgreact.declare_batch_safe(:'rule_version_id'::uuid, 'ACTIVATE');
 
 CREATE TABLE m6_entry.benchmark (
     rule_version_id uuid PRIMARY KEY,
@@ -77,26 +78,19 @@ BEGIN
 END
 $$;
 
-CREATE FUNCTION m6_entry.execute_prototype_batch(batch_size integer DEFAULT 32)
+CREATE FUNCTION m6_entry.execute_audited_batch(batch_size integer DEFAULT 32)
 RETURNS integer
 LANGUAGE plpgsql
 AS $$
-DECLARE claimed record; completed integer := 0;
+DECLARE target_batch uuid; completed integer;
 BEGIN
-    FOR claimed IN
-        SELECT * FROM pgreact.claim(
-            'm6-entry-batch',
-            batch_size,
-            interval '60 seconds'
-        )
-    LOOP
-        PERFORM pgreact.execute_claimed_episode(
-            claimed.episode_id,
-            'm6-entry-batch',
-            claimed.lease_token
-        );
-        completed := completed + 1;
-    END LOOP;
+    SELECT batch_id INTO target_batch FROM pgreact.claim_batch(
+        (SELECT rule_version_id FROM m6_entry.benchmark),
+        'ACTIVATE', 'm6-benchmark-batch', batch_size
+    ) ORDER BY item_order LIMIT 1;
+    IF target_batch IS NULL THEN RETURN 0; END IF;
+    SELECT count(*) INTO completed
+    FROM pgreact.execute_claimed_batch(target_batch, 'm6-benchmark-batch');
     RETURN completed;
 END
 $$;
@@ -105,6 +99,6 @@ SELECT jsonb_build_object(
     'episodes', (SELECT count(*) FROM pgreact.episodes),
     'refresh_milliseconds', refresh_milliseconds,
     'consequence', 'commutative idempotent insert keyed by episode_id',
-    'prototype_batch_size', 32
+    'audited_batch_size', 32
 ) AS m6_entry_workload
 FROM m6_entry.benchmark;

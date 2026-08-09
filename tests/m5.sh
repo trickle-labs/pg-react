@@ -2,8 +2,10 @@
 set -euo pipefail
 
 image=${1:-pg-react:v0.2.0}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.2.0}
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=linux/amd64
+export PG_REACT_INIT_VERSION=${PG_REACT_INIT_VERSION:-0.2.0}
 export PG_REACT_PORT_BINDING=${PG_REACT_PORT_BINDING:-127.0.0.1::5432}
 export COMPOSE_PROJECT_NAME=${COMPOSE_PROJECT_NAME:-pgreact-m5-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
@@ -56,7 +58,7 @@ done
 test "$ready" = true
 test "$(docker image inspect "$image" --format '{{.Os}}/{{.Architecture}}')" = "$PG_REACT_PLATFORM"
 docker compose exec -T postgres psql -X -U postgres -d postgres -Atc \
-  "SELECT extversion = '0.2.0' FROM pg_extension WHERE extname = 'pg_react'" | grep -qx t
+  "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" | grep -qx t
 
 for suite in m0 m1 m1-scale m2 m3; do
   run_test "$suite compatibility" bash "tests/$suite.sh"
@@ -64,7 +66,7 @@ done
 
 docker compose exec -T postgres createdb -U postgres m5_api
 docker compose exec -T postgres psql -X -U postgres -d m5_api -v ON_ERROR_STOP=1 \
-  -c "CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react" >/dev/null
+  -c "CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react VERSION '0.2.0'" >/dev/null
 docker compose cp tests/m5-api.sql postgres:/tmp/m5-api.sql >/dev/null 2>&1
 run_test "M5 API inventory" docker compose exec -T postgres psql -X -U postgres -d m5_api \
   -v ON_ERROR_STOP=1 -f /tmp/m5-api.sql

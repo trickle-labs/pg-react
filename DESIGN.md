@@ -24,6 +24,16 @@
 
 [`CONTEXT.md`](CONTEXT.md) is the canonical project vocabulary. This document describes both the product semantics and the implementation architecture. The first part explains what a rule means, how a continuously maintained SQL result becomes an activation, and how command rules are scheduled and executed. The middle part describes the SQL API, the catalog, the integration contract with `pg_trickle`, and the behavior during full refreshes, crashes, and rule upgrades. The final part covers the Rust codebase, worker process, security model, testing strategy, delivery authority, risks, and a complete end-to-end example. Readers who only need the product model can focus on Sections 1 through 12, while implementers should also read the remaining sections in order because later decisions build on earlier semantic guarantees.
 
+### Revision 0.8
+
+This revision implements M6 audited batching. An immutable declaration limits
+protocol-2 batches to one exact typed binding, role, event, fresh-recheck
+policy, and compatible conflict scope. The complete batch is revalidated under
+the existing lifecycle and DDL locks before invocation; per-item consequence
+errors retain the established retry semantics. Protocol 1 and one episode per
+transaction remain the default, while public history links every batch item to
+its per-episode attempt and outcome.
+
 ### Revision 0.7
 
 This revision fixes the M5 rule-pack contract. A format-versioned JSON manifest names existing view-backed constraint and command rules through logical identities; environment maps resolve those identities without storing OIDs. Preview returns an object- and work-sensitive digest, deployment revalidates it under the existing lifecycle and DDL locks, and one PostgreSQL transaction commits or rolls back the complete pack. Dependencies, removals, old-work policy, history, diagnostics, and portable promotion are explicit.

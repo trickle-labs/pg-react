@@ -1,8 +1,8 @@
 # M6 audited batch contract
 
-This contract freezes M6 before its public API is implemented. M6 is extension
-`0.3.0`; worker protocol `2` adds explicit batching while protocol `1` remains
-supported and is still the default.
+This is the implemented M6 contract. M6 is extension `0.3.0`; worker protocol
+`2` adds explicit batching while protocol `1` remains supported and is still
+the default.
 
 ## Declaration and API
 
@@ -88,17 +88,54 @@ unless `BATCH_MAX_ITEMS` is explicitly set from 2 through 32. Batch opt-in
 requires `worker_protocol_compatible(2)`; incompatible workers stop before
 claiming.
 
-Existing public episode and attempt history remains compatible. M6 adds a
-batch-history API linking each batch to its immutable signature, selected
-episodes, per-item attempt, rejection code and details, retry state, and final
-outcome. `explain_episode` links an episode to that public batch history. No
+Existing public episode and attempt history remains compatible. M6 adds
+`batch_history(batch_id uuid DEFAULT NULL)`. Its public signature JSON records
+the maximum size, exact consequence and dispatcher identities and digests,
+execution role, `FRESH` policy, and conflict-key columns. Each item records its
+selection order, episode, attempt number, rejection/error fields, retry state,
+and final outcome. `explain_episode` links an episode to that batch history. No
 private-catalog access is required to declare, run, inspect, retry, or disable
 batch execution; disabling means removing worker opt-in, not mutating a rule.
 
+## Upgrade and public workflow
+
+Install the `0.3.0` files and run the only supported M6 migration:
+
+```sql
+ALTER EXTENSION pg_react UPDATE TO '0.3.0';
+SELECT pgreact.worker_protocol_compatible(1),
+       pgreact.worker_protocol_compatible(2);
+```
+
+Existing `0.2.0` rules, protocol-1 workers, episodes, and attempts continue
+unchanged. A declaration must precede the first lifecycle event, so an existing
+version with history stays on protocol 1; replace it with a reviewed version if
+batching is required. For a new eligible version:
+
+```sql
+SELECT pgreact.declare_batch_safe(:'rule_version_id'::uuid, 'ACTIVATE');
+SELECT * FROM pgreact.claim_batch(
+  :'rule_version_id'::uuid, 'ACTIVATE', 'worker-a', 32
+);
+SELECT * FROM pgreact.execute_claimed_batch(:'batch_id'::uuid, 'worker-a');
+SELECT * FROM pgreact.batch_history(:'batch_id'::uuid);
+SELECT pgreact.explain_episode(:episode_id);
+```
+
+Set `BATCH_MAX_ITEMS=2..32` for the bundled worker to opt into protocol 2. It
+tries `ACTIVATE`, `CHANGE`, then `DEACTIVATE` batches and falls back to the
+unchanged single path when fewer than two eligible episodes exist. After a
+pre-invocation rejection, the returned episode leases remain usable on the
+single endpoint until expiry. Normal retry and `requeue_episode` policy remains
+per episode. Remove `BATCH_MAX_ITEMS` to disable batching without catalog
+mutation.
+
 ## Frozen benchmark budget
 
-The reference workload is `tests/m6-entry.sh`, recorded in `m6-entry.md`. The
-M6 implementation gate uses batch size 32 and the median of five warm samples:
+The entry workload is `tests/m6-entry.sh`, recorded in `m6-entry.md`. The M6
+implementation gate is `tests/m6-benchmark.sh`; it uses the same reference
+workload, batch size 32, end-to-end workload WAL, total durable pg-react bytes,
+and the median of five warm samples:
 
 - batch episode throughput is at least 1.5 times the `0.2.0` default;
 - unchanged protocol-1 throughput regresses by no more than 5 percent;

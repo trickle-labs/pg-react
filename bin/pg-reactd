@@ -8,37 +8,78 @@ coordinator_database_url=${COORDINATOR_DATABASE_URL:-$database_url}
 rule_version_id=${1:?usage: pg-reactd RULE_VERSION_ID [worker-id]}
 worker_id=${2:-"pg-reactd@$(hostname)"}
 max_claims=${MAX_CLAIMS:-1}
+batch_max_items=${BATCH_MAX_ITEMS:-1}
 retry_limit=${DEADLOCK_RETRY_LIMIT:-3}
 refresh_id=$(date +%s)
 
-if [[ $(psql "$database_url" -X -At -v ON_ERROR_STOP=1 -c 'SELECT pgreact.worker_protocol_compatible(1)') != t ]]; then
-  echo 'pg-reactd: database does not support worker protocol 1' >&2
+if [[ ! $batch_max_items =~ ^[0-9]+$ ]] || ((batch_max_items < 1 || batch_max_items > 32)); then
+  echo 'pg-reactd: BATCH_MAX_ITEMS must be between 1 and 32' >&2
+  exit 1
+fi
+worker_protocol=1
+((batch_max_items > 1)) && worker_protocol=2
+if [[ $(psql "$database_url" -X -At -v ON_ERROR_STOP=1 -v protocol="$worker_protocol" \
+    <<<'SELECT pgreact.worker_protocol_compatible(:protocol::integer)') != t ]]; then
+  echo "pg-reactd: database does not support worker protocol $worker_protocol" >&2
   exit 1
 fi
 
-psql "$coordinator_database_url" -X -v ON_ERROR_STOP=1 \
-  -v rule_version_id="$rule_version_id" -v refresh_id="$refresh_id" <<'SQL'
-SELECT pgreact.begin_refresh(:'rule_version_id'::uuid, :refresh_id::bigint);
+coordinator=(psql "$coordinator_database_url" -X -v ON_ERROR_STOP=1 -v rule_version_id="$rule_version_id")
+"${coordinator[@]}" -v refresh_id="$refresh_id" <<<"SELECT pgreact.begin_refresh(:'rule_version_id'::uuid, :refresh_id::bigint);
 BEGIN ISOLATION LEVEL READ COMMITTED;
 SELECT pgreact.refresh_rule(:'rule_version_id'::uuid);
 COMMIT;
 SELECT pgreact.clear_refresh_barrier(:'rule_version_id'::uuid);
-SELECT pgreact.release_refresh_lock();
-SQL
+SELECT pgreact.release_refresh_lock();"
+
+if ((batch_max_items > 1)); then
+  for event_kind in ACTIVATE CHANGE DEACTIVATE; do
+    claims=$(psql "$database_url" -X -At -F $'\t' -v ON_ERROR_STOP=1 \
+      -v rule_version_id="$rule_version_id" -v worker_id="$worker_id" \
+      -v event_kind="$event_kind" -v batch_max_items="$batch_max_items" \
+      <<<"SELECT batch_id, item_order, episode_id, lease_token FROM pgreact.claim_batch(
+         :'rule_version_id'::uuid, :'event_kind', :'worker_id', :batch_max_items::integer
+       )")
+    batch_id=$(awk -F $'\t' 'NR == 1 { print $1 }' <<<"$claims")
+    if [[ -n $batch_id ]]; then
+      batch_state=''
+      for attempt in $(seq 1 "$retry_limit"); do
+        if results=$(psql "$database_url" -X -At -F $'\t' -v ON_ERROR_STOP=1 \
+          -v batch_id="$batch_id" -v worker_id="$worker_id" <<<"SELECT episode_id, status, error_code, error_message
+           FROM pgreact.execute_claimed_batch(:'batch_id'::uuid, :'worker_id')")
+        then
+          break
+        fi
+        batch_state=$(psql "$database_url" -X -At -v ON_ERROR_STOP=1 \
+          -v batch_id="$batch_id" \
+          <<<"SELECT state FROM pgreact.batch_history(:'batch_id'::uuid)" || true)
+        [[ $batch_state == COMPLETED || $batch_state == PARTIAL ]] && exit 0
+        [[ $batch_state == REJECTED ]] && break
+        [[ $attempt -eq $retry_limit ]] && exit 1
+        sleep 1
+      done
+      if [[ $batch_state == REJECTED ]] || grep -q $'\tREJECTED\t' <<<"$results"; then
+        while IFS=$'\t' read -r _batch_id _item_order episode_id lease_token; do
+          [[ -n $episode_id ]] || continue
+          psql "$database_url" -X -v ON_ERROR_STOP=1 -v episode_id="$episode_id" \
+            -v worker_id="$worker_id" -v lease_token="$lease_token" \
+            <<<"SELECT pgreact.execute_claimed_episode(:episode_id::bigint, :'worker_id', :'lease_token'::uuid)"
+        done <<<"$claims"
+      fi
+      exit 0
+    fi
+  done
+fi
 
 claims=$(psql "$database_url" -X -At -F $'\t' -v ON_ERROR_STOP=1 \
-  -v worker_id="$worker_id" -v max_claims="$max_claims" <<'SQL'
-SELECT episode_id, lease_token
-FROM pgreact.claim(:'worker_id', :max_claims::integer);
-SQL
-)
+  -v worker_id="$worker_id" -v max_claims="$max_claims" \
+  <<<"SELECT episode_id, lease_token FROM pgreact.claim(:'worker_id', :max_claims::integer)")
 while IFS=$'\t' read -r episode_id lease_token; do
   [[ -n "$episode_id" ]] || continue
   for attempt in $(seq 1 "$retry_limit"); do
     if psql "$database_url" -X -v ON_ERROR_STOP=1 -v episode_id="$episode_id" \
-      -v worker_id="$worker_id" -v lease_token="$lease_token" <<'SQL'
-SELECT pgreact.execute_claimed_episode(:'episode_id'::bigint, :'worker_id', :'lease_token'::uuid);
-SQL
+      -v worker_id="$worker_id" -v lease_token="$lease_token" \
+      <<<"SELECT pgreact.execute_claimed_episode(:episode_id::bigint, :'worker_id', :'lease_token'::uuid)"
     then
       break
     fi
