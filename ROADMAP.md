@@ -366,6 +366,57 @@ The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs
 
 ---
 
+## Stage 6 — Execution maturity
+
+**Outcome:** increase command-consequence throughput for proven commutative workloads without weakening per-episode eligibility, lease, binding, conflict, recovery, or history guarantees, and without changing the default one-episode-per-transaction path.
+
+**Entry gate:** the exact `v0.2.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. A reproducible workload must show that per-episode transaction and invocation overhead, rather than match maintenance or consequence work, is the material bottleneck; its unbatched baseline, representative batch-safe consequence, and failure scenarios are fixed before the public contract is frozen.
+
+### Deliverables
+
+- An immutable, explicit `batch_safe` declaration for typed database consequences; batching remains disabled by default.
+- A separate bounded batch endpoint and worker opt-in that accept only episodes with the same immutable rule version, consequence binding, event kind, execution role, recheck policy, and compatible conflict scope.
+- A documented transaction, eligibility, lease, retry, idempotency, ordering, and partial-failure contract for every episode in a batch.
+- Invocation-time revalidation that rejects a structurally unsafe or stale batch before invoking its consequence.
+- Public per-episode attempt history and batch diagnostics sufficient to explain selection, rejection, retry, and outcome without private-catalog access.
+- A versioned extension and worker upgrade from `0.2.0`, plus a reproducible benchmark comparing the batch path with the unchanged default path.
+
+### Supported boundary
+
+- M6 inherits M5's `linux/amd64`, PostgreSQL 18.3, `pg_trickle` 0.81.0, `READ COMMITTED`, coordinator-owned scheduled `DIFFERENTIAL`, non-null `bigint` key, physical-recovery, and no-RLS boundary.
+- Only `DATABASE_TYPED` consequences are batchable. Outbox, manual, no-op, immediate-maintenance, and synchronous execution remain on their existing paths or unsupported.
+- The author asserts commutativity and cross-item independence. `pg-react` validates the structural compatibility it can prove and rejects every mismatch; it does not infer that arbitrary PostgreSQL code is safe to batch.
+- Existing single-episode APIs, rule-pack definitions, worker protocol behavior, and one-episode-per-transaction execution remain supported and are the default.
+
+### Explicit non-goals
+
+- `IMMEDIATE` maintenance or strict synchronous consequence firing.
+- Automatic batching, mixed-binding batches, or batching order-dependent consequences.
+- Named shared conditions, automatic common-subplan discovery, catalog partitioning, or retention redesign.
+- Expansion of the maintenance, isolation, RLS, key-codec, recovery, PostgreSQL, `pg_trickle`, OS, or architecture matrix.
+- Derivation rules, logical support, recursion, negation, temporal semantics, or fact-tuple identity.
+
+### Decisions to close before the public API freezes
+
+- The typed batch signature, maximum batch size, claim shape, worker protocol version, and opt-in controls.
+- Whether one item failure aborts the whole invocation or uses a narrower savepoint contract, and how every resulting state is represented.
+- The exact recheck, conflict, lease-expiry, cancellation, pause, replacement, and concurrent-DDL behavior between claim and invocation.
+- Retry and idempotency identity after rollback, worker death, or an ambiguous client disconnect, including whether any ordering promise exists.
+- The benchmark workload, frozen throughput target, resource ceilings, observability fields, and regression budget for the default path.
+
+### Exit gates
+
+- For the fixed reference workload, normalized current activations, lifecycle events, agenda states, attempts, and consequence effects are exactly identical between eligible single-episode and batch execution.
+- The endpoint rejects undeclared, mixed-version, mixed-binding, mixed-event, mixed-role, mixed-policy, incompatible-conflict, oversized, stale, and ineligible batches before consequence invocation with exact public diagnostics.
+- Injected consequence errors, transaction aborts, worker death, lease expiry, and ambiguous disconnects produce the declared all-or-nothing or per-item outcome with no lost episode, duplicate committed database effect, or unusable lease.
+- Concurrent source changes, pause, pack replacement, consequence DDL, dispatcher DDL, and recovery barriers serialize or reject explicitly without stale or ambiguous dispatch.
+- The frozen reference benchmark meets its throughput and resource budgets while the default path stays within its regression budget.
+- Direct `0.2.0 -> M6` upgrade, crash restart, supported physical restore, and continued operation preserve batch and single-episode state and history.
+- The complete M0–M5 gates and exact default-worker outputs remain backward compatible.
+- A user can declare, validate, run, inspect, retry, and disable batch execution using only public APIs and documentation.
+
+---
+
 ## Post-GA product directions
 
 The directions below are intentional but are not implementation commitments and do not impose a fixed order. A direction becomes the next numbered milestone only when it has a demonstrated user or operational need, bounded prerequisites, explicit non-goals, a support matrix, and executable exit evidence. GitHub milestones represent only active or credible near-term implementation commitments.
@@ -380,7 +431,8 @@ A future direction may constrain a semantic decision, but it does not authorize 
 
 ### Execution and scale
 
-- `batch_safe` execution only for measured consequence-throughput bottlenecks and proven commutative workloads.
+M6 promotes audited batch execution. The remaining directions stay independent and unnumbered:
+
 - Selective `IMMEDIATE` mode only for demonstrated read-your-writes needs and combinations covered by a tested isolation and locking contract.
 - Explicit shared conditions before automatic common-subplan discovery; automatic sharing only when repeated work and compatible security contexts are measured.
 - Retention redesign, catalog partitioning, and other storage changes only after current limits are reproduced by benchmarks.
@@ -464,6 +516,7 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M3 — Operational RC** | Establish production support, security, recovery, and performance evidence |
 | **M4 — v1 GA** | Freeze and publish the supported contract |
 | **M5 — Safe rule-set deployment** | Preview, atomically deploy, replace, and promote related rules |
+| **M6 — Execution maturity** | Raise consequence throughput through audited batching without weakening per-episode guarantees |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
 
@@ -473,4 +526,4 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 ## Immediate next milestone
 
-**M5 — Safe rule-set deployment** is complete. No M6 currently exists. The next planning action is to choose whether any unnumbered post-GA direction has enough demonstrated need, bounded prerequisites, non-goals, support matrix, and executable exit evidence to become a new milestone. Do not begin implementation or widen the maintenance, RLS, key-codec, backup, platform, or worker matrix before that promotion and its separate compatibility and regression evidence.
+**M6 — Execution maturity** is the next implementation milestone, focused on audited batch execution. Planning, workload capture, and executable gate design may begin immediately; no M6 product change merges until the exact `v0.2.0` release is published and the entry benchmark proves that per-episode execution overhead is the material bottleneck. Start by freezing the batch signature, transaction/failure contract, recheck boundary, worker protocol, and benchmark budget. Do not widen the inherited support matrix or begin another post-GA direction without its own promotion and evidence.
