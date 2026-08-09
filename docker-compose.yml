@@ -1,0 +1,20 @@
+services:
+  postgres:
+    build:
+      context: .
+    environment:
+      POSTGRES_PASSWORD: pgreact
+    ports:
+      - "5432:5432"
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_trickle
+      - -c
+      - pg_trickle.user_triggers=auto
+      - -c
+      - pg_trickle.enabled=off
+      - -c
+      - pg_trickle.differential_max_change_ratio=1.0
+      - -c
+      - default_transaction_isolation=read committed

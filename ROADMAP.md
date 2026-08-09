@@ -151,13 +151,19 @@ If `pg_trickle` cannot provide a sound observation boundary, the project must ex
 
 A trigger-only approximation must not silently become the production contract. M0 may complete with a documented negative result, but no further implementation milestone begins until this roadmap is explicitly amended or option 1, 2, or 3 yields a sound, tested final-state boundary.
 
+### M0 decision record — 2026-08-09
+
+M0 selects option 2: restrict command rules to the tested coordinator-owned subset. The coordinator commits `REFRESHING` while holding the exclusive session lock, invokes one explicit `DIFFERENTIAL` refresh under `READ COMMITTED`, lets the pinned deferred finalizer commit lifecycle and agenda state in that refresh transaction, commits barrier removal while still holding the lock, and only then releases it. `tests/m0.sh` proves rollback, final-state coalescing, key-invariant failure, refresh and reconciliation claim exclusion, consequence/DDL serialization, restart, and logical-restore fixtures against pg_trickle 0.81.0 at `ba41c9c2e2bbf2195917fcdcc89efa8ab3089dcb`.
+
+This is the sound deliberately smaller boundary required to begin M1. It does not approve command refreshes initiated by pg_trickle's automatic scheduler, `AUTO`, `FULL`, `IMMEDIATE`, early `SET CONSTRAINTS`, or any uncoordinated caller. M1 must keep those paths claim-barriered or rejected and must put the proven protocol behind the first `pg-reactd`. A public critical observer can replace this restriction only after equivalent executable gates pass.
+
 ---
 
 ## Stage 1 — Developer alpha: a small useful rule engine
 
 **Outcome:** deliver the smallest release that users can understand, install, and use for real PostgreSQL-local rules.
 
-**Entry gate:** every M0 exit gate passes; the command observation boundary is sound and available; the exact compatibility tuple is pinned; and the alpha decisions listed below are closed in `DESIGN.md` and executable fixtures.
+**Entry gate:** every M0 exit gate passes; the coordinator-owned command observation boundary in the M0 decision record is used; the exact compatibility tuple is pinned; and the alpha decisions listed below are closed in `DESIGN.md` and executable fixtures. Automatic pg_trickle scheduler command refresh remains out of scope until a critical observer passes the M0 boundary gates.
 
 ### User-visible scope
 
@@ -235,6 +241,10 @@ A trigger-only approximation must not silently become the production contract. M
 - No committed work is silently lost in the supported failure scenarios.
 - Reconciliation is idempotent, respects its configured event-emission policy, and records an audit result even for state-only repair.
 - All documented isolation-level combinations have tests; unsafe combinations fail explicitly.
+
+### M2 completion record — 2026-08-09
+
+M2 completes on the existing coordinator-owned `DIFFERENTIAL` boundary. The beta adds deterministic change revisions; immutable old/new event payloads; bounded claims, conflict leases, heartbeats, expiry recovery, retry backoff, terminal failure, cancellation, withdrawal, and stale-worker rejection; registered transactional outbox sinks; blue/green old-work policies; reconciliation audit modes; and a stateless polling worker. `tests/m2.sh` is the executable beta gate, run with the M0/M1 suites and `cargo test --no-default-features` as recorded in `docs/m2-evidence.md`.
 
 ---
 
@@ -389,15 +399,4 @@ Each implementation issue should belong to one milestone and one primary workstr
 
 ## Immediate next milestone
 
-The next concrete target is **M0 — Feasibility and walking skeleton**. It should be represented by a small set of epics:
-
-1. PostgreSQL 18, `pgrx`, and `pg_trickle` development environment.
-2. Trigger-path experiment and critical refresh-observer contract.
-3. Pure semantic lifecycle transition planner and reference-state oracle.
-4. View snapshotting, `bigint` canonical-key codec, and deterministic activation identity.
-5. Minimal match-to-event-to-agenda atomic finalizer with runtime key-invariant failure.
-6. One typed consequence executed through one durable episode by the in-test executor.
-7. Seed-replayable property, concurrency, rollback, restart, dump/restore, and `STATE_ONLY` reconciliation harness.
-8. Executable high-value/high-risk order example from [`README.md`](README.md).
-
-The milestone is complete only when the example survives the defined failure and concurrency tests. Everything else depends on that proof.
+M2 reliability beta is complete on the coordinator-owned M0 compatibility subset. The next concrete target is **M3 — Operational release candidate**. Start with the operational, recovery, security, retention, fairness, and performance gates; do not widen the maintenance or key-codec matrix until its required compatibility evidence exists.

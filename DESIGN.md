@@ -1488,9 +1488,7 @@ Connection poolers are supported because the public API is transaction-oriented 
 
 [`ROADMAP.md`](ROADMAP.md) is the sole authority for milestone names, scope, entry gates, and exit evidence. This design defines semantics and architecture; it does not maintain a second phased plan.
 
-The current target is **M0 — Feasibility and walking skeleton**. M0 proves one `bigint`-keyed, activate-only rule over scheduled `DIFFERENTIAL` maintenance, a durable lifecycle-event ledger, `ACTIVATE` episodes, state-closing deactivation, one typed local consequence, `STATE_ONLY` reconciliation, and rollback/restart/concurrency invariants through an in-test executor. It does not commit to `pg-reactd`, public alpha APIs, change events, deactivation consequences, automatic retries, outbox delivery, live replacement, raw-query authoring, `IMMEDIATE`, `AUTO`, or `FULL` command maintenance.
-
-M1 may start only after M0 proves or lands a synchronous final-state observation boundary, pins the compatibility tuple, and passes every M0 exit gate. If no sound boundary exists, no later milestone starts until the roadmap is explicitly amended; command execution remains blocked. Later scope belongs only in its roadmap milestone.
+M2 is complete on the coordinator-owned compatibility boundary recorded in [`ROADMAP.md`](ROADMAP.md). The next target is **M3 — Operational release candidate**. It must retain M2's pinned `DIFFERENTIAL` boundary, scheduler disablement, RLS rejection, and `bigint` codec v1 until new compatibility evidence expands them.
 
 ---
 

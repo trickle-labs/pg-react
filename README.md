@@ -182,9 +182,11 @@ These mechanisms make rule behavior more explicit, durable, and explainable, but
 
 ## Project status
 
-The repository currently contains the design, not an implementation. The initial target is PostgreSQL 18 with Rust, `pgrx`, and a compatible pg_trickle release.
+M0 is implemented as a deliberately narrow walking skeleton for PostgreSQL 18.3, `pgrx` 0.18.0, and pinned pg_trickle 0.81.0. It includes the portable identity/lifecycle core, installable SQL extension, coordinated `DIFFERENTIAL` refresh path, durable catalogs and barriers, typed consequence execution, and seed-replayable Docker integration gates.
 
-The planned delivery path starts with an M0 integration walking skeleton. The developer alpha then adds view-backed constraint rules, activate-only command rules, a bounded durable episode path, and the first `pg-reactd`; complete change/deactivation lifecycle, retries, and multi-worker reliability follow in beta. Production hardening comes before shared-condition optimization or logical derivation.
+M1 developer alpha is implemented on that same coordinator-owned boundary: view-backed constraint and activate-only command rules, public validation/inspection APIs, pause/resume/drained replacement/removal, one-item leases with audited manual recovery, and the `pg-reactd` coordinator script. The executable evidence is [M1 evidence](docs/m1-evidence.md). Automatic pg_trickle scheduler refreshes remain ineligible for command rules.
+
+M2 reliability beta is implemented on that same boundary: complete lifecycle payloads, heartbeats, bounded multi-worker claims, retry backoff, stale-lease rejection, audited reconciliation, and registered transactional outbox sinks. The executable evidence is [M2 evidence](docs/m2-evidence.md). M3 operational hardening has not started.
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 

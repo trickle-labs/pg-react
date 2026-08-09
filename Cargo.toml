@@ -1,0 +1,20 @@
+[workspace]
+members = ["."]
+resolver = "3"
+
+[package]
+name = "pg_react"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+pg18 = ["dep:pgrx"]
+
+[dependencies]
+pgrx = { version = "=0.18.0", optional = true, default-features = false, features = ["pg18"] }
+sha2 = "0.10"
+uuid = "1"
