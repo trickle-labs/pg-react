@@ -18,15 +18,14 @@ ratio, 1.040 batch/single WAL ratio, and 1.247 durable-byte ratio. Normalized
 state was exactly identical and both paths used one connection per benchmark
 worker. The executable ratios, rather than host speed, remain authoritative.
 
-## External entry gate — pending
+## External entry gate — invalid release
 
-As of 2026-08-09, GitHub has no public `v0.2.0` release. The local parent commit
-contains the `v0.2.0` release workflow and disclosure-complete release notes,
-but publishing the tag, archive, checksum, OCI image/digest, and successful
-release run is an external maintainer action. M6 must not merge until those
-exact artifacts are published and independently verified as required by
-`ROADMAP.md`.
+As verified on 2026-08-09, GitHub tag `v0.2.0` points to M6 commit `ba3f184`,
+whose package and extension versions are `0.3.0`, rather than the `0.2.0`
+release-prep commit `7bc6c04`. The published archive and OCI image therefore
+cannot satisfy M6's exact M5 release gate. Moving the public tag or replacing
+published assets requires an explicit maintainer remediation decision.
 
-After publication, rerun `tests/m6-entry.sh` against the exact release bytes,
+After remediation, rerun `tests/m6-entry.sh` against the exact release bytes,
 record the archive checksum and OCI digest in `docs/m6-entry.md`, run the full
-`tests/m6.sh` gate from this commit, and only then merge the M6 product change.
+`tests/m6.sh` gate from this commit, and only then treat the M6 gate as met.

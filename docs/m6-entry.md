@@ -54,7 +54,9 @@ single-episode path.
 
 ## Remaining entry gate
 
-As of 2026-08-09, `v0.2.0` is not published in the GitHub repository. M6
-product code must not merge until its release artifacts, checksum, OCI digest,
-disclosures, and direct-upgrade evidence are published and independently
-verified as required by `ROADMAP.md`.
+As verified on 2026-08-09, public tag `v0.2.0` points to M6 commit `ba3f184`,
+whose package and extension versions are `0.3.0`, instead of the `0.2.0`
+release-prep commit `7bc6c04`. Its published artifacts therefore do not
+satisfy the exact M5 release gate. A maintainer must choose and execute a
+release remediation before M6 product code can satisfy `ROADMAP.md`; do not
+move the published tag or replace its assets without that explicit decision.

@@ -104,6 +104,9 @@ byte-for-byte equal to the F4 output. Refreshing after restore is a no-op.
 
 ## Remaining entry gate
 
-As verified on 2026-08-09, GitHub has no public `v0.3.0` release. Publish and
-independently verify its tag, archive, checksum, OCI digest, disclosures, and
-direct `0.2.0 -> 0.3.0` upgrade evidence before any M7 product change merges.
+As verified on 2026-08-09, GitHub has no public `v0.3.0` release, and public
+tag `v0.2.0` points to `0.3.0` commit `ba3f184` rather than the `0.2.0`
+release-prep commit `7bc6c04`. Repair and verify the inherited M6 release gate,
+then publish and independently verify the exact `v0.3.0` tag, archive,
+checksum, OCI digest, disclosures, and direct `0.2.0 -> 0.3.0` upgrade evidence
+before any M7 product change merges.
