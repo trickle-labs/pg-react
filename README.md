@@ -186,7 +186,7 @@ M0 is implemented as a deliberately narrow walking skeleton for PostgreSQL 18.3,
 
 M1 developer alpha is implemented on that same coordinator-owned boundary: view-backed constraint and activate-only command rules, public validation/inspection APIs, pause/resume/drained replacement/removal, one-item leases with audited manual recovery, and the `pg-reactd` coordinator script. The executable evidence is [M1 evidence](docs/m1-evidence.md). Automatic pg_trickle scheduler refreshes remain ineligible for command rules.
 
-M2 reliability beta is implemented on that same boundary: complete lifecycle payloads, heartbeats, bounded multi-worker claims, retry backoff, stale-lease rejection, audited reconciliation, and registered transactional outbox sinks. The executable evidence is [M2 evidence](docs/m2-evidence.md). M3 operational hardening has not started.
+M2 reliability beta is implemented on that same boundary: complete lifecycle payloads, heartbeats, bounded multi-worker claims, retry backoff, stale-lease rejection, audited reconciliation, and registered transactional outbox sinks. M3 operational RC is implemented as extension 0.1.1: compatibility/recovery runbooks, migration and OID rebuild, private-by-default role access, audited retention, fair bounded claims, backpressure, health/metrics, and a controlled pilot. The executable evidence is [M3 evidence](docs/m3-evidence.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 

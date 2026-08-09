@@ -280,6 +280,10 @@ M2 completes on the existing coordinator-owned `DIFFERENTIAL` boundary. The beta
 - Lifecycle overhead scales with changed semantic activations rather than requiring scans of unrelated historical work.
 - The pilot validates both rule-author usability and day-two operations.
 
+### M3 completion record — 2026-08-09
+
+M3 completes as extension `0.1.1` on the same coordinator-owned compatibility subset. The RC adds an executable `0.1.0 -> 0.1.1` migration, transient-OID rebuild and recovery barriers, private-by-default public-schema access, documented role grants, audited payload retention, bounded fair claims, agenda-group budgets, atomic backlog backpressure, worker protocol compatibility, SQL health/metrics, an operational runbook, a pinned platform matrix, and a 128-activation internal pilot. `tests/m3.sh` and `tests/m3-upgrade.sh`, together with the M0–M2 suites and `cargo test --no-default-features`, are the executable RC gate recorded in `docs/m3-evidence.md`.
+
 ---
 
 ## Stage 4 — v1 general availability
@@ -399,4 +403,4 @@ Each implementation issue should belong to one milestone and one primary workstr
 
 ## Immediate next milestone
 
-M2 reliability beta is complete on the coordinator-owned M0 compatibility subset. The next concrete target is **M3 — Operational release candidate**. Start with the operational, recovery, security, retention, fairness, and performance gates; do not widen the maintenance or key-codec matrix until its required compatibility evidence exists.
+M3 operational RC is complete on the coordinator-owned M0 compatibility subset. The next concrete target is **M4 — v1 general availability**: freeze and version the SQL API, worker protocol, catalog-migration policy, compatibility policy, release artifacts, checksums, known limitations, and task-oriented documentation. Do not widen the maintenance, RLS, or key-codec matrix without new compatibility evidence.

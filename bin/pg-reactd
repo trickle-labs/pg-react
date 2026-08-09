@@ -7,7 +7,13 @@ database_url=${DATABASE_URL:?set DATABASE_URL}
 rule_version_id=${1:?usage: pg-reactd RULE_VERSION_ID [worker-id]}
 worker_id=${2:-"pg-reactd@$(hostname)"}
 max_claims=${MAX_CLAIMS:-1}
+retry_limit=${DEADLOCK_RETRY_LIMIT:-3}
 refresh_id=$(date +%s)
+
+if [[ $(psql "$database_url" -X -At -v ON_ERROR_STOP=1 -c 'SELECT pgreact.worker_protocol_compatible(1)') != t ]]; then
+  echo 'pg-reactd: database does not support worker protocol 1' >&2
+  exit 1
+fi
 
 psql "$database_url" -X -v ON_ERROR_STOP=1 \
   -v rule_version_id="$rule_version_id" -v refresh_id="$refresh_id" <<'SQL'
@@ -28,8 +34,15 @@ SQL
 )
 while IFS=$'\t' read -r episode_id lease_token; do
   [[ -n "$episode_id" ]] || continue
-  psql "$database_url" -X -v ON_ERROR_STOP=1 -v episode_id="$episode_id" \
-    -v worker_id="$worker_id" -v lease_token="$lease_token" <<'SQL'
+  for attempt in $(seq 1 "$retry_limit"); do
+    if psql "$database_url" -X -v ON_ERROR_STOP=1 -v episode_id="$episode_id" \
+      -v worker_id="$worker_id" -v lease_token="$lease_token" <<'SQL'
 SELECT pgreact.execute_claimed_episode(:'episode_id'::bigint, :'worker_id', :'lease_token'::uuid);
 SQL
+    then
+      break
+    fi
+    [[ "$attempt" -eq "$retry_limit" ]] && exit 1
+    sleep 1
+  done
 done <<<"$claims"

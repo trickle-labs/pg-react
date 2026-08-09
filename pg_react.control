@@ -1,7 +1,6 @@
 comment = 'Durable rule lifecycle experiment over pg_trickle'
-default_version = '0.1.0'
+default_version = '0.1.1'
 relocatable = false
 superuser = true
 trusted = false
 requires = 'pg_trickle'
-

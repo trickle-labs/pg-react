@@ -11,4 +11,4 @@ Start with these closed implementation boundaries:
 - Specify and test conflict ordering, replacement cutover, reconciliation audit/event emission, feedback-loop controls, and the transactional outbox envelope before exposing each feature.
 - Preserve one episode per transaction and the fresh eligibility/fingerprint/lease check immediately before invocation.
 
-The executable M2 evidence is [`m2-evidence.md`](m2-evidence.md). It covers complete lifecycle payloads, retry/heartbeat/stale-lease handling, bounded claims, transactional outbox enqueue, and reconciliation audit. The supported boundary remains explicit `DIFFERENTIAL` refresh under `READ COMMITTED`; M3 begins only after its operational/recovery gates are implemented.
+The executable M2 evidence is [`m2-evidence.md`](m2-evidence.md). It covers complete lifecycle payloads, retry/heartbeat/stale-lease handling, bounded claims, transactional outbox enqueue, and reconciliation audit. The supported boundary remains explicit `DIFFERENTIAL` refresh under `READ COMMITTED`; M3 builds operational controls around this boundary without widening it.
