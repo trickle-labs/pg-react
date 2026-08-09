@@ -47,3 +47,27 @@ _Avoid_: Refresh
 **Frontier**:
 The progress boundary through source changes that a completed match refresh represents.
 _Avoid_: Timestamp, version
+
+**Derivation rule**:
+A rule whose current activation provides logical support for a derived fact instead of consequence work.
+_Avoid_: Command rule, trigger
+
+**Derived relation**:
+A named, typed collection of derived facts that share one schema and semantic-key contract.
+_Avoid_: Fact table, cache
+
+**Derived fact**:
+One current keyed value in a derived relation, true exactly while at least one logical support remains valid.
+_Avoid_: Activation, consequence result
+
+**Logical support**:
+One current justification linking an exact derivation-rule activation to a derived fact.
+_Avoid_: Episode, attempt
+
+**Provenance**:
+The recorded explanation path from a derived fact through its logical supports to exact rule versions and source bindings.
+_Avoid_: Execution log, general tuple lineage
+
+**Truth maintenance**:
+The preservation or retraction of a derived fact as its set of valid logical supports changes.
+_Avoid_: Consequence execution, refresh

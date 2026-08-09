@@ -230,7 +230,7 @@ The runtime does not assume that a deactivation consequence reverses the activat
 
 ### 7.3 Derivation rules
 
-A derivation rule will eventually create logical support for a derived fact instead of scheduling an imperative consequence. One rule may support `Fever(patient)` because the temperature is high, while another supports the same fact because a test is positive. The derived fact remains true while at least one support exists. The initial release reserves the necessary catalog boundaries but keeps derivation semantics experimental until fixed-point evaluation, deletion, stratification, and deployment of recursive components have been tested thoroughly.
+A derivation rule creates logical support for a derived fact instead of scheduling an imperative consequence. One rule may support `Fever(patient)` because the temperature is high, while another supports the same fact because a test is positive. The derived fact remains true while at least one support exists. The first derivation milestone is deliberately non-recursive: derivation rules cannot read derived relations until deletion, fixed-point evaluation, stratification, and deployment of recursive components have been tested separately.
 
 ---
 
@@ -1197,7 +1197,7 @@ A future `pgreact_internal.supports` catalog stores a support ID, rule-version I
 
 Derived facts may feed additional derivation rules. Monotone rule sets can therefore form a feedback graph that is driven to a fixed point: base facts produce supports, supports produce derived facts, and those facts produce more supports until no new rows appear. `pg_trickle` already provides the relevant relational and cyclic-maintenance substrate where its monotonicity rules permit. `pg-react` should build on that capability rather than implementing a separate fixed-point scheduler.
 
-Negation, aggregates, and other non-monotone dependencies require stratification. Rules in the same stratum may depend positively on one another, while negative or aggregate dependencies must point to lower strata whose results have already converged. The first stable release should not expose derivation rules until cycle behavior, retractions, deployment across strongly connected components, and generic-versus-typed fact representation have all been tested. The catalog can reserve the necessary concepts without promising incomplete semantics.
+Negation, aggregates, and other non-monotone dependencies require stratification. Rules in the same stratum may depend positively on one another, while negative or aggregate dependencies must point to lower strata whose results have already converged. The first stable derivation release excludes derived-relation inputs and therefore cannot form chains or cycles; later releases must test fixed-point behavior, retractions, and deployment across strongly connected components before exposing recursive derivation. The catalog can reserve those concepts without promising incomplete semantics.
 
 ---
 

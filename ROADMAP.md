@@ -417,6 +417,61 @@ The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs
 
 ---
 
+## Stage 7 — Maintained derived knowledge
+
+**Outcome:** maintain non-recursive derived facts as durable PostgreSQL state whose current truth, retraction, provenance, and recovery are explained by explicit logical supports rather than imperative consequence history.
+
+**Entry gate:** the exact `v0.3.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. A fixed reference model must require two independent derivations of one fact, removal of one and then the last support, downstream rule observation, reconciliation, and physical recovery; its expected public state and explanation output are frozen before the API contract is fixed.
+
+### Deliverables
+
+- A versioned derived-relation definition with a declared PostgreSQL row type, semantic key, ownership, and portable identity.
+- A versioned derivation-rule kind whose current activation contributes exactly one logical support to one target fact and creates no agenda episode or imperative consequence.
+- Durable support identity linking each support to its exact immutable rule version, activation generation, source binding, target relation, and fact identity.
+- Truth maintenance in which equivalent supports collapse to one current fact, removing one of several supports preserves the fact, and removing the last support retracts it.
+- Public current-fact, support-history, and explanation APIs that answer why a fact is true through active rule versions and source bindings without private-catalog access or a claim of general base-tuple lineage.
+- Reconciliation, retention, backup/restore, and upgrade behavior that cannot retain an unsupported fact, retract a supported fact, or delete provenance required to explain current truth.
+- Rule-pack validation, preview, deployment, replacement, and removal extended to derived relations, their producers, and downstream consumers without dangling or mixed-version dependencies.
+- A versioned extension upgrade from `0.3.0` and one documented, executable workflow from definition through derivation, explanation, retraction, reconciliation, and recovery.
+
+### Supported boundary
+
+- M7 inherits M6's platform, maintenance, isolation, security, recovery, key-codec, and compatibility boundary.
+- Derivation source views may read supported authoritative PostgreSQL relations. Existing constraint and command rules may read a public derived relation.
+- A derivation rule may not read any derived relation. M7 therefore has no derivation chains, cycles, strata, or fixed-point evaluation.
+- Derived relations are runtime-maintained state: users inspect them through public APIs and views but do not mutate them directly.
+
+### Explicit non-goals
+
+- Positive recursive derivation, acyclic derivation chains, fixed-point evaluation, stratified negation, recursive aggregation, or other non-monotonic reasoning over derived facts.
+- Temporal facts, timers, windows, lateness, corrections, probabilistic truth, or confidence scoring.
+- Automatic tuple-level lineage, counterfactual proof search beyond recorded supports, or a custom rule/query language.
+- New consequence execution modes, shared-subplan discovery, catalog partitioning, or speculative retention scaling.
+- Expansion of the inherited compatibility, RLS, key-codec, recovery, PostgreSQL, `pg_trickle`, OS, or architecture matrix.
+
+### Decisions to close before the public API freezes
+
+- Derived-relation naming, ownership, schema evolution, semantic-key encoding, and portable deployment identity.
+- Whether fact identity includes the complete typed value or separates key from payload, and how conflicting payloads from simultaneous supports are rejected or represented.
+- Exact support identity and history across activation `CHANGE`, deactivation/reactivation, rule replacement, pack replacement, and relation removal.
+- The transaction and frontier boundary that orders source matches, supports, current facts, and downstream constraint or command lifecycle events.
+- Authorization for defining, reading, explaining, reconciling, and dropping derived state, including behavior under concurrent source or consequence DDL.
+- Provenance retention, tombstone, repair, and physical-recovery policy, including which explanation remains available after a fact retracts.
+
+### Exit gates
+
+- The fixed reference model produces one exact current fact from two independent supports; removing either support preserves the fact, removing the last retracts it, and restoring a support re-derives it with the declared identity and history.
+- For every supported delta ordering in the reference model, incremental support and fact state exactly matches a clean full recomputation at the same source frontier.
+- Support creation or invalidation and fact appearance or retraction commit atomically with no observable supported-absent or unsupported-present state; downstream lifecycle transitions follow the declared frontier and coalescing contract without silent loss or duplication.
+- Preview/apply drift, injected deployment failures, replacement, removal, concurrent refresh, source DDL, relation DDL, and downstream-rule DDL leave one complete valid dependency graph and no orphaned support or fact state.
+- Reconciliation repairs injected missing, extra, and stale support/fact state to the exact recomputed result and records every repair through public diagnostics.
+- Crash restart, supported physical restore, and direct `0.3.0 -> M7` upgrade preserve or explicitly reconcile current facts, supports, retained provenance, dependencies, and downstream lifecycle state.
+- Retention never removes a support or provenance record needed to justify a current fact; public explanation returns the exact active support set and source bindings for every current reference fact.
+- The complete M0–M6 gates, v1 single-rule APIs, rule packs, both worker protocols, and default and batch execution outputs remain backward compatible.
+- A user can define, validate, deploy, query, explain, retract, reconcile, replace, promote, and recover the reference derived relation using only public APIs and documentation.
+
+---
+
 ## Post-GA product directions
 
 The directions below are intentional but are not implementation commitments and do not impose a fixed order. A direction becomes the next numbered milestone only when it has a demonstrated user or operational need, bounded prerequisites, explicit non-goals, a support matrix, and executable exit evidence. GitHub milestones represent only active or credible near-term implementation commitments.
@@ -441,7 +496,7 @@ These capabilities are independent; none is a prerequisite for derived knowledge
 
 ### Derived knowledge
 
-The first reasoning milestone should be the smallest useful semantic slice: non-recursive derived facts with multiple logical supports, retraction, provenance, reconciliation, recovery, retention, and “why is this true?” explanation.
+M7 promotes the smallest useful semantic slice: non-recursive derived facts with multiple logical supports, retraction, provenance, reconciliation, recovery, retention, and “why is this true?” explanation.
 
 Positive recursive derivation and monotone fixed-point evaluation should be a later milestone after non-recursive support maintenance is proven. Stratified negation, deletion-sensitive reasoning, and recursive aggregation should remain separate later work and accept only programs with precise, testable semantics.
 
@@ -517,6 +572,7 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M4 — v1 GA** | Freeze and publish the supported contract |
 | **M5 — Safe rule-set deployment** | Preview, atomically deploy, replace, and promote related rules |
 | **M6 — Execution maturity** | Raise consequence throughput through audited batching without weakening per-episode guarantees |
+| **M7 — Maintained derived knowledge** | Maintain non-recursive supported facts with retraction, provenance, explanation, and recovery |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
 
@@ -524,6 +580,8 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 ---
 
-## Immediate next milestone
+## Active and next milestones
 
 **M6 — Execution maturity** is the next implementation milestone, focused on audited batch execution. Planning, workload capture, and executable gate design may begin immediately; no M6 product change merges until the exact `v0.2.0` release is published and the entry benchmark proves that per-episode execution overhead is the material bottleneck. Start by freezing the batch signature, transaction/failure contract, recheck boundary, worker protocol, and benchmark budget. Do not widen the inherited support matrix or begin another post-GA direction without its own promotion and evidence.
+
+**M7 — Maintained derived knowledge** is the next defined milestone after M6. Its entry workload and semantic fixtures may be designed before `v0.3.0` publication, but no M7 product change merges until that exact release satisfies the entry gate. Do not pull recursion, derivation chains, negation, temporal semantics, or support-matrix expansion into M7.
