@@ -71,3 +71,19 @@ _Avoid_: Execution log, general tuple lineage
 **Truth maintenance**:
 The preservation or retraction of a derived fact as its set of valid logical supports changes.
 _Avoid_: Consequence execution, refresh
+
+**Positive dependency**:
+A derivation dependency where adding input facts cannot invalidate an existing output match or support.
+_Avoid_: Negated dependency
+
+**Derivation program**:
+A versioned dependency graph of derivation rules and derived relations maintained as one semantic unit.
+_Avoid_: Rule pack
+
+**Least fixed point**:
+The smallest stable set of derived facts obtained by repeatedly applying a positive derivation program to authoritative input facts.
+_Avoid_: Any stable state
+
+**Grounded proof**:
+A finite explanation that reaches authoritative input bindings rather than justifying a derived fact only through a cycle.
+_Avoid_: Circular support

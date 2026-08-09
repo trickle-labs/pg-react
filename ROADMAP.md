@@ -476,6 +476,62 @@ M7 is implemented as the `0.4.0` repository candidate. The frozen two-support wo
 
 ---
 
+## Stage 8 — Monotone recursive derivation
+
+**Outcome:** maintain positive derivation chains and cycles as one durable least-fixed-point result, so every current derived fact has a finite proof grounded in authoritative input and recursive supports cannot keep an ungrounded cycle alive.
+
+**Entry gate:** the exact `v0.4.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. A fixed reference program must include an acyclic chain, a positive recursive component, two paths to one fact, removal of one and then the last authoritative seed, downstream rule observation, reconciliation, pack replacement, and physical recovery; its exact current facts, supports, component frontiers, and finite explanations are frozen before the API contract is fixed.
+
+### Deliverables
+
+- A versioned derivation-program graph whose declared dependencies resolve every authoritative and derived input and classify acyclic and strongly connected components before deployment.
+- A validated, range-restricted positive SQL subset for derived inputs that rejects negation, aggregation, unbounded value invention, and every unsupported or non-monotone dependency before catalog mutation.
+- Least-fixed-point maintenance across affected components, with no fact retained solely by circular support and no partially converged component visible at a committed frontier.
+- Durable component, iteration, support, and fact identity that preserves M7 relation and rule-version identity while making repeated evaluation idempotent.
+- Finite public explanation of recursive facts through grounded proof paths, with cycles summarized without claiming general tuple-level lineage.
+- Atomic validation, preview, deployment, replacement, and removal of complete recursive components through rule packs, including exact drift and dependency diagnostics.
+- Reconciliation, retention, crash restart, physical restore, and resource-limit behavior that either reaches the exact least fixed point or leaves the previous committed frontier unchanged with an actionable failure.
+- A versioned extension upgrade from `0.4.0` and one documented, executable workflow from program definition through convergence, explanation, seed retraction, reconciliation, replacement, and recovery.
+
+### Supported boundary
+
+- M8 inherits M7's platform, maintenance, isolation, security, recovery, key-codec, relation, support, provenance, and compatibility boundary.
+- A derivation source may read authoritative PostgreSQL relations and public derived relations only through the supported positive, range-restricted subset; positive acyclic chains and cycles are allowed.
+- Each program denotes the least fixed point over its finite active domain at one source frontier. A fact is current only when it has a finite derivation from authoritative input, even if its support graph also contains cycles.
+- All affected components converge and commit before existing constraint or command rules observe the new derived frontier.
+
+### Explicit non-goals
+
+- Stratified negation, antijoins over derived inputs, deletion-sensitive non-monotone reasoning, recursive aggregation, or acceptance of arbitrary recursive SQL.
+- Temporal facts, timers, windows, lateness, corrections, probabilistic truth, or confidence scoring.
+- Automatic enumeration of every proof path, minimal-proof or counterfactual search, or general base-tuple lineage.
+- New consequence execution modes, automatic common-subplan discovery, catalog partitioning, or speculative retention scaling.
+- Expansion of the inherited compatibility, RLS, key-codec, recovery, PostgreSQL, `pg_trickle`, OS, or architecture matrix.
+
+### Decisions to close before the public API freezes
+
+- The exact positive SQL/operator subset, range-restriction rule, dependency discovery through nested views, and rejection diagnostics.
+- Program and component identity, dependency ordering, frontier ownership, and atomicity across acyclic and strongly connected components.
+- The convergence algorithm delegated to `pg_trickle`, iteration observability, resource bounds, and rollback behavior when convergence cannot be completed.
+- Recursive support identity and invalidation across iterations, source deltas, rule replacement, pack replacement, and component merge or split.
+- The finite explanation format for alternative paths and cycles, including which grounded proof remains available after retraction and retention.
+- Reconciliation, locking, authorization, DDL serialization, recovery, and upgrade behavior for a dependency graph spanning multiple derived relations.
+
+### Exit gates
+
+- The fixed reference program converges to the exact declared least fixed point for its acyclic chain, positive cycle, and alternative paths; removing either path preserves shared facts, while removing the last authoritative seed retracts every fact supported only by the resulting cycle.
+- Every supported ordering of equivalent source deltas, component scheduling, worker timing, crash/restart point, and incremental history produces byte-exact current facts, supports, component frontiers, and public explanations equal to a clean recomputation.
+- An affected program commits atomically at one converged frontier; downstream rules never observe a partially evaluated component, and a resource-limit or evaluation failure preserves the prior complete state.
+- Deployment rejects every frozen negative, aggregate, unbounded, unresolved, or otherwise unsupported program with exact diagnostics and no catalog or runtime change.
+- Preview/apply drift, injected deployment failures, replacement, removal, concurrent refresh, source DDL, relation DDL, and component merge or split leave one complete valid dependency graph and no orphaned support or fact state.
+- Reconciliation repairs injected missing, extra, stale, circular-only, and wrong-frontier support or fact state to the exact clean fixed point and records every repair through public diagnostics.
+- Crash restart, supported physical restore, and direct `0.4.0 -> M8` upgrade preserve or explicitly reconcile programs, components, frontiers, facts, supports, provenance, dependencies, and downstream lifecycle state.
+- Public explanation returns the exact finite grounded proof graph for every current reference fact, terminates on cycles, and never presents an ungrounded cycle as justification.
+- The complete M0–M7 gates, v1 single-rule APIs, rule packs, both worker protocols, default and batch execution, and non-recursive derivation outputs remain backward compatible.
+- A user can define, validate, deploy, converge, query, explain, retract, reconcile, replace, promote, and recover the reference recursive program using only public APIs and documentation.
+
+---
+
 ## Post-GA product directions
 
 The directions below are intentional but are not implementation commitments and do not impose a fixed order. A direction becomes the next numbered milestone only when it has a demonstrated user or operational need, bounded prerequisites, explicit non-goals, a support matrix, and executable exit evidence. GitHub milestones represent only active or credible near-term implementation commitments.
@@ -500,9 +556,9 @@ These capabilities are independent; none is a prerequisite for derived knowledge
 
 ### Derived knowledge
 
-M7 promotes the smallest useful semantic slice: non-recursive derived facts with multiple logical supports, retraction, provenance, reconciliation, recovery, retention, and “why is this true?” explanation.
+M7 promotes the smallest useful semantic slice: non-recursive derived facts with multiple logical supports, retraction, provenance, reconciliation, recovery, retention, and “why is this true?” explanation. M8 promotes positive derivation chains and cycles with grounded least-fixed-point maintenance and finite recursive explanation.
 
-Positive recursive derivation and monotone fixed-point evaluation should be a later milestone after non-recursive support maintenance is proven. Stratified negation, deletion-sensitive reasoning, and recursive aggregation should remain separate later work and accept only programs with precise, testable semantics.
+Stratified negation, deletion-sensitive reasoning, and recursive aggregation remain separate later work and accept only programs with precise, testable semantics.
 
 ### Temporal reasoning
 
@@ -577,6 +633,7 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M5 — Safe rule-set deployment** | Preview, atomically deploy, replace, and promote related rules |
 | **M6 — Execution maturity** | Raise consequence throughput through audited batching without weakening per-episode guarantees |
 | **M7 — Maintained derived knowledge** | Maintain non-recursive supported facts with retraction, provenance, explanation, and recovery |
+| **M8 — Monotone recursive derivation** | Maintain positive derivation chains and cycles to one grounded least fixed point |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
 
@@ -588,4 +645,4 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 **M7 — Maintained derived knowledge** is implemented. The next work is release qualification and publication of the exact `v0.4.0` archive and `linux/amd64` image, followed by digest and direct-upgrade verification against those published bytes.
 
-No M8 is defined. Promote one post-GA direction only after demonstrated demand, a bounded contract, and executable entry evidence; until then, do not add recursion, derivation chains, negation, temporal semantics, or support-matrix expansion.
+**M8 — Monotone recursive derivation** is the next defined milestone after M7. Its reference program and semantic fixtures may be designed before `v0.4.0` publication, but no M8 product change merges until that exact release satisfies the entry gate. Do not pull negation, recursive aggregation, temporal semantics, proof enumeration, new execution modes, or support-matrix expansion into M8.
