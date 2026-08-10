@@ -4,7 +4,13 @@ set -euo pipefail
 image=${1:-pg-react:v0.4.0}
 platform=linux/amd64
 project=${COMPOSE_PROJECT_NAME:-pgreact-m7-${GITHUB_RUN_ID:-$$}}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.4.0}
 test_log_dir=$(mktemp -d)
+
+case "$expected_version" in
+  0.4.0|0.5.0) ;;
+  *) echo "unsupported M7 compatibility version: $expected_version" >&2; exit 1 ;;
+esac
 
 cleanup() {
   COMPOSE_PROJECT_NAME=$project docker compose down --volumes --remove-orphans >/dev/null 2>&1 || true
@@ -69,7 +75,7 @@ run_sql_fixture() {
 
 run_test "M0-M6 compatibility" env \
   COMPOSE_PROJECT_NAME="${project}-compatibility" \
-  PG_REACT_EXPECTED_VERSION=0.4.0 \
+  PG_REACT_EXPECTED_VERSION="$expected_version" \
   bash tests/m6.sh "$image"
 
 export PG_REACT_IMAGE=$image
@@ -80,7 +86,7 @@ docker compose up -d --no-build >/dev/null 2>&1
 ready=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -X -U postgres -d postgres -Atc \
-      "SELECT extversion = '0.4.0' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
+      "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
     ready=true
     break
   fi

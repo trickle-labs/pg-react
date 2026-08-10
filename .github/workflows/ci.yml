@@ -26,4 +26,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker compose config --quiet
-      - run: bash tests/m7.sh pg-react:v0.4.0
+      - run: bash tests/m8.sh pg-react:v0.5.0

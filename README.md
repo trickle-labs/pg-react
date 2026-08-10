@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react v1 is extension `0.1.1`; M5 is `0.2.0`; M6 is `0.3.0`; and the M7 repository candidate is `0.4.0`. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. The exact `v0.3.0` release is verified. Read the [v1 contract](docs/v1-contract.md), [M6 batch contract](docs/m6-contract.md), and [M7 derived-knowledge contract](docs/m7-contract.md). Physical backup/PITR is supported; logical restore of live rule state is not.
+> pg-react v1 is extension `0.1.1`; M5 is `0.2.0`; M6 is `0.3.0`; M7 is released as `0.4.0`; and the M8 repository candidate is `0.5.0`. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. The exact `v0.4.0` release is verified. Read the [v1 contract](docs/v1-contract.md), [M7 derived-knowledge contract](docs/m7-contract.md), and [M8 recursive-derivation contract](docs/m8-contract.md). Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -147,7 +147,7 @@ The proposed `pg-reactd` service executes command episodes outside PostgreSQL ba
 
 **Command rules** add optional activation, change, and deactivation consequences. They support durable scheduling, retries, worker routing, priorities, and conflict keys.
 
-**Derivation rules** are a later goal. They will represent logical support for derived facts and maintain those facts while at least one valid support remains.
+**Derivation rules** maintain logical supports and typed derived facts. Positive programs may form chains and cycles; M8 exposes only their bounded grounded least fixed point, so a cycle without authoritative support retracts.
 
 ## Where it fits
 
@@ -199,7 +199,9 @@ M5 safe rule-set deployment is complete as the `0.2.0` repository candidate. A p
 
 M6 execution maturity is released as `0.3.0`. Reviewed typed database consequences can opt into immutable `batch_safe` execution through a separate bounded endpoint and worker protocol `2`; protocol `1` and one episode per transaction remain the default. Exact rejection, partial failure, disconnect, concurrency, restart, physical restore, direct-upgrade, compatibility, and five-sample benchmark gates are executable in `tests/m6.sh`. See the [batch contract](docs/m6-contract.md), [evidence](docs/m6-evidence.md), and [readiness record](docs/m6-readiness.md).
 
-M7 maintained derived knowledge is implemented as the `0.4.0` repository candidate. Non-recursive derivation rules maintain durable logical supports and typed current facts without creating agenda work. Multiple supports collapse to one fact, last-support removal retracts it, and public provenance, reconciliation, rule-pack deployment, direct-upgrade, ordering, failure, and physical-recovery gates are executable in `tests/m7.sh`. See the [contract](docs/m7-contract.md), [evidence](docs/m7-evidence.md), and [readiness record](docs/m7-readiness.md).
+M7 maintained derived knowledge is released as `0.4.0`. Non-recursive derivation rules maintain durable logical supports and typed current facts without creating agenda work. Multiple supports collapse to one fact, last-support removal retracts it, and public provenance, reconciliation, rule-pack deployment, direct-upgrade, ordering, failure, and physical-recovery gates are executable in `tests/m7.sh`. See the [contract](docs/m7-contract.md), [evidence](docs/m7-evidence.md), and [readiness record](docs/m7-readiness.md).
+
+M8 monotone recursive derivation is implemented as the `0.5.0` repository candidate. Versioned positive programs maintain acyclic chains and cycles to one bounded grounded least fixed point, atomically expose converged frontiers, and provide finite explanations with cycle markers. Exact validation, seed retraction, pack replacement, rollback, reconciliation, direct-upgrade, restart, restore, and compatibility gates are executable in `tests/m8.sh`. See the [contract](docs/m8-contract.md), [evidence](docs/m8-evidence.md), and [readiness record](docs/m8-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
@@ -211,6 +213,7 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M5 rule packs](docs/m5-rule-packs.md) documents portable preview and atomic deployment; [M5 evidence](docs/m5-evidence.md) records the executable gate.
 - [M6 audited batching](docs/m6-contract.md) documents opt-in execution and public diagnostics; [M6 evidence](docs/m6-evidence.md) records the executable gate.
 - [M7 derived knowledge](docs/m7-contract.md) documents non-recursive truth maintenance and provenance; [M7 evidence](docs/m7-evidence.md) records the executable gate.
+- [M8 recursive derivation](docs/m8-contract.md) documents bounded grounded least-fixed-point maintenance; [M8 evidence](docs/m8-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
 - [PostgreSQL as an Operational Data Platform](operational-data-platform.md) places the projects in a broader operational loop.

@@ -74,7 +74,7 @@ Each program below is rejected before catalog or runtime mutation:
 | `negative_recursive_cte` | recursive CTE | explicit recursion |
 | `negative_set_generator` | set-generating input | unbounded generation |
 | `negative_invented_key` | recursive rule that derives a new key | value invention |
-| `negative_unresolved_nested` | unresolved relation inside a nested view | unresolved dependency |
+| `negative_unresolved_nested` | unresolved source view name | unresolved dependency |
 | `negative_undeclared_nested` | resolved but undeclared nested dependency | undeclared dependency |
 
 ## Atomicity, reconciliation, and recovery

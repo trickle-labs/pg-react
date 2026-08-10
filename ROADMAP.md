@@ -472,7 +472,7 @@ The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs
 
 ### M7 completion record — 2026-08-09
 
-M7 is implemented as the `0.4.0` repository candidate. The frozen two-support workload, opposite delta orderings, conflicting-payload rollback, non-recursion and mutation boundaries, atomic pack lifecycle, exact reconciliation, direct `0.3.0 -> 0.4.0` upgrade, crash restart, physical restore, and inherited M0–M6 gates are executable in `tests/m7.sh`. The public contract and evidence are recorded in `docs/m7-contract.md`, `docs/m7-evidence.md`, and `docs/m7-readiness.md`.
+M7 is released as `0.4.0`. The frozen two-support workload, opposite delta orderings, conflicting-payload rollback, non-recursion and mutation boundaries, atomic pack lifecycle, exact reconciliation, direct `0.3.0 -> 0.4.0` upgrade, crash restart, physical restore, and inherited M0–M6 gates are executable in `tests/m7.sh`. The public contract and evidence are recorded in `docs/m7-contract.md`, `docs/m7-evidence.md`, and `docs/m7-readiness.md`; immutable release evidence is recorded in `docs/m8-entry.md`.
 
 ---
 
@@ -529,6 +529,10 @@ M7 is implemented as the `0.4.0` repository candidate. The frozen two-support wo
 - Public explanation returns the exact finite grounded proof graph for every current reference fact, terminates on cycles, and never presents an ungrounded cycle as justification.
 - The complete M0–M7 gates, v1 single-rule APIs, rule packs, both worker protocols, default and batch execution, and non-recursive derivation outputs remain backward compatible.
 - A user can define, validate, deploy, converge, query, explain, retract, reconcile, replace, promote, and recover the reference recursive program using only public APIs and documentation.
+
+### M8 completion record — 2026-08-09
+
+M8 is implemented as the `0.5.0` repository candidate. The frozen acyclic and cyclic program, exact least-fixed-point stages, alternative grounded explanations, negative boundary, atomic component and pack lifecycle, resource rollback, reconciliation, direct `0.4.0 -> 0.5.0` upgrade, crash restart, physical restore, and inherited M0–M7 gates are executable in `tests/m8.sh`. The public contract and evidence are recorded in `docs/m8-contract.md`, `docs/m8-evidence.md`, and `docs/m8-readiness.md`.
 
 ---
 
@@ -643,6 +647,6 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 ## Active and next milestones
 
-**M7 — Maintained derived knowledge** is implemented. The next work is release qualification and publication of the exact `v0.4.0` archive and `linux/amd64` image, followed by digest and direct-upgrade verification against those published bytes.
+**M8 — Monotone recursive derivation** is implemented as the `0.5.0` repository candidate. The next work is release qualification and publication of the exact archive and `linux/amd64` image, followed by checksum, digest, and direct-upgrade verification against those published bytes.
 
-**M8 — Monotone recursive derivation** is the next defined milestone after M7. Its reference program and semantic fixtures may be designed before `v0.4.0` publication, but no M8 product change merges until that exact release satisfies the entry gate. Do not pull negation, recursive aggregation, temporal semantics, proof enumeration, new execution modes, or support-matrix expansion into M8.
+No M9 is defined. After `0.5.0` publication, promote a later direction only when demonstrated user or operational need, bounded prerequisites, explicit non-goals, a support matrix, and executable exit evidence are credible. Stratified negation is the closest semantic candidate, but it is not yet M9; temporal, execution, scale, ergonomics, and ecosystem directions remain independently eligible.

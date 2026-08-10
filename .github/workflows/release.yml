@@ -1,9 +1,9 @@
-name: Release v0.4.0
+name: Release v0.5.0
 
 on:
   push:
     tags:
-      - v0.4.0
+      - v0.5.0
 
 permissions:
   contents: write
@@ -17,10 +17,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - name: Verify release identity
         run: |
-          grep -qx 'version = "0.4.0"' Cargo.toml
-          grep -qx "default_version = '0.4.0'" pg_react.control
+          grep -qx 'version = "0.5.0"' Cargo.toml
+          grep -qx "default_version = '0.5.0'" pg_react.control
       - name: Require unpublished release
-        run: "! gh release view v0.4.0 >/dev/null 2>&1"
+        run: "! gh release view v0.5.0 >/dev/null 2>&1"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo fmt --check
@@ -34,9 +34,9 @@ jobs:
           ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95
           cargo check --features pg18
       - name: Name image
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.4.0" >> "$GITHUB_ENV"
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.5.0" >> "$GITHUB_ENV"
       - name: Build and test release image
-        run: bash tests/m7.sh "$IMAGE"
+        run: bash tests/m8.sh "$IMAGE"
       - name: Publish image
         run: |
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -49,15 +49,15 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Package image and checksum
         run: |
-          artifact=pg-react-v0.4.0-linux-amd64.tar.gz
+          artifact=pg-react-v0.5.0-linux-amd64.tar.gz
           docker save "$IMAGE" | gzip -n -9 > "$artifact"
           sha256sum "$artifact" > "$artifact.sha256"
           printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> "$artifact.sha256"
           sha256sum --check "$artifact.sha256"
       - name: Publish release artifacts
         run: |
-          artifact=pg-react-v0.4.0-linux-amd64.tar.gz
-          gh release create v0.4.0 "$artifact" "$artifact.sha256" --verify-tag \
-            --notes-file docs/m7-release-notes.md --title v0.4.0
+          artifact=pg-react-v0.5.0-linux-amd64.tar.gz
+          gh release create v0.5.0 "$artifact" "$artifact.sha256" --verify-tag \
+            --notes-file docs/m8-release-notes.md --title v0.5.0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

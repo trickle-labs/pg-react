@@ -6,6 +6,7 @@ recovery_milestone="${RECOVERY_MILESTONE:-m6}"
 case "$recovery_milestone" in
   m6) restart_fixture=m6-restart ;;
   m7) restart_fixture=m7-recovery-restore ;;
+  m8) restart_fixture=m8-recovery-restore ;;
   *) echo "unsupported recovery milestone: $recovery_milestone" >&2; exit 1 ;;
 esac
 recovery_db="${recovery_milestone}_recovery"
@@ -41,6 +42,8 @@ for fixture in "${recovery_milestone}-recovery-setup" "$restart_fixture" "${reco
 done
 if test "$recovery_milestone" = m7; then
   "${compose[@]}" cp tests/m7.sql postgres:/tmp/m7.sql >/dev/null
+elif test "$recovery_milestone" = m8; then
+  "${compose[@]}" cp tests/m8-setup.sql postgres:/tmp/m8-setup.sql >/dev/null
 fi
 "${compose[@]}" exec -T postgres psql -X -U postgres -d "$recovery_db" \
   -v ON_ERROR_STOP=1 -f "/tmp/${recovery_milestone}-recovery-setup.sql"

@@ -10,4 +10,6 @@ The `0.4.0` implementation, direct `0.3.0 -> 0.4.0` migration, maintained derive
 
 The M7 entry gate is satisfied by the exact public `v0.3.0` tag, archive, `linux/amd64` OCI manifest, checksums, and successful release/CI workflows recorded in `docs/m7-entry.md`.
 
-The repository is ready to qualify a `v0.4.0` release candidate. Publication is not part of this milestone commit. The next gate is to build the release archive and image from this exact commit, run `tests/m7.sh` against those bytes, publish them, and record their immutable digests. No M8 has been promoted.
+The exact `v0.4.0` release was published and verified on 2026-08-09. Its tag,
+successful release run, archive checksum, and `linux/amd64` OCI digest are
+recorded in `docs/m8-entry.md`.

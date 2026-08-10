@@ -28,6 +28,29 @@ TO rule_author;
 
 The logical owner may map to a different role name in each environment, but `deploy_pack` still requires that mapped role to equal `session_user`. Object mappings resolve names only and never grant access or bypass view/function ownership checks.
 
+For M8 programs, add the program operations and inspection views to that same
+owner grant. Program authors also need the inherited pg_trickle stream-author
+grants used by the M1 author workflow:
+
+```sql
+GRANT USAGE ON SCHEMA pgtrickle TO rule_author;
+GRANT ALL ON ALL TABLES IN SCHEMA pgtrickle TO rule_author;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA pgtrickle TO rule_author;
+GRANT EXECUTE ON FUNCTION pgreact.validate_derivation_program(jsonb),
+                          pgreact.refresh_derivation_program(uuid),
+                          pgreact.explain_recursive_fact(uuid, uuid, bigint),
+                          pgreact.reconcile_derivation_program(uuid),
+                          pgreact.remove_derivation_program(uuid)
+TO rule_author;
+GRANT SELECT ON pgreact.derivation_programs,
+                pgreact.derivation_components,
+                pgreact.derivation_program_runs,
+                pgreact.derivation_iterations,
+                pgreact.recursive_support_inputs,
+                pgreact.derivation_program_repair_diagnostics
+TO rule_author, pgreact_reader;
+```
+
 ## Authoring checklist
 
 - The author owns the condition view and every bound consequence function.

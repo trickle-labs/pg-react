@@ -14,7 +14,9 @@ M7 is extension `0.4.0`. `tests/m7.sh` is the complete repository gate.
 | Concurrent refresh, replacement, and source/relation/downstream DDL | Lock serialization, native dependency rejection, and exact surviving graph in `tests/m7-concurrency-setup.sql` and `tests/m7-concurrency-result.sql` |
 | Direct upgrade and inherited state continuation | Exact claimed M6 batch preservation/continuation and post-upgrade derived workflow in `tests/m7-upgrade.sql` |
 | Crash restart and physical restore | Byte-exact derived catalog, fact, support, frontier, diagnostic, and explanation snapshots in the M7 fixtures run by `tests/m6-recovery.sh` |
-| M0–M6 compatibility | Complete inherited gate invoked by `tests/m7.sh` on the `0.4.0` candidate |
+| M0–M6 compatibility | Complete inherited gate invoked by `tests/m7.sh` on `0.4.0` |
 | Public workflow | Definition, refresh, observation, explanation, retraction, reconciliation, pack, and recovery instructions in `docs/m7-contract.md` |
 
-The exact `v0.3.0` archive and OCI entry evidence is frozen in `docs/m7-entry.md`. Candidate behavior is qualified from one locally built `linux/amd64` image; release qualification must repeat the gate against the published `v0.4.0` bytes.
+The exact `v0.3.0` entry evidence is frozen in `docs/m7-entry.md`. The published
+`v0.4.0` tag, successful release run, archive checksum, and `linux/amd64` OCI
+digest are recorded in `docs/m8-entry.md`.
