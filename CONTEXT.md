@@ -76,9 +76,21 @@ _Avoid_: Consequence execution, refresh
 A derivation dependency where adding input facts cannot invalidate an existing output match or support.
 _Avoid_: Negated dependency
 
+**Negative dependency**:
+A derivation dependency satisfied only when no matching fact exists in its declared input at the current program frontier.
+_Avoid_: Negative fact, retraction
+
 **Derivation program**:
 A versioned dependency graph of derivation rules and derived relations maintained as one semantic unit.
 _Avoid_: Rule pack
+
+**Stratum**:
+An ordered group of derivation components that reaches its positive least fixed point after every input reached through a negative dependency has stabilized in a lower group.
+_Avoid_: Iteration, layer
+
+**Stratified program**:
+A derivation program whose strata order every negative dependency strictly downward, so no dependency cycle contains negation.
+_Avoid_: Arbitrary negation
 
 **Least fixed point**:
 The smallest stable set of derived facts obtained by repeatedly applying a positive derivation program to authoritative input facts.
