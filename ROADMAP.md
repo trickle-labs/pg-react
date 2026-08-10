@@ -577,6 +577,56 @@ M8 is implemented as the `0.5.0` repository candidate. The frozen acyclic and cy
 - The finite explanation format for a satisfied negative condition, including checked relation, semantic key, lower frontier, and behavior after the condition stops matching.
 - Authorization, DDL serialization, recovery, resource bounds, reconciliation, and upgrade behavior for negative dependencies spanning multiple strata.
 
+### Serial implementation slices
+
+Implement M9 in the order below. Each slice must leave the repository coherent,
+rerun the exact gates from earlier slices, and verify complete public outputs
+rather than internal row counts. Add only the catalog, API, runtime, and test
+surface needed by the current slice; later slices must not be scaffolded early.
+
+1. **Freeze the executable contract.** After the `v0.5.0` entry evidence is
+   verified, freeze one reference program and its exact initial, blocked, and
+   restored facts, supports, negative-dependency evidence, stratum frontiers,
+   and explanations. Freeze exact rejection and `NULL` fixtures, close the
+   decisions above in `docs/m9-contract.md`, and record the release evidence in
+   `docs/m9-entry.md`. This slice changes no product behavior.
+2. **Deploy and inspect one safe negative dependency.** Extend the public
+   rule-pack path end to end for one range-restricted keyed absence check over a
+   stable lower input: resolve edge polarity, assign deterministic strata,
+   validate and preview the graph, deploy it, compute its initial result, and
+   expose the graph, facts, supports, and stratum frontier through public APIs.
+   Reject negative cycles, unbound variables, unsupported absence idioms,
+   aggregate dependencies, and unresolved inputs before mutation with exact
+   diagnostics while the frozen `NULL` cases retain PostgreSQL behavior.
+3. **Maintain deletion-sensitive truth.** Make insertion of the blocking
+   lower-stratum fact retract the exact higher support and fact, and make its
+   removal restore them. Commit all affected strata at one program frontier,
+   coalesce downstream lifecycle observation, and prove repeated refresh,
+   equivalent delta order, and injected evaluation failure are idempotent and
+   atomic.
+4. **Compose negation with positive fixed points.** Add the frozen lower
+   positive-recursive component and the positive component above the negative
+   edge. Evaluate strata in dependency order while retaining M8 grounding,
+   convergence, scheduling-order independence, and resource bounds; no lower
+   ungrounded cycle or partially converged higher stratum may become visible.
+5. **Change complete stratified programs safely.** Extend validation, preview,
+   apply, replacement, removal, and promotion across stratum insertion,
+   deletion, merge, and split. Prove stale preview, injected deployment
+   failure, concurrent refresh, source or relation DDL, and dependency drift
+   leave one complete polarity-labeled graph with no orphaned support,
+   negative-dependency evidence, or fact state.
+6. **Explain and repair the result.** Return the frozen finite grounded proof
+   and satisfied negative checks without representing absence as a fact.
+   Reconcile injected missing, extra, stale, wrong-stratum, and wrong-frontier
+   state to the exact clean result, make the second repair a no-op, and retain
+   every record required to explain current truth.
+7. **Prove durability and prepare the release candidate.** Add direct
+   `0.5.0 -> M9` upgrade, crash restart, physical restore, the complete public
+   author workflow, and all inherited M0-M8 compatibility gates. Generate the
+   fresh-install SQL mechanically from the `0.5.0` install plus the M9 upgrade,
+   then add evidence, readiness, upgrade, and release documentation only after
+   the executable gates pass.
+
 ### Exit gates
 
 - The fixed reference program reaches the exact declared stratified result; adding the blocking lower-stratum fact retracts every dependent higher fact, removing it restores the exact supports and explanations, and a lower positive cycle never survives without authoritative grounding.
