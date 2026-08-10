@@ -646,6 +646,63 @@ M9 is implemented as the `0.6.0` repository candidate. The frozen stratified pro
 
 ---
 
+## Stage 10 — Stratified aggregation
+
+**Outcome:** maintain keyed aggregate dependencies as one ordered derivation program whose visible state is the unique stratified result: each grouped `COUNT(*)` reads one stable lower stratum, and exact count changes deterministically create, update, or retract higher-stratum support without exposing an intermediate frontier.
+
+**Entry gate:** the exact `v0.6.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. A fixed reference program must include positive recursion in a lower stratum, a positively bound group, one `COUNT(*)` threshold dependency into a higher stratum, count changes that cross the threshold in both directions and changes that remain on one side, group removal and restoration, downstream rule observation, exact aggregate-cycle and unsupported-aggregate rejection, reconciliation, pack replacement, and physical recovery; its exact facts, supports, aggregate evidence, stratum frontiers, and explanations are frozen before the API contract is fixed.
+
+### Deliverables
+
+- A versioned dependency graph that distinguishes positive, negative, and aggregate edges, assigns stable strata, and rejects every cycle containing a negative or aggregate edge before catalog mutation.
+- A validated, range-restricted aggregate subset consisting of grouped `COUNT(*)` over one declared authoritative or lower-stratum derived input, compared with one immutable non-negative `bigint` threshold using `=`, `<`, `<=`, `>`, or `>=`.
+- Dependency-ordered evaluation that computes each count only after its lower stratum converges and commits every affected stratum at one program frontier.
+- Deletion-sensitive aggregate maintenance in which lower-row insertion, update, or removal creates, updates, or retracts the exact higher support without stale groups, duplicate support, or spurious downstream truth transitions.
+- Stable aggregate-dependency identity and public evidence that names the counted relation, group key, exact count, comparison, threshold, and lower-stratum frontier without representing the summary as an authoritative fact.
+- Atomic validation, preview, deployment, replacement, and removal of complete aggregate programs through rule packs, including exact drift and dependency diagnostics.
+- Reconciliation, retention, crash restart, physical restore, and resource-limit behavior that reaches the exact stratified aggregate result or leaves the previous complete program frontier unchanged with an actionable failure.
+- A versioned extension upgrade from `0.6.0` and one documented, executable workflow from program definition through threshold maintenance, explanation, reconciliation, replacement, and recovery.
+
+### Supported boundary
+
+- M10 inherits M9's platform, maintenance, isolation, security, recovery, key-codec, program, stratum, support, provenance, resource-limit, and compatibility boundary.
+- A rule may declare one aggregate dependency. Its group key must be bound by a positive input and equal the derived fact's semantic key; its counted input must be finite and in a strictly lower stratum.
+- Positive dependencies may remain within one stratum, including M8 positive recursion, and M9 negative dependencies retain their existing boundary. No dependency cycle may contain a negative or aggregate edge.
+- PostgreSQL `COUNT(*)`, `bigint`, comparison, and `NULL` behavior is authoritative. All affected strata commit before existing constraint or command rules observe the new derived frontier.
+
+### Explicit non-goals
+
+- Aggregate dependencies inside a recursive component, aggregate cycles, same-stratum aggregates, or arbitrary recursive aggregation.
+- `COUNT(expression)`, `DISTINCT`, `FILTER`, multiple aggregates per rule, `SUM`, `AVG`, `MIN`, `MAX`, ordered-set or user-defined aggregates, windows, grouping sets, or arbitrary `HAVING` expressions.
+- Unstratified negation, cycles through negative dependencies, stable-model or well-founded search, defeasible reasoning, or arbitrary logic programs.
+- Temporal aggregation, timers, windows, lateness, corrections, probabilistic truth, confidence scoring, or open-world reasoning.
+- Automatic enumeration of every counted binding or proof path, minimal-proof or counterfactual search, or general base-tuple lineage.
+- New consequence execution modes, automatic common-subplan discovery, catalog partitioning, or expansion of the inherited compatibility, RLS, key-codec, recovery, PostgreSQL, `pg_trickle`, OS, or architecture matrix.
+
+### Decisions to close before the public API freezes
+
+- The aggregate declaration shape, exact SQL recognition boundary, group-key range restriction, comparison syntax, threshold validation, nested-view dependency discovery, and rejection diagnostics.
+- Positive, negative, and aggregate edge identity, deterministic stratum assignment, portable graph hashing, and behavior when replacement splits, merges, inserts, or removes strata.
+- Aggregate evidence and support identity across count changes, repeated evaluation, rule replacement, pack replacement, reconciliation, and retention, including count changes that do not flip truth.
+- Frontier ownership, evaluation ordering, locking, and rollback across affected strata when lower-row changes alter a count or threshold result.
+- The finite explanation format for an aggregate condition, including group key, exact count, comparison, threshold, lower frontier, and the explicit absence of per-row proof enumeration.
+- Authorization, DDL serialization, recovery, resource bounds, reconciliation, and upgrade behavior for aggregate dependencies spanning multiple strata.
+
+### Exit gates
+
+- The fixed reference program reaches the exact declared stratified result for every frozen count; crossing the threshold in either direction creates or retracts the exact higher facts, while a count change that does not flip the comparison updates evidence and explanation without a false downstream lifecycle transition.
+- Every supported ordering of equivalent source deltas, stratum scheduling, worker timing, crash/restart point, and incremental history produces byte-exact current facts, supports, aggregate evidence, stratum frontiers, and public explanations equal to a clean dependency-ordered recomputation.
+- An affected program commits atomically at one completed frontier; downstream rules never observe a lower count without its corresponding higher-stratum change, and a resource-limit or evaluation failure preserves the prior complete state.
+- Deployment rejects every frozen aggregate cycle, same-stratum aggregate, unbound or mismatched group key, negative threshold, unsupported aggregate, multiple-aggregate rule, unresolved dependency, and unsupported expression with exact diagnostics and no catalog or runtime change.
+- Preview/apply drift, injected deployment failures, replacement, removal, concurrent refresh, source DDL, relation DDL, and stratum merge or split leave one complete valid graph and no orphaned support, aggregate evidence, or fact state.
+- Reconciliation repairs injected missing, extra, stale, wrong-count, wrong-group, wrong-stratum, and wrong-frontier support, evidence, or fact state to the exact clean result and records every repair through public diagnostics.
+- Crash restart, supported physical restore, and direct `0.6.0 -> M10` upgrade preserve or explicitly reconcile programs, strata, components, frontiers, facts, supports, negative and aggregate evidence, provenance, and downstream lifecycle state.
+- Public explanation returns the exact finite grounded proof graph, negative checks, and aggregate condition for every current reference fact without presenting a summary as an authoritative fact or enumerating every counted row.
+- The complete M0–M9 gates, v1 single-rule APIs, legacy rule packs, both worker protocols, default and batch execution, positive recursion, and stratified-negation outputs remain backward compatible.
+- A user can define, validate, deploy, converge, query, explain, cross and recross a threshold, reconcile, replace, promote, and recover the reference aggregate program using only public APIs and documentation.
+
+---
+
 ## Post-GA product directions
 
 The directions below are intentional but are not implementation commitments and do not impose a fixed order. A direction becomes the next numbered milestone only when it has a demonstrated user or operational need, bounded prerequisites, explicit non-goals, a support matrix, and executable exit evidence. GitHub milestones represent only active or credible near-term implementation commitments.
@@ -670,9 +727,9 @@ These capabilities are independent; none is a prerequisite for derived knowledge
 
 ### Derived knowledge
 
-M7 promotes the smallest useful semantic slice: non-recursive derived facts with multiple logical supports, retraction, provenance, reconciliation, recovery, retention, and “why is this true?” explanation. M8 promotes positive derivation chains and cycles with grounded least-fixed-point maintenance and finite recursive explanation. M9 promotes safe stratified negation with deletion-sensitive truth maintenance across ordered strata.
+M7 promotes the smallest useful semantic slice: non-recursive derived facts with multiple logical supports, retraction, provenance, reconciliation, recovery, retention, and “why is this true?” explanation. M8 promotes positive derivation chains and cycles with grounded least-fixed-point maintenance and finite recursive explanation. M9 promotes safe stratified negation with deletion-sensitive truth maintenance across ordered strata. M10 promotes keyed `COUNT(*)` threshold dependencies over stable lower strata.
 
-Unstratified negation and recursive aggregation remain separate later work and accept only programs with precise, testable semantics.
+Unstratified negation, aggregate cycles, and richer aggregate functions remain separate later work and accept only programs with precise, testable semantics.
 
 ### Temporal reasoning
 
@@ -749,6 +806,7 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M7 — Maintained derived knowledge** | Maintain non-recursive supported facts with retraction, provenance, explanation, and recovery |
 | **M8 — Monotone recursive derivation** | Maintain positive derivation chains and cycles to one grounded least fixed point |
 | **M9 — Stratified negation** | Maintain safe negative dependencies to one ordered, deletion-sensitive result |
+| **M10 — Stratified aggregation** | Maintain keyed counts over stable lower strata with exact threshold transitions |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
 
@@ -760,4 +818,6 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 **M8 — Monotone recursive derivation** is released as `0.5.0`. Immutable release evidence is recorded in `docs/m9-entry.md`.
 
-**M9 — Stratified negation** is implemented as the `0.6.0` repository candidate. The next work is release qualification and publication of the exact archive and `linux/amd64` image, followed by checksum, digest, and direct-upgrade verification against those published bytes. No M10 is defined.
+**M9 — Stratified negation** is implemented as the `0.6.0` repository candidate. The next work is release qualification and publication of the exact archive and `linux/amd64` image, followed by checksum, digest, and direct-upgrade verification against those published bytes.
+
+**M10 — Stratified aggregation** is the next defined milestone after M9. Its reference program and semantic fixtures may be designed before `v0.6.0` publication, but no M10 product change merges until that exact release satisfies the entry gate. Do not pull aggregate cycles, richer aggregate functions, unstratified negation, temporal semantics, new execution modes, or support-matrix expansion into M10.

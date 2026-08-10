@@ -80,6 +80,10 @@ _Avoid_: Negated dependency
 A derivation dependency satisfied only when no matching fact exists in its declared input at the current program frontier.
 _Avoid_: Negative fact, retraction
 
+**Aggregate dependency**:
+A derivation dependency that summarizes a finite, stable lower-stratum input for one positively bound group before deciding higher-stratum support.
+_Avoid_: Window, recursive aggregate
+
 **Derivation program**:
 A versioned dependency graph of derivation rules and derived relations maintained as one semantic unit.
 _Avoid_: Rule pack

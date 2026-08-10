@@ -24,5 +24,6 @@ Publication of `0.6.0` is not part of this milestone commit. Build the archive
 and image from this exact commit, run `tests/m9.sh` against those bytes, publish
 them, and record their immutable checksum and digest.
 
-No M10 is defined. Unstratified negation, recursive aggregation, temporal
+M10 is defined separately in `ROADMAP.md`; no M10 product behavior is part of
+this repository candidate. Aggregation, unstratified negation, temporal
 semantics, new execution modes, and support-matrix expansion remain outside M9.
