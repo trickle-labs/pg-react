@@ -640,6 +640,10 @@ surface needed by the current slice; later slices must not be scaffolded early.
 - The complete M0–M8 gates, v1 single-rule APIs, legacy rule packs, both worker protocols, default and batch execution, and positive recursive derivation outputs remain backward compatible.
 - A user can define, validate, deploy, converge, query, explain, invalidate, restore, reconcile, replace, promote, and recover the reference stratified program using only public APIs and documentation.
 
+### M9 completion record — 2026-08-10
+
+M9 is implemented as the `0.6.0` repository candidate. The frozen stratified program, exact deletion-sensitive stages, polarity graph, strata, negative evidence, explanations, atomic pack lifecycle, resource rollback, reconciliation, direct `0.5.0 -> 0.6.0` upgrade, non-superuser author workflow, crash restart, physical restore, and inherited M0-M8 gates are executable in `tests/m9.sh`. The public contract and evidence are recorded in `docs/m9-contract.md`, `docs/m9-evidence.md`, and `docs/m9-readiness.md`.
+
 ---
 
 ## Post-GA product directions
@@ -754,6 +758,6 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 ## Active and next milestones
 
-**M8 — Monotone recursive derivation** is implemented as the `0.5.0` repository candidate. The next work is release qualification and publication of the exact archive and `linux/amd64` image, followed by checksum, digest, and direct-upgrade verification against those published bytes.
+**M8 — Monotone recursive derivation** is released as `0.5.0`. Immutable release evidence is recorded in `docs/m9-entry.md`.
 
-**M9 — Stratified negation** is the next defined milestone after M8. Its reference program and semantic fixtures may be designed before `v0.5.0` publication, but no M9 product change merges until that exact release satisfies the entry gate. Do not pull unstratified negation, recursive aggregation, temporal semantics, new execution modes, or support-matrix expansion into M9.
+**M9 — Stratified negation** is implemented as the `0.6.0` repository candidate. The next work is release qualification and publication of the exact archive and `linux/amd64` image, followed by checksum, digest, and direct-upgrade verification against those published bytes. No M10 is defined.

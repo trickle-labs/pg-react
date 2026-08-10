@@ -180,11 +180,15 @@ BEGIN
     explanation := pgreact.explain_recursive_fact(
         current_setting('m8.program')::uuid,
         (SELECT relation_version_id FROM pgreact.derived_relations
-         WHERE relation_name = 'm8_ref.c' AND state = 'ACTIVE'), 7)
+        WHERE relation_name = 'm8_ref.c' AND state = 'ACTIVE'), 7)
         #- '{proof,supports,0,logical_support_id}'
+        #- '{proof,supports,0,negative_checks}'
         #- '{proof,supports,0,inputs,0,supports,0,logical_support_id}'
+        #- '{proof,supports,0,inputs,0,supports,0,negative_checks}'
         #- '{proof,supports,0,inputs,0,supports,0,inputs,0,supports,0,logical_support_id}'
-        #- '{proof,supports,0,inputs,0,supports,0,inputs,0,supports,1,logical_support_id}';
+        #- '{proof,supports,0,inputs,0,supports,0,inputs,0,supports,0,negative_checks}'
+        #- '{proof,supports,0,inputs,0,supports,0,inputs,0,supports,1,logical_support_id}'
+        #- '{proof,supports,0,inputs,0,supports,0,inputs,0,supports,1,negative_checks}';
     SELECT jsonb_build_object(
         'session_user', session_user, 'current_user', current_user,
         'superuser', (SELECT rolsuper FROM pg_roles WHERE rolname = session_user),

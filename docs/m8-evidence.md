@@ -16,6 +16,5 @@ M8 is extension `0.5.0`. `tests/m8.sh` is the complete repository gate.
 | Complete M0-M7 and public-behavior compatibility | Every inherited gate is invoked first by `tests/m8.sh` against the `0.5.0` candidate |
 | Public end-to-end workflow | An explicitly granted non-superuser deploys, queries, explains, observes a failed run, retries, and reconciles in `tests/m8-author.sql`; replacement, promotion, upgrade, and recovery continue in the remaining M8 fixtures |
 
-Candidate behavior is qualified from one locally built `linux/amd64` image.
-Release qualification must repeat `tests/m8.sh` against the exact published
-`0.5.0` bytes.
+The exact published `v0.5.0` artifacts and qualification are recorded in
+`docs/m9-entry.md`.

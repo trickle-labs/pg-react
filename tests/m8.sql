@@ -107,14 +107,23 @@ CREATE FUNCTION m8_ref.normalized_explanation(value jsonb)
 RETURNS jsonb LANGUAGE SQL IMMUTABLE AS $$
 SELECT $1
     #- '{proof,supports,0,logical_support_id}'
+    #- '{proof,supports,0,negative_checks}'
     #- '{proof,supports,1,logical_support_id}'
+    #- '{proof,supports,1,negative_checks}'
     #- '{proof,supports,2,logical_support_id}'
+    #- '{proof,supports,2,negative_checks}'
     #- '{proof,supports,0,inputs,0,supports,0,logical_support_id}'
+    #- '{proof,supports,0,inputs,0,supports,0,negative_checks}'
     #- '{proof,supports,0,inputs,0,supports,1,logical_support_id}'
+    #- '{proof,supports,0,inputs,0,supports,1,negative_checks}'
     #- '{proof,supports,1,inputs,0,supports,0,logical_support_id}'
+    #- '{proof,supports,1,inputs,0,supports,0,negative_checks}'
     #- '{proof,supports,1,inputs,0,supports,0,inputs,0,supports,0,logical_support_id}'
+    #- '{proof,supports,1,inputs,0,supports,0,inputs,0,supports,0,negative_checks}'
     #- '{proof,supports,1,inputs,0,supports,0,inputs,0,supports,1,logical_support_id}'
+    #- '{proof,supports,1,inputs,0,supports,0,inputs,0,supports,1,negative_checks}'
     #- '{proof,supports,2,inputs,0,supports,0,logical_support_id}'
+    #- '{proof,supports,2,inputs,0,supports,0,negative_checks}'
 $$;
 
 SELECT pgreact.refresh_rule(current_setting('m8.observer')::uuid);

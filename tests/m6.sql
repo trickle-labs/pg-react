@@ -42,7 +42,7 @@ SELECT set_config('m6.rule_version_id', :'rule_version_id', false);
 
 DO $$
 BEGIN
-    IF (SELECT extversion FROM pg_extension WHERE extname = 'pg_react') NOT IN ('0.3.0', '0.4.0', '0.5.0')
+    IF (SELECT extversion FROM pg_extension WHERE extname = 'pg_react') NOT IN ('0.3.0', '0.4.0', '0.5.0', '0.6.0')
        OR NOT pgreact.worker_protocol_compatible(1)
        OR NOT pgreact.worker_protocol_compatible(2)
        OR pgreact.worker_protocol_compatible(3) THEN

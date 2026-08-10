@@ -914,15 +914,22 @@ FROM (VALUES
 
 DO $$
 DECLARE actual jsonb; expected jsonb; after_state jsonb;
+        m9 boolean := (SELECT extversion = '0.6.0' FROM pg_extension
+                       WHERE extname = 'pg_react');
 BEGIN
     SELECT jsonb_object_agg(fixture, diagnostic ORDER BY fixture) INTO actual
     FROM validator_results;
     expected := jsonb_build_object(
         'negative_not_exists', jsonb_build_object(
-            'contract_version', 3, 'code', 'PROGRAM_NOT_POSITIVE', 'severity', 'ERROR',
+            'contract_version', 3,
+            'code', CASE WHEN m9 THEN 'PROGRAM_ABSENCE_UNSUPPORTED'
+                         ELSE 'PROGRAM_NOT_POSITIVE' END,
+            'severity', 'ERROR',
             'object_identity', 'negative_not_exists.rule',
-            'message', 'program sources permit only positive inner-join, filter, and projection SQL',
-            'hint', 'Remove negation, set operations, outer or anti joins, recursion, distinct, windows, and limits.',
+            'message', CASE WHEN m9 THEN 'absence must be declared with negative_inputs'
+                            ELSE 'program sources permit only positive inner-join, filter, and projection SQL' END,
+            'hint', CASE WHEN m9 THEN 'Remove NOT EXISTS, outer joins, and EXCEPT from the source SQL.'
+                         ELSE 'Remove negation, set operations, outer or anti joins, recursion, distinct, windows, and limits.' END,
             'details', jsonb_build_object('source', 'm8_ref.negative_not_exists')),
         'negative_aggregate', jsonb_build_object(
             'contract_version', 3, 'code', 'PROGRAM_AGGREGATE_UNSUPPORTED', 'severity', 'ERROR',
@@ -930,16 +937,26 @@ BEGIN
             'message', 'aggregate derivation is outside the monotone M8 subset',
             'hint', 'Use non-aggregate positive rows.', 'details', '{}'::jsonb),
         'negative_outer_join', jsonb_build_object(
-            'contract_version', 3, 'code', 'PROGRAM_NOT_POSITIVE', 'severity', 'ERROR',
+            'contract_version', 3,
+            'code', CASE WHEN m9 THEN 'PROGRAM_ABSENCE_UNSUPPORTED'
+                         ELSE 'PROGRAM_NOT_POSITIVE' END,
+            'severity', 'ERROR',
             'object_identity', 'negative_outer_join.rule',
-            'message', 'program sources permit only positive inner-join, filter, and projection SQL',
-            'hint', 'Remove negation, set operations, outer or anti joins, recursion, distinct, windows, and limits.',
+            'message', CASE WHEN m9 THEN 'absence must be declared with negative_inputs'
+                            ELSE 'program sources permit only positive inner-join, filter, and projection SQL' END,
+            'hint', CASE WHEN m9 THEN 'Remove NOT EXISTS, outer joins, and EXCEPT from the source SQL.'
+                         ELSE 'Remove negation, set operations, outer or anti joins, recursion, distinct, windows, and limits.' END,
             'details', jsonb_build_object('source', 'm8_ref.negative_outer_join')),
         'negative_anti_join', jsonb_build_object(
-            'contract_version', 3, 'code', 'PROGRAM_NOT_POSITIVE', 'severity', 'ERROR',
+            'contract_version', 3,
+            'code', CASE WHEN m9 THEN 'PROGRAM_ABSENCE_UNSUPPORTED'
+                         ELSE 'PROGRAM_NOT_POSITIVE' END,
+            'severity', 'ERROR',
             'object_identity', 'negative_anti_join.rule',
-            'message', 'program sources permit only positive inner-join, filter, and projection SQL',
-            'hint', 'Remove negation, set operations, outer or anti joins, recursion, distinct, windows, and limits.',
+            'message', CASE WHEN m9 THEN 'absence must be declared with negative_inputs'
+                            ELSE 'program sources permit only positive inner-join, filter, and projection SQL' END,
+            'hint', CASE WHEN m9 THEN 'Remove NOT EXISTS, outer joins, and EXCEPT from the source SQL.'
+                         ELSE 'Remove negation, set operations, outer or anti joins, recursion, distinct, windows, and limits.' END,
             'details', jsonb_build_object('source', 'm8_ref.negative_anti_join')),
         'negative_recursive_cte', jsonb_build_object(
             'contract_version', 3, 'code', 'PROGRAM_NOT_POSITIVE', 'severity', 'ERROR',

@@ -47,7 +47,10 @@ GRANT SELECT ON pgreact.derivation_programs,
                 pgreact.derivation_program_runs,
                 pgreact.derivation_iterations,
                 pgreact.recursive_support_inputs,
-                pgreact.derivation_program_repair_diagnostics
+                pgreact.derivation_program_repair_diagnostics,
+                pgreact.derivation_dependency_graph,
+                pgreact.derivation_strata,
+                pgreact.negative_dependency_evidence
 TO rule_author, pgreact_reader;
 ```
 
