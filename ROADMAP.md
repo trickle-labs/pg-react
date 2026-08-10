@@ -650,7 +650,7 @@ M9 is implemented as the `0.6.0` repository candidate. The frozen stratified pro
 
 **Outcome:** maintain keyed aggregate dependencies as one ordered derivation program whose visible state is the unique stratified result: each grouped `COUNT(*)` reads one stable lower stratum, and exact count changes deterministically create, update, or retract higher-stratum support without exposing an intermediate frontier.
 
-**Entry gate:** the exact `v0.6.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. A fixed reference program must include positive recursion in a lower stratum, a positively bound group, one `COUNT(*)` threshold dependency into a higher stratum, count changes that cross the threshold in both directions and changes that remain on one side, group removal and restoration, downstream rule observation, exact aggregate-cycle and unsupported-aggregate rejection, reconciliation, pack replacement, and physical recovery; its exact facts, supports, aggregate evidence, stratum frontiers, and explanations are frozen before the API contract is fixed.
+**Entry gate:** the exact `v0.6.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. A fixed reference program must include positive recursion in a lower stratum, a positively bound group, one `COUNT(*)` threshold dependency into a higher stratum, count changes that cross the threshold in both directions and changes that remain on one side, group removal and restoration, downstream rule observation, exact aggregate-cycle and unsupported-aggregate rejection, reconciliation, pack replacement, and physical recovery; its exact facts, supports, aggregate evidence, stratum frontiers, and explanations are frozen before the current repository API contract is fixed.
 
 ### Deliverables
 
@@ -661,7 +661,7 @@ M9 is implemented as the `0.6.0` repository candidate. The frozen stratified pro
 - Stable aggregate-dependency identity and public evidence that names the counted relation, group key, exact count, comparison, threshold, and lower-stratum frontier without representing the summary as an authoritative fact.
 - Atomic validation, preview, deployment, replacement, and removal of complete aggregate programs through rule packs, including exact drift and dependency diagnostics.
 - Reconciliation, retention, crash restart, physical restore, and resource-limit behavior that reaches the exact stratified aggregate result or leaves the previous complete program frontier unchanged with an actionable failure.
-- A versioned extension upgrade from `0.6.0` and one documented, executable workflow from program definition through threshold maintenance, explanation, reconciliation, replacement, and recovery.
+- A versioned extension upgrade from `0.6.0`, one documented, executable workflow from program definition through threshold maintenance, explanation, reconciliation, replacement, and recovery, and one brief idealized PostgreSQL-user workflow that may differ from the current repository API.
 
 ### Supported boundary
 
@@ -679,7 +679,9 @@ M9 is implemented as the `0.6.0` repository candidate. The frozen stratified pro
 - Automatic enumeration of every counted binding or proof path, minimal-proof or counterfactual search, or general base-tuple lineage.
 - New consequence execution modes, automatic common-subplan discovery, catalog partitioning, or expansion of the inherited compatibility, RLS, key-codec, recovery, PostgreSQL, `pg_trickle`, OS, or architecture matrix.
 
-### Decisions to close before the public API freezes
+### Decisions to close for the current repository API
+
+These choices prove M10 semantics; public names and call shapes remain provisional until the PostgreSQL-facing redesign becomes normative.
 
 - The aggregate declaration shape, exact SQL recognition boundary, group-key range restriction, comparison syntax, threshold validation, nested-view dependency discovery, and rejection diagnostics.
 - Positive, negative, and aggregate edge identity, deterministic stratum assignment, portable graph hashing, and behavior when replacement splits, merges, inserts, or removes strata.
@@ -698,7 +700,7 @@ M9 is implemented as the `0.6.0` repository candidate. The frozen stratified pro
 - Reconciliation repairs injected missing, extra, stale, wrong-count, wrong-group, wrong-stratum, and wrong-frontier support, evidence, or fact state to the exact clean result and records every repair through public diagnostics.
 - Crash restart, supported physical restore, and direct `0.6.0 -> M10` upgrade preserve or explicitly reconcile programs, strata, components, frontiers, facts, supports, negative and aggregate evidence, provenance, and downstream lifecycle state.
 - Public explanation returns the exact finite grounded proof graph, negative checks, and aggregate condition for every current reference fact without presenting a summary as an authoritative fact or enumerating every counted row.
-- The complete M0–M9 gates, v1 single-rule APIs, legacy rule packs, both worker protocols, default and batch execution, positive recursion, and stratified-negation outputs remain backward compatible.
+- The complete M0–M9 semantic, operational, recovery, and documented-workflow gates, legacy rule-pack behavior, both worker protocols, default and batch execution, positive recursion, and stratified-negation outputs remain backward compatible. Current public SQL API names and call shapes remain provisional until the redesign is normative, so M10 requires no compatibility aliases solely to preserve them.
 - A user can define, validate, deploy, converge, query, explain, cross and recross a threshold, reconcile, replace, promote, and recover the reference aggregate program using only public APIs and documentation.
 
 ---
