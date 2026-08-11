@@ -15,3 +15,7 @@ Publish the exact `v0.7.0` tag only after the release workflow rebuilds
 `tests/m10.sh`, publishes its archive and checksum manifest, and records the
 new immutable OCI digest. That publication is release qualification, not a
 blocker to the implemented M10 repository candidate.
+
+M11 is defined separately in `ROADMAP.md`; no M11 product behavior is part of
+this repository candidate. The PostgreSQL-facing redesign may replace M10's
+provisional presentation, but it must preserve M10's frozen semantics and state.

@@ -705,6 +705,59 @@ These choices prove M10 semantics; public names and call shapes remain provision
 
 ---
 
+## Stage 11 — PostgreSQL-facing API redesign
+
+**Outcome:** replace the provisional repository interface with one coherent PostgreSQL-first public contract through which authors, operators, and workers can complete every M0–M10 workflow without routine knowledge of internal identifiers, scheduling structures, or private catalogs, while preserving the exact semantic, durable-state, security, recovery, and external-effect guarantees already proved.
+
+**Entry gate:** the exact `v0.7.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. Before the replacement API is fixed, freeze a task suite that covers constraint and command rules, safe rule-set deployment, both worker protocols, non-recursive and recursive derivation, stratified negation, stratified aggregation, status, diagnostics, explanation, reconciliation, physical recovery, and upgrade from a populated `0.7.0` database; freeze its normalized durable state and complete user-visible results.
+
+### Deliverables
+
+- One canonical vocabulary and an allow-listed public inventory covering SQL schemas, types, views, functions, grants, rule-pack manifests, worker commands, configuration, diagnostics, and documentation.
+- A small PostgreSQL-native authoring surface built around views or relations, explicit semantic keys, typed PostgreSQL functions or outbox actions, rules, derived relations, and derivation programs, with safe defaults and inference of rule kind, compatible action signature, dependency polarity, components, and strata where unambiguous.
+- Name-first status, diagnostics, history, and explanation entry points that progressively disclose immutable versions, activations, episodes, supports, frontiers, strata, and aggregate evidence only when exact identity or advanced operation requires them.
+- Complete operator and worker workflows for validation, preview, deployment, promotion, pause and recovery barriers, reconciliation, health, retention, consequence execution, and repair without private-catalog access.
+- Explicit replacement and migration rules for every provisional `0.7.0` public surface, including which calls are removed, deliberately bridged, or made compatibility commitments, plus a versioned extension and worker upgrade from `0.7.0` that preserves durable state and pending work.
+- Rewritten task-oriented installation, authoring, deployment, operation, explanation, security, backup/restore, upgrade, and troubleshooting documentation using only the replacement contract.
+- Exact fresh-install, upgrade, API-inventory, privilege, workflow, failure, recovery, and documentation tests that distinguish presentation changes from inherited semantic regressions.
+
+### Supported boundary
+
+- M11 inherits M10's PostgreSQL, `pg_trickle`, pgrx, OS, architecture, maintenance, isolation, RLS, key-codec, physical-recovery, worker-protocol, semantic, resource-limit, and external-effect boundaries.
+- PostgreSQL objects and SQL remain authoritative. Manifests and worker commands may package intent, but they do not define a second rule language or semantic model.
+- Immutable internal identities and advanced evidence remain queryable where correctness, history, recovery, or support requires them; routine authoring and inspection are name-first.
+- M11 is the deliberate compatibility reset for provisional surfaces. Its frozen allow-list states exactly which replacement surfaces begin the next compatibility commitment and from which release.
+
+### Explicit non-goals
+
+- New reasoning semantics, including richer or recursive aggregates, unstratified negation, temporal reasoning, probabilistic truth, confidence scoring, open-world reasoning, or general lineage.
+- New execution modes, worker protocol 3, synchronous firing, automatic common-subplan discovery, catalog partitioning, or retention redesign.
+- Expansion of the inherited compatibility, RLS, key-codec, logical-recovery, PostgreSQL, `pg_trickle`, OS, or architecture matrix.
+- A custom rule language, client SDK, visual editor, AI authoring layer, domain-package ecosystem, or non-PostgreSQL control plane.
+- Compatibility aliases for every provisional function, view, manifest field, command, argument, or term, or removal of the private engine model needed to preserve proven behavior.
+
+### Decisions to close before the replacement contract freezes
+
+- The canonical user vocabulary, public schema layout, function and view inventory, overload policy, privilege model, and boundary between author, operator, worker, and advanced inspection surfaces.
+- The exact SQL declarations for conditions, actions, semantic keys, lifecycle policy, derived relations, and derivation programs, including safe defaults and the boundary between inference and explicit annotation.
+- Stable name lookup, immutable-version access, deployment and promotion identity, and which internal identifiers may appear in routine versus advanced results.
+- The versioned status, diagnostic, history, and explanation envelopes and how every M0–M10 evidence kind is represented without separate feature-specific entry points.
+- The worker command, configuration, connection, protocol-selection, health, shutdown, and upgrade contract for both inherited protocols.
+- The `0.7.0` replacement matrix, migration diagnostics, compatibility start point, and policy for intentionally removed provisional calls.
+
+### Exit gates
+
+- The frozen author task suite creates and operates constraint, command, pack, non-recursive derivation, positive recursion, stratified-negation, and stratified-aggregation examples through only the replacement surface and produces the exact expected complete results.
+- The M10 reference program deployed through the replacement API produces byte-exact normalized facts, supports, dependency graph, strata, aggregate evidence, explanations, lifecycle state, and work equal to the `0.7.0` reference result.
+- Fresh install exposes exactly the frozen public inventory and grants; no private object is accidentally reachable, and every rejected declaration or unauthorized operation returns the exact documented diagnostic without partial mutation.
+- Direct upgrade from the populated `0.7.0` fixture preserves byte-exact normalized durable state, pending and leased work, immutable bindings, provenance, frontiers, and history; every old public surface follows its frozen remove, bridge, or retain rule.
+- Crash, restart, supported physical restore, reconciliation, pack replacement, concurrent DDL, worker death, retry, outbox replay, and resource-limit fixtures retain their M0–M10 outcomes through the replacement surface.
+- Every inherited M0–M10 semantic, operational, security, recovery, performance, and external-effect gate passes after presentation-only snapshots are intentionally replaced with the frozen M11 contract.
+- A new user can complete the frozen author, operator, and worker tasks from the rewritten documentation without private-catalog access or manually supplying internal version, component, stratum, support, episode, or frontier identifiers.
+- Release notes and the exact API inventory state which M11 surfaces are compatibility commitments, which `0.7.0` surfaces were removed or bridged, and the release from which compatibility begins.
+
+---
+
 ## Post-GA product directions
 
 The directions below are intentional but are not implementation commitments and do not impose a fixed order. A direction becomes the next numbered milestone only when it has a demonstrated user or operational need, bounded prerequisites, explicit non-goals, a support matrix, and executable exit evidence. GitHub milestones represent only active or credible near-term implementation commitments.
@@ -712,6 +765,8 @@ The directions below are intentional but are not implementation commitments and 
 A future direction may constrain a semantic decision, but it does not authorize speculative catalogs, APIs, or abstractions. PostgreSQL views, typed functions, explicit registration, immutable versions, and durable PostgreSQL state remain the canonical model.
 
 ### Product ergonomics
+
+M11 promotes the PostgreSQL-facing API redesign and freezes the replacement author, operator, and worker contract. Later ergonomics remain demand-driven:
 
 - Named reusable conditions where ordinary shared PostgreSQL views are insufficient.
 - Schedule coordination, cost diagnostics, and targeted migration tooling driven by observed deployment friction.
@@ -809,6 +864,7 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M8 — Monotone recursive derivation** | Maintain positive derivation chains and cycles to one grounded least fixed point |
 | **M9 — Stratified negation** | Maintain safe negative dependencies to one ordered, deletion-sensitive result |
 | **M10 — Stratified aggregation** | Maintain keyed counts over stable lower strata with exact threshold transitions |
+| **M11 — PostgreSQL-facing API redesign** | Freeze one PostgreSQL-first author, operator, and worker contract over M0–M10 behavior |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
 
@@ -822,4 +878,6 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 **M9 — Stratified negation** is released as `0.6.0`. Its exact archive, checksum manifest, `linux/amd64` OCI digest, release workflow, and direct-upgrade evidence satisfy the M10 entry gate recorded in `docs/m10-entry.md`.
 
-**M10 — Stratified aggregation** is implemented as the `0.7.0` repository candidate. Its reference program, transition fixtures, upgrade, recovery, and inherited compatibility gate are executable in `tests/m10.sh`. Release qualification publishes the exact tagged archive, checksum, and `linux/amd64` image; no M11 is defined. Do not pull aggregate cycles, richer aggregate functions, unstratified negation, temporal semantics, new execution modes, or support-matrix expansion into M10.
+**M10 — Stratified aggregation** is implemented as the `0.7.0` repository candidate. Its reference program, transition fixtures, upgrade, recovery, and inherited compatibility gate are executable in `tests/m10.sh`. Release qualification publishes the exact tagged archive, checksum, and `linux/amd64` image.
+
+**M11 — PostgreSQL-facing API redesign** is the next defined milestone after M10. Its reference task suite and replacement inventory may be designed before `v0.7.0` publication, but no M11 product change merges until that exact release satisfies the entry gate. Do not pull new reasoning semantics, execution modes, ecosystem layers, or support-matrix expansion into M11.

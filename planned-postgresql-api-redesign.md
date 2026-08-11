@@ -1,19 +1,19 @@
 # Planned PostgreSQL-facing API redesign
 
-> **Status:** Non-normative design notice  
+> **Status:** Scope input for M11; `ROADMAP.md` is normative  
 > **Audience:** Contributors and maintainers  
-> **Timing:** Planned before the first public release; no fixed milestone or calendar deadline  
+> **Timing:** M11, after the exact `v0.7.0` release satisfies its entry gate  
 > **Scope:** Public SQL APIs, manifests, command-line interfaces, terminology, diagnostics, and documentation
 
 ## Purpose
 
-`pg-react` is still pre-release. Its current public surface has grown alongside the implementation of lifecycle management, durable execution, rule packs, derived knowledge, recursion, stratified negation, aggregation, and related operational guarantees.
+`pg-react` is still pre-1.0. Its current public surface has grown alongside the implementation of lifecycle management, durable execution, rule packs, derived knowledge, recursion, stratified negation, aggregation, and related operational guarantees.
 
 That surface is useful for implementing and proving each milestone, but it should not be assumed to be the final PostgreSQL-facing product interface.
 
-Before the first public release, the project intends to perform a deliberate API and usability redesign so that normal usage feels like PostgreSQL first and a rule engine second. The redesign is expected relatively soon in the project’s development, but it does not yet have a fixed milestone number or delivery date.
+M11 performs a deliberate API and usability redesign so that normal usage feels like PostgreSQL first and a rule engine second. [`ROADMAP.md`](ROADMAP.md) defines the milestone outcome, boundary, and executable gates.
 
-This document exists to prevent accidental compatibility debt while additional semantic milestones are implemented. It does **not** define or freeze the replacement API.
+This document records the design intent that led to M11. It does **not** define or freeze the replacement API; the M11 implementation contract will do that.
 
 ## What the redesign is expected to achieve
 
@@ -119,9 +119,9 @@ Each advanced milestone should include a brief idealized workflow showing how a 
 
 The workflow may be aspirational and need not match the current repository API exactly. Its purpose is to test whether new semantics can fit a coherent PostgreSQL-facing model.
 
-## Compatibility policy before the first public release
+## Compatibility policy for the M11 reset
 
-Breaking changes to the public SQL API, manifests, CLI, and terminology are expected before the first public release.
+Breaking changes to the provisional SQL API, manifests, CLI, and terminology are permitted only through M11's explicit replacement matrix and migration contract.
 
 Repository candidates and milestone versions may provide direct upgrade paths for engineering, recovery, and regression evidence. Those paths do not automatically create a promise that every current public call shape will remain available in the final product.
 
@@ -133,7 +133,7 @@ Contributors should therefore avoid:
 - treating internal test usage as evidence of external adoption;
 - expanding a provisional interface merely because it already exists.
 
-Once the redesign is made normative, its contract should clearly state which surfaces become compatibility commitments and from which release those commitments begin.
+When M11 freezes the replacement interface, its contract must state which surfaces become compatibility commitments and from which release those commitments begin.
 
 ## What this document does not authorize
 
@@ -150,9 +150,9 @@ This notice does not:
 
 The current API should remain coherent, documented, and executable while it exists. It simply should not accumulate unnecessary permanence.
 
-## When the redesign becomes normative
+## M11 authority
 
-The PostgreSQL-facing redesign becomes normative only when the roadmap promotes it into an explicit milestone or release contract with:
+The roadmap promotes the PostgreSQL-facing redesign into M11 with:
 
 - a frozen vocabulary and public API inventory;
 - complete author, operator, and worker workflows;
@@ -161,4 +161,4 @@ The PostgreSQL-facing redesign becomes normative only when the roadmap promotes 
 - rewritten task-oriented documentation;
 - a clear statement of when public compatibility begins.
 
-Until then, the project should optimize milestone APIs for proving semantics while preserving the freedom to redesign the final product boundary deliberately.
+The M11 delivery commitment is normative now; the replacement interface becomes a compatibility contract only when its implementation contract freezes the inventory and every M11 exit gate passes.
