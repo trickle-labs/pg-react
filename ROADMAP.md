@@ -820,6 +820,6 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 **M8 — Monotone recursive derivation** is released as `0.5.0`. Immutable release evidence is recorded in `docs/m9-entry.md`.
 
-**M9 — Stratified negation** is implemented as the `0.6.0` repository candidate. The next work is release qualification and publication of the exact archive and `linux/amd64` image, followed by checksum, digest, and direct-upgrade verification against those published bytes.
+**M9 — Stratified negation** is released as `0.6.0`. Its exact archive, checksum manifest, `linux/amd64` OCI digest, release workflow, and direct-upgrade evidence satisfy the M10 entry gate recorded in `docs/m10-entry.md`.
 
-**M10 — Stratified aggregation** is the next defined milestone after M9. Its reference program and semantic fixtures may be designed before `v0.6.0` publication, but no M10 product change merges until that exact release satisfies the entry gate. Do not pull aggregate cycles, richer aggregate functions, unstratified negation, temporal semantics, new execution modes, or support-matrix expansion into M10.
+**M10 — Stratified aggregation** is implemented as the `0.7.0` repository candidate. Its reference program, transition fixtures, upgrade, recovery, and inherited compatibility gate are executable in `tests/m10.sh`. Release qualification publishes the exact tagged archive, checksum, and `linux/amd64` image; no M11 is defined. Do not pull aggregate cycles, richer aggregate functions, unstratified negation, temporal semantics, new execution modes, or support-matrix expansion into M10.

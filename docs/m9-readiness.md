@@ -2,7 +2,7 @@
 
 ## Repository state
 
-The `0.6.0` repository candidate implements safe range-restricted keyed
+The released `0.6.0` extension implements safe range-restricted keyed
 negation, polarity-labeled dependency graphs, deterministic strata, ordered
 fixed-point maintenance, deletion-sensitive support, finite negative evidence,
 exact repair, atomic rule-pack lifecycle, and direct `0.5.0 -> 0.6.0` upgrade.
@@ -20,9 +20,9 @@ The M9 entry gate is satisfied by the exact public `v0.5.0` tag, successful
 release run, archive checksum, `linux/amd64` OCI digest, disclosures, and direct
 upgrade evidence recorded in `docs/m9-entry.md`.
 
-Publication of `0.6.0` is not part of this milestone commit. Build the archive
-and image from this exact commit, run `tests/m9.sh` against those bytes, publish
-them, and record their immutable checksum and digest.
+The published `v0.6.0` release is the exact M9 commit. Its successful release
+workflow, checksummed archive, and immutable OCI digest satisfy M10's entry
+gate; the verified values are recorded in `docs/m10-entry.md`.
 
 M10 is defined separately in `ROADMAP.md`; no M10 product behavior is part of
 this repository candidate. Aggregation, unstratified negation, temporal

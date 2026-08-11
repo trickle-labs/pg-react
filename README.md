@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react v1 is extension `0.1.1`; M5 is `0.2.0`; M6 is `0.3.0`; M7 is `0.4.0`; M8 is released as `0.5.0`; and the M9 repository candidate is `0.6.0`. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. Read the [M8 recursive-derivation contract](docs/m8-contract.md) and [M9 stratified-negation contract](docs/m9-contract.md). Physical backup/PITR is supported; logical restore of live rule state is not.
+> pg-react v1 is extension `0.1.1`; M5 is `0.2.0`; M6 is `0.3.0`; M7 is `0.4.0`; M8 is released as `0.5.0`; M9 is released as `0.6.0`; and the M10 repository candidate is `0.7.0`. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. Read the [M9 stratified-negation contract](docs/m9-contract.md) and [M10 stratified-aggregation contract](docs/m10-contract.md). Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -203,7 +203,7 @@ M7 maintained derived knowledge is released as `0.4.0`. Non-recursive derivation
 
 M8 monotone recursive derivation is released as `0.5.0`. Versioned positive programs maintain acyclic chains and cycles to one bounded grounded least fixed point, atomically expose converged frontiers, and provide finite explanations with cycle markers. See the [contract](docs/m8-contract.md) and [evidence](docs/m8-evidence.md).
 
-M9 stratified negation is implemented as the `0.6.0` repository candidate. Range-restricted keyed absence checks compose with positive fixed points through a polarity-labeled graph and deterministic strata; exact deletion-sensitive maintenance, explanation, repair, replacement, upgrade, restart, restore, and compatibility gates are executable in `tests/m9.sh`. See the [contract](docs/m9-contract.md), [evidence](docs/m9-evidence.md), and [readiness record](docs/m9-readiness.md).
+M10 stratified aggregation is implemented as the `0.7.0` repository candidate. One range-restricted keyed `COUNT(*)` threshold composes with positive fixed points and stratified negation through one polarity-labeled graph and deterministic strata; exact crossing and non-crossing maintenance, evidence, explanation, repair, replacement, upgrade, restart, restore, and compatibility gates are executable in `tests/m10.sh`. See the [contract](docs/m10-contract.md), [entry fixture](docs/m10-entry.md), and [upgrade workflow](docs/m10-upgrade.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
