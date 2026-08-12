@@ -810,17 +810,171 @@ These choices prove M10 semantics; public names and call shapes remain provision
 
 ---
 
-## Proposed sequence after M12
+## Stage 13 — Core PostgreSQL ergonomics
 
-These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
+**Outcome:** complete the ordinary PostgreSQL rule workflow so an author can register a condition and typed action with short SQL, an operator can run it through one correct coordinator-owned path, action context is optional, routine language is application-facing, and author, operator, worker, and reader privileges are genuinely distinct.
 
-1. **M13 — Richer stratified aggregation.** Add `COUNT(expression)`, `SUM`, `MIN`, and `MAX` one bounded function at a time over M10's strictly lower-stratum, non-recursive model, with exact PostgreSQL null, overflow, retraction, evidence, and recovery behavior.
-2. **M14 — Event-time windows.** Add explicit event timestamps, durable watermarks, one fixed tumbling-window model, bounded lateness, and deterministic corrections; keep sliding/session windows and general complex-event processing out until this smaller contract is proved.
-3. **M15 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
-4. **M16 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
-5. **M17 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
+**Entry gate:** the exact `v0.9.0` release artifacts, checksums, disclosures, and populated direct-upgrade path are published and verified. Before the API contract is extended, freeze ordinary constraint and command fixtures covering each supported action signature, ambiguous and unauthorized action lookup, context-free and context-aware execution, concurrent and repeated runs, source and clock changes in one run, all four application roles, failure rollback, crash/restart, physical recovery, and upgrade.
 
-Unstratified negation, recursive aggregation, broader support tuples, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M12–M17. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+### Deliverables
+
+- One canonical `run` operation that owns coordinator locking and advances every affected source refresh, program frontier, deadline frontier, lifecycle transition, and agenda insertion in dependency order before returning one exact result; no public shortcut may expose partial or stale coordinated state.
+- Simple named-argument `author_rule` overloads for the common constraint, activation-only command, and lifecycle-command cases, while retaining one explicit advanced form for uncommon policy rather than requiring a JSON pack or positional rule-kind argument.
+- Automatic, schema-safe action resolution from the condition row type and lifecycle event: accept exactly one compatible PostgreSQL function, reject missing, ambiguous, variadic, polymorphic, default-argument-dependent, or unauthorized candidates, and record the resolved immutable identity at deployment.
+- Equivalent action contracts with either the typed condition row alone or the existing activation context followed by that row. Omitting context changes only the function signature, not durable identity, refraction, retry, or external-effect semantics.
+- Routine vocabulary centered on condition, rule, action, match, run, job, and attempt; engine terms such as activation, episode, generation, component, stratum, support, and frontier remain available only where exact history or advanced operation needs them.
+- An exact default-privilege and upgrade grant matrix in which authors can validate and author, operators can run and administer, workers can claim and execute, readers can inspect, and no role inherits every `pgreact_api` function merely through schema-wide execution grants.
+- A versioned extension and worker upgrade from `0.9.0`, a compact task workflow using only the ergonomic surface, and exact fresh-install, API-inventory, overload, resolution, terminology, privilege, concurrency, failure, recovery, and upgrade evidence.
+
+### Supported boundary
+
+- M13 inherits M12's complete platform, semantic, maintenance, isolation, RLS, key-codec, recovery, worker-protocol, resource-limit, and external-effect boundary.
+- Automatic resolution searches only the explicitly supported schemas and exact visible PostgreSQL function identities under the author and action-owner security contract. Deployment stores identity; later search-path or overload changes cannot retarget existing work.
+- `run` coordinates database evaluation and durable agenda creation. Consequences remain asynchronous and at-least-once, and a successful run does not promise that every queued action has completed.
+- Existing exact context-aware actions remain supported. Context-free actions are convenience overloads over the same durable execution model, not a weaker execution path.
+
+### Explicit non-goals
+
+- New reasoning semantics, broader key codecs, composite keys, RLS sources, isolation levels, worker protocols, synchronous consequences, or support-matrix expansion.
+- Unified proof exploration, automatic dependency or stratum inference, new derived-relation authoring, or redesign of advanced evidence; those belong to M14.
+- PostgreSQL-managed background-worker installation or replacement of the bundled worker process; that belongs to M15.
+- A custom rule language, client SDK, visual builder, implicit action creation, search-path-dependent dispatch, or compatibility aliases for every M11/M12 presentation detail.
+
+### Decisions to close before the M13 contract freezes
+
+- The exact `author_rule` overload set, named defaults, lifecycle-action combinations, return types, and boundary between common and advanced authoring.
+- Action-schema allow-listing, signature preference, ambiguity rules, authorization checks, immutable identity recording, and diagnostics for every rejected candidate.
+- `run` target and result shape, coordinator ownership, lock order, dependency ordering, clock sampling, failure rollback, concurrency coalescing, and behavior for paused or unhealthy rules.
+- The public vocabulary and compatibility mapping for renamed routine fields without erasing immutable historical terminology from advanced evidence.
+- The author, operator, worker, and reader object-by-object grants, default privileges, ownership requirements, escalation tests, and upgrade repair behavior.
+
+### Exit gates
+
+- The frozen ordinary workflows author every supported constraint and command shape using only simple named arguments, with and without activation context, and produce exact rules, immutable action bindings, matches, lifecycle events, jobs, attempts, and results.
+- Automatic action resolution selects the one exact compatible authorized function regardless of caller search path and rejects every missing, ambiguous, structurally incompatible, unauthorized, or subsequently drifted candidate with exact diagnostics and no partial catalog mutation.
+- Every supported ordering of concurrent or repeated `run` calls, source changes, deadline samples, worker timing, and injected failure produces byte-exact state equal to one clean dependency-ordered coordinated run, with no stale frontier, missed transition, duplicate job, or claimable partial work.
+- Context-free and context-aware actions for the same condition preserve identical lifecycle, refraction, retry, replacement, recovery, and at-least-once behavior; each receives the exact frozen argument value and produces the exact expected output.
+- Fresh install and direct upgrade expose the exact public inventory and grant matrix: each role completes all and only its documented tasks, cross-role escalation attempts fail exactly, `PUBLIC` and private-schema access remain absent, and prior explicit grants are reconciled safely.
+- Routine status, diagnostics, and task documentation use the frozen friendly vocabulary while exact history remains lossless and accessible through the documented advanced boundary.
+- Crash/restart, supported physical restore, reconciliation, replacement, worker death, deadline catch-up, and direct upgrade from the populated `0.9.0` fixture preserve every inherited durable and external-effect guarantee.
+- Every inherited M0–M12 semantic, operational, security, recovery, performance, compatibility, and external-effect gate passes unchanged.
+
+---
+
+## Stage 14 — Explainability and reasoning UX
+
+**Outcome:** make diagnosis, explanation, and derived reasoning PostgreSQL-native and name-first: one `doctor` identifies actionable installation or runtime problems, one `explain` traverses every supported rule and derivation evidence kind, and authors declare derived relations and programs without manually encoding inferable dependency graphs, components, or strata.
+
+**Entry gate:** the exact `v0.10.0` release artifacts, checksums, disclosures, and populated direct-upgrade path are published and verified. Before the API contract is extended, freeze a reasoning task suite spanning ordinary rules, positive recursion, stratified negation, stratified aggregation, deadlines, multiple proof supports, absent and retracted facts, unhealthy installation and runtime states, ambiguous SQL dependencies, replacement, reconciliation, recovery, and upgrade; freeze its exact declarations, inferred graph, strata, diagnostics, explanations, and advanced evidence.
+
+### Deliverables
+
+- A read-only `doctor` entry point that checks extension and `pg_trickle` compatibility, required configuration and grants, source and action drift, coordinator and worker readiness, blocked or stale frontiers, failed jobs, reconciliation need, and upgrade state, returning ordered versioned diagnostics with concrete fixes.
+- One overload-based, name-first `explain` family for rules, matches, jobs, derived facts, and programs that returns a common versioned envelope and the exact finite evidence already proved by M0–M13 without feature-specific routine names in ordinary workflows.
+- PostgreSQL-native derived-relation and derivation-program authoring from schema-qualified relations, typed PostgreSQL row shapes, semantic keys, and SQL conditions, with validation and preview before atomic deployment or replacement.
+- Deterministic inference of positive, negative, and aggregate dependencies, recursive components, and strata from the declared PostgreSQL relation graph wherever unambiguous; unresolved or unsupported structure is rejected with an exact diagnostic rather than silently guessed.
+- Cleaner advanced inspection through an explicitly granted boundary with stable relational views or exact-identity overloads for immutable versions, activations, jobs, supports, components, frontiers, strata, and negative or aggregate evidence.
+- One shared diagnostic and explanation vocabulary across ordinary rules and reasoning, plus exact compatibility rules for the M13 and older feature-specific explanation calls.
+- A versioned extension and worker upgrade from `0.10.0`, task documentation from relation declaration through explanation and repair, and exact fresh-install, privilege, inference, ambiguity, failure, recovery, upgrade, and API-inventory evidence.
+
+### Supported boundary
+
+- M14 inherits M13's complete platform, execution, security, key-codec, recovery, worker-protocol, semantic, resource-limit, and external-effect boundary; it changes authoring and inspection, not truth semantics.
+- Dependency inference is limited to the already supported positive, recursive, stratified-negative, and stratified-aggregate model. PostgreSQL object identity and validated relation structure remain authoritative.
+- Explanations remain finite grounded evidence. They do not claim arbitrary base-tuple lineage, minimal proofs, counterfactual search, or justification for absent source facts.
+- `doctor` observes and recommends through public state. It performs no repair, grant, configuration, deployment, retry, or destructive action.
+
+### Explicit non-goals
+
+- New aggregate functions, unstratified negation, recursive aggregation, temporal reasoning beyond M12 deadlines, probabilistic reasoning, confidence scores, or open-world semantics.
+- Parsing arbitrary SQL into a second compiler, inferring dependencies through dynamic SQL or volatile functions, automatic common-subplan discovery, or a non-SQL rule DSL.
+- Automatic remediation by `doctor`, unrestricted private-catalog access, full query-plan visualization, or unlimited proof enumeration.
+- PostgreSQL-managed background workers, broader scalar key codecs, composite keys, or the complete README and usability qualification; those belong to M15.
+
+### Decisions to close before the M14 contract freezes
+
+- The exact `doctor` signature, diagnostic ordering and severity, redaction boundary, role visibility, readiness rules, and distinction between actionable failure and informational state.
+- The `explain` overload set, target disambiguation, common envelope, depth and size bounds, absent-target behavior, and compatibility treatment of feature-specific explain calls.
+- The derived-relation and program declaration shapes, preview/apply identity, replacement/removal policy, inferred-versus-explicit boundary, and exact use of PostgreSQL dependencies.
+- Dependency-polarity recognition, component and stratum assignment, ambiguity rejection, graph hashing, DDL drift handling, and deterministic results across dump/restore and upgrade.
+- The advanced inspection schema, immutable identifier access, role grants, retention visibility, redaction rules, and separation from routine name-first results.
+
+### Exit gates
+
+- `doctor` returns the exact ordered clean result on a healthy installation and exact actionable diagnostics for every frozen configuration, compatibility, privilege, drift, coordinator, worker, frontier, failure, reconciliation, and upgrade fault without changing database state.
+- The unified `explain` calls return the exact complete envelope and finite grounded evidence for every frozen rule, match, job, recursive fact, negative check, aggregate condition, deadline, alternative support, retraction, and failure, equal to the inherited feature-specific evidence.
+- A non-superuser author declares, validates, previews, deploys, replaces, removes, queries, and explains the frozen derived program using only PostgreSQL objects and the M14 public API, without supplying dependency polarity, component, stratum, support, or frontier identifiers.
+- Inference produces the byte-exact frozen graph, components, strata, and portable identities across equivalent declaration order, replacement, dump/restore, and upgrade; every ambiguous, cyclic-invalid, unresolved, dynamic, volatile, or unsupported dependency fails exactly before mutation.
+- Routine roles see only name-first diagnostics and explanations; the explicitly granted advanced reader can inspect the exact immutable evidence, and neither path exposes private catalogs or protected payloads outside its documented authority.
+- Reconciliation, crash/restart, supported physical restore, concurrent DDL, program replacement, deadline catch-up, and direct upgrade from the populated `0.10.0` fixture preserve exact inferred structure, evidence, explanations, and inherited durable state.
+- Every inherited M0–M13 semantic, operational, security, recovery, performance, compatibility, and external-effect gate passes unchanged.
+- A new user can diagnose the frozen faults and complete the derived-reasoning workflow from task documentation using only `doctor`, unified `explain`, and PostgreSQL-native declarations.
+
+---
+
+## Stage 15 — Runtime and usability completion
+
+**Outcome:** complete the PostgreSQL-facing redesign with a PostgreSQL-managed coordinator and worker in the normal public workflow, useful scalar and composite semantic keys, task-first README and examples, and executable usability qualification proving that a PostgreSQL user can install, author, run, explain, operate, recover, and upgrade pg-react without private knowledge or a separately supervised daemon.
+
+**Entry gate:** the exact `v0.11.0` release artifacts, checksums, disclosures, and populated direct-upgrade path are published and verified. Before the runtime or key contract is fixed, freeze clean-install and populated-upgrade tasks covering managed-worker configuration, primary/standby and restart behavior, backpressure and failure, every proposed scalar codec, mixed-type composite keys, null and duplicate rejection, dump/restore portability, all four roles, the complete README workflow, troubleshooting, and rollback-by-restore; freeze exact durable state and user-visible results.
+
+### Deliverables
+
+- A PostgreSQL-managed background coordinator and worker path, configured through documented PostgreSQL settings and operated through the public API, that starts, stops, reports readiness, respects recovery and standby state, and preserves the inherited claim, lease, retry, batching, deadline, reconciliation, and at-least-once contracts.
+- Public status, `doctor`, and runbook integration for managed-process configuration, protocol compatibility, database attachment, heartbeat, lag, backpressure, graceful shutdown, crash restart, promotion, and upgrade; routine operation requires no private catalog queries or direct worker-protocol calls.
+- A frozen portable key-codec matrix broader than `bigint`, including at least scalar `uuid` and `text` plus ordered mixed-type composite keys over supported scalar codecs, with PostgreSQL typed equality, explicit column order, non-null components, deterministic identity, exact diagnostics, and physical backup/restore and dump/restore evidence.
+- End-to-end propagation of every supported key through matching, activations, jobs, retries, derivation, recursion, negation, aggregation, deadlines, reconciliation, history, status, diagnostics, unified explanation, replacement, and recovery without lossy text coercion.
+- A task-first README and compact examples that use only the final public vocabulary and API for installation, role setup, ordinary rules, lifecycle actions, derived programs, `run`, managed workers, `doctor`, `explain`, backup/restore, upgrade, and troubleshooting.
+- A recorded usability qualification in which a PostgreSQL user follows the shipped documentation from a clean supported instance and completes the frozen author, operator, worker, reader, failure-diagnosis, recovery, and upgrade tasks with exact expected commands, outputs, and completion criteria.
+- A versioned extension upgrade from `0.11.0`, managed-worker transition rules for existing bundled-worker deployments and pending work, and exact fresh-install, API-inventory, privilege, codec, concurrency, failure, recovery, documentation, and upgrade evidence.
+
+### Supported boundary
+
+- M15 inherits M14's reasoning, execution, security, maintenance, isolation, RLS, recovery, resource-limit, external-effect, and supported-platform boundary except for the explicitly frozen worker-management and key-codec expansions.
+- Managed workers run only in explicitly configured databases on primaries, use the frozen worker protocol and public privilege boundary, and stop safely when compatibility, recovery, upgrade, or health checks prohibit claims.
+- Semantic keys are ordered typed tuples from the frozen scalar allow-list. Every component is non-null; PostgreSQL equality is authoritative; schema or collation changes that would alter identity block work until explicit replacement or recovery.
+- The bundled external worker may remain only where the frozen transition and compatibility matrix says so; one durable job can never be claimed by both execution paths outside the inherited lease protocol.
+
+### Explicit non-goals
+
+- General-purpose job scheduling, arbitrary background processes, cross-cluster coordination, exactly-once external effects, automatic high availability orchestration, or synchronous action completion inside `run`.
+- Arbitrary user-defined key codecs, nullable key components, unordered key maps, mutable key types, general base-tuple lineage, RLS sources, or support for every PostgreSQL type and collation.
+- New reasoning semantics, richer aggregates, event-time windows, immediate maintenance, shared-condition optimization, catalog partitioning, or retention redesign.
+- A custom DSL, client SDK, web console, visual or AI authoring, or documentation of private engine catalogs as a normal operating path.
+
+### Decisions to close before the M15 contract freezes
+
+- Static versus dynamic background-worker registration, required preload settings, per-database configuration, process counts, restart policy, latch and signal handling, transaction ownership, resource bounds, and primary/standby promotion behavior.
+- Managed and external worker coexistence, protocol negotiation, claim fencing, graceful drain, upgrade order, configuration reload, observability, and rollback-by-restore procedure.
+- The exact scalar codec allow-list, composite arity and storage format, canonical binary identity, collation and domain handling, index strategy, diagnostic rendering, and portable upgrade or dump/restore encoding.
+- The final public API and vocabulary inventory, compatibility treatment of superseded M11–M14 surfaces, role grants, example set, README information architecture, and removal of provisional documentation.
+- The usability-task harness, supported user assumptions, exact outputs, completion thresholds, failure scenarios, evidence retention, and release-blocking policy.
+
+### Exit gates
+
+- On a clean supported primary, documented configuration starts the managed coordinator and worker, `doctor` reports the exact ready state, `run` and deadline evaluation create the exact jobs, actions complete with inherited lease and retry behavior, and clean shutdown or restart loses or duplicates no work.
+- Managed processes make no claims on a standby or during incompatible recovery or upgrade state; crash, restart, backpressure, configuration reload, promotion, and worker replacement produce the exact frozen health, lag, claim, attempt, and recovery history.
+- Every supported scalar and composite key fixture produces exact typed matches, deterministic identities, jobs, facts, supports, histories, and explanations across source changes, rule or program replacement, retry, reconciliation, physical restore, dump/restore, and direct upgrade; null, duplicate, unsupported, collated-unstable, or drifted keys fail exactly without partial mutation.
+- Concurrent managed and permitted external workers obey one claim and lease contract, never execute one attempt twice without an inherited lease-expiry or at-least-once cause, and drain pending protocol-compatible work through the documented transition.
+- Fresh install and direct upgrade expose exactly the final public inventory and author, operator, worker, reader, and advanced-reader grants; no routine task requires `pgreact_internal`, `pgreact_runtime`, raw protocol calls, or manually supplied engine identifiers.
+- Every README and shipped example executes unchanged on a clean supported installation and returns the exact documented output; every linked installation, authoring, operation, reasoning, security, recovery, upgrade, and troubleshooting task uses only the final public contract.
+- Independent task-level qualification completes every frozen workflow and fault-recovery task within its declared steps, with no undocumented command, privilege escalation, daemon supervisor, private-catalog query, or maintainer interpretation.
+- Direct upgrade from the populated `0.11.0` fixture preserves byte-exact durable state and pending work while adding managed-worker and expanded-key metadata deterministically; rollback by restoring the documented backup remains valid.
+- Every inherited M0–M14 semantic, operational, security, recovery, performance, compatibility, and external-effect gate passes unchanged. The PostgreSQL-facing redesign is substantially complete when all M13–M15 gates pass and the final inventory, grants, documentation, and usability evidence are published.
+
+---
+
+## Proposed sequence after M15
+
+These are planning labels, not implementation commitments. Promote each only after M15's evidence and the candidate milestone's entry fixture are credible.
+
+1. **M16 — Richer stratified aggregation.** Add `COUNT(expression)`, `SUM`, `MIN`, and `MAX` one bounded function at a time over M10's strictly lower-stratum, non-recursive model, with exact PostgreSQL null, overflow, retraction, evidence, and recovery behavior.
+2. **M17 — Event-time windows.** Add explicit event timestamps, durable watermarks, one fixed tumbling-window model, bounded lateness, and deterministic corrections; keep sliding/session windows and general complex-event processing out until this smaller contract is proved.
+3. **M18 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
+4. **M19 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
+5. **M20 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
+
+Unstratified negation, recursive aggregation, broader support tuples, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M13–M20. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
@@ -892,10 +1046,13 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M10 — Stratified aggregation** | Maintain keyed counts over stable lower strata with exact threshold transitions |
 | **M11 — PostgreSQL-facing API redesign** | Freeze one PostgreSQL-first author, operator, and worker contract over M0–M10 behavior |
 | **M12 — Database-time deadlines** | Activate constraint and command rules from one durable monotone PostgreSQL clock frontier |
+| **M13 — Core PostgreSQL ergonomics** | Make ordinary authoring, coordinated runs, action resolution, terminology, and role grants genuinely PostgreSQL-first |
+| **M14 — Explainability and reasoning UX** | Unify diagnosis and explanation and make derived-program authoring infer its PostgreSQL dependency structure |
+| **M15 — Runtime and usability completion** | Integrate managed workers, broaden semantic keys, and qualify the complete public workflow and documentation |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
 
-Do not create GitHub milestones for the unnumbered post-GA directions. Promote only the next direction whose entry conditions and executable exit evidence are credible.
+Do not create GitHub milestones for the proposed post-M15 directions. Promote only the next direction whose entry conditions and executable exit evidence are credible.
 
 ---
 
@@ -911,4 +1068,6 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 **M12 — Database-time deadlines** is the `0.9.0` repository candidate. Its indexed monotone clock, lifecycle, failure, worker, direct-upgrade, crash/restart, physical-recovery, and inherited M0–M11 evidence are executable in `tests/m12.sh`.
 
-**M13 — Richer stratified aggregation** remains the logical next proposed planning label, not an active implementation commitment. Promote it only after the immutable `v0.9.0` release and a credible frozen entry fixture.
+**M13 — Core PostgreSQL ergonomics** is the next defined milestone. Start it only after the immutable `v0.9.0` release and its frozen entry fixtures satisfy the M13 entry gate.
+
+**M14 — Explainability and reasoning UX** and **M15 — Runtime and usability completion** are defined successors. Begin each only after its predecessor's immutable release and frozen entry fixtures satisfy its entry gate.
