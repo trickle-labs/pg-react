@@ -2,6 +2,7 @@
 set -euo pipefail
 
 image=${1:-pg-react:v0.8.0}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.8.0}
 platform=linux/amd64
 project=${COMPOSE_PROJECT_NAME:-pgreact-m11-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
@@ -12,9 +13,19 @@ cleanup() {
 }
 trap cleanup EXIT
 
+create_db() {
+  for _ in {1..3}; do
+    if docker compose exec -T postgres createdb -U postgres "$1" >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+  docker compose exec -T postgres createdb -U postgres "$1"
+}
+
 bash tests/m11-docs.sh
 
-PG_REACT_EXPECTED_VERSION=0.8.0 \
+PG_REACT_EXPECTED_VERSION="$expected_version" \
   COMPOSE_PROJECT_NAME="${project}-compatibility" \
   bash tests/m10.sh "$image"
 
@@ -27,7 +38,7 @@ docker compose up -d --no-build >/dev/null 2>&1
 ready=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -X -U postgres -d postgres -Atc \
-      "SELECT extversion = '0.8.0' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
+      "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
     ready=true
     break
   fi
@@ -36,7 +47,7 @@ done
 test "$ready" = true
 test "$(docker image inspect "$image" --format '{{.Os}}/{{.Architecture}}')" = "$platform"
 
-docker compose exec -T postgres createdb -U postgres m11_api
+create_db m11_api
 docker compose exec -T postgres psql -X -U postgres -d m11_api \
   -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react' >/dev/null
 docker compose cp tests/m11-api.sql postgres:/tmp/m11-api.sql >/dev/null 2>&1
@@ -49,7 +60,7 @@ else
   exit 1
 fi
 
-docker compose exec -T postgres createdb -U postgres m11_upgrade
+create_db m11_upgrade
 for fixture in m8-setup m9-upgrade m10-upgrade m11-upgrade; do
   docker compose cp "tests/$fixture.sql" "postgres:/tmp/$fixture.sql" >/dev/null 2>&1
 done

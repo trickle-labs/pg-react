@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M11 is extension `0.8.0`. Its replacement PostgreSQL-facing contract is [`pgreact_api`](docs/m11-contract.md); `0.7.0` names are provisional and governed by the [compatibility matrix](docs/m11-0.7-compatibility.md). Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. Physical backup/PITR is supported; logical restore of live rule state is not.
+> pg-react M12 is extension `0.9.0`. Its [`pgreact_api`](docs/m12-contract.md) contract adds indexed database-time deadlines over one durable monotone PostgreSQL clock. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -203,7 +203,13 @@ M7 maintained derived knowledge is released as `0.4.0`. Non-recursive derivation
 
 M8 monotone recursive derivation is released as `0.5.0`. Versioned positive programs maintain acyclic chains and cycles to one bounded grounded least fixed point, atomically expose converged frontiers, and provide finite explanations with cycle markers. See the [contract](docs/m8-contract.md) and [evidence](docs/m8-evidence.md).
 
-M11 freezes a name-first PostgreSQL author, operator, and worker facade over the proven M0–M10 engine. The frozen `pgreact_api` inventory, grants, upgrade path, and `0.7.0` replacement policy are verified by `tests/m11.sh`. See the [contract](docs/m11-contract.md), [upgrade guide](docs/m11-upgrade.md), and [release notes](docs/m11-release-notes.md).
+M11 is released as `0.8.0` and freezes the name-first PostgreSQL author,
+operator, and worker facade. M12 is the `0.9.0` repository candidate: ordinary
+constraint and command rules may name one direct `timestamptz` deadline, and
+the coordinator activates indexed candidates exactly once as its durable
+database clock reaches equality. See the [M12 contract](docs/m12-contract.md),
+[tasks](docs/m12-tasks.md), [upgrade guide](docs/m12-upgrade.md), and
+[evidence](docs/m12-evidence.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
@@ -217,6 +223,7 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M7 derived knowledge](docs/m7-contract.md) documents non-recursive truth maintenance and provenance; [M7 evidence](docs/m7-evidence.md) records the executable gate.
 - [M8 recursive derivation](docs/m8-contract.md) documents bounded grounded least-fixed-point maintenance; [M8 evidence](docs/m8-evidence.md) records the executable gate.
 - [M9 stratified negation](docs/m9-contract.md) documents deletion-sensitive ordered maintenance; [M9 evidence](docs/m9-evidence.md) records the executable gate.
+- [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
 - [PostgreSQL as an Operational Data Platform](operational-data-platform.md) places the projects in a broader operational loop.

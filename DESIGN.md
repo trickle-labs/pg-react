@@ -1,12 +1,12 @@
 # `pg-react`: A PostgreSQL-Native Incremental Rule and Reasoning Engine
 
-**Status:** M5 implementation contract complete\
-**Document version:** 0.7\
-**Date:** 2026-08-09\
+**Status:** M12 implementation contract complete\
+**Document version:** 0.9\
+**Date:** 2026-08-12\
 **Project and repository name:** `pg-react`  
 **PostgreSQL extension name:** `pg_react`  
 **Rust crate name:** `pg_react`  
-**Public SQL schema:** `pgreact`  
+**Public SQL schema:** `pgreact_api`
 **Generated runtime schema:** `pgreact_runtime`  
 **Private catalog schema:** `pgreact_internal`  
 **Optional worker process:** `pg-reactd`  
@@ -23,6 +23,16 @@
 ## Reading guide
 
 [`CONTEXT.md`](CONTEXT.md) is the canonical project vocabulary. This document describes both the product semantics and the implementation architecture. The first part explains what a rule means, how a continuously maintained SQL result becomes an activation, and how command rules are scheduled and executed. The middle part describes the SQL API, the catalog, the integration contract with `pg_trickle`, and the behavior during full refreshes, crashes, and rule upgrades. The final part covers the Rust codebase, worker process, security model, testing strategy, delivery authority, risks, and a complete end-to-end example. Readers who only need the product model can focus on Sections 1 through 12, while implementers should also read the remaining sections in order because later decisions build on earlier semantic guarantees.
+
+### Revision 0.9
+
+This revision freezes M12 database-time deadlines. A constraint or command
+rule may name one direct finite non-null `timestamptz` column. One durable
+monotone PostgreSQL clock frontier activates indexed candidates at equality;
+the coordinator commits the frontier, lifecycle, and agenda together behind
+the existing claim barrier. Backward samples pause time-driven progress,
+forward samples catch up once, and consequences remain asynchronous and
+at-least-once.
 
 ### Revision 0.8
 
@@ -703,6 +713,56 @@ Batch execution is an advanced opt-in. A consequence may be declared `batch_safe
 Every claim stores the worker ID, a random lease token, claim time, lease expiry, and incremented attempt number. Heartbeat, completion, failure, and skip operations require both the worker identity and the lease token. This prevents a paused or partitioned worker from completing an episode after another worker has reclaimed it.
 
 Retry timing uses the consequence’s configured initial delay, multiplier, maximum delay, optional jitter, and attempt count. The next eligible time is stored in PostgreSQL. When the attempt limit is reached, the episode becomes terminally failed and emits an operational event. Operators may retry or cancel it through audited public functions.
+
+### 12.8 Database-time deadlines
+
+M12 adds one temporal declaration only to ordinary constraint and command
+rules: a direct stored `timestamptz` column on the finite candidate view. The
+semantic predicate is exactly `durable_clock_frontier >= deadline`; equality
+is due and PostgreSQL comparison and time-zone semantics are authoritative.
+Null, infinite, computed, volatile, recursive, negative, aggregate, windowed,
+derived-program, RLS-protected, ambiguous, or unauthorized declarations fail
+before mutation. Recurrence, durations, event time, watermarks, windows,
+temporal joins, and temporal derivation remain outside the contract.
+
+The deployed `DIFFERENTIAL` stream contains the complete candidate set and has
+an index on `(deadline, semantic_key)`. Source refresh reconciles only keys
+changed by `pg_trickle`. A coordinator samples `clock_timestamp()` once and
+advances the singleton frontier to `greatest(previous, sample)`. It then reads
+only index entries in `(previous, frontier]` and applies the ordinary lifecycle
+state machine. Several passes at one frontier are no-ops. A backward sample
+does not retract truth; a forward jump catches up all and only crossing keys.
+
+Before the frontier transaction, the coordinator commits `REFRESHING` claim
+barriers for every active deadline rule while holding the inherited global
+refresh lock. The `READ COMMITTED` frontier transaction writes the new
+frontier, activation changes, lifecycle evidence, agenda work, and clock
+history atomically. Any validation, catalog, injected, or resource-limit
+failure rolls that transaction back and leaves the barriers in place until the
+operator finishes or repairs the pass. The per-pass limit defaults to 100,000
+crossing candidates; clock lag warns after one minute. Both durable settings
+may change only through the existing administrator boundary.
+
+Insertion or deadline advancement activates immediately on the next source
+refresh when already due. Postponing an active deadline is an ordinary
+deactivation; reaching the postponed value begins a new generation. Deletion
+deactivates. Pause preserves current lifecycle state and excludes the rule
+from clock passes; resume refreshes its candidate stream and catches up at the
+committed frontier. Replacement creates a new immutable deadline declaration,
+and removal drops its stream and index. State-only reconciliation repairs the
+due set without synthesizing lifecycle events. When source and clock changes
+become visible in either supported order, the result is the same clean state
+at the same frontier.
+
+Public status, history, health, and explanation lead with the rule name and
+report the declared deadline, observed frontier, due state, and lifecycle
+event. No timer object or timer identifier exists. Physical restart, restore,
+and promotion preserve the frontier and candidate index; a standby rejects
+advancement, and the first pass after promotion catches up. Upgrade from
+`0.8.0` initializes the frontier at negative infinity, preserves every M11
+row, and therefore creates no retroactive event until the first successful M12
+pass. Worker protocols 1 and 2 and the asynchronous at-least-once consequence
+contract are unchanged.
 
 ---
 

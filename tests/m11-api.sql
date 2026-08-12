@@ -8,6 +8,14 @@ DECLARE
     ];
     actual text[];
 BEGIN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.9.0' THEN
+        expected := ARRAY[
+            'author_deadline_rule', 'author_rule', 'claim', 'deadline_history',
+            'execute', 'explain_rule', 'health', 'pause_rule', 'reconcile_rule',
+            'remove_rule', 'replace_deadline_rule', 'resume_rule', 'rule_status',
+            'run_rule', 'validate_deadline_rule', 'validate_rule'
+        ];
+    END IF;
     SELECT array_agg(DISTINCT p.proname ORDER BY p.proname)
       INTO actual
       FROM pg_catalog.pg_proc p
@@ -102,12 +110,20 @@ BEGIN
         'state', actual#>>'{rules,0,state}',
         'health', actual->'health'
     );
-    IF actual IS DISTINCT FROM
-       '{"contract_version":1,"rule_name":"m11-author-rule","state":"ACTIVE","health":[]}'::jsonb THEN
+    IF actual IS DISTINCT FROM jsonb_build_object(
+        'contract_version', CASE
+            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.9.0'
+            THEN 2 ELSE 1 END,
+        'rule_name', 'm11-author-rule', 'state', 'ACTIVE', 'health', '[]'::jsonb) THEN
         RAISE EXCEPTION 'M11 facade status changed: %', actual;
     END IF;
-    IF pgreact_api.health() IS DISTINCT FROM
-       jsonb_build_object('contract_version', 1, 'diagnostics', '[]'::jsonb) THEN
+    actual := pgreact_api.health();
+    IF jsonb_build_object(
+        'contract_version', actual -> 'contract_version',
+        'diagnostics', actual -> 'diagnostics') IS DISTINCT FROM
+       jsonb_build_object('contract_version', CASE
+           WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.9.0'
+           THEN 2 ELSE 1 END, 'diagnostics', '[]'::jsonb) THEN
         RAISE EXCEPTION 'M11 facade health changed';
     END IF;
 END

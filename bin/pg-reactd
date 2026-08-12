@@ -25,6 +25,11 @@ if [[ $(psql "$database_url" -X -At -v ON_ERROR_STOP=1 -v protocol="$worker_prot
 fi
 
 coordinator=(psql "$coordinator_database_url" -X -v ON_ERROR_STOP=1 -v rule_version_id="$rule_version_id")
+"${coordinator[@]}" -v refresh_id="$refresh_id" <<<"SELECT pgreact.begin_deadline_refresh(:refresh_id::bigint);
+BEGIN ISOLATION LEVEL READ COMMITTED;
+SELECT pgreact.advance_deadline_clock();
+COMMIT;
+SELECT pgreact.finish_deadline_refresh();"
 "${coordinator[@]}" -v refresh_id="$refresh_id" <<<"SELECT pgreact.begin_refresh(:'rule_version_id'::uuid, :refresh_id::bigint);
 BEGIN ISOLATION LEVEL READ COMMITTED;
 SELECT pgreact.refresh_rule(:'rule_version_id'::uuid);

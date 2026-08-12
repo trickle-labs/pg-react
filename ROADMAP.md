@@ -907,6 +907,8 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 **M10 — Stratified aggregation** is released as `0.7.0`. Its immutable tag, release qualification, archive checksums, and M11 entry evidence are recorded in `docs/m11-preentry.md`.
 
-**M11 — PostgreSQL-facing API redesign** is the `0.8.0` repository candidate. Its replacement inventory, direct-upgrade fixture, and inherited M10 qualification are executable in `tests/m11.sh`. Do not pull new reasoning semantics, execution modes, ecosystem layers, or support-matrix expansion into M11.
+**M11 — PostgreSQL-facing API redesign** is released as `0.8.0`. Its immutable tag, archive checksum, OCI digest, populated upgrade path, and M12 entry authorization are recorded in `docs/m12-entry.md`.
 
-**M12 — Database-time deadlines** is the next milestone and targets `0.9.0`. Product work begins only after the immutable `v0.8.0` release satisfies the M12 entry gate; M13–M17 remain proposed planning labels until promoted independently.
+**M12 — Database-time deadlines** is the `0.9.0` repository candidate. Its indexed monotone clock, lifecycle, failure, worker, direct-upgrade, crash/restart, physical-recovery, and inherited M0–M11 evidence are executable in `tests/m12.sh`.
+
+**M13 — Richer stratified aggregation** remains the logical next proposed planning label, not an active implementation commitment. Promote it only after the immutable `v0.9.0` release and a credible frozen entry fixture.
