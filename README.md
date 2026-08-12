@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M13 is extension `0.10.0`. Its [`pgreact_api`](docs/m13-contract.md) contract adds short named authoring, explicit-schema action resolution, optional action context, one dependency-ordered `run`, friendly inspection, and exact author/operator/worker/reader grants. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. Physical backup/PITR is supported; logical restore of live rule state is not.
+> pg-react M14 is extension `0.11.0`. Its [`pgreact_api`](docs/m14-contract.md) contract adds read-only `doctor`, unified evidence overloads, inferred positive derivation dependencies, and an explicitly granted advanced evidence reader. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 

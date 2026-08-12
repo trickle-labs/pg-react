@@ -1,12 +1,12 @@
 services:
   postgres:
-    image: ${PG_REACT_IMAGE:-pg-react:v0.10.0}
+    image: ${PG_REACT_IMAGE:-pg-react:v0.11.0}
     platform: ${PG_REACT_PLATFORM:-linux/amd64}
     build:
       context: .
     environment:
       POSTGRES_PASSWORD: pgreact
-      PG_REACT_INIT_VERSION: ${PG_REACT_INIT_VERSION:-0.10.0}
+      PG_REACT_INIT_VERSION: ${PG_REACT_INIT_VERSION:-0.11.0}
     ports:
       - "${PG_REACT_PORT_BINDING:-5432:5432}"
     command:

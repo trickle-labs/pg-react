@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-image=${1:-pg-react:v0.10.0}
+version=${PG_REACT_EXPECTED_VERSION:-0.10.0}
+image=${1:-pg-react:v$version}
 platform=linux/amd64
 project=${COMPOSE_PROJECT_NAME:-pgreact-m13-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
@@ -61,7 +62,7 @@ docker compose up -d --no-build >/dev/null 2>&1
 ready=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -X -U postgres -d postgres -Atc \
-      "SELECT extversion = '0.10.0' FROM pg_extension WHERE extname = 'pg_react'" \
+      "SELECT extversion = '$version' FROM pg_extension WHERE extname = 'pg_react'" \
       2>/dev/null | grep -qx t; then
     ready=true
     break
