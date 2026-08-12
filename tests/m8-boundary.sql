@@ -914,7 +914,7 @@ FROM (VALUES
 
 DO $$
 DECLARE actual jsonb; expected jsonb; after_state jsonb;
-        m9 boolean := (SELECT extversion IN ('0.6.0', '0.7.0') FROM pg_extension
+        m9 boolean := (SELECT extversion IN ('0.6.0', '0.7.0', '0.8.0') FROM pg_extension
                        WHERE extname = 'pg_react');
 BEGIN
     SELECT jsonb_object_agg(fixture, diagnostic ORDER BY fixture) INTO actual

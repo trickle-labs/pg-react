@@ -2,6 +2,7 @@
 set -euo pipefail
 
 image=${1:-pg-react:v0.7.0}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.7.0}
 platform=linux/amd64
 project=${COMPOSE_PROJECT_NAME:-pgreact-m10-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
@@ -26,7 +27,7 @@ run_test() {
 
 run_test "M0-M9 compatibility" env \
   COMPOSE_PROJECT_NAME="${project}-compatibility" \
-  PG_REACT_EXPECTED_VERSION=0.7.0 \
+  PG_REACT_EXPECTED_VERSION="$expected_version" \
   bash tests/m9.sh "$image"
 
 export PG_REACT_IMAGE=$image
@@ -38,7 +39,7 @@ docker compose up -d --no-build >/dev/null 2>&1
 ready=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -X -U postgres -d postgres -Atc \
-      "SELECT extversion = '0.7.0' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
+      "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
     ready=true
     break
   fi
@@ -86,4 +87,4 @@ run_test "M10 crash restart and physical recovery" env \
 run_test "M10 fresh-install SQL composition" cmp sql/pg_react--0.7.0.sql \
   <(cat sql/pg_react--0.6.0.sql sql/pg_react--0.6.0--0.7.0.sql)
 
-echo "M10 stratified aggregation gate passed for $image ($platform)"
+echo "M10 stratified aggregation gate passed for $image ($platform, extension $expected_version)"

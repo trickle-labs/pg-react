@@ -878,6 +878,6 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 
 **M9 — Stratified negation** is released as `0.6.0`. Its exact archive, checksum manifest, `linux/amd64` OCI digest, release workflow, and direct-upgrade evidence satisfy the M10 entry gate recorded in `docs/m10-entry.md`.
 
-**M10 — Stratified aggregation** is implemented as the `0.7.0` repository candidate. Its reference program, transition fixtures, upgrade, recovery, and inherited compatibility gate are executable in `tests/m10.sh`. Release qualification publishes the exact tagged archive, checksum, and `linux/amd64` image.
+**M10 — Stratified aggregation** is released as `0.7.0`. Its immutable tag, release qualification, archive checksums, and M11 entry evidence are recorded in `docs/m11-preentry.md`.
 
-**M11 — PostgreSQL-facing API redesign** is the next defined milestone after M10. Its reference task suite and replacement inventory may be designed before `v0.7.0` publication, but no M11 product change merges until that exact release satisfies the entry gate. Do not pull new reasoning semantics, execution modes, ecosystem layers, or support-matrix expansion into M11.
+**M11 — PostgreSQL-facing API redesign** is the `0.8.0` repository candidate. Its replacement inventory, direct-upgrade fixture, and inherited M10 qualification are executable in `tests/m11.sh`. Do not pull new reasoning semantics, execution modes, ecosystem layers, or support-matrix expansion into M11.

@@ -1,9 +1,9 @@
 # M11 pre-entry fixture
 
 M11 product work starts only after the immutable `v0.7.0` release is
-published. The release must tag commit `f7fbb3e`, rebuild `tests/m10.sh`, and
-publish the archive, checksum manifest, release notes, and `linux/amd64` OCI
-digest required by [the release workflow](../.github/workflows/release.yml).
+published. The release must tag the corrected qualification commit, rebuild
+`tests/m10.sh`, and publish the archive, checksum manifest, release notes, and
+`linux/amd64` OCI digest required by [the release workflow](../.github/workflows/release.yml).
 
 Until that happens, this document freezes the replacement-API task baseline;
 it is not an M11 API contract.
@@ -33,7 +33,7 @@ than preserve them as aliases.
 
 The exact provisional `0.7.0` inventory is the installed extension defined by
 [`sql/pg_react--0.7.0.sql`](../sql/pg_react--0.7.0.sql), with its upgrade chain,
-and the current worker invocation in [`src/lib.rs`](../src/lib.rs). Its public
+and the current worker invocation in [`bin/pg-reactd`](../bin/pg-reactd). Its public
 SQL inventory is exercised by `tests/m4-api.sql`, `tests/m5-api.sql`, and
 `tests/m6-api.sql`; pack manifest fields are exercised by `tests/m5-setup.sql`,
 `tests/m7-pack.sql`, and `tests/m8-pack.sql`.
@@ -47,7 +47,11 @@ diagnostic envelopes, and documentation entry points.
 
 ## Release-gate record
 
-At preparation time, the local repository has no `v0.7.0` tag and
-`docs/m10-readiness.md` records `0.7.0` as a repository candidate. Therefore
-this fixture is frozen, but the M11 entry gate is not satisfied and no M11
-product change is authorized.
+The entry gate is satisfied by `v0.7.0` at
+`8e1d29eaf4a09cfba2567b10cba5ab328c6a2d39`:
+
+- successful qualification: [31567048695](https://github.com/trickle-labs/pg-react/actions/runs/31567048695);
+- archive SHA-256: `890fc7e082cb18d381c58c93d9446d6ed446c8b1df520f7a652c506e04382589`;
+- checksum asset SHA-256: `2d20b7646afeb005f52b75aa09897e1cd6a6e028f3879f2124a41a269d51efe8`.
+
+This fixture remains the M11 semantic baseline; M11 product work is authorized.

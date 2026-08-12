@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react v1 is extension `0.1.1`; M5 is `0.2.0`; M6 is `0.3.0`; M7 is `0.4.0`; M8 is released as `0.5.0`; M9 is released as `0.6.0`; and the M10 repository candidate is `0.7.0`. Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. Read the [M9 stratified-negation contract](docs/m9-contract.md) and [M10 stratified-aggregation contract](docs/m10-contract.md). Physical backup/PITR is supported; logical restore of live rule state is not.
+> pg-react M11 is extension `0.8.0`. Its replacement PostgreSQL-facing contract is [`pgreact_api`](docs/m11-contract.md); `0.7.0` names are provisional and governed by the [compatibility matrix](docs/m11-0.7-compatibility.md). Protocol `1` remains the default and protocol `2` is an explicit audited-batch opt-in. Physical backup/PITR is supported; logical restore of live rule state is not.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -76,14 +76,14 @@ END;
 Finally, register the view, its semantic key, and the consequence:
 
 ```sql
-SELECT pgreact.create_rule(
-    name        => 'manual_review_required',
-    definition  => 'rule_def.high_value_risky_order'::regclass,
-    key_columns => ARRAY['order_id'],
+SELECT pgreact_api.author_rule(
+    rule_name   => 'manual_review_required',
+    condition   => 'rule_def.high_value_risky_order'::regclass,
+    semantic_key => 'order_id',
     on_activate => 'rule_action.open_review(
         pgreact.activation_context,
         rule_def.high_value_risky_order
-    )'::regprocedure
+    )'
 );
 ```
 
@@ -203,7 +203,7 @@ M7 maintained derived knowledge is released as `0.4.0`. Non-recursive derivation
 
 M8 monotone recursive derivation is released as `0.5.0`. Versioned positive programs maintain acyclic chains and cycles to one bounded grounded least fixed point, atomically expose converged frontiers, and provide finite explanations with cycle markers. See the [contract](docs/m8-contract.md) and [evidence](docs/m8-evidence.md).
 
-M10 stratified aggregation is implemented as the `0.7.0` repository candidate. One range-restricted keyed `COUNT(*)` threshold composes with positive fixed points and stratified negation through one polarity-labeled graph and deterministic strata; exact crossing and non-crossing maintenance, evidence, explanation, repair, replacement, upgrade, restart, restore, and compatibility gates are executable in `tests/m10.sh`. See the [contract](docs/m10-contract.md), [entry fixture](docs/m10-entry.md), and [upgrade workflow](docs/m10-upgrade.md).
+M11 freezes a name-first PostgreSQL author, operator, and worker facade over the proven M0–M10 engine. The frozen `pgreact_api` inventory, grants, upgrade path, and `0.7.0` replacement policy are verified by `tests/m11.sh`. See the [contract](docs/m11-contract.md), [upgrade guide](docs/m11-upgrade.md), and [release notes](docs/m11-release-notes.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
