@@ -36,7 +36,7 @@ jobs:
       - name: Name image
         run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.11.0" >> "$GITHUB_ENV"
       - name: Build and test release image
-        run: bash tests/m13.sh "$IMAGE"
+        run: bash tests/m14.sh "$IMAGE"
       - name: Publish image
         run: |
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
