@@ -18,6 +18,16 @@ scalar() {
   docker compose exec -T postgres psql -X -A -t -U postgres -d "$1" -c "$2"
 }
 
+create_db() {
+  for _ in {1..3}; do
+    if docker compose exec -T postgres createdb -U postgres "$@" >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+  docker compose exec -T postgres createdb -U postgres "$@"
+}
+
 median() {
   printf '%s\n' "$@" | sort -n | sed -n '3p'
 }
@@ -61,8 +71,8 @@ for _ in {1..120}; do
 done
 test "$ready" = true
 
-docker compose exec -T postgres createdb -U postgres m6_baseline_template
-docker compose exec -T postgres createdb -U postgres m6_candidate_template
+create_db m6_baseline_template
+create_db m6_candidate_template
 docker compose cp tests/m6-entry.sql postgres:/tmp/m6-entry.sql >/dev/null 2>&1
 docker compose cp tests/m6-benchmark.sql postgres:/tmp/m6-benchmark.sql >/dev/null 2>&1
 docker compose cp tests/m6-entry-single.pgbench postgres:/tmp/m6-single.pgbench >/dev/null 2>&1
@@ -98,9 +108,9 @@ for sample in {1..5}; do
   baseline_db="m6_baseline_$sample"
   single_db="m6_single_$sample"
   batch_db="m6_batch_$sample"
-  docker compose exec -T postgres createdb -U postgres -T m6_baseline_template "$baseline_db"
-  docker compose exec -T postgres createdb -U postgres -T m6_candidate_template "$single_db"
-  docker compose exec -T postgres createdb -U postgres -T m6_candidate_template "$batch_db"
+  create_db -T m6_baseline_template "$baseline_db"
+  create_db -T m6_candidate_template "$single_db"
+  create_db -T m6_candidate_template "$batch_db"
 
   baseline_before=$(scalar "$baseline_db" 'SELECT pg_current_wal_lsn()')
   docker compose exec -T postgres pgbench -n -U postgres -d "$baseline_db" \
