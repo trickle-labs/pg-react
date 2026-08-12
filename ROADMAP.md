@@ -758,43 +758,69 @@ These choices prove M10 semantics; public names and call shapes remain provision
 
 ---
 
-## Post-GA product directions
+## Stage 12 — Database-time deadlines
 
-The directions below are intentional but are not implementation commitments and do not impose a fixed order. A direction becomes the next numbered milestone only when it has a demonstrated user or operational need, bounded prerequisites, explicit non-goals, a support matrix, and executable exit evidence. GitHub milestones represent only active or credible near-term implementation commitments.
+**Outcome:** make a constraint or command rule become true when PostgreSQL database time reaches one declared deadline, even when no business row changes, while preserving atomic lifecycle observation and the existing asynchronous consequence contract.
 
-A future direction may constrain a semantic decision, but it does not authorize speculative catalogs, APIs, or abstractions. PostgreSQL views, typed functions, explicit registration, immutable versions, and durable PostgreSQL state remain the canonical model.
+**Entry gate:** the exact `v0.8.0` release artifacts, checksums, disclosures, and populated direct-upgrade path are published and verified. Before the API contract is extended, freeze a reference workload covering a future deadline, equality at the deadline, an already-overdue row, deadline advancement and postponement, source deletion, coordinator downtime, a backward clock adjustment, a forward clock jump, crash/restart, physical recovery, and upgrade; freeze its exact lifecycle, agenda, clock-frontier, diagnostic, and explanation results.
 
-### Product ergonomics
+### Deliverables
 
-M11 promotes the PostgreSQL-facing API redesign and freezes the replacement author, operator, and worker contract. Later ergonomics remain demand-driven:
+- One PostgreSQL-native declaration for a non-null `timestamptz` deadline column on a finite candidate relation, with one semantic key and the single predicate “due when the durable clock frontier is greater than or equal to the deadline.”
+- A durable monotone clock frontier sampled once from PostgreSQL by the coordinator and advanced as `max(previous_frontier, sampled_time)`, so a backward wall-clock adjustment pauses time-driven progress and a forward jump performs one deterministic catch-up.
+- Indexed durable due state that survives restart and lets the coordinator advance only affected rules and keys rather than polling every rule row.
+- One coordinator-owned transaction that advances the clock frontier, evaluates due candidates through the supported explicit `DIFFERENTIAL` path, and commits match, lifecycle, and agenda changes behind the inherited claim barrier.
+- Exact lifecycle behavior for insertion, deletion, deadline change, deployment, replacement, pause, resume, and removal, including no early activation and no duplicate activation when several scheduler passes observe the same frontier.
+- Name-first status, diagnostics, history, and explanation that report the declared deadline, observed clock frontier, and resulting lifecycle event without exposing private timer identifiers.
+- A versioned extension and worker upgrade from `0.8.0`, task documentation, and exact fresh-install, privilege, failure, recovery, and upgrade evidence.
 
-- Named reusable conditions where ordinary shared PostgreSQL views are insufficient.
-- Schedule coordination, cost diagnostics, and targeted migration tooling driven by observed deployment friction.
-- Compatibility, RLS, key-codec, recovery, and platform expansion one supported combination at a time.
+### Supported boundary
 
-### Execution and scale
+- M12 inherits M11's PostgreSQL, `pg_trickle`, pgrx, OS, architecture, maintenance, isolation, RLS, key-codec, physical-recovery, worker-protocol, resource-limit, and external-effect boundaries.
+- A temporal declaration belongs to one constraint or command rule, reads one non-null `timestamptz` deadline for each candidate semantic key, and uses PostgreSQL comparison and time-zone semantics. Equality is due.
+- Time advances only when the supported coordinator commits a clock frontier. Coordinator downtime may delay observation; the first successful pass catches up every deadline now due exactly once under the inherited lifecycle rules.
+- Consequences remain asynchronous and at-least-once. M12 promises neither exact wall-clock firing latency nor synchronous execution in the source transaction.
 
-M6 promotes audited batch execution. The remaining directions stay independent and unnumbered:
+### Explicit non-goals
 
-- Selective `IMMEDIATE` mode only for demonstrated read-your-writes needs and combinations covered by a tested isolation and locking contract.
-- Explicit shared conditions before automatic common-subplan discovery; automatic sharing only when repeated work and compatible security contexts are measured.
-- Retention redesign, catalog partitioning, and other storage changes only after current limits are reproduced by benchmarks.
+- Event time, watermarks, lateness, corrections, durations, expiration intervals, sliding or session windows, temporal joins, or temporal aggregation.
+- Recurring schedules, cron or calendar expressions, time-zone calendars, per-row background jobs, or replay of every missed recurrence.
+- Temporal predicates inside recursive, negative, or aggregate derivation programs; temporal support or provenance beyond the declared deadline and committed clock frontier.
+- `IMMEDIATE` maintenance, synchronous consequences, worker protocol 3, the `pg_trickle` automatic scheduler, or expansion of the inherited support matrix.
 
-These capabilities are independent; none is a prerequisite for derived knowledge unless its promoted milestone demonstrates that dependency.
+### Decisions to close before the M12 contract freezes
 
-### Derived knowledge
+- The public declaration shape, deadline-column validation, candidate-relation identity, replacement rules, and exact diagnostics for null, ambiguous, volatile, or unsupported time expressions.
+- Clock sampling, monotone-frontier persistence, scheduler cadence, transaction ownership, lock order, and behavior after backward adjustment, forward jump, standby promotion, and physical restore.
+- Due-state identity and indexing across insert, update, deletion, pause, replacement, reconciliation, retention, and upgrade without a second rule or timer language.
+- Whether postponing an active deadline creates an ordinary deactivation followed by a later new activation generation, and the exact coalescing rule when source and clock changes arrive in one refresh transaction.
+- Authorization, resource limits, health thresholds, lag diagnostics, and the versioned status, history, and explanation envelopes for scheduled evaluation.
 
-M7 promotes the smallest useful semantic slice: non-recursive derived facts with multiple logical supports, retraction, provenance, reconciliation, recovery, retention, and “why is this true?” explanation. M8 promotes positive derivation chains and cycles with grounded least-fixed-point maintenance and finite recursive explanation. M9 promotes safe stratified negation with deletion-sensitive truth maintenance across ordered strata. M10 promotes keyed `COUNT(*)` threshold dependencies over stable lower strata.
+### Exit gates
 
-Unstratified negation, aggregate cycles, and richer aggregate functions remain separate later work and accept only programs with precise, testable semantics.
+- The frozen reference workload produces the exact declared matches, generations, lifecycle events, agenda episodes, clock frontiers, status, and explanations at every stage; no deadline activates before equality and no due transition is duplicated.
+- Every supported ordering of equivalent source changes, clock samples, scheduler retries, worker timing, and incremental history produces byte-exact current state and public evidence equal to a clean recomputation at the same durable clock frontier.
+- Advancing a frontier commits atomically with all affected match and lifecycle changes; injected refresh, resource-limit, or catalog failures preserve the previous complete frontier and expose no claimable partial work.
+- Postponement, advancement, deletion, deployment, replacement, pause, resume, and reconciliation leave the exact declared due state with no orphaned timer, match, lifecycle, or agenda rows.
+- A backward clock adjustment never moves the durable frontier or retracts a due match; a forward jump, coordinator outage, crash, restart, supported physical restore, and standby promotion catch up all and only deadlines now due once.
+- Deployment rejects every frozen null, volatile, ambiguous, recursive, negative, aggregate, recurring, windowed, unauthorized, or unsupported deadline declaration with exact diagnostics and no partial mutation.
+- Direct upgrade from the populated `0.8.0` fixture preserves byte-exact M11 state and pending work, initializes the clock frontier without retroactive duplicates, and makes already-overdue M12 candidates due on the first successful pass.
+- Every inherited M0–M11 semantic, operational, security, recovery, performance, compatibility, and external-effect gate passes unchanged.
+- A new user can declare, validate, deploy, observe, postpone, pause, resume, explain, reconcile, replace, recover, and upgrade the reference deadline rule using only the public API and documentation.
 
-### Temporal reasoning
+---
 
-Temporal work may proceed independently where it does not require recursive or non-monotonic derivation. Any promoted milestone must define database time, event time, timers or scheduled reevaluation, durations, windows, lateness, corrections, retention, restart behavior, and interactions with any reasoning semantics it uses.
+## Proposed sequence after M12
 
-### Authoring and ecosystem
+These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
-Raw-query convenience, client-side DSLs, visual tooling, AI-assisted authoring, LLM task patterns, and domain packages remain demand-driven layers. They must compile to, validate against, or inspect the canonical PostgreSQL-native model rather than define separate semantics.
+1. **M13 — Richer stratified aggregation.** Add `COUNT(expression)`, `SUM`, `MIN`, and `MAX` one bounded function at a time over M10's strictly lower-stratum, non-recursive model, with exact PostgreSQL null, overflow, retraction, evidence, and recovery behavior.
+2. **M14 — Event-time windows.** Add explicit event timestamps, durable watermarks, one fixed tumbling-window model, bounded lateness, and deterministic corrections; keep sliding/session windows and general complex-event processing out until this smaller contract is proved.
+3. **M15 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
+4. **M16 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
+5. **M17 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
+
+Unstratified negation, recursive aggregation, broader support tuples, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M12–M17. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
@@ -865,6 +891,7 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M9 — Stratified negation** | Maintain safe negative dependencies to one ordered, deletion-sensitive result |
 | **M10 — Stratified aggregation** | Maintain keyed counts over stable lower strata with exact threshold transitions |
 | **M11 — PostgreSQL-facing API redesign** | Freeze one PostgreSQL-first author, operator, and worker contract over M0–M10 behavior |
+| **M12 — Database-time deadlines** | Activate constraint and command rules from one durable monotone PostgreSQL clock frontier |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
 
@@ -881,3 +908,5 @@ Do not create GitHub milestones for the unnumbered post-GA directions. Promote o
 **M10 — Stratified aggregation** is released as `0.7.0`. Its immutable tag, release qualification, archive checksums, and M11 entry evidence are recorded in `docs/m11-preentry.md`.
 
 **M11 — PostgreSQL-facing API redesign** is the `0.8.0` repository candidate. Its replacement inventory, direct-upgrade fixture, and inherited M10 qualification are executable in `tests/m11.sh`. Do not pull new reasoning semantics, execution modes, ecosystem layers, or support-matrix expansion into M11.
+
+**M12 — Database-time deadlines** is the next milestone and targets `0.9.0`. Product work begins only after the immutable `v0.8.0` release satisfies the M12 entry gate; M13–M17 remain proposed planning labels until promoted independently.
