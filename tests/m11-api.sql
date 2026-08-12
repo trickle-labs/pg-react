@@ -15,6 +15,16 @@ BEGIN
             'remove_rule', 'replace_deadline_rule', 'resume_rule', 'rule_status',
             'run_rule', 'validate_deadline_rule', 'validate_rule'
         ];
+    ELSIF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.10.0' THEN
+        expected := ARRAY[
+            'attempts', 'author_deadline_rule', 'author_rule', 'batch_status',
+            'claim', 'claim_batch', 'configure_roles', 'deadline_history',
+            'execute', 'execute_batch', 'explain', 'explain_rule', 'health',
+            'jobs', 'matches', 'pause_rule', 'reconcile_rule', 'remove_rule',
+            'replace_deadline_rule', 'resume_rule', 'rule_status', 'run',
+            'run_rule', 'status', 'validate_deadline_rule', 'validate_rule',
+            'worker_protocol_compatible'
+        ];
     END IF;
     SELECT array_agg(DISTINCT p.proname ORDER BY p.proname)
       INTO actual
@@ -112,7 +122,7 @@ BEGIN
     );
     IF actual IS DISTINCT FROM jsonb_build_object(
         'contract_version', CASE
-            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.9.0'
+            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0')
             THEN 2 ELSE 1 END,
         'rule_name', 'm11-author-rule', 'state', 'ACTIVE', 'health', '[]'::jsonb) THEN
         RAISE EXCEPTION 'M11 facade status changed: %', actual;
@@ -122,7 +132,7 @@ BEGIN
         'contract_version', actual -> 'contract_version',
         'diagnostics', actual -> 'diagnostics') IS DISTINCT FROM
        jsonb_build_object('contract_version', CASE
-           WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.9.0'
+           WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0')
            THEN 2 ELSE 1 END, 'diagnostics', '[]'::jsonb) THEN
         RAISE EXCEPTION 'M11 facade health changed';
     END IF;

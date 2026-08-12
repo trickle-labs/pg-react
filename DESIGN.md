@@ -1,7 +1,7 @@
 # `pg-react`: A PostgreSQL-Native Incremental Rule and Reasoning Engine
 
-**Status:** M12 implementation contract complete\
-**Document version:** 0.9\
+**Status:** M13 implementation contract complete\
+**Document version:** 0.10\
 **Date:** 2026-08-12\
 **Project and repository name:** `pg-react`  
 **PostgreSQL extension name:** `pg_react`  
@@ -23,6 +23,15 @@
 ## Reading guide
 
 [`CONTEXT.md`](CONTEXT.md) is the canonical project vocabulary. This document describes both the product semantics and the implementation architecture. The first part explains what a rule means, how a continuously maintained SQL result becomes an activation, and how command rules are scheduled and executed. The middle part describes the SQL API, the catalog, the integration contract with `pg_trickle`, and the behavior during full refreshes, crashes, and rule upgrades. The final part covers the Rust codebase, worker process, security model, testing strategy, delivery authority, risks, and a complete end-to-end example. Readers who only need the product model can focus on Sections 1 through 12, while implementers should also read the remaining sections in order because later decisions build on earlier semantic guarantees.
+
+### Revision 0.10
+
+This revision freezes M13 core PostgreSQL ergonomics. Explicit-schema action
+resolution records one exact authorized identity, context-free actions adapt to
+the existing durable binding path, one transactionally locked `run` advances
+sources, programs, downstream rules, and deadlines in dependency order, and
+four configured application roles receive exact facade grants. Engine history
+and M12 semantics remain unchanged.
 
 ### Revision 0.9
 

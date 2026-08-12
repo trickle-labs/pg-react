@@ -142,12 +142,12 @@ SELECT pgreact.finish_deadline_refresh();
 UPDATE m12_reference.tasks
 SET deadline = '2026-01-01 00:00:00+00'
 WHERE id = 4;
-SELECT pgreact_api.run_rule('reference-deadline');
+SELECT pgreact.refresh_rule(:'reference_version'::uuid);
 
 UPDATE m12_reference.tasks
 SET deadline = '2026-01-04 00:00:00+00'
 WHERE id = 1;
-SELECT pgreact_api.run_rule('reference-deadline');
+SELECT pgreact.refresh_rule(:'reference_version'::uuid);
 
 SELECT pgreact.begin_deadline_refresh(12005);
 SELECT pgreact.advance_deadline_clock('2026-01-03 00:00:00+00');
@@ -157,7 +157,7 @@ SELECT pgreact.advance_deadline_clock('2026-01-04 00:00:00+00');
 SELECT pgreact.finish_deadline_refresh();
 
 DELETE FROM m12_reference.tasks WHERE id = 2;
-SELECT pgreact_api.run_rule('reference-deadline');
+SELECT pgreact.refresh_rule(:'reference_version'::uuid);
 
 SELECT pgreact_api.pause_rule('reference-deadline');
 INSERT INTO m12_reference.tasks (id, deadline, payload)

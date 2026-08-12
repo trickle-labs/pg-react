@@ -29,7 +29,7 @@ SELECT pgreact.begin_deadline_refresh(12201);
 SELECT pgreact.advance_deadline_clock('2026-03-01 00:00:00+00');
 SELECT pgreact.finish_deadline_refresh();
 INSERT INTO m12_order.after_source VALUES (1, '2026-03-01 00:00:00+00');
-SELECT pgreact_api.run_rule('clock-before-source');
+SELECT pgreact.refresh_rule(:'after_version'::uuid);
 
 DO $$
 DECLARE before_state jsonb; after_state jsonb;

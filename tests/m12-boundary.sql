@@ -228,7 +228,7 @@ SELECT pgreact.finish_deadline_refresh();
 INSERT INTO m12_boundary.good_source VALUES
     (2, '2026-02-02 00:00:00+00', true),
     (3, '2026-02-02 00:00:00+00', true);
-SELECT pgreact_api.run_rule('boundary-deadline');
+SELECT pgreact.refresh_rule(:'boundary_version'::uuid);
 UPDATE pgreact_internal.operational_settings SET max_deadlines_per_pass = 1;
 SELECT pgreact.begin_deadline_refresh(12103);
 DO $$
@@ -291,7 +291,7 @@ END
 $$;
 UPDATE m12_boundary.good_source
 SET deadline = '2026-02-02 00:00:00+00' WHERE id = 2;
-SELECT pgreact_api.run_rule('boundary-deadline');
+SELECT pgreact.refresh_rule(:'boundary_version'::uuid);
 
 DO $$
 DECLARE actual jsonb;

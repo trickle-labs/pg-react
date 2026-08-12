@@ -859,6 +859,17 @@ These choices prove M10 semantics; public names and call shapes remain provision
 - Crash/restart, supported physical restore, reconciliation, replacement, worker death, deadline catch-up, and direct upgrade from the populated `0.9.0` fixture preserve every inherited durable and external-effect guarantee.
 - Every inherited M0–M12 semantic, operational, security, recovery, performance, compatibility, and external-effect gate passes unchanged.
 
+### M13 completion record — 2026-08-12
+
+The extension `0.10.0` repository candidate implements the named constraint,
+activation, lifecycle, and deadline authoring surface; explicit-schema
+immutable action resolution; context-free adapters; one dependency-ordered
+coordinator run; friendly inspection vocabulary; exact four-role grants;
+direct `0.9.0 -> 0.10.0` upgrade; and executable concurrency, failure, worker,
+restart, and physical-recovery evidence in `tests/m13.sh`. The immutable
+`v0.9.0` archive, checksum, OCI digest, and successful release workflow satisfy
+the entry gate recorded in `docs/m13-entry.md`.
+
 ---
 
 ## Stage 14 — Explainability and reasoning UX
@@ -1066,8 +1077,8 @@ Do not create GitHub milestones for the proposed post-M15 directions. Promote on
 
 **M11 — PostgreSQL-facing API redesign** is released as `0.8.0`. Its immutable tag, archive checksum, OCI digest, populated upgrade path, and M12 entry authorization are recorded in `docs/m12-entry.md`.
 
-**M12 — Database-time deadlines** is the `0.9.0` repository candidate. Its indexed monotone clock, lifecycle, failure, worker, direct-upgrade, crash/restart, physical-recovery, and inherited M0–M11 evidence are executable in `tests/m12.sh`.
+**M12 — Database-time deadlines** is released as `0.9.0`. Its immutable archive, checksum, OCI digest, release workflow, and M13 entry authorization are recorded in `docs/m13-entry.md`.
 
-**M13 — Core PostgreSQL ergonomics** is the next defined milestone. Start it only after the immutable `v0.9.0` release and its frozen entry fixtures satisfy the M13 entry gate.
+**M13 — Core PostgreSQL ergonomics** is the `0.10.0` repository candidate. Its named authoring, action resolution, coordinated run, vocabulary, role grants, direct-upgrade, concurrency, failure, worker, recovery, and inherited M0–M12 evidence are executable in `tests/m13.sh`.
 
-**M14 — Explainability and reasoning UX** and **M15 — Runtime and usability completion** are defined successors. Begin each only after its predecessor's immutable release and frozen entry fixtures satisfy its entry gate.
+**M14 — Explainability and reasoning UX** is the next defined milestone; **M15 — Runtime and usability completion** follows it. Begin each only after its predecessor's immutable release and frozen entry fixtures satisfy its entry gate.

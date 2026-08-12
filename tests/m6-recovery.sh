@@ -10,6 +10,7 @@ case "$recovery_milestone" in
   m9) restart_fixture=m9-recovery-restore ;;
   m10) restart_fixture=m10-recovery-restore ;;
   m12) restart_fixture=m12-recovery-restore ;;
+  m13) restart_fixture=m13-recovery-restore ;;
   *) echo "unsupported recovery milestone: $recovery_milestone" >&2; exit 1 ;;
 esac
 recovery_db="${recovery_milestone}_recovery"

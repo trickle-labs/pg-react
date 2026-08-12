@@ -8,7 +8,7 @@ expected_version=${PG_REACT_EXPECTED_VERSION:-0.3.0}
 test_log_dir=$(mktemp -d)
 
 case "$expected_version" in
-  0.3.0|0.4.0|0.5.0|0.6.0|0.7.0|0.8.0|0.9.0) ;;
+  0.3.0|0.4.0|0.5.0|0.6.0|0.7.0|0.8.0|0.9.0|0.10.0) ;;
   *) echo "unsupported M6 compatibility version: $expected_version" >&2; exit 1 ;;
 esac
 
@@ -160,7 +160,7 @@ held_pid=$!
 held=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -X -A -t -U postgres -d m6_concurrency -c \
-      "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname='m6_concurrency' AND pid <> pg_backend_pid() AND state='active' AND query LIKE '%execute_claimed_batch%')" | grep -qx t; then
+      "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname='m6_concurrency' AND pid <> pg_backend_pid() AND state='active' AND query LIKE ANY (ARRAY['%execute_claimed_batch%', '%execute_batch%']))" | grep -qx t; then
     held=true
     break
   fi
@@ -180,7 +180,7 @@ expect_lock_timeout "M6 recovery barrier" docker compose exec -T postgres psql -
 expect_lock_timeout "M6 replacement" docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -U postgres -d m6_concurrency -c \
   "SET lock_timeout='100ms'; SELECT pgreact.replace_rule(target_version_id => (SELECT rule_version_id FROM m6_concurrency.control), definition => 'm6_concurrency.active_fact'::regclass, key_columns => ARRAY['id'], on_activate => 'm6_concurrency.apply_fact(pgreact.activation_context,m6_concurrency.active_fact)'::regprocedure)"
 docker compose exec -T postgres psql -X -A -t -U postgres -d m6_concurrency -c \
-  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='m6_concurrency' AND pid <> pg_backend_pid() AND state='active' AND query LIKE '%execute_claimed_batch%'" | grep -qx t
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='m6_concurrency' AND pid <> pg_backend_pid() AND state='active' AND query LIKE ANY (ARRAY['%execute_claimed_batch%', '%execute_batch%'])" | grep -qx t
 if wait "$held_pid"; then
   echo 'terminated execution unexpectedly committed' >&2
   exit 1
@@ -200,7 +200,7 @@ ambiguous_pid=$!
 ambiguous_active=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -X -A -t -U postgres -d m6_concurrency -c \
-      "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname='m6_concurrency' AND pid <> pg_backend_pid() AND state='active' AND query LIKE '%execute_claimed_batch%')" | grep -qx t; then
+      "SELECT EXISTS (SELECT 1 FROM pg_stat_activity WHERE datname='m6_concurrency' AND pid <> pg_backend_pid() AND state='active' AND query LIKE ANY (ARRAY['%execute_claimed_batch%', '%execute_batch%']))" | grep -qx t; then
     ambiguous_active=true
     break
   fi
@@ -208,7 +208,7 @@ for _ in {1..120}; do
 done
 test "$ambiguous_active" = true
 docker compose exec -T postgres psql -X -A -t -U postgres -d m6_concurrency -c \
-  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='m6_concurrency' AND pid <> pg_backend_pid() AND state='active' AND query LIKE '%execute_claimed_batch%'" | grep -qx t
+  "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='m6_concurrency' AND pid <> pg_backend_pid() AND state='active' AND query LIKE ANY (ARRAY['%execute_claimed_batch%', '%execute_batch%'])" | grep -qx t
 docker compose exec -T postgres psql -X -v ON_ERROR_STOP=1 -U postgres -d m6_concurrency -c \
   'UPDATE m6_concurrency.control SET sleep_enabled=false' >/dev/null
 if ! wait "$ambiguous_pid"; then

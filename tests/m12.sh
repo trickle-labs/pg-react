@@ -2,6 +2,7 @@
 set -euo pipefail
 
 image=${1:-pg-react:v0.9.0}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.9.0}
 platform=linux/amd64
 project=${COMPOSE_PROJECT_NAME:-pgreact-m12-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
@@ -38,7 +39,7 @@ run_sql_fixture() {
 
 run_test 'M12 task documentation' bash tests/m12-docs.sh
 run_test 'M0-M11 compatibility' env \
-  PG_REACT_EXPECTED_VERSION=0.9.0 \
+  PG_REACT_EXPECTED_VERSION="$expected_version" \
   COMPOSE_PROJECT_NAME="${project}-compatibility" \
   bash tests/m11.sh "$image"
 
@@ -51,7 +52,7 @@ docker compose up -d --no-build >/dev/null 2>&1
 ready=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -X -U postgres -d postgres -Atc \
-      "SELECT extversion = '0.9.0' FROM pg_extension WHERE extname = 'pg_react'" \
+      "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" \
       2>/dev/null | grep -qx t; then
     ready=true
     break
