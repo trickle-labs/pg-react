@@ -25,6 +25,18 @@ BEGIN
             'run_rule', 'status', 'validate_deadline_rule', 'validate_rule',
             'worker_protocol_compatible'
         ];
+    ELSIF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.11.0' THEN
+        expected := ARRAY[
+            'attempts', 'author_deadline_rule', 'author_rule', 'batch_status',
+            'claim', 'claim_batch', 'configure_roles', 'deadline_history',
+            'declare_derived_relation', 'deploy_program', 'doctor', 'execute',
+            'execute_batch', 'explain', 'explain_advanced', 'explain_rule',
+            'health', 'infer_program', 'jobs', 'm14_pack', 'matches',
+            'pause_rule', 'preview_program', 'reconcile_rule', 'remove_program',
+            'remove_rule', 'replace_deadline_rule', 'resume_rule', 'rule_status',
+            'run', 'run_rule', 'status', 'validate_deadline_rule',
+            'validate_program', 'validate_rule', 'worker_protocol_compatible'
+        ];
     END IF;
     SELECT array_agg(DISTINCT p.proname ORDER BY p.proname)
       INTO actual
@@ -122,7 +134,7 @@ BEGIN
     );
     IF actual IS DISTINCT FROM jsonb_build_object(
         'contract_version', CASE
-            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0')
+            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0', '0.11.0')
             THEN 2 ELSE 1 END,
         'rule_name', 'm11-author-rule', 'state', 'ACTIVE', 'health', '[]'::jsonb) THEN
         RAISE EXCEPTION 'M11 facade status changed: %', actual;
@@ -132,7 +144,7 @@ BEGIN
         'contract_version', actual -> 'contract_version',
         'diagnostics', actual -> 'diagnostics') IS DISTINCT FROM
        jsonb_build_object('contract_version', CASE
-           WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0')
+           WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0', '0.11.0')
            THEN 2 ELSE 1 END, 'diagnostics', '[]'::jsonb) THEN
         RAISE EXCEPTION 'M11 facade health changed';
     END IF;
