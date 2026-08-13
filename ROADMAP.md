@@ -975,17 +975,69 @@ the entry gate recorded in `docs/m13-entry.md`.
 
 ---
 
-## Proposed sequence after M15
+## Stage 16 — Richer stratified aggregation
 
-These are planning labels, not implementation commitments. Promote each only after M15's evidence and the candidate milestone's entry fixture are credible.
+**Outcome:** extend the proven stratified aggregate model from keyed `COUNT(*)` thresholds to one typed `COUNT(expression)`, `SUM`, `MIN`, or `MAX` dependency per rule, preserving exact PostgreSQL value semantics, deletion-sensitive truth transitions, finite evidence, atomic strata, and recovery.
 
-1. **M16 — Richer stratified aggregation.** Add `COUNT(expression)`, `SUM`, `MIN`, and `MAX` one bounded function at a time over M10's strictly lower-stratum, non-recursive model, with exact PostgreSQL null, overflow, retraction, evidence, and recovery behavior.
-2. **M17 — Event-time windows.** Add explicit event timestamps, durable watermarks, one fixed tumbling-window model, bounded lateness, and deterministic corrections; keep sliding/session windows and general complex-event processing out until this smaller contract is proved.
-3. **M18 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
-4. **M19 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
-5. **M20 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
+**Entry gate:** the exact `v0.12.0` release artifacts, checksums, disclosures, OCI digest, and populated direct-upgrade path are published and verified. Before the aggregate contract is fixed, freeze a bounded reference program covering `COUNT(*)`, `COUNT(expression)`, `SUM`, `MIN`, and `MAX`; null and empty inputs; supported numeric, ordered, and collated types; overflow and rejected types; updates and retractions that do and do not cross comparisons; replacement, reconciliation, crash/restart, physical and logical recovery, and direct upgrade; freeze its exact declarations, graph, facts, supports, aggregate evidence, frontiers, diagnostics, and explanations.
 
-Unstratified negation, recursive aggregation, broader support tuples, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M13–M20. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+### Deliverables
+
+- A PostgreSQL-native aggregate declaration surface for `COUNT(expression)`, `SUM`, `MIN`, and `MAX` alongside inherited `COUNT(*)`, with one immutable typed value expression, one comparison, and one typed threshold per aggregate dependency.
+- Deployment-time resolution and validation of expression dependencies, input and result types, casts, collation, volatility, authorization, and schema identity, with exact drift detection and no search-path-dependent retargeting.
+- Dependency-ordered evaluation that uses PostgreSQL's aggregate, null, comparison, and overflow behavior after the strictly lower stratum converges and commits every affected result at one program frontier.
+- Deletion-sensitive maintenance in which insertion, update, null transition, or removal produces the exact typed aggregate value and creates, updates, or retracts only the corresponding higher-stratum support.
+- Stable public evidence and unified explanation that identify the aggregate function, value expression, input and result types, group key, exact current value, comparison, threshold, lower frontier, and truth result without enumerating every input row.
+- Atomic validation, preview, deployment, replacement, removal, reconciliation, retention, and recovery through the final M15 public API and role boundary, including deterministic resource limits and actionable diagnostics.
+- Extension `0.13.0`, worker compatibility and direct upgrade from `0.12.0`, compact author and operator tasks, and exact fresh-install, API-inventory, privilege, semantic, failure, recovery, logical-restore, and upgrade evidence.
+
+### Supported boundary
+
+- M16 inherits M15's platform, public API, managed-worker, typed-key, security, maintenance, isolation, recovery, resource-limit, external-effect, and usability boundary except for the explicitly frozen aggregate expansion.
+- A rule still declares exactly one aggregate dependency and one aggregate function. Its group key is positively bound, equals the derived fact's semantic key, and reads one finite authoritative or derived relation in a strictly lower, non-recursive stratum.
+- `COUNT(expression)` ignores null expression results; `SUM`, `MIN`, and `MAX` ignore null inputs and yield PostgreSQL's typed null result when no non-null input remains. PostgreSQL casting, collation, comparison, three-valued logic, and overflow behavior is authoritative within the frozen type allow-list.
+- Positive recursion and stratified negation retain their inherited boundaries. No dependency cycle contains a negative or aggregate edge, and downstream lifecycle rules observe only complete aggregate frontiers.
+
+### Explicit non-goals
+
+- Same-stratum or recursive aggregation, aggregate cycles, multiple aggregate dependencies or functions per rule, or aggregate results that feed their own input.
+- `DISTINCT`, `FILTER`, `AVG`, ordered-set or user-defined aggregates, grouping sets, arbitrary `HAVING` expressions, or unrestricted SQL expressions.
+- Temporal aggregation, event-time or processing-time windows, watermarks, lateness, corrections, sliding windows, or session windows; the bounded event-time model belongs to M17.
+- Immediate or synchronous consequences, automatic shared-condition discovery, catalog partitioning, or retention redesign; those remain later milestones.
+- New key codecs, RLS source support, isolation levels, worker protocols, platform versions, general base-tuple lineage, or unbounded proof enumeration.
+
+### Decisions to close before the M16 contract freezes
+
+- The exact aggregate declaration and overload shapes, expression-recognition boundary, comparison operators, threshold coercion rules, preview format, and compatibility treatment of M10 declarations.
+- The frozen input and result type allow-lists for each function, including domains, numeric widening, collation-sensitive order, timestamp order, special values, and exact overflow or unsupported-type diagnostics.
+- Expression immutability, nullability, dependency identity, authorization, drift detection, canonical rendering, and rejection of ambiguous, volatile, set-returning, aggregate, or windowed expressions.
+- Aggregate evidence and support identity across value changes, null transitions, repeated runs, replacement, reconciliation, retention, dump/restore, and upgrade, including changes that do not flip truth.
+- Evaluation strategy, indexes, locking, work and memory bounds, failure rollback, and deterministic ordering when several lower-stratum changes affect one group or several strata in one run.
+
+### Exit gates
+
+- The frozen program returns the exact PostgreSQL result, comparison truth, facts, supports, evidence, frontiers, and explanations for every supported aggregate, type, null case, empty case, special value, and threshold transition.
+- Every supported ordering of equivalent inserts, updates, deletions, null transitions, run scheduling, worker timing, and incremental history produces byte-exact current state equal to a clean dependency-ordered recomputation.
+- Crossing a comparison in either direction creates or retracts the exact higher support; a value change that leaves comparison truth unchanged updates evidence without a false fact or downstream lifecycle transition.
+- All affected strata commit at one complete frontier. Expression evaluation, overflow, resource-limit, catalog, or injected refresh failure preserves the previous complete state and exposes no partial result.
+- Deployment rejects every frozen recursive, cyclic, same-stratum, multiple, unbound, volatile, ambiguous, unauthorized, drifted, unsupported-function, unsupported-type, unsupported-expression, or invalid-threshold declaration with exact diagnostics and no mutation.
+- Replacement, removal, reconciliation, crash/restart, managed-worker restart, physical restore, dump/restore, and direct `0.12.0 -> 0.13.0` upgrade preserve or repair the exact graph, typed values, facts, supports, evidence, frontiers, diagnostics, and explanations.
+- Every inherited M0–M15 semantic, operational, security, recovery, performance, compatibility, documentation, usability, and external-effect gate passes unchanged.
+- A non-superuser author and operator can declare, validate, preview, deploy, run, query, explain, cross and recross comparisons, reconcile, replace, recover, and upgrade the reference aggregate program using only public APIs and documentation.
+
+---
+
+## Proposed sequence after M16
+
+These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
+
+1. **M17 — Event-time windows.** Add explicit event timestamps, durable watermarks, one fixed tumbling-window model, bounded lateness, and deterministic corrections; keep sliding/session windows and general complex-event processing out until this smaller contract is proved.
+2. **M18 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
+3. **M19 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
+4. **M20 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
+5. **M21 — Bounded synchronous rule sets.** Extend M18's immediate path with one serialized database-local consequence loop, deterministic ordering, causal controls, firing and cycle limits, and all-or-nothing rollback; external actions and general workflow orchestration remain asynchronous.
+
+Unstratified negation, recursive aggregation, broader support tuples, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M16–M21. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
@@ -1060,10 +1112,11 @@ Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a ha
 | **M13 — Core PostgreSQL ergonomics** | Make ordinary authoring, coordinated runs, action resolution, terminology, and role grants genuinely PostgreSQL-first |
 | **M14 — Explainability and reasoning UX** | Unify diagnosis and explanation and make derived-program authoring infer its PostgreSQL dependency structure |
 | **M15 — Runtime and usability completion** | Integrate managed workers, broaden semantic keys, and qualify the complete public workflow and documentation |
+| **M16 — Richer stratified aggregation** | Extend strictly lower-stratum aggregates with typed `COUNT(expression)`, `SUM`, `MIN`, and `MAX` semantics |
 
 Each implementation issue should belong to one milestone and one primary workstream label, for example `area/semantics`, `area/compiler`, `area/catalog`, `area/worker`, `area/security`, `area/operations`, `area/performance`, or `area/docs`.
 
-Do not create GitHub milestones for the proposed post-M15 directions. Promote only the next direction whose entry conditions and executable exit evidence are credible.
+Do not create GitHub milestones for the proposed post-M16 directions. Promote only the next direction whose entry conditions and executable exit evidence are credible.
 
 ---
 
@@ -1085,4 +1138,6 @@ Do not create GitHub milestones for the proposed post-M15 directions. Promote on
 
 **M15 — Runtime and usability completion** is the `0.12.0` repository candidate. Its managed runtime, typed-key, public inventory, documentation, usability, recovery, direct-upgrade, and inherited evidence are executable in `tests/m15.sh`.
 
-No post-M15 milestone is committed. M16–M20 remain proposed planning labels; M16 richer stratified aggregation is the logical next candidate after immutable `v0.12.0` evidence and a bounded `COUNT(expression)` entry fixture exist.
+**M16 — Richer stratified aggregation** is the next defined milestone. Start it only after the immutable `v0.12.0` release and its frozen aggregate entry fixtures satisfy the M16 entry gate.
+
+**M17 — Event-time windows** through **M21 — Bounded synchronous rule sets** remain proposed planning labels, not implementation commitments.
