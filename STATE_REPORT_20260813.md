@@ -2,7 +2,7 @@
 
 ## Executive assessment
 
-**Decision: M17 product implementation is not ready to start. M17 pre-entry work is ready to start.**
+**Decision: M17 product implementation remains blocked; its release evidence and behavioral oracle are now frozen.**
 
 The repository is a clean, coherent M16 release at extension `0.13.0`, with a
 strong inherited test and recovery discipline. M17 is not a
@@ -12,10 +12,10 @@ test gate exists yet.
 
 M17's entry gate requires published and verified `v0.13.0` artifacts,
 checksums, disclosures, OCI digest, and a frozen M17 reference program
-(`ROADMAP.md:1034`). The predecessor-release half is now satisfied: M16 CI and
-release workflows succeeded, and the release, archive checksum, and immutable
-OCI digest are published. The reference program and its exact outputs still do
-not exist, so the complete M17 entry gate remains unmet.
+(`ROADMAP.md:1034`). [`docs/m17-entry.md`](docs/m17-entry.md) now records the
+published predecessor identities and freezes the reference declaration,
+schedule, outputs, diagnostics, and five semantic decision groups. The M17
+contract and executable fixture must reproduce that oracle before product code.
 
 The deeper blocker is semantic. M16 maintains one current aggregate snapshot
 per group. M17 requires durable per-window identity, requested and complete
@@ -24,13 +24,11 @@ bounded continuation, retention protection, and replay-safe recovery. Those
 are new authoritative state, not fields that can safely be improvised while
 coding.
 
-The shortest safe path is:
+The shortest safe path is now:
 
-1. record M16's verified immutable release identities in `docs/m17-entry.md`;
-2. freeze one exact-output M17 reference program and close the five decision
-   groups already listed in the roadmap;
-3. write the M17 contract and executable entry fixture;
-4. only then add the minimal `0.13.0 -> 0.14.0` SQL slice and public API changes.
+1. write the M17 contract and executable entry fixture from
+   `docs/m17-entry.md` without changing its oracle;
+2. only then add the minimal `0.13.0 -> 0.14.0` SQL slice and public API changes.
 
 ## Snapshot and method
 
@@ -316,117 +314,61 @@ boundaries during implementation.
 | Published immutable OCI digest | `sha256:f5d55947bdd77b7f88f2ee7b1dd03f980aa9d198587b0faf1d1317ec30250c06` | Satisfied |
 | Release disclosures/notes | `docs/m16-release-notes.md` published with the release | Satisfied |
 | Populated `0.12.0 -> 0.13.0` fixture | Passed in release run 31699725097 | Satisfied |
-| Frozen M17 reference program | Absent | Not satisfied |
-| Frozen exact M17 outputs and diagnostics | Absent | Not satisfied |
+| Frozen M17 reference program | `docs/m17-entry.md` | Satisfied |
+| Frozen exact M17 outputs and diagnostics | `docs/m17-entry.md` | Satisfied |
 
 `docs/m16-readiness.md:3-7` still says to run the M16 gate and then tag/push
-`v0.13.0`; that record is now historical. `docs/m17-entry.md` can record the
-verified release identities above while the remaining reference program and
-exact outputs are frozen.
+`v0.13.0`; that record is now historical. `docs/m17-entry.md` supersedes it as
+the entry source of truth.
 
 ## Requirement-to-implementation gap
 
 | M17 area | Reusable current state | Missing authoritative work | Readiness |
 |---|---|---|---|
-| Contract and entry fixture | Detailed roadmap boundary and M10-M16 document pattern | `m17-entry`, contract, exact reference outputs, task/evidence/readiness/upgrade/release records | Blocked |
-| Declaration | M16 aggregate object and strict validation | Event-time column, duration, lateness shapes; compatibility and canonical rendering | Blocked on contract |
-| Timestamp validation | PostgreSQL type resolution; UTC rendering | Direct-only, finite, non-null `timestamptz`; exact diagnostics for data and declaration drift | Absent |
-| Window identity | Typed key codec; one-to-four SQL key components | Exact ordinal formula/range/overflow, boundary math, composite public rendering | Blocked on decision |
+| Contract and entry fixture | Frozen `m17-entry` oracle and M10-M16 document pattern | Contract, executable fixture, task/evidence/readiness/upgrade/release records | Blocked |
+| Declaration | M16 aggregate object; M17 shape and rendering frozen | Product validation and persistence | Spec ready |
+| Timestamp validation | PostgreSQL type resolution; exact M17 boundaries and diagnostics frozen | Product validation | Spec ready |
+| Window identity | Typed key codec; exact M17 ordinal, bounds, overflow, and rendering frozen | Product persistence and indexes | Spec ready |
 | Persistence | Versioned aggregate metadata and current evidence | Requested/complete watermarks, per-window input summaries, window state, finality, correction history, retention dependencies | Absent |
 | Maintenance | Dependency ordering, lower frontiers, atomic support/fact updates | Per-window lower-frontier deltas, canonical correction order/identity, replay no-op | Architectural delta |
-| Watermark advancement | Managed coordinator/batch settings and public run patterns | Ownership, API, authorization, target persistence, bounded continuation, concurrency, standby rules | Absent |
-| Finalization and late input | Transactional validation/error patterns | Exact final boundary, too-late admission policy, claim barrier, recovery after authoritative violation | Blocked on policy |
+| Watermark advancement | Managed coordinator/batch settings; exact M17 ownership, API, locks, batching, and standby behavior frozen | Product state and coordinator work | Spec ready |
+| Finalization and late input | Transactional validation/error patterns; exact M17 finality, barrier, diagnostic, and repair policy frozen | Product state and maintenance | Spec ready |
 | Evidence and explain | Finite aggregate view and contract-v5 explanation | Window bounds/ordinal, requested/complete watermark, lateness boundary, finality, correction identity/frontier | Absent |
 | Reconciliation | Snapshot audit and repair under advisory lock | Window/correction/watermark/finality audit and repair semantics | Architectural delta |
-| Replacement/removal | Versioned atomic program lifecycle | Transfer/retire behavior for open windows, targets, corrections, and final evidence | Unspecified |
-| Recovery | Physical/logical restore and restart fixtures | Exact preservation/reconstruction of watermark batches, corrections, and finality | Absent |
-| Retention | Existing audited pruning concepts | Open-window and replay/rollback/explain protection; exact permitted prune rules | Blocked on policy |
+| Replacement/removal | Versioned lifecycle; exact M17 transfer/retire behavior frozen | Product state and fixtures | Spec ready |
+| Recovery | Existing fixtures; exact M17 restart/restore/upgrade result frozen | Executable M17 fixtures | Spec ready |
+| Retention | Existing audited pruning; exact M17 eligibility and audit result frozen | Product pruning path and fixture | Spec ready |
 | Performance | Existing milestone smoke/performance fixtures | Budgets for correction-heavy input and large watermark jumps; indexes and batch ceiling | Absent |
 | Packaging | Established single-step upgrade/release workflow | `0.14.0` identities, worker compatibility, direct upgrade, fresh install and release gates | Not started |
 
-## Decisions that must close before product code
+## Decisions closed before product code
 
-The roadmap itself marks five decision groups as open
-(`ROADMAP.md:1065-1069`). They are implementation blockers because each changes
-public API, durable identity, transactional behavior, or recovery.
+`docs/m17-entry.md` closes all five roadmap decision groups:
 
-### 1. Declaration and deterministic window identity
+1. exact declaration normalization, interval bounds, UTC ordinal arithmetic,
+   M16 compatibility, and composite-key rendering;
+2. logical timed-input watermark ownership, target signature, grants,
+   transactions, locks, batching, concurrency, and standby behavior;
+3. a maintenance-time `LATE_INPUT` barrier with exact diagnostic and a
+   source-repair-plus-reconciliation recovery path;
+4. correction identity/order, truth-preserving corrections, moves, replays,
+   replacement seeds, and irrecoverable-history behavior;
+5. finite evidence, audited event-time retention, inherited resource bounds,
+   failure rollback, restore identity, and direct-upgrade behavior.
 
-Freeze:
-
-- the exact JSON/SQL declaration and overload shapes;
-- whether M16 declarations remain unwindowed by absence of a window object;
-- duration and lateness bounds and their canonical rendering;
-- rejection of months/calendar components and non-finite values;
-- the exact `timestamptz` type/domain boundary;
-- the signed `bigint` ordinal formula, negative timestamps, range, and overflow;
-- composite public key and preview rendering.
-
-The reference fixture must include timestamps immediately before, exactly at,
-and immediately after boundaries, including pre-epoch timestamps and multiple
-session time zones.
-
-### 2. Watermark authority and execution
-
-Freeze:
-
-- who owns a watermark: input declaration, relation, or program version;
-- the public target and status signatures and role grants;
-- transaction boundaries for requesting and completing advancement;
-- repeated, backward, concurrent, and jumping target behavior;
-- batch bound, scheduling, resumption, and target-versus-complete reporting;
-- lock order and primary/standby behavior.
-
-The durable complete watermark is a commit claim. It must advance only in the
-same transaction that makes every crossed materialized window final and makes
-their evidence and downstream lifecycle state complete.
-
-### 3. Too-late input policy
-
-Freeze one exact admission policy for input at or beyond finality, its SQLSTATE
-and diagnostic envelope, whether the authoritative write is rejected or the
-program is quarantined, the claim barrier, and the operator repair procedure.
-
-This is the sharpest unresolved policy decision in the current roadmap: the
-supported boundary requires behavior to follow the eventual frozen policy
-(`ROADMAP.md:1052`), while the policy still must be chosen before contract
-freeze (`ROADMAP.md:1067`). No runtime code should choose it accidentally.
-
-### 4. Correction identity and ordering
-
-Freeze:
-
-- one durable correction identity derived from program/input/window fact and
-  committed lower frontier;
-- canonical ordering across insert, update, window move, delete, replay,
-  replacement, reconciliation, and downstream lifecycle work;
-- behavior for aggregate changes that preserve comparison truth;
-- no-op behavior when a lower frontier is replayed;
-- whether current aggregate state can be rebuilt from retained summaries and
-  how history is verified without general row lineage.
-
-M16's current evidence-row identity cannot stand in for this history.
-
-### 5. Evidence, retention, concurrency, and recovery
-
-Freeze the public evidence schema, retention horizon, indexes, resource limits,
-batch ceilings, lock order, failure rollback, drift response, pruning audit,
-logical-dump identity, physical recovery, and direct-upgrade behavior. Explicit
-fixtures must prove that an incomplete batch resumes from the last complete
-watermark without duplicating corrections or finalization.
+These are now inputs to the contract and executable fixture, not choices for
+the migration to make.
 
 ## Risk register
 
 | Priority | Risk | Evidence | Consequence | Required mitigation |
 |---|---|---|---|---|
-| P0 | M17 entry gate remains unmet | M16 publication is verified; no M17 fixture exists | Product code begins without its frozen behavioral oracle | Record the release identities and freeze the exact entry fixture |
-| P0 | Public/durable contract is unfrozen | `ROADMAP.md:1065-1069` | Early schema/API choices become incompatible state | Close all five decision groups before migration code |
-| P0 | Too-late policy is undefined | `ROADMAP.md:1052,1067` | Silent divergence, rejected authoritative data, or irrecoverable finality | Freeze exact admission, diagnostics, barrier, and repair path |
+| P0 | Contract/executable oracle are not published | `docs/m17-entry.md` is frozen; `m17-contract` and `tests/m17*` are absent | Product code can drift from the reviewed oracle | Transcribe and compare them before migration code |
 | P1 | M16 snapshots do not provide M17 correction history | Current recomputation/upsert path at migration lines 1195-1345 | Replays, moves, and late corrections can duplicate or disappear | Add explicit correction identity/state after contract freeze |
 | P1 | Watermark completion is a new atomicity boundary | No target/complete state or API | Completion may outrun finalization or downstream truth | Persist target/complete separately; batch atomically under frozen lock order |
-| P1 | Reconciliation is snapshot-only | Migration lines 775-1013 | Lost correction/finality history may pass current repair | Define temporal audit invariants and exact repair limits |
-| P1 | Retention can destroy open-window recovery evidence | No M17 retention dependency model | Replay, explanation, rollback, rebuild, or finalization becomes impossible | Protect per-window input summaries and open/pending/recovery-horizon state; audit every prune |
-| P1 | Resource and performance ceilings are unspecified | Roadmap decision group; no M17 benchmark | Watermark jumps or correction storms cause unbounded work | Freeze batch/window limits, indexes, and regression budgets |
+| P1 | Reconciliation is snapshot-only | Migration lines 775-1013 | Lost correction/finality history may pass current repair | Implement the frozen repair and irrecoverable-history boundary |
+| P1 | Retention can destroy open-window recovery evidence | M17 protection rules are frozen but unimplemented | Replay, explanation, rollback, rebuild, or finalization becomes impossible | Enforce and test every protected reference before audited prune |
+| P1 | Performance budgets remain unproved | Bounds are frozen; no M17 benchmark | Watermark jumps or correction storms may exceed useful latency | Add indexed correction/jump regression budgets with the executable gate |
 | P1 | Recovery identity is unproved | No M17 restore/upgrade fixture | Dump/restore or restart changes ordering/finality | Exact physical, logical, restart, and populated-upgrade fixtures |
 | P2 | Milestone status docs are stale | M12, M15, and M16 readiness wording | Engineers may implement from obsolete assumptions | Make `m17-entry` the dated source of entry truth; keep old records historical |
 | P1 | Release job trusts mutable inputs with broad write permission | `checkout@v4`, stable Rust, job-wide `contents`/`packages: write` | A moved upstream ref can affect published source artifacts and images | SHA-pin actions/toolchain, disable unused persisted credentials, and narrow publishing permission |
@@ -434,10 +376,9 @@ watermark without duplicating corrections or finalization.
 
 ## Documentation consistency findings
 
-- There are no `docs/m17-contract.md`, `docs/m17-entry.md`,
-  `docs/m17-evidence.md`, `docs/m17-readiness.md`, `docs/m17-tasks.md`, M17
-  upgrade guide, release notes, or `tests/m17.sh`. The M10-M16 pattern makes
-  these absences meaningful, not cosmetic.
+- `docs/m17-entry.md` now exists; `docs/m17-contract.md`, evidence, readiness,
+  tasks, upgrade, release notes, and `tests/m17.sh` remain intentionally absent
+  until the executable contract work begins.
 - `docs/m12-readiness.md` predicts richer aggregation as M13, while the actual
   roadmap places ergonomics at M13, richer aggregation at M16, and windows at
   M17. Preserve it as historical evidence or label it explicitly superseded.
@@ -452,16 +393,14 @@ watermark without duplicating corrections or finalization.
 
 ## Recommended M17 start sequence
 
-### Gate 0 — record the released predecessor
+### Gate 0 — record the released predecessor — complete
 
-M16 CI and release runs succeeded. Record the exact commit, run, release URL,
-archive digest, image identity, and passed upgrade fixture above in
-`docs/m17-entry.md` as the first M17 pre-entry change.
+`docs/m17-entry.md` records the exact commit, runs, release, archive digest,
+image identity, and populated upgrade evidence.
 
-### Gate 1 — freeze behavior before schema
+### Gate 1 — freeze behavior before schema — complete
 
-Create the smallest bounded reference program that covers the full M17 entry
-gate. Its fixtures should assert full ordered outputs, not counts:
+The bounded program in `docs/m17-entry.md` freezes:
 
 - declarations and previews;
 - boundary and pre-epoch window assignments;
@@ -475,8 +414,8 @@ gate. Its fixtures should assert full ordered outputs, not counts:
 - replacement, reconciliation, restart, physical/logical restore, and populated
   direct upgrade.
 
-The fixture can initially fail or serve as a frozen oracle, but expected output
-must be reviewed before production code encodes it.
+The document is the reviewed oracle. Gate 2 must make it executable before
+production code encodes it.
 
 ### Gate 2 — publish the contract
 
@@ -525,15 +464,15 @@ are true:
 - [x] M16 CI and release runs completed successfully.
 - [x] `v0.13.0` archive, checksum, OCI digest, release notes, and direct upgrade
       were verified.
-- [ ] The immutable M16 release identities are recorded in `docs/m17-entry.md`.
-- [ ] The M17 reference program and full exact expected outputs are frozen.
-- [ ] Declaration, duration/lateness, ordinal, and compatibility semantics are
+- [x] The immutable M16 release identities are recorded in `docs/m17-entry.md`.
+- [x] The M17 reference program and full exact expected outputs are frozen.
+- [x] Declaration, duration/lateness, ordinal, and compatibility semantics are
       exact.
-- [ ] Watermark ownership, API, authorization, transactions, batching,
+- [x] Watermark ownership, API, authorization, transactions, batching,
       concurrency, and standby behavior are exact.
-- [ ] Too-late input admission, diagnostics, barrier, and repair are exact.
-- [ ] Correction identity/order and replay behavior are exact.
-- [ ] Evidence, retention, locks, limits, failure rollback, recovery, and
+- [x] Too-late input admission, diagnostics, barrier, and repair are exact.
+- [x] Correction identity/order and replay behavior are exact.
+- [x] Evidence, retention, locks, limits, failure rollback, recovery, and
       upgrade behavior are exact.
 - [ ] `docs/m17-contract.md` and the executable entry fixture agree byte for
       byte on public output.
