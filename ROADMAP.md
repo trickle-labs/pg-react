@@ -1027,17 +1027,72 @@ the entry gate recorded in `docs/m13-entry.md`.
 
 ---
 
-## Proposed sequence after M16
+## Stage 17 — Event-time windows
+
+**Outcome:** extend M16's stratified aggregate model with one fixed-duration event-time tumbling window per aggregate dependency, using explicit timestamps, durable monotone watermarks, bounded lateness, and deterministic corrections while preserving exact PostgreSQL value semantics, finite evidence, atomic strata, and recovery.
+
+**Entry gate:** the exact `v0.13.0` release artifacts, checksums, disclosures, OCI digest, and populated direct-upgrade path are published and verified. Before the window contract is fixed, freeze a bounded reference program covering every supported aggregate; exact boundary timestamps; windows emptied by retraction; in-order and out-of-order timed-input inserts, updates, window moves, and deletes; replayed maintenance frontiers; repeated, backward, and jumping watermark targets; on-time, correctably late, and finalized-window inputs; replacement, reconciliation, crash/restart, physical and logical recovery, and direct upgrade; freeze its exact declarations, window assignments, aggregate values, facts, supports, correction history, frontiers, diagnostics, and explanations.
+
+### Deliverables
+
+- A PostgreSQL-native declaration surface that adds one direct finite non-null `timestamptz` event-time column, one fixed positive duration, and one finite allowed-lateness interval to an inherited M16 aggregate dependency.
+- Stable UTC-epoch-aligned half-open `[start, end)` windows whose derived fact semantic key is the existing ordered composite-key encoding of the typed group key plus a signed `bigint` window ordinal, independent of session time zone, declaration order, physical row order, and restart.
+- One monotone requested watermark and one durable complete watermark per declared input, advanced and inspected through the public API; the coordinator progresses toward the target in idempotent bounded batches and atomically finalizes every materialized window crossed before reporting the target complete.
+- Dependency-ordered maintenance that accepts out-of-order timed input until finalization, folds each committed lower-frontier delta into one canonically ordered aggregate correction per affected window fact, and commits aggregate values, truth, supports, evidence, downstream lifecycle work, and frontiers atomically.
+- Stable public evidence and unified explanation that identify the event-time column, window duration and fixed alignment, window start and end, requested and complete watermarks, allowed-lateness boundary, finalization state, aggregate value, correction identity and lower frontier, and truth result without enumerating every input row.
+- Atomic validation, preview, deployment, replacement, removal, reconciliation, retention, and recovery through the inherited public API and role boundary, with actionable diagnostics for invalid declarations, invalid watermark movement, and input beyond the finalized boundary.
+- Extension `0.14.0`, worker compatibility and direct upgrade from `0.13.0`, compact author and operator tasks, and exact fresh-install, API-inventory, privilege, semantic, concurrency, failure, recovery, logical-restore, and upgrade evidence.
+
+### Supported boundary
+
+- M17 inherits M16's platform, public API, managed-worker, typed-key, security, maintenance, isolation, recovery, resource-limit, external-effect, aggregate, and usability boundary except for the explicitly frozen event-time expansion.
+- A rule still declares exactly one aggregate dependency and function over one finite authoritative or derived relation in a strictly lower, non-recursive stratum. The positively bound group key has at most three M15 scalar components; the derived fact key appends the UTC-epoch-relative `bigint` window ordinal within M15's four-component codec and does not relax any aggregate-cycle restriction.
+- Timed-input timestamps use PostgreSQL `timestamptz` comparison semantics but must be direct, finite, non-null values. Windows are fixed-duration, UTC-epoch-aligned, and half-open; a timestamp exactly at a boundary belongs to the window beginning at that boundary.
+- Only windows touched by timed input are materialized; deleting their last input retains an empty aggregate window through finalization, while untouched empty windows are never synthesized.
+- A materialized window accepts corrections while the complete watermark is strictly before `window_end + allowed_lateness`. It becomes final when the watermark reaches that boundary, and later input follows the frozen too-late policy without exposing partial or silently divergent state.
+- Consequences remain asynchronous and at-least-once. Watermark advancement determines logical completeness, not wall-clock execution latency or external-effect completion.
+
+### Explicit non-goals
+
+- Sliding, hopping, session, calendar, dynamically aligned, processing-time, ingest-time, or unbounded windows; temporal joins; recurrence; interval algebra; pattern matching; or general complex-event processing.
+- Multiple windows or aggregate dependencies per rule, nested windows, windowed recursion, recursive aggregation, aggregate cycles, or cross-window feedback.
+- Automatic watermark inference from clocks or observed maxima, cross-source watermark coordination, speculative results beyond the durable watermark, retraction of finality, or unbounded lateness.
+- General row-level ingestion, source-table change capture, stream brokering, global timed-input ordering, exactly-once external effects, or synchronous consequence completion.
+- New aggregate functions, key codecs, RLS source support, isolation levels, worker protocols, platform versions, general input-row lineage, or unbounded correction and proof enumeration.
+
+### Decisions to close before the M17 contract freezes
+
+- The exact declaration and overload shapes, duration and lateness bounds, canonical duration rendering, timestamp-type boundary, window-ordinal calculation and range, compatibility treatment of M16 declarations, composite-key rendering, and preview format.
+- Watermark ownership, target signature, authorization, transactional scope, scheduling, persistence, idempotency, backward and concurrent target behavior, batch bound and continuation behavior, target-versus-complete reporting, and primary/standby rules.
+- The exact admission and diagnostic policy for timed input at or beyond finality, claim barriers, and operator recovery after an authoritative late-data violation.
+- Aggregate-correction identity and canonical ordering by window fact and committed lower frontier across inserts, updates, moves, deletes, replayed frontiers, replacement, reconciliation, and downstream lifecycle events, including changes that do not flip aggregate truth.
+- Window, watermark, correction, and finalization evidence; retention and pruning constraints; resource limits; indexes; lock order; failure rollback; drift detection; and deterministic behavior across dump/restore and upgrade.
+
+### Exit gates
+
+- The frozen program returns the exact PostgreSQL window assignment, aggregate value, comparison truth, facts, supports, evidence, frontiers, and explanations for every supported function, type, boundary timestamp, window emptied by retraction, valid null aggregate expression, and threshold transition.
+- Every supported ordering of equivalent timed-input inserts, updates, moves, deletes, refreshes, watermark targets, run scheduling, and worker timing produces byte-exact canonical current state equal to one clean event-time-ordered recomputation at the same complete watermark; each frozen arrival/frontier schedule also produces its exact correction history, and replaying a frontier adds none.
+- Every correctably late lower-frontier delta updates every and only affected old and new window aggregate, support, explanation, and downstream lifecycle transition; changes that preserve truth update evidence without a false transition, and finalized-window input follows the exact frozen policy.
+- Repeated completed watermark targets are no-ops, repeating an incomplete target resumes from the complete watermark, backward targets fail without mutation, and forward jumps progress in bounded batches that finalize every and only eligible materialized window once before reporting completion. Resource-limit, catalog, expression, or injected failure retains the last complete batch and remains safely resumable.
+- Validation or refresh rejects every frozen null or infinite event-time value, computed, volatile, unauthorized, drifted, unsupported-type, invalid-duration, invalid-lateness, multiple-window, nested, recursive, cyclic, same-stratum, unbound, or incompatible declaration or input with exact diagnostics and no partial mutation.
+- Replacement, removal, reconciliation, crash/restart, managed-worker restart, physical restore, dump/restore, and direct `0.13.0 -> 0.14.0` upgrade preserve or repair the exact declarations, watermarks, windows, aggregate values, facts, supports, corrections, frontiers, diagnostics, and explanations.
+- Retention cannot prune input summaries, corrections, finalization evidence, or identities still required by an open window, pending work, reconciliation, replay, rollback, explanation, or the published recovery horizon; every permitted prune is audited exactly.
+- Every inherited M0–M16 semantic, operational, security, recovery, performance, compatibility, documentation, usability, and external-effect gate passes unchanged.
+- A non-superuser author and operator can declare, validate, preview, deploy, run, advance, inspect, explain, correct, finalize, reconcile, replace, recover, and upgrade the reference windowed program using only public APIs and documentation.
+
+---
+
+## Proposed sequence after M17
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
-1. **M17 — Event-time windows.** Add explicit event timestamps, durable watermarks, one fixed tumbling-window model, bounded lateness, and deterministic corrections; keep sliding/session windows and general complex-event processing out until this smaller contract is proved.
-2. **M18 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
-3. **M19 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
-4. **M20 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
-5. **M21 — Bounded synchronous rule sets.** Extend M18's immediate path with one serialized database-local consequence loop, deterministic ordering, causal controls, firing and cycle limits, and all-or-nothing rollback; external actions and general workflow orchestration remain asynchronous.
+1. **M18 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
+2. **M19 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
+3. **M20 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
+4. **M21 — Bounded synchronous rule sets.** Extend M18's immediate path with one serialized database-local consequence loop, deterministic ordering, causal controls, firing and cycle limits, and all-or-nothing rollback; external actions and general workflow orchestration remain asynchronous.
+5. **M22 — Bounded support provenance.** Record one bounded typed tuple of contributing authoritative or derived bindings per logical support and expose it through existing explanation and recovery paths, without promising arbitrary SQL lineage, minimal proofs, or unlimited enumeration.
 
-Unstratified negation, recursive aggregation, broader support tuples, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M16–M21. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M17–M22. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
