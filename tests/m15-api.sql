@@ -79,6 +79,10 @@ DECLARE
         'pgreact_api.validate_rule(regclass,name,text)',
         'pgreact_api.worker_protocol_compatible(integer)'];
 BEGIN
+    IF (SELECT extversion FROM pg_extension WHERE extname = 'pg_react') = '0.13.0' THEN
+        SELECT array_agg(identity ORDER BY identity) INTO expected
+        FROM unnest(expected || ARRAY['pgreact_api.reconcile_program(text)']) identity;
+    END IF;
     SELECT array_agg(procedure.oid::regprocedure::text
                      ORDER BY procedure.oid::regprocedure::text)
     INTO actual
@@ -116,6 +120,10 @@ BEGIN
           AND has_function_privilege(role_name, procedure.oid, 'EXECUTE')
         GROUP BY role_name
     ) grants;
+    IF (SELECT extversion FROM pg_extension WHERE extname = 'pg_react') = '0.13.0' THEN
+        actual := jsonb_set(actual, '{m15_operator}',
+            (actual -> 'm15_operator') - 'pgreact_api.reconcile_program(text)');
+    END IF;
     IF actual IS DISTINCT FROM jsonb_build_object(
         'm15_advanced', to_jsonb(ARRAY['pgreact_api.explain_advanced(uuid)']),
         'm15_author', to_jsonb(ARRAY[

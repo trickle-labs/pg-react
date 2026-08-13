@@ -2,6 +2,7 @@
 set -euo pipefail
 
 image=${1:-pg-react:v0.12.0}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.12.0}
 platform=linux/amd64
 project=${COMPOSE_PROJECT_NAME:-pgreact-m15-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
@@ -29,15 +30,17 @@ run_test() {
 }
 
 run_test 'M15 task documentation' bash tests/m15-docs.sh
-run_test 'M13 compatibility' env \
-  PG_REACT_SKIP_INHERITED=true \
-  PG_REACT_EXPECTED_VERSION=0.12.0 \
-  COMPOSE_PROJECT_NAME="${project}-m13" \
-  bash tests/m13.sh "$image"
-run_test 'M14 compatibility' env \
-  PG_REACT_EXPECTED_VERSION=0.12.0 \
-  COMPOSE_PROJECT_NAME="${project}-m14" \
-  bash tests/m14.sh "$image"
+if [[ ${PG_REACT_SKIP_INHERITED:-false} != true ]]; then
+  run_test 'M13 compatibility' env \
+    PG_REACT_SKIP_INHERITED=true \
+    PG_REACT_EXPECTED_VERSION="$expected_version" \
+    COMPOSE_PROJECT_NAME="${project}-m13" \
+    bash tests/m13.sh "$image"
+  run_test 'M14 compatibility' env \
+    PG_REACT_EXPECTED_VERSION="$expected_version" \
+    COMPOSE_PROJECT_NAME="${project}-m14" \
+    bash tests/m14.sh "$image"
+fi
 
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=$platform
@@ -51,7 +54,7 @@ ready=false
 ready_checks=0
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -XAtq -U postgres -d postgres -c \
-      "SELECT extversion = '0.12.0' FROM pg_extension WHERE extname = 'pg_react'" \
+      "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" \
       2>/dev/null | grep -qx t; then
     ready_checks=$((ready_checks + 1))
     if [[ $ready_checks -eq 2 ]]; then ready=true; break; fi

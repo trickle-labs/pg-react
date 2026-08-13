@@ -12,6 +12,7 @@ case "$recovery_milestone" in
   m12) restart_fixture=m12-recovery-restore ;;
   m13) restart_fixture=m13-recovery-restore ;;
   m15) restart_fixture=m15-recovery-restart ;;
+  m16) restart_fixture=m16-recovery-restart ;;
   *) echo "unsupported recovery milestone: $recovery_milestone" >&2; exit 1 ;;
 esac
 recovery_db="${recovery_milestone}_recovery"
@@ -89,14 +90,14 @@ docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
   -v "$restore_volume:/var/lib/postgresql" -v "$backup_archive:$backup_archive:ro" \
   --entrypoint sh "$PG_REACT_IMAGE" -c 'mkdir -p "$1" && tar -xzf "$2" -C "$1"' \
   sh "$restore_data" "$backup_archive"
-if test "$recovery_milestone" = m15; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16; then
   docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
     -v "$restore_volume:/var/lib/postgresql" --entrypoint touch "$PG_REACT_IMAGE" \
     "$restore_data/standby.signal"
 fi
 preload=pg_trickle
 managed_database=
-if test "$recovery_milestone" = m15; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16; then
   preload=pg_trickle,pg_react
   managed_database=$recovery_db
 fi
@@ -125,15 +126,15 @@ done
 test "$ready" = true
 test "$(docker inspect "$restore_container" --format '{{.Image}}')" = \
   "$(docker image inspect "$PG_REACT_IMAGE" --format '{{.Id}}')"
-if test "$recovery_milestone" = m15; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16; then
   test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \
     -c 'SELECT pg_is_in_recovery()')" = t
   test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \
     -c 'SELECT NOT EXISTS (SELECT 1 FROM pgreact_internal.managed_processes process JOIN pg_stat_activity activity ON activity.pid = process.backend_pid)')" = t
-  docker cp tests/m15-recovery-restart.sql \
-    "$restore_container:/tmp/m15-recovery-restart.sql" >/dev/null
+  docker cp "tests/${recovery_milestone}-recovery-restart.sql" \
+    "$restore_container:/tmp/${recovery_milestone}-recovery-restart.sql" >/dev/null
   docker exec "$restore_container" psql -X -U postgres -d "$recovery_db" \
-    -v ON_ERROR_STOP=1 -f /tmp/m15-recovery-restart.sql
+    -v ON_ERROR_STOP=1 -f "/tmp/${recovery_milestone}-recovery-restart.sql"
   docker exec -u postgres "$restore_container" \
     pg_ctl -D "$restore_data" promote -w >/dev/null
   promoted=false

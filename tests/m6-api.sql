@@ -34,6 +34,7 @@ BEGIN
              WHEN '0.10.0' THEN '1f95ee30f336e8ee108ed8824606a45a'
              WHEN '0.11.0' THEN '1f95ee30f336e8ee108ed8824606a45a'
              WHEN '0.12.0' THEN '1f95ee30f336e8ee108ed8824606a45a'
+             WHEN '0.13.0' THEN '1f95ee30f336e8ee108ed8824606a45a'
              WHEN '0.5.0' THEN '761285a533a4e144b2db05309c10892a'
              WHEN '0.4.0' THEN 'bc3843191affe863a5dfb916761a9a2d'
              ELSE '16c2ae7a2cabe0326a6339f0b7ce51f1'
@@ -110,7 +111,7 @@ DECLARE
     missing text[];
     unexpected text[];
 BEGIN
-    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.4.0', '0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0') THEN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.4.0', '0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0') THEN
       SELECT array_agg(signature ORDER BY signature) INTO expected
       FROM unnest(expected || ARRAY[
         'create_derivation_rule(text, regclass, name[], uuid, integer, text) -> uuid',
@@ -126,7 +127,7 @@ BEGIN
         'validate_derived_relation(text, regtype, name[], integer) -> TABLE(contract_version integer, code text, severity text, object_identity text, message text, hint text, details jsonb)'
       ]) signature;
     END IF;
-    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0') THEN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0') THEN
       SELECT array_agg(signature ORDER BY signature) INTO expected
       FROM unnest(expected || ARRAY[
         'explain_recursive_fact(uuid, uuid, bigint) -> jsonb',
@@ -136,7 +137,7 @@ BEGIN
         'validate_derivation_program(jsonb) -> TABLE(contract_version integer, code text, severity text, object_identity text, message text, hint text, details jsonb)'
       ]) signature;
     END IF;
-    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0', '0.11.0', '0.12.0') THEN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0') THEN
       SELECT array_agg(signature ORDER BY signature) INTO expected
       FROM unnest(expected || ARRAY[
         'advance_deadline_clock(timestamp with time zone) -> jsonb',
@@ -175,7 +176,7 @@ DECLARE
     ];
     actual text[];
 BEGIN
-    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.4.0', '0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0') THEN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.4.0', '0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0') THEN
       SELECT array_agg(signature ORDER BY signature) INTO expected
       FROM unnest(expected || ARRAY[
         'derived_facts(relation_version_id uuid, relation_name text, relation_version integer, fact_id uuid, semantic_key bigint, fact jsonb, support_count bigint, first_frontier bigint, last_frontier bigint, first_derived_at timestamp with time zone, last_changed_at timestamp with time zone)',
@@ -184,7 +185,7 @@ BEGIN
         'support_history(support_id uuid, relation_version_id uuid, relation_name text, relation_version integer, rule_name text, rule_version integer, rule_version_id uuid, activation_id uuid, activation_generation bigint, activation_revision bigint, semantic_key bigint, fact jsonb, source_binding jsonb, active boolean, first_frontier bigint, last_frontier bigint, created_at timestamp with time zone, invalidated_at timestamp with time zone)'
       ]) signature;
     END IF;
-    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0') THEN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.5.0', '0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0') THEN
       SELECT array_agg(signature ORDER BY signature) INTO expected
       FROM unnest(expected || ARRAY[
         'derivation_components(program_version_id uuid, component_id uuid, component_order integer, cyclic boolean, rule_names text[], target_relations text[], frontier bigint, iterations integer, fact_count bigint, support_count bigint, fingerprint text, committed_at timestamp with time zone)',
@@ -195,7 +196,7 @@ BEGIN
         'recursive_support_inputs(support_id uuid, input_order integer, relation_version_id uuid, relation_name text, semantic_key bigint, fact_id uuid)'
       ]) signature;
     END IF;
-    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0') THEN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.6.0', '0.7.0', '0.8.0', '0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0') THEN
       SELECT array_agg(signature ORDER BY signature) INTO expected
       FROM unnest(expected || ARRAY[
         'derivation_dependency_graph(program_version_id uuid, program_name text, program_version integer, dependency_id uuid, rule_name text, input_order integer, polarity text, source_relation text, target_relation text, source_component_id uuid, target_component_id uuid, source_stratum integer, target_stratum integer)',
@@ -207,6 +208,12 @@ BEGIN
       SELECT array_agg(signature ORDER BY signature) INTO expected
       FROM unnest(expected || ARRAY[
         'aggregate_dependency_evidence(evidence_id uuid, program_version_id uuid, program_name text, program_version integer, rule_version_id uuid, rule_name text, group_key bigint, counted_relation text, exact_count bigint, comparison text, threshold bigint, source_stratum integer, target_stratum integer, lower_frontier bigint)'
+      ]) signature;
+    END IF;
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.13.0' THEN
+      SELECT array_agg(signature ORDER BY signature) INTO expected
+      FROM unnest(expected || ARRAY[
+        'aggregate_dependency_evidence(evidence_id uuid, program_version_id uuid, program_name text, program_version integer, rule_version_id uuid, rule_name text, group_key bigint, counted_relation text, exact_count bigint, comparison text, threshold bigint, source_stratum integer, target_stratum integer, lower_frontier bigint, aggregate_function text, value_expression name, input_type regtype, result_type regtype, exact_value text, typed_threshold text, truth_result boolean, expression_collation regcollation, public_group_key jsonb, input_type_name text, result_type_name text, expression_collation_name text)'
       ]) signature;
     END IF;
     SELECT array_agg(signature ORDER BY signature)

@@ -63,7 +63,7 @@ BEGIN
             FROM pgreact_internal.clock_history))
     INTO actual;
     IF actual IS DISTINCT FROM expected
-       OR (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') NOT IN ('0.9.0', '0.10.0', '0.11.0', '0.12.0')
+       OR (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') NOT IN ('0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0')
        OR pg_catalog.pg_is_in_recovery() THEN
         RAISE EXCEPTION 'M12 recovery catch-up changed: %, %', actual, expected;
     END IF;
