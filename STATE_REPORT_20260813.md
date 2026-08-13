@@ -4,18 +4,18 @@
 
 **Decision: M17 product implementation is not ready to start. M17 pre-entry work is ready to start.**
 
-The repository is a clean, coherent M16 implementation candidate at extension
-`0.13.0`, with a strong inherited test and recovery discipline. M17 is not a
+The repository is a clean, coherent M16 release at extension `0.13.0`, with a
+strong inherited test and recovery discipline. M17 is not a
 partially implemented feature: it exists only as a detailed roadmap stage. No
 M17 contract, entry fixture, schema, API, runtime, evidence model, upgrade, or
 test gate exists yet.
 
-The immediate blocker is objective. M17's entry gate requires published and
-verified `v0.13.0` artifacts, checksums, disclosures, OCI digest, and a frozen
-M17 reference program (`ROADMAP.md:1034`). At the live-state snapshot below,
-the remote tag existed, but its release workflow was still running and no
-GitHub release existed. The reference program also does not exist. Therefore
-the entry gate is unmet.
+M17's entry gate requires published and verified `v0.13.0` artifacts,
+checksums, disclosures, OCI digest, and a frozen M17 reference program
+(`ROADMAP.md:1034`). The predecessor-release half is now satisfied: M16 CI and
+release workflows succeeded, and the release, archive checksum, and immutable
+OCI digest are published. The reference program and its exact outputs still do
+not exist, so the complete M17 entry gate remains unmet.
 
 The deeper blocker is semantic. M16 maintains one current aggregate snapshot
 per group. M17 requires durable per-window identity, requested and complete
@@ -26,7 +26,7 @@ coding.
 
 The shortest safe path is:
 
-1. let M16 publication finish and record its immutable release identities;
+1. record M16's verified immutable release identities in `docs/m17-entry.md`;
 2. freeze one exact-output M17 reference program and close the five decision
    groups already listed in the roadmap;
 3. write the M17 contract and executable entry fixture;
@@ -34,20 +34,24 @@ The shortest safe path is:
 
 ## Snapshot and method
 
-Assessment snapshot: **2026-08-13 14:44 CEST**.
+Assessment updated: **2026-08-13 15:32 CEST**.
 
 | Item | Observed state |
 |---|---|
 | Repository | `trickle-labs/pg-react` |
 | Branch | `main` |
-| Assessed source HEAD | `084193a0f2ee2236c5777ff8fe00f609f71a5521` (`docs: define M17 event-time windows`) |
-| Worktree before this report | Clean; `main` matched `origin/main` |
+| Assessed source baseline | `084193a0f2ee2236c5777ff8fe00f609f71a5521` (`docs: define M17 event-time windows`) |
+| Report update base | `f19eabb6234d426cd49b0a9ba3e9cfc38ffb03e8` |
+| Worktree before this update | Clean; `main` matched `origin/main` |
 | M16 implementation | `7b647679f89576bc0a831f39ea1f42b7ff61ceac` |
 | M16 tag | Remote `v0.13.0` points to `7b64767` |
-| M16 GitHub release | Not present at snapshot |
-| M16 release run | In progress: [run 31699725097](https://github.com/trickle-labs/pg-react/actions/runs/31699725097) |
-| M16 branch CI | In progress: [run 31699689382](https://github.com/trickle-labs/pg-react/actions/runs/31699689382) |
-| Assessed-HEAD CI | In progress: [run 31700929592](https://github.com/trickle-labs/pg-react/actions/runs/31700929592) |
+| M16 GitHub release | Published 2026-08-13 14:59 CEST: [`v0.13.0`](https://github.com/trickle-labs/pg-react/releases/tag/v0.13.0) |
+| M16 archive SHA-256 | `b833a920467507b2476e5b3c70388ecabbcde109927b17c304a3de2d8e0772ac` |
+| M16 OCI identity | `ghcr.io/trickle-labs/pg-react:v0.13.0@sha256:f5d55947bdd77b7f88f2ee7b1dd03f980aa9d198587b0faf1d1317ec30250c06` |
+| M16 release run | Success: [run 31699725097](https://github.com/trickle-labs/pg-react/actions/runs/31699725097) |
+| M16 branch CI | Success: [run 31699689382](https://github.com/trickle-labs/pg-react/actions/runs/31699689382) |
+| Source-baseline CI | Success: [run 31700929592](https://github.com/trickle-labs/pg-react/actions/runs/31700929592) |
+| Initial-report CI | Success: [run 31702191288](https://github.com/trickle-labs/pg-react/actions/runs/31702191288) |
 
 This assessment combined:
 
@@ -68,8 +72,8 @@ Local checks performed against `084193a`:
 | `docker compose config --quiet` | Pass |
 
 The full Docker-backed `tests/m16.sh` gate and pgrx PostgreSQL 18 compilation
-were not rerun locally for this report. They are part of the in-progress CI
-and release runs, so this report does not claim those live runs have passed.
+were not rerun locally for this report update. Both passed in M16 CI and again
+in the successful release workflow.
 
 ## What pg-react is today
 
@@ -130,9 +134,8 @@ capability sequence is internally consistent:
 | M16 | Typed `COUNT(expression)`, `SUM`, `MIN`, and `MAX` over one strict lower-stratum dependency |
 | M17 | Planned fixed event-time tumbling windows over the M16 aggregate boundary |
 
-`README.md:204-209` still calls M16 a repository candidate. That wording is
-accurate until the `v0.13.0` release run completes, but the remote tag has
-already been pushed.
+`README.md:204-209` still calls M16 a repository candidate. That wording is now
+stale because `v0.13.0` is published.
 
 ## M16 baseline inherited by M17
 
@@ -307,19 +310,19 @@ boundaries during implementation.
 | Required entry evidence | State | Assessment |
 |---|---|---|
 | Remote `v0.13.0` tag | Present | Satisfied: points to `7b64767` |
-| Successful M16 CI | In progress at snapshot | Not yet satisfied |
-| Published `v0.13.0` GitHub release | Absent at snapshot | Not satisfied |
-| Published archive and checksum manifest | Release still running | Not verified |
-| Published immutable OCI digest | Release still running | Not verified |
-| Release disclosures/notes | File exists; publication absent | Not yet satisfied |
-| Populated `0.12.0 -> 0.13.0` fixture | Present in repository | Implemented; release run still pending |
+| Successful M16 CI | [Run 31699689382](https://github.com/trickle-labs/pg-react/actions/runs/31699689382) succeeded | Satisfied |
+| Published `v0.13.0` GitHub release | Published 2026-08-13 14:59 CEST | Satisfied |
+| Published archive and checksum manifest | Archive SHA-256 `b833a920467507b2476e5b3c70388ecabbcde109927b17c304a3de2d8e0772ac` | Satisfied |
+| Published immutable OCI digest | `sha256:f5d55947bdd77b7f88f2ee7b1dd03f980aa9d198587b0faf1d1317ec30250c06` | Satisfied |
+| Release disclosures/notes | `docs/m16-release-notes.md` published with the release | Satisfied |
+| Populated `0.12.0 -> 0.13.0` fixture | Passed in release run 31699725097 | Satisfied |
 | Frozen M17 reference program | Absent | Not satisfied |
 | Frozen exact M17 outputs and diagnostics | Absent | Not satisfied |
 
 `docs/m16-readiness.md:3-7` still says to run the M16 gate and then tag/push
-`v0.13.0`; that record became stale as soon as the tag was pushed. It should be
-superseded by `docs/m17-entry.md` only after the release run succeeds and its
-artifact identities are verified.
+`v0.13.0`; that record is now historical. `docs/m17-entry.md` can record the
+verified release identities above while the remaining reference program and
+exact outputs are frozen.
 
 ## Requirement-to-implementation gap
 
@@ -416,10 +419,9 @@ watermark without duplicating corrections or finalization.
 
 | Priority | Risk | Evidence | Consequence | Required mitigation |
 |---|---|---|---|---|
-| P0 | M17 entry gate is unmet | Release absent/in progress; no M17 fixture | Work begins from an unverified predecessor and moving oracle | Finish/verify M16 release; record immutable identities; freeze entry fixture |
+| P0 | M17 entry gate remains unmet | M16 publication is verified; no M17 fixture exists | Product code begins without its frozen behavioral oracle | Record the release identities and freeze the exact entry fixture |
 | P0 | Public/durable contract is unfrozen | `ROADMAP.md:1065-1069` | Early schema/API choices become incompatible state | Close all five decision groups before migration code |
 | P0 | Too-late policy is undefined | `ROADMAP.md:1052,1067` | Silent divergence, rejected authoritative data, or irrecoverable finality | Freeze exact admission, diagnostics, barrier, and repair path |
-| P0 | No executable M17 oracle exists | No `tests/m17*` or `docs/m17-entry.md` | “Correct” behavior cannot be reviewed or regression-tested | Build exact reference schedule/output fixture first |
 | P1 | M16 snapshots do not provide M17 correction history | Current recomputation/upsert path at migration lines 1195-1345 | Replays, moves, and late corrections can duplicate or disappear | Add explicit correction identity/state after contract freeze |
 | P1 | Watermark completion is a new atomicity boundary | No target/complete state or API | Completion may outrun finalization or downstream truth | Persist target/complete separately; batch atomically under frozen lock order |
 | P1 | Reconciliation is snapshot-only | Migration lines 775-1013 | Lost correction/finality history may pass current repair | Define temporal audit invariants and exact repair limits |
@@ -441,22 +443,20 @@ watermark without duplicating corrections or finalization.
   M17. Preserve it as historical evidence or label it explicitly superseded.
 - `docs/m15-readiness.md` says no post-M15 milestone is committed and M16 is a
   proposal. It is also historical now.
-- `docs/m16-readiness.md` still instructs tagging/pushing `v0.13.0`; the remote
-  tag now exists and publication is in progress.
+- `docs/m16-readiness.md` still instructs tagging/pushing `v0.13.0`; the tag and
+  final release now exist.
+- `README.md:204-209` still describes M16 as a repository candidate after its
+  publication.
 - `README.md` is a useful product entry point but intentionally compresses
   milestone history. It must not be used as the sole readiness record.
 
 ## Recommended M17 start sequence
 
-### Gate 0 — finish the predecessor
+### Gate 0 — record the released predecessor
 
-Do not merge M17 product code until the `v0.13.0` CI and release runs succeed.
-Verify the archive SHA-256 and OCI digest from the published artifacts, then
-record the exact commit, run, release URL, archive digest, image identity, and
-upgrade fixture in `docs/m17-entry.md`.
-
-If either run fails, fix M16/release infrastructure as M16 work. Do not hide the
-failure inside the M17 migration.
+M16 CI and release runs succeeded. Record the exact commit, run, release URL,
+archive digest, image identity, and passed upgrade fixture above in
+`docs/m17-entry.md` as the first M17 pre-entry change.
 
 ### Gate 1 — freeze behavior before schema
 
@@ -522,9 +522,10 @@ evidence, readiness, upgrade, and release notes.
 M17 may move from pre-entry work to product implementation when all of these
 are true:
 
-- [ ] M16 CI and release runs completed successfully.
-- [ ] `v0.13.0` archive, checksum, OCI digest, release notes, and direct upgrade
-      were independently verified and recorded.
+- [x] M16 CI and release runs completed successfully.
+- [x] `v0.13.0` archive, checksum, OCI digest, release notes, and direct upgrade
+      were verified.
+- [ ] The immutable M16 release identities are recorded in `docs/m17-entry.md`.
 - [ ] The M17 reference program and full exact expected outputs are frozen.
 - [ ] Declaration, duration/lateness, ordinal, and compatibility semantics are
       exact.
