@@ -66,7 +66,13 @@ fi
   -v ON_ERROR_STOP=1 -f "/tmp/${recovery_milestone}-recovery-setup.sql"
 
 "${compose[@]}" kill -s SIGKILL postgres >/dev/null
-"${compose[@]}" up -d --no-build postgres >/dev/null
+for _ in {1..120}; do
+  if test "$("${compose[@]}" ps -a --format '{{.State}}' postgres 2>/dev/null)" != "running"; then
+    break
+  fi
+  sleep 0.1
+done
+"${compose[@]}" start postgres >/dev/null || "${compose[@]}" up -d --no-build postgres >/dev/null
 ready=false
 for _ in {1..120}; do
   if "${compose[@]}" exec -T postgres pg_isready -U postgres -d "$recovery_db" >/dev/null 2>&1; then
