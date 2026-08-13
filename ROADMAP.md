@@ -1082,17 +1082,78 @@ the entry gate recorded in `docs/m13-entry.md`.
 
 ---
 
-## Proposed sequence after M17
+## Stage 18 — Production usability and hardening
+
+**Outcome:** prove that the complete M0–M17 product is understandable, operable, measurable, diagnosable, recoverable, and upgradeable by a normal PostgreSQL developer through public APIs and documented procedures, without adding rule-engine semantics.
+
+**Entry gate:** the exact `v0.14.0` release artifacts, checksums, disclosures, OCI digest, SBOM if already available, and populated direct-upgrade path are published and verified, and every M0–M17 gate passes unchanged. Before usability, diagnostic, benchmark, recovery, or release work begins, freeze the M18 entry fixture and its exact public results.
+
+### Frozen entry fixture
+
+- One versioned manifest fixes the supported PostgreSQL and extension versions, toolchain, host and PostgreSQL configuration, random seed, wall-clock inputs, roles and grants, schemas, declarations, populated data, pending work, expected public transcripts, normalized state checksums, and artifact checksums.
+- The fixture contains five canonical workloads: risk/fraud with a suspicious-transfer constraint and review command; inventory with stock derivation and reorder aggregate; SLA/deadline with overdue lifecycle and escalation command; derived knowledge with positive recursion and stratified absence; and event-time windows with tumbling aggregates, out-of-order input, corrections, and finalization.
+- A small profile is the exact 10–15 minute authoring and documentation oracle. A populated profile freezes scale points of `1`, `10`, `100`, and `1,000` deployed rules; `10^3`, `10^5`, and `10^6` authoritative plus derived facts; single-row, `100`-row, and `10,000`-row update batches; `1` and `4` workers; `10^3` and `10^5` materialized windows; and watermark advances finalizing `0`, `10^3`, and `10^5` windows.
+- The populated `0.14.0` image, physical backup, logical dump, and expected post-restore and post-upgrade checksums include active and inactive matches, pending and retryable work, derived and aggregate facts, open and finalized windows, late corrections, watermarks, and reconciliation evidence.
+- Frozen faults cover incompatible configuration, missing privilege, source and action drift, a blocked frontier, worker loss during a lease, failed work, an interrupted watermark advance, injected repairable state drift, crash/restart, restore, and upgrade. Each fault has one exact public diagnosis, documented repair, and expected continued result.
+
+### Deliverables
+
+- One copy-and-run, public-API-only authoring path that a PostgreSQL developer can complete in 10–15 minutes and that creates, runs, inspects, and explains representative constraint, command, derivation, aggregate, and windowed rules with exact expected output.
+- Production-quality, tested risk/fraud, inventory, SLA/deadline, derived-knowledge, and event-time-window examples, each with data model, declarations, normal operation, failure behavior, resource assumptions, cleanup, and the limits it does not solve.
+- Name-first `doctor`, `status`, `explain`, and diagnostic output covering installation, compatibility, configuration, grants, drift, worker health, leases and retries, queue and update lag, blocked programs, watermarks, failed work, reconciliation need, recovery, and upgrade, with concrete public remediation commands.
+- Progressive disclosure that keeps supports, components, strata, frontiers, correction identities, immutable engine identifiers, and worker-protocol internals out of ordinary author and operator tasks; explicitly requested deep diagnosis may expose the minimum advanced evidence through its existing granted public boundary.
+- A deterministic benchmark harness and published hardware-specific performance and resource envelope for deployed-rule count, authoritative and derived fact count, update throughput and latency, worker throughput and latency, materialized-window count, no-op and finalizing-watermark cost, database growth, peak memory, crash-restart and restore time, and every measured cliff.
+- A checked-in benchmark baseline and machine-readable regression budget using three warmups and five measured runs on the pinned runner: median update and worker throughput may fall by at most `10%`; p95 update, worker, watermark, and recovery latency may rise by at most `20%`; and peak memory and database size may rise by at most `15%` at every frozen scale point.
+- Repeatable crash/restart, physical backup/restore, logical dump/restore, reconciliation, and direct `0.14.0 -> 0.15.0` upgrade drills over the populated fixture, with exact pre-failure and post-recovery state, queued-work, explanation, and continued-execution oracles and published recovery times.
+- Pinned CI actions by full commit SHA, pinned Rust/PostgreSQL/pgrx and release toolchains, locked dependencies, least-privilege workflow permissions, dependency and advisory checks, release checksums, an SPDX or CycloneDX SBOM, provenance attestations, and artifact or OCI signing where the release platform supports them; every omission has a documented verification substitute and owner.
+- One authoritative release-state and support statement, with stale milestone/readiness claims removed or linked to that statement, plus executable link, snippet, API-inventory, and release-claim checks across shipped documentation.
+- One end-to-end day-2 operations fixture that starts with the populated workloads, diagnoses worker loss and injected state drift through public output, performs documented restart and reconciliation, upgrades directly, resumes queued work and watermark progress, applies new input, and verifies exact continued results.
+- Extension `0.15.0`, release notes, compatibility inventory, and a direct upgrade from `0.14.0` that change no M0–M17 truth, lifecycle, ordering, recovery, or external-effect contract.
+
+### Supported boundary
+
+- M18 inherits the complete M17 platform, public API, managed-worker, typed-key, security, maintenance, isolation, recovery, resource-limit, external-effect, aggregate, window, and usability boundaries unchanged.
+- M18 may improve names, summaries, remediation text, documentation, testability, instrumentation, packaging, and measured implementation performance. Existing public repair and reconciliation operations remain authoritative; diagnostic entry points do not silently mutate state.
+- Ordinary workflows use stable public names and domain values. Advanced evidence is opt-in, role-checked, bounded, and needed only when a public diagnosis cannot identify the exact failure or repair target.
+- Performance claims apply only to the published hardware, PostgreSQL configuration, dataset, concurrency, and measurement method. The supported envelope ends before a measured cliff; M18 does not imply a universal throughput or recovery SLA.
+
+### Explicit non-goals
+
+- Any new reasoning or runtime semantics, including selective immediate maintenance, shared maintained conditions, synchronous rule sets, new recursion or negation behavior, new aggregate or window kinds, richer provenance, automatic repair, or a new worker protocol. Selective immediate maintenance is M19 at the earliest.
+- Changes to truth, support, lifecycle, frontier, watermark, correction, ordering, delivery, retry, retention, or recovery guarantees proved by M0–M17.
+- A client DSL or SDK, visual or AI authoring, web console, hosted control plane, domain-package framework, or private-catalog runbook.
+- Expansion of the supported PostgreSQL, `pg_trickle`, OS, architecture, isolation, RLS, key-codec, or deployment matrix without separate evidence and scope.
+- Performance claims outside the frozen envelope, speculative performance rewrites, benchmark-only shortcuts, or hiding a cliff by reducing correctness checks or fixture realism.
+- M19 implementation or preparatory abstractions for any later semantic milestone.
+
+### Exit gates
+
+All M18 gates are release-blocking targets of one documented `tests/m18.sh` entry command. It starts from a clean supported instance, selects the frozen profile explicitly, records exact artifacts, and exits nonzero on any mismatch or budget breach.
+
+- The small-profile authoring target and an independently observed normal PostgreSQL developer both complete the documented constraint, command, derivation, aggregate, and windowed path in at most `15` minutes, using only public APIs and the documented non-superuser grants, and produce the exact frozen transcript and final state.
+- Every canonical example installs and runs unchanged from its documentation on a clean instance and returns its exact complete expected rows, diagnostics, explanations, jobs, facts, aggregates, windows, and cleanup result; examples contain no private-catalog query or unexplained advanced term.
+- The complete frozen fault matrix returns the exact ordered `doctor`, `status`, `explain`, and diagnostic output, names the affected public object and next public remediation command, leaks no unauthorized payload, and requires no private catalog. The healthy fixture returns the exact clean result.
+- The benchmark target executes every frozen scale point and publishes update throughput, worker throughput, p50 and p95 latency, peak memory, database size, window and watermark cost, crash-restart time, physical-restore time, logical-restore time, and known cliffs. It fails if correctness differs, a cliff enters the published supported envelope, or any `10%` throughput, `20%` latency/recovery, or `15%` resource budget is exceeded.
+- Crash at every frozen injection point, managed-worker restart, physical restore, logical restore, reconciliation of every injected drift, and direct upgrade converge to the exact frozen checksums, public explanations, watermarks, and queued-work state. Each measured recovery completes within its published envelope and no more than `20%` above its checked-in p95 baseline.
+- The day-2 target diagnoses worker loss and drift, repairs them through documented public procedures, upgrades the populated fixture directly, resumes pending work and an interrupted watermark, accepts post-upgrade input, and reaches the exact final transcript and state without superuser access or maintainer interpretation.
+- The release audit fails on an unpinned CI action or toolchain, excessive workflow permission, undeclared release credential, lockfile drift, applicable unacknowledged advisory, checksum mismatch, or missing required SBOM, provenance, or signature. A platform exception is explicit, scoped, owned, and paired with the frozen substitute verification.
+- The documentation audit executes every command and SQL snippet, verifies every internal link and public API name, and rejects duplicated or stale milestone, readiness, version, support, or upgrade claims that contradict the authoritative release-state statement.
+- Fresh install and direct upgrade expose exactly the documented public inventory and grants. A PostgreSQL developer using the frozen non-superuser role can install, author, run, inspect, explain, benchmark, diagnose, repair, recover, and upgrade all representative workloads using only public APIs and documented procedures.
+- Every inherited M0–M17 semantic, operational, security, recovery, performance, compatibility, documentation, usability, and external-effect gate passes unchanged.
+
+---
+
+## Proposed sequence after M18
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
-1. **M18 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
-2. **M19 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
-3. **M20 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
-4. **M21 — Bounded synchronous rule sets.** Extend M18's immediate path with one serialized database-local consequence loop, deterministic ordering, causal controls, firing and cycle limits, and all-or-nothing rollback; external actions and general workflow orchestration remain asynchronous.
-5. **M22 — Bounded support provenance.** Record one bounded typed tuple of contributing authoritative or derived bindings per logical support and expose it through existing explanation and recovery paths, without promising arbitrary SQL lineage, minimal proofs, or unlimited enumeration.
+1. **M19 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
+2. **M20 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
+3. **M21 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
+4. **M22 — Bounded synchronous rule sets.** Extend M19's immediate path with one serialized database-local consequence loop, deterministic ordering, causal controls, firing and cycle limits, and all-or-nothing rollback; external actions and general workflow orchestration remain asynchronous.
+5. **M23 — Bounded support provenance.** Record one bounded typed tuple of contributing authoritative or derived bindings per logical support and expose it through existing explanation and recovery paths, without promising arbitrary SQL lineage, minimal proofs, or unlimited enumeration.
 
-Unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M17–M22. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M19–M23. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
