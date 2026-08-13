@@ -10,7 +10,9 @@ DECLARE actual jsonb;
 BEGIN
     actual := pgreact_api.run('2031-01-01 00:00:00+00');
     IF actual IS DISTINCT FROM jsonb_build_object(
-        'contract_version', 3,
+        'contract_version', CASE
+            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.12.0'
+            THEN 5 ELSE 3 END,
         'sampled_time', '2031-01-01 00:00:00+00'::timestamptz,
         'rules', jsonb_build_array(jsonb_build_object(
             'rule', 'm8.observe_d', 'kind', 'ordinary', 'result', 'refreshed')),

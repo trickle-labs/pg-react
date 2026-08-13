@@ -5,7 +5,7 @@ set -euo pipefail
 # refresh sequence; polling is authoritative and any notifier is only a hint.
 database_url=${DATABASE_URL:?set DATABASE_URL}
 coordinator_database_url=${COORDINATOR_DATABASE_URL:-$database_url}
-rule_version_id=${1:?usage: pg-reactd RULE_VERSION_ID [worker-id]}
+rule_selector=${1:-all}
 worker_id=${2:-"pg-reactd@$(hostname)"}
 max_claims=${MAX_CLAIMS:-1}
 batch_max_items=${BATCH_MAX_ITEMS:-1}
@@ -26,9 +26,13 @@ coordinator=(psql "$coordinator_database_url" -X -v ON_ERROR_STOP=1)
 "${coordinator[@]}" <<<'SELECT pgreact_api.run()'
 
 if ((batch_max_items > 1)); then
+  if [[ ! $rule_selector =~ ^[0-9a-fA-F-]{36}$ ]]; then
+    echo 'pg-reactd: batched transition requires a rule-version UUID' >&2
+    exit 1
+  fi
   for event_kind in ACTIVATE CHANGE DEACTIVATE; do
     claims=$(psql "$database_url" -X -At -F $'\t' -v ON_ERROR_STOP=1 \
-      -v rule_version_id="$rule_version_id" -v worker_id="$worker_id" \
+      -v rule_version_id="$rule_selector" -v worker_id="$worker_id" \
       -v event_kind="$event_kind" -v batch_max_items="$batch_max_items" \
       <<<"SELECT batch_id, item_order, job_id, lease_token FROM pgreact_api.claim_batch(
          :'rule_version_id'::uuid, :'event_kind', :'worker_id', :batch_max_items::integer

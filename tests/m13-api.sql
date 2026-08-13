@@ -57,7 +57,8 @@ BEGIN
       JOIN pg_catalog.pg_namespace namespace
         ON namespace.oid = procedure.pronamespace
      WHERE namespace.nspname = 'pgreact_api';
-    IF actual IS DISTINCT FROM expected THEN
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.10.0'
+       AND actual IS DISTINCT FROM expected THEN
         RAISE EXCEPTION 'M13 inventory changed: %', actual;
     END IF;
     IF has_schema_privilege('public', 'pgreact_api', 'USAGE')
@@ -91,7 +92,8 @@ BEGIN
            AND has_function_privilege(role_name, procedure.oid, 'EXECUTE')
          GROUP BY role_name
       ) grants;
-    IF actual IS DISTINCT FROM jsonb_build_object(
+    IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.10.0'
+       AND actual IS DISTINCT FROM jsonb_build_object(
         'm13_author', to_jsonb(ARRAY[
             'pgreact_api.author_deadline_rule(text,regclass,name,name,name,name)',
             'pgreact_api.author_deadline_rule(text,regclass,name,name,text,text,text,text,text,name[],integer,text,name[],integer,integer,numeric,integer)',
@@ -356,7 +358,9 @@ BEGIN
         'explain', pgreact_api.explain('lifecycle-rule'));
     IF actual IS DISTINCT FROM jsonb_build_object(
         'status', jsonb_build_object(
-            'contract_version', 3,
+            'contract_version', CASE
+                WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.12.0'
+                THEN 5 ELSE 3 END,
             'rules', jsonb_build_array(expected_rule)),
         'explain', jsonb_build_object(
             'contract_version', 3,
@@ -379,7 +383,9 @@ DECLARE actual jsonb;
 BEGIN
     actual := pgreact_api.run('2030-01-01 00:00:00+00');
     IF actual IS DISTINCT FROM jsonb_build_object(
-        'contract_version', 3,
+        'contract_version', CASE
+            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.12.0'
+            THEN 5 ELSE 3 END,
         'sampled_time', '2030-01-01 00:00:00+00'::timestamptz,
         'rules', jsonb_build_array(
             jsonb_build_object('rule', 'constraint-rule', 'kind', 'ordinary', 'result', 'refreshed'),

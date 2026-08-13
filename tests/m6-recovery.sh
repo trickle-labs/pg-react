@@ -11,6 +11,7 @@ case "$recovery_milestone" in
   m10) restart_fixture=m10-recovery-restore ;;
   m12) restart_fixture=m12-recovery-restore ;;
   m13) restart_fixture=m13-recovery-restore ;;
+  m15) restart_fixture=m15-recovery-restart ;;
   *) echo "unsupported recovery milestone: $recovery_milestone" >&2; exit 1 ;;
 esac
 recovery_db="${recovery_milestone}_recovery"
@@ -88,13 +89,25 @@ docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
   -v "$restore_volume:/var/lib/postgresql" -v "$backup_archive:$backup_archive:ro" \
   --entrypoint sh "$PG_REACT_IMAGE" -c 'mkdir -p "$1" && tar -xzf "$2" -C "$1"' \
   sh "$restore_data" "$backup_archive"
+if test "$recovery_milestone" = m15; then
+  docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
+    -v "$restore_volume:/var/lib/postgresql" --entrypoint touch "$PG_REACT_IMAGE" \
+    "$restore_data/standby.signal"
+fi
+preload=pg_trickle
+managed_database=
+if test "$recovery_milestone" = m15; then
+  preload=pg_trickle,pg_react
+  managed_database=$recovery_db
+fi
 docker run -d --name "$restore_container" --platform "$PG_REACT_PLATFORM" \
   -e POSTGRES_PASSWORD=pgreact -v "$restore_volume:/var/lib/postgresql" \
   "$PG_REACT_IMAGE" postgres \
-  -c shared_preload_libraries=pg_trickle \
+  -c shared_preload_libraries="$preload" \
   -c pg_trickle.user_triggers=auto \
   -c pg_trickle.enabled=off \
   -c pg_trickle.differential_max_change_ratio=1.0 \
+  -c pg_react.databases="$managed_database" \
   -c 'default_transaction_isolation=read committed' >/dev/null
 
 ready=false
@@ -112,6 +125,28 @@ done
 test "$ready" = true
 test "$(docker inspect "$restore_container" --format '{{.Image}}')" = \
   "$(docker image inspect "$PG_REACT_IMAGE" --format '{{.Id}}')"
+if test "$recovery_milestone" = m15; then
+  test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \
+    -c 'SELECT pg_is_in_recovery()')" = t
+  test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \
+    -c 'SELECT NOT EXISTS (SELECT 1 FROM pgreact_internal.managed_processes process JOIN pg_stat_activity activity ON activity.pid = process.backend_pid)')" = t
+  docker cp tests/m15-recovery-restart.sql \
+    "$restore_container:/tmp/m15-recovery-restart.sql" >/dev/null
+  docker exec "$restore_container" psql -X -U postgres -d "$recovery_db" \
+    -v ON_ERROR_STOP=1 -f /tmp/m15-recovery-restart.sql
+  docker exec -u postgres "$restore_container" \
+    pg_ctl -D "$restore_data" promote -w >/dev/null
+  promoted=false
+  for _ in {1..120}; do
+    if test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \
+      -c 'SELECT NOT pg_is_in_recovery() AND EXISTS (SELECT 1 FROM pgreact_internal.managed_processes process JOIN pg_stat_activity activity ON activity.pid = process.backend_pid)' 2>/dev/null)" = t; then
+      promoted=true
+      break
+    fi
+    sleep 1
+  done
+  test "$promoted" = true
+fi
 docker cp "tests/${recovery_milestone}-recovery-restore.sql" \
   "$restore_container:/tmp/${recovery_milestone}-recovery-restore.sql" >/dev/null
 docker exec "$restore_container" psql -X -U postgres -d "$recovery_db" -v ON_ERROR_STOP=1 \

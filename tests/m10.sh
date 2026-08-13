@@ -25,10 +25,12 @@ run_test() {
   fi
 }
 
-run_test "M0-M9 compatibility" env \
-  COMPOSE_PROJECT_NAME="${project}-compatibility" \
-  PG_REACT_EXPECTED_VERSION="$expected_version" \
-  bash tests/m9.sh "$image"
+if [[ ${PG_REACT_SKIP_INHERITED:-false} != true ]]; then
+  run_test "M0-M9 compatibility" env \
+    COMPOSE_PROJECT_NAME="${project}-compatibility" \
+    PG_REACT_EXPECTED_VERSION="$expected_version" \
+    bash tests/m9.sh "$image"
+fi
 
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=$platform

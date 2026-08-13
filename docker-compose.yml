@@ -1,18 +1,18 @@
 services:
   postgres:
-    image: ${PG_REACT_IMAGE:-pg-react:v0.11.0}
+    image: ${PG_REACT_IMAGE:-pg-react:v0.12.0}
     platform: ${PG_REACT_PLATFORM:-linux/amd64}
     build:
       context: .
     environment:
       POSTGRES_PASSWORD: pgreact
-      PG_REACT_INIT_VERSION: ${PG_REACT_INIT_VERSION:-0.11.0}
+      PG_REACT_INIT_VERSION: ${PG_REACT_INIT_VERSION:-0.12.0}
     ports:
       - "${PG_REACT_PORT_BINDING:-5432:5432}"
     command:
       - postgres
       - -c
-      - shared_preload_libraries=pg_trickle
+      - shared_preload_libraries=pg_trickle,pg_react
       - -c
       - pg_trickle.user_triggers=auto
       - -c
@@ -21,3 +21,11 @@ services:
       - pg_trickle.differential_max_change_ratio=1.0
       - -c
       - default_transaction_isolation=read committed
+      - -c
+      - pg_react.databases=postgres
+      - -c
+      - pg_react.poll_interval_ms=${PG_REACT_POLL_INTERVAL_MS:-1000}
+      - -c
+      - pg_react.batch_size=${PG_REACT_BATCH_SIZE:-32}
+      - -c
+      - pg_react.max_pending_jobs=${PG_REACT_MAX_PENDING_JOBS:-10000}

@@ -78,14 +78,20 @@ run_order_fixture() {
     'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react' >/dev/null
   docker compose cp tests/m8-setup.sql postgres:/tmp/m8-setup.sql >/dev/null 2>&1
   docker compose cp tests/m8-order.sql postgres:/tmp/m8-order.sql >/dev/null 2>&1
-  docker compose exec -T postgres psql -XAt -U postgres -d "$database" \
-    -v ON_ERROR_STOP=1 -v left_first="$left_first" -f /tmp/m8-order.sql >"$output"
+  if ! docker compose exec -T postgres psql -XAt -U postgres -d "$database" \
+      -v ON_ERROR_STOP=1 -v left_first="$left_first" -f /tmp/m8-order.sql \
+      >"$output" 2>"$output.stderr"; then
+    sed -n '1,$p' "$output.stderr"
+    return 1
+  fi
 }
 
-run_test "M0-M7 compatibility" env \
-  COMPOSE_PROJECT_NAME="${project}-compatibility" \
-  PG_REACT_EXPECTED_VERSION="$expected_version" \
-  bash tests/m7.sh "$image"
+if [[ ${PG_REACT_SKIP_INHERITED:-false} != true ]]; then
+  run_test "M0-M7 compatibility" env \
+    COMPOSE_PROJECT_NAME="${project}-compatibility" \
+    PG_REACT_EXPECTED_VERSION="$expected_version" \
+    bash tests/m7.sh "$image"
+fi
 
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=$platform

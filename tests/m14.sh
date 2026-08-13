@@ -2,6 +2,7 @@
 set -euo pipefail
 
 image=${1:-pg-react:v0.11.0}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.11.0}
 platform=linux/amd64
 project=${COMPOSE_PROJECT_NAME:-pgreact-m14-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
@@ -30,10 +31,12 @@ create_db() {
 
 run_test 'M14 task documentation' bash tests/m14-docs.sh
 run_test 'M13 task documentation compatibility' bash tests/m13-docs.sh
-run_test 'M0-M12 compatibility' env \
-  PG_REACT_EXPECTED_VERSION=0.11.0 \
-  COMPOSE_PROJECT_NAME="${project}-compatibility" \
-  bash tests/m12.sh "$image"
+if [[ ${PG_REACT_SKIP_INHERITED:-false} != true ]]; then
+  run_test 'M0-M12 compatibility' env \
+    PG_REACT_EXPECTED_VERSION="$expected_version" \
+    COMPOSE_PROJECT_NAME="${project}-compatibility" \
+    bash tests/m12.sh "$image"
+fi
 
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=$platform
@@ -41,16 +44,21 @@ export PG_REACT_PORT_BINDING=${PG_REACT_PORT_BINDING:-127.0.0.1::5432}
 export COMPOSE_PROJECT_NAME=$project
 
 docker compose up -d --no-build >/dev/null
+ready_checks=0
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -XAtq -U postgres -d postgres -c \
-      "SELECT extversion = '0.11.0' FROM pg_extension WHERE extname = 'pg_react'" \
+      "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" \
       2>/dev/null | grep -qx t; then
-    break
+    ready_checks=$((ready_checks + 1))
+    [[ $ready_checks -eq 2 ]] && break
+  else
+    ready_checks=0
   fi
   sleep 1
 done
+test "$ready_checks" -eq 2
 test "$(docker compose exec -T postgres psql -XAtq -U postgres -d postgres -c \
-  "SELECT extversion = '0.11.0' FROM pg_extension WHERE extname = 'pg_react'")" = t
+  "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'")" = t
 test "$(docker image inspect "$image" --format '{{.Os}}/{{.Architecture}}')" = "$platform"
 
 create_db m14_api
@@ -61,9 +69,11 @@ run_test 'M14 diagnosis, inference, and explanation' docker compose exec -T post
 
 create_db m14_upgrade
 docker compose cp tests/m14-upgrade.sql postgres:/tmp/m14-upgrade.sql >/dev/null
-run_test 'M14 direct populated upgrade' docker compose exec -T postgres \
-  psql -XAtq -U postgres -d m14_upgrade -v ON_ERROR_STOP=1 \
-  -c "CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react VERSION '0.10.0'" \
-  -f /tmp/m14-upgrade.sql
+if [[ $expected_version == 0.11.0 ]]; then
+  run_test 'M14 direct populated upgrade' docker compose exec -T postgres \
+    psql -XAtq -U postgres -d m14_upgrade -v ON_ERROR_STOP=1 \
+    -c "CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react VERSION '0.10.0'" \
+    -f /tmp/m14-upgrade.sql
+fi
 
 echo "M14 explainability and reasoning UX gate passed for $image ($platform)"

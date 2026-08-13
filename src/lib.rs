@@ -4,6 +4,9 @@
 pgrx::pg_module_magic!();
 
 #[cfg(feature = "pg18")]
+mod managed;
+
+#[cfg(feature = "pg18")]
 mod rewrite;
 
 pub mod identity;

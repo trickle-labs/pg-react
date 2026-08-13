@@ -25,9 +25,11 @@ create_db() {
 
 bash tests/m11-docs.sh
 
-PG_REACT_EXPECTED_VERSION="$expected_version" \
-  COMPOSE_PROJECT_NAME="${project}-compatibility" \
-  bash tests/m10.sh "$image"
+if [[ ${PG_REACT_SKIP_INHERITED:-false} != true ]]; then
+  PG_REACT_EXPECTED_VERSION="$expected_version" \
+    COMPOSE_PROJECT_NAME="${project}-compatibility" \
+    bash tests/m10.sh "$image"
+fi
 
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=$platform

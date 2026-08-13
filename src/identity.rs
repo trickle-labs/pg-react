@@ -1,10 +1,13 @@
-//! Portable identity for the M0 non-null `bigint` semantic key.
+//! Portable identity for non-null scalar and tuple semantic keys.
 
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub const BIGINT_CODEC_V1: u8 = 1;
 pub const BIGINT_TYPE_TAG: u8 = 1;
+pub const TUPLE_CODEC_V2: u8 = 2;
+pub const UUID_TYPE_TAG: u8 = 2;
+pub const TEXT_TYPE_TAG: u8 = 3;
 const BIGINT_BYTES: u32 = 8;
 
 /// Fixed v1 fixture for SQL parity: nil rule-version UUID and semantic key `42`.
@@ -23,6 +26,30 @@ pub fn encode_bigint_v1(value: i64) -> Vec<u8> {
     encoded
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScalarKey<'a> {
+    Bigint(i64),
+    Uuid(Uuid),
+    Text(&'a str),
+}
+
+/// Codec v2: version, arity, then ordered type-tagged length-prefixed values.
+pub fn encode_tuple_v2(values: &[ScalarKey<'_>]) -> Vec<u8> {
+    assert!(!values.is_empty() && values.len() <= u8::MAX as usize);
+    let mut encoded = vec![TUPLE_CODEC_V2, values.len() as u8];
+    for value in values {
+        let (tag, bytes) = match value {
+            ScalarKey::Bigint(value) => (BIGINT_TYPE_TAG, value.to_be_bytes().to_vec()),
+            ScalarKey::Uuid(value) => (UUID_TYPE_TAG, value.as_bytes().to_vec()),
+            ScalarKey::Text(value) => (TEXT_TYPE_TAG, value.as_bytes().to_vec()),
+        };
+        encoded.push(tag);
+        encoded.extend((bytes.len() as u32).to_be_bytes());
+        encoded.extend(bytes);
+    }
+    encoded
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActivationIdentity {
     pub activation_id: Uuid,
@@ -32,7 +59,13 @@ pub struct ActivationIdentity {
 
 /// Derives a stable private-use UUID (version 8) from the complete SHA-256 digest.
 pub fn activation_identity(rule_version: Uuid, key: i64) -> ActivationIdentity {
-    let canonical_key = encode_bigint_v1(key);
+    activation_identity_for_canonical(rule_version, encode_bigint_v1(key))
+}
+
+pub fn activation_identity_for_canonical(
+    rule_version: Uuid,
+    canonical_key: Vec<u8>,
+) -> ActivationIdentity {
     let mut hasher = Sha256::new();
     hasher.update(rule_version.as_bytes());
     hasher.update(&canonical_key);
@@ -82,5 +115,26 @@ mod tests {
         assert_eq!(first.activation_id.to_string(), SQL_PARITY_ACTIVATION_ID);
         assert_eq!(first.activation_id.get_version_num(), 8);
         assert_eq!(first.activation_id.get_variant(), uuid::Variant::RFC4122);
+    }
+
+    #[test]
+    fn tuple_codec_preserves_types_order_and_complete_values() {
+        let id = Uuid::parse_str("123e4567-e89b-12d3-a456-426614174000").unwrap();
+        assert_eq!(
+            encode_tuple_v2(&[
+                ScalarKey::Text("north"),
+                ScalarKey::Uuid(id),
+                ScalarKey::Bigint(-1)
+            ]),
+            vec![
+                2, 3, 3, 0, 0, 0, 5, 110, 111, 114, 116, 104, 2, 0, 0, 0, 16, 18, 62, 69, 103, 232,
+                155, 18, 211, 164, 86, 66, 102, 20, 23, 64, 0, 1, 0, 0, 0, 8, 255, 255, 255, 255,
+                255, 255, 255, 255,
+            ]
+        );
+        assert_ne!(
+            encode_tuple_v2(&[ScalarKey::Text("42")]),
+            encode_tuple_v2(&[ScalarKey::Bigint(42)])
+        );
     }
 }

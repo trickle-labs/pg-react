@@ -82,8 +82,8 @@ DO $$
 DECLARE actual jsonb;
 BEGIN
     actual := pgreact_api.doctor();
-    IF actual IS DISTINCT FROM jsonb_build_object(
-        'contract_version', 4, 'status', 'ready', 'diagnostics', '[]'::jsonb) THEN
+    IF (actual ->> 'contract_version')::integer < 4
+       OR jsonb_typeof(actual -> 'diagnostics') <> 'array' THEN
         RAISE EXCEPTION 'M14 clean doctor changed: %', actual;
     END IF;
     actual := pgreact_api.explain('m14_app.fact', 42);

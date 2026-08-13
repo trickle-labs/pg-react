@@ -1079,6 +1079,10 @@ Do not create GitHub milestones for the proposed post-M15 directions. Promote on
 
 **M12 — Database-time deadlines** is released as `0.9.0`. Its immutable archive, checksum, OCI digest, release workflow, and M13 entry authorization are recorded in `docs/m13-entry.md`.
 
-**M13 — Core PostgreSQL ergonomics** is the `0.10.0` repository candidate. Its named authoring, action resolution, coordinated run, vocabulary, role grants, direct-upgrade, concurrency, failure, worker, recovery, and inherited M0–M12 evidence are executable in `tests/m13.sh`.
+**M13 — Core PostgreSQL ergonomics** is released as `0.10.0`.
 
-**M14 — Explainability and reasoning UX** is the next defined milestone; **M15 — Runtime and usability completion** follows it. Begin each only after its predecessor's immutable release and frozen entry fixtures satisfy its entry gate.
+**M14 — Explainability and reasoning UX** is released as `0.11.0`.
+
+**M15 — Runtime and usability completion** is the `0.12.0` repository candidate. Its managed runtime, typed-key, public inventory, documentation, usability, recovery, direct-upgrade, and inherited evidence are executable in `tests/m15.sh`.
+
+No post-M15 milestone is committed. M16–M20 remain proposed planning labels; M16 richer stratified aggregation is the logical next candidate after immutable `v0.12.0` evidence and a bounded `COUNT(expression)` entry fixture exist.

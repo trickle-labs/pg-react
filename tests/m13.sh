@@ -48,10 +48,12 @@ run_sql_fixture() {
 }
 
 run_test 'M13 task documentation' bash tests/m13-docs.sh
-run_test 'M0-M12 compatibility' env \
-  PG_REACT_EXPECTED_VERSION=0.10.0 \
-  COMPOSE_PROJECT_NAME="${project}-compatibility" \
-  bash tests/m12.sh "$image"
+if [[ ${PG_REACT_SKIP_INHERITED:-false} != true ]]; then
+  run_test 'M0-M12 compatibility' env \
+    PG_REACT_EXPECTED_VERSION="$version" \
+    COMPOSE_PROJECT_NAME="${project}-compatibility" \
+    bash tests/m12.sh "$image"
+fi
 
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=$platform

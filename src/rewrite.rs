@@ -1,6 +1,6 @@
 use core::ffi::{CStr, c_void};
 
-use pgrx::{is_a, pg_sys};
+use pgrx::{Spi, is_a, pg_sys};
 
 const MAX_VIEW_DEPTH: usize = 64;
 type RequiredLineage = (pg_sys::Oid, pg_sys::AttrNumber);
@@ -10,6 +10,22 @@ type VarKey = (usize, pg_sys::AttrNumber);
 fn view_key_is_direct(view_oid: pg_sys::Oid, key_attno: i16) -> bool {
     if key_attno <= 0 {
         return false;
+    }
+    if Spi::get_one::<bool>(
+        "SELECT pg_catalog.to_regclass('pgreact_internal.key_wrappers') IS NOT NULL",
+    )
+    .ok()
+    .flatten()
+    .unwrap_or(false)
+        && Spi::get_one_with_args::<bool>(
+        "SELECT EXISTS (SELECT 1 FROM pgreact_internal.key_wrappers WHERE wrapper_condition = $1)",
+        &[view_oid.into()],
+    )
+        .ok()
+        .flatten()
+        .unwrap_or(false)
+    {
+        return true;
     }
     unsafe { direct_view_attribute(view_oid, key_attno, None, &mut Vec::new()) }
 }
