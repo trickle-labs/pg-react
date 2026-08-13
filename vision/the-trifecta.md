@@ -1,5 +1,7 @@
 # When PostgreSQL Data Needs to Do Something
 
+Related vision documents: [Product thesis](pg-react_product_thesis.md) · [30-milestone vision](pg-react_30_milestone_vision.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
+
 An order crosses €10,000 while the customer is already marked high risk. Someone now has to open a review and notify the risk platform.
 
 The facts live in PostgreSQL, but the reaction often gets scattered across a refresh job, application callbacks, a queue, a retry worker, and whatever code remembers whether this order has already triggered a review. Coordinating those parts is harder than any one of them.
@@ -7,7 +9,7 @@ The facts live in PostgreSQL, but the reaction often gets scattered across a ref
 Three PostgreSQL projects cover that path:
 
 - [pg_trickle](https://github.com/trickle-labs/pg-trickle) keeps the SQL result that finds risky orders up to date.
-- [pg_react](https://github.com/trickle-labs/pg-react) is a proposed rule layer that notices when an order enters or leaves that result and records the work to do.
+- [pg_react](https://github.com/trickle-labs/pg-react) is the PostgreSQL-native rule and lifecycle layer that notices when an order enters or leaves that result and records the work to do.
 - [pg_tide](https://github.com/trickle-labs/pg-tide) carries the resulting event to another system without losing it after the database commits.
 
 pg_trickle maintains the answer. pg_react decides whether the answer calls for work. pg_tide delivers that work beyond PostgreSQL.
@@ -20,7 +22,7 @@ Order and customer data
 Keeps the matching query current
       │
       ▼
-  pg_react (proposed)
+  pg_react
 Notices lifecycle changes and records work
       │
       ▼
@@ -28,7 +30,7 @@ Notices lifecycle changes and records work
 Delivers an event to the risk platform
 ```
 
-pg_trickle and pg_tide already stand on their own. pg_react is still a design proposal. It will require pg_trickle and will use pg_tide only when work must leave the database. pg_trickle is also under active pre-1.0 development, so check current releases and compatibility before adopting either project.
+pg_trickle and pg_tide stand on their own. The pg-react repository has implemented M0–M17; M17 adds fixed UTC-epoch tumbling windows, durable watermarks, ordered corrections, finalization, and bounded history. This integrated path uses pg_trickle for maintained results and pg_tide only when work must leave the database. The longer-term policy-platform direction is described in the linked vision documents. pg_trickle is also under active pre-1.0 development, so check current releases and compatibility before adopting either project.
 
 ## Keep expensive queries current
 
@@ -42,7 +44,7 @@ For a dashboard or a live aggregate, that may be the whole job. A rule needs mor
 
 ## Remember what a match has already done
 
-pg_react is a proposed rule runtime built on pg_trickle. A rule condition is ordinary SQL, preferably a PostgreSQL view. Each row represents a situation that currently needs attention. pg_trickle keeps those rows current; pg_react remembers their history.
+pg_react is a PostgreSQL-native rule runtime built on pg_trickle. A rule condition is ordinary SQL, preferably a PostgreSQL view. Each row represents a situation that currently needs attention. pg_trickle keeps those rows current; pg_react remembers their history. Its derived-fact and event-time capabilities extend the same model with durable supports, windows, watermarks, corrections, and finalization.
 
 Suppose order 42 rises from €9,000 to €12,000. It enters the matching view, so pg_react records an activation and creates a durable agenda item, called an **episode**. If the amount rises again to €14,000, an activation-only rule does not open a second review. Avoiding repeat work while the same condition remains true is known as refraction.
 
@@ -52,7 +54,7 @@ To make this work, pg_react gives each logical match a stable identity and store
 
 This separation keeps history intact. If yesterday's risk condition disappears today, an operator can still find the rule version that opened the review, the values that matched, and the eventual outcome. Rebuilding the maintained result also does not make an old match look new just because its physical row changed.
 
-The proposed runtime includes the less glamorous pieces that make durable work usable: leases, retries, worker routing, priorities, and conflict keys that stop incompatible actions for the same customer from running together. Priorities influence what a worker claims next; they do not promise one global firing order across all workers.
+The runtime includes the less glamorous pieces that make durable work usable: leases, retries, worker routing, priorities, and conflict keys that stop incompatible actions for the same customer from running together. Priorities influence what a worker claims next; they do not promise one global firing order across all workers.
 
 A consequence can stay inside PostgreSQL, perhaps by inserting a row into `manual_review_tasks`. It can also need an HTTP call, a Kafka event, or a notification to another service. That second case crosses a transaction boundary.
 
@@ -104,14 +106,14 @@ The external decision returns as another fact
 
 ## Know where the boundaries are
 
-The proposed default flow is epochal. The application commits source data first. pg_trickle incorporates that change at its configured refresh boundary. pg_react records the resulting lifecycle transition and agenda work. A worker executes the consequence in a later transaction.
+The default flow is epochal. The application commits source data first. pg_trickle incorporates that change at its configured refresh boundary. pg_react records the resulting lifecycle transition and agenda work. A worker executes the consequence in a later transaction.
 
 This means rule consequences are not synchronous with the original write. Freshness depends on pg_trickle's refresh mode and schedule, and independent workers do not share a global firing order.
 
 Inside PostgreSQL, related records can still commit together:
 
 - pg_trickle can commit a maintained result and its pg_tide refresh-summary event in one transaction.
-- pg_react is designed to commit a lifecycle transition with its agenda episode.
+- pg_react commits a lifecycle transition with its agenda episode.
 - A worker can commit a database consequence with its execution record, or complete an external episode with its outbox message.
 
 The guarantee ends at the external destination. pg_tide keeps retrying a committed message, but end-to-end exactly-once behavior requires the receiver to deduplicate by event identity.
@@ -130,6 +132,6 @@ Each stage leaves a row an operator can inspect. For order 42, you can follow th
 
 The design also gives failures an obvious home. A stale query result belongs to pg_trickle's refresh path. Work stuck before execution appears in pg_react's agenda. A message that has not reached its destination remains in pg_tide's outbox. Operators do not have to reconstruct the whole story from timestamps across several log systems.
 
-pg_trickle answers a changing SQL query efficiently. pg_react is designed to remember when an answer became actionable and what happened next. pg_tide carries the result across the boundary PostgreSQL cannot commit through on its own.
+pg_trickle answers a changing SQL query efficiently. pg_react remembers when an answer became actionable and what happened next. pg_tide carries the result across the boundary PostgreSQL cannot commit through on its own.
 
-For applications built around relational conditions, a fact can become durable work without losing its history on the way out of the database.
+For applications built around relational conditions, a fact can become durable work without losing its history on the way out of the database. The longer-term vision extends this foundation with shared conditions, effective-dated and parameterized policy, deterministic decision tables, simulation and backtesting, practical temporal rules, and bounded provenance—without moving authority away from PostgreSQL.
