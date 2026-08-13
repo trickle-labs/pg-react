@@ -1,5 +1,7 @@
 # PostgreSQL as an Operational Data Platform
 
+Related vision documents: [The trifecta](the-trifecta.md) · [Product thesis](pg-react_product_thesis.md) · [30-milestone vision](pg-react_30_milestone_vision.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
+
 Warehouse 7 has promised 50 units of a product, holds 38, and just learned that its replenishment shipment will arrive two days late. The shortage emerges from inventory, open orders, reservations, and shipment status rather than any single row. Someone needs to intervene before customers receive bad news, and the procurement system needs to know.
 
 For an operations team, the useful answer must arrive while there is still time to act. The system must also remember the action, deliver it, and incorporate the response.
@@ -7,7 +9,7 @@ For an operations team, the useful answer must arrive while there is still time 
 PostgreSQL already holds the facts and provides transactions, SQL, indexes, permissions, backup, and recovery. Three projects extend those strengths into an operational loop:
 
 - [pg_trickle](https://github.com/trickle-labs/pg-trickle) keeps derived SQL results current as source data changes.
-- [pg_react](https://github.com/trickle-labs/pg-react) is a proposed rule layer that turns meaningful changes in those results into durable work.
+- [pg_react](https://github.com/trickle-labs/pg-react) is the PostgreSQL-native rule and lifecycle layer that turns meaningful changes in those results into durable decisions and work.
 - [pg_tide](https://github.com/trickle-labs/pg-tide) delivers that work and records incoming message identities so retries can be deduplicated.
 
 The three projects let PostgreSQL maintain operational state and act on it, while preserving the facts behind each action.
@@ -19,7 +21,7 @@ Authoritative facts
 Current derived state       pg_trickle
         │
         ▼
-Durable decisions           pg_react (proposed)
+Durable decisions           pg_react
         │
         ▼
 Messages and commands       pg_tide
@@ -30,7 +32,7 @@ External outcomes return as new facts
 
 Here, "complete" describes a bounded operational loop. Applications commit facts, pg_trickle maintains current state, pg_react creates work from meaningful changes, pg_tide delivers it, and outcomes return to the system of record. Warehousing, business intelligence, cataloging, and large-scale file processing remain separate jobs.
 
-pg_react is currently a design proposal rather than a production release. pg_trickle is under active pre-1.0 development. Check the current releases and compatibility requirements before adopting the stack.
+The pg-react repository has implemented M0–M17, adding derived facts, recursion, negation, aggregates, database-time deadlines, fixed UTC tumbling windows, durable watermarks, ordered corrections, and bounded history. pg_trickle is under active pre-1.0 development. Check the current releases and compatibility requirements before adopting the stack.
 
 ## Operational data is about now
 
@@ -60,13 +62,13 @@ For warehouse 7, pg_trickle can keep the shortage visible for as long as committ
 
 A stateless callback sees the shortage every time an input changes. Without durable context, it may open five tickets for the same underlying problem or lose track of a ticket when the result is rebuilt.
 
-pg_react is designed to give each logical match a stable identity and lifecycle. When the warehouse-product pair first enters the shortage relation, the rule records an activation and creates a durable agenda episode. Changes while the shortage remains active can update its payload or create separate `on_change` work. When supply catches up, the activation ends and may produce an `on_deactivate` consequence.
+pg_react is designed to give each logical match a stable identity and lifecycle. When the warehouse-product pair first enters the shortage relation, the rule records an activation and creates a durable agenda episode. Changes while the shortage remains active can update its payload or create separate `on_change` work. When supply catches up, the activation ends and may produce an `on_deactivate` consequence. Derived facts, stratified negation, aggregate thresholds, deadlines, and event-time windows build upon this same lifecycle foundation with durable supports and watermarks.
 
 The rule responds to business transitions rather than raw row operations. It can open one intervention when the shortage begins, avoid duplicates while it continues, and open a new intervention if the shortage clears and later returns.
 
 pg_react stores the agenda in PostgreSQL, including pending, leased, completed, failed, withdrawn, and cancelled work. Leases and retries let another worker recover an episode after a crash. Conflict keys can stop two actions for the same warehouse or account from running at once. Immutable rule versions preserve the meaning of work created under an older policy.
 
-Current truth and historical work stay separate. pg_trickle says which shortages exist now. pg_react records how each shortage developed and which work the rule created. An operator can inspect both without inferring state from application logs.
+Current truth and historical work stay separate. pg_trickle says which shortages exist now. pg_react records how each shortage developed and which work the rule created. An operator can inspect both—and trace bounded causal provenance—without inferring state from application logs.
 
 ## Cross system boundaries without losing intent
 
@@ -119,4 +121,4 @@ It fits risk review, inventory intervention, billing controls, entitlement chang
 
 Many operational applications already have the essential foundation: a transactional, relational account of the business. pg_trickle can keep important interpretations of that account current. pg_react can remember which interpretations became actionable. pg_tide can carry the resulting intent across system boundaries.
 
-A warehouse shortage begins as several ordinary rows. On this platform, it becomes current state, one durable intervention, a reliably delivered command, and eventually a new fact that resolves the condition. PostgreSQL carries the decision from current data, through action, and back into current data with durable state at every step.
+A warehouse shortage begins as several ordinary rows. On this platform, it becomes current state, one durable intervention, a reliably delivered command, and eventually a new fact that resolves the condition. PostgreSQL carries the decision from current data, through action, and back into current data with durable state at every step. The broader vision expands this into a full policy platform—supporting shared conditions, effective-dated and parameterized policy, deterministic decision tables, what-if simulation, and backtesting—while keeping PostgreSQL the single authoritative foundation.
