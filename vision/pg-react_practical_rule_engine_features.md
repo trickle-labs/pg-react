@@ -2,6 +2,8 @@
 
 ## A product-design note for pg-react
 
+Related vision documents: [Product thesis](pg-react_product_thesis.md) · [30-milestone vision](pg-react_30_milestone_vision.md)
+
 A rule engine becomes valuable when it moves business policy out of scattered application branches and turns that policy into something people can inspect, change, test, explain, and operate independently of the code paths that happen to enforce it. The most useful features are therefore not necessarily the most academically powerful reasoning features. They are the capabilities that let a team say, “this is our policy,” “this is when it applies,” “this is why this decision was made,” and “this is what would happen if we changed it,” without hiding the answer inside a maze of application code.
 
 pg-react already has an unusually strong foundation for this style of system. Its central idea is PostgreSQL-native: SQL and PostgreSQL relations describe truth, typed keys give business facts stable identity, pg-react records lifecycle and durable work, and public inspection and explanation APIs make the resulting state visible. Later milestones add derivation, negation, aggregation, typed keys, managed execution, and event-time semantics while deliberately keeping the public model smaller than the machinery underneath it. This document looks beyond that foundation and describes eight capabilities that are likely to solve ordinary, recurring business problems rather than exotic reasoning problems.

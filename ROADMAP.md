@@ -1148,6 +1148,8 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
+The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
+
 1. **M19 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
 2. **M20 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
 3. **M21 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.

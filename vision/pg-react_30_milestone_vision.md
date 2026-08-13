@@ -2,6 +2,8 @@
 
 ## A speculative 30-milestone roadmap for pg-react
 
+Related vision documents: [Product thesis](pg-react_product_thesis.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
+
 pg-react already has the beginnings of a distinctive product thesis: PostgreSQL contains the authoritative facts, SQL describes relational truth, and pg-react adds the durable semantics needed to turn that truth into decisions, lifecycle, explanation, and work. The interesting question is not how many rule-engine features can be accumulated. The interesting question is how far that idea can be taken without losing the qualities that make it compelling in the first place.
 
 A useful long-term roadmap should therefore avoid becoming a shopping list of traditional rule-engine capabilities. The goal should not be to reproduce every concept from Drools, CEP engines, policy servers, workflow products, or event-processing systems. Instead, each milestone should make one of four things better: policy should become easier to express, safer to change, easier to explain, or more reliable to operate.

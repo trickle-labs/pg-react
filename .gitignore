@@ -1,3 +1,4 @@
 /target
 /.pgrx
 /postgres-data
+.DS_Store

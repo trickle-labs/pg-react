@@ -2,6 +2,8 @@
 
 ## A product thesis for a PostgreSQL-native rule and reaction engine
 
+Related vision documents: [30-milestone vision](pg-react_30_milestone_vision.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
+
 Modern applications already contain rule engines. Most of them simply do not call themselves that.
 
 They live in `if` statements scattered across services, scheduled jobs that wake up every few minutes, triggers that encode one narrow reaction, background workers that retry failed work, and SQL queries that identify exceptional states someone must remember to watch. A customer crosses a risk threshold. An invoice becomes overdue. An employee changes role and should lose one entitlement while gaining another. A payment fails to reconcile with a settlement. A security exception expires. A contractual obligation passes its deadline. A legal hold appears and data that was eligible for deletion must suddenly be retained.
