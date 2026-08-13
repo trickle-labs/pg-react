@@ -84,6 +84,26 @@ _Avoid_: Negative fact, retraction
 A derivation dependency that summarizes a finite, stable lower-stratum input for one positively bound group before deciding higher-stratum support.
 _Avoid_: Window, recursive aggregate
 
+**Event time**:
+The direct timestamp carried by authoritative or lower-stratum input that determines which event-time window receives that input.
+_Avoid_: Processing time, ingestion time
+
+**Event-time window**:
+A fixed UTC-epoch-aligned interval that groups timed input for one aggregate dependency and is identified by its group key plus signed window ordinal.
+_Avoid_: Calendar window, session window, timer
+
+**Watermark**:
+A monotone claim about event-time completeness for one timed input; the requested watermark is intent, while the complete watermark certifies committed finalization through that instant.
+_Avoid_: Clock, observed maximum timestamp
+
+**Correction**:
+One immutable, frontier-identified change to a materialized event-time window's aggregate state.
+_Avoid_: Input row, lifecycle event
+
+**Final window**:
+An event-time window whose lateness boundary has been reached by its complete watermark and whose aggregate state can no longer be corrected.
+_Avoid_: Closed agenda, completed consequence
+
 **Derivation program**:
 A versioned dependency graph of derivation rules and derived relations maintained as one semantic unit.
 _Avoid_: Rule pack

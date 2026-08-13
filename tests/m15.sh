@@ -29,6 +29,14 @@ run_test() {
   fi
 }
 
+create_db() {
+  for _ in {1..3}; do
+    if docker compose exec -T postgres createdb -U postgres "$1" >/dev/null 2>&1; then return; fi
+    sleep 1
+  done
+  docker compose exec -T postgres createdb -U postgres "$1"
+}
+
 run_test 'M15 task documentation' bash tests/m15-docs.sh
 if [[ ${PG_REACT_SKIP_INHERITED:-false} != true ]]; then
   run_test 'M13 compatibility' env \
@@ -132,7 +140,7 @@ docker compose exec -T postgres pg_restore -U postgres \
 docker compose exec -T postgres pg_dump -U postgres -d postgres -Fc \
   -t m15_portable.source --data-only --disable-triggers \
   -f /tmp/m15-portable-data.dump
-docker compose exec -T postgres createdb -U postgres m15_logical
+create_db m15_logical
 docker compose exec -T postgres psql -XAtq -U postgres -d m15_logical \
   -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react'
 docker compose exec -T postgres psql -XAtq -U postgres -d m15_logical \
@@ -181,7 +189,7 @@ run_test 'M15 PostgreSQL-managed crash restart' docker compose exec -T postgres 
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
   "SELECT pgreact_api.managed_status() -> 'process' ->> 'state' = 'ready'"
 
-docker compose exec -T postgres createdb -U postgres m15_upgrade
+create_db m15_upgrade
 docker compose cp tests/m15-upgrade.sql postgres:/tmp/m15-upgrade.sql >/dev/null
 run_test 'M15 direct populated upgrade' docker compose exec -T postgres \
   psql -XAtq -U postgres -d m15_upgrade -v ON_ERROR_STOP=1 \

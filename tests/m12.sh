@@ -25,11 +25,19 @@ run_test() {
   fi
 }
 
+create_db() {
+  for _ in {1..3}; do
+    if docker compose exec -T postgres createdb -U postgres "$1" >/dev/null 2>&1; then return; fi
+    sleep 1
+  done
+  docker compose exec -T postgres createdb -U postgres "$1"
+}
+
 run_sql_fixture() {
   local name=$1
   local database=$2
   local fixture=$3
-  docker compose exec -T postgres createdb -U postgres "$database"
+  create_db "$database"
   docker compose exec -T postgres psql -X -U postgres -d "$database" \
     -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react' >/dev/null
   docker compose cp "tests/$fixture.sql" "postgres:/tmp/$fixture.sql" >/dev/null 2>&1
@@ -95,7 +103,7 @@ grep -Fq 'canceling statement due to lock timeout' "$test_log_dir/blocked-claim.
 wait "$held_pid"
 echo 'M12 clock claim barrier passed'
 
-docker compose exec -T postgres createdb -U postgres m12_worker
+create_db m12_worker
 for fixture in m12-worker-setup m12-worker-result; do
   docker compose cp "tests/$fixture.sql" "postgres:/tmp/$fixture.sql" >/dev/null 2>&1
 done
@@ -111,7 +119,7 @@ run_test 'M12 bundled worker exact result' docker compose exec -T postgres \
   psql -XAtq -U postgres -d m12_worker -v ON_ERROR_STOP=1 \
   -f /tmp/m12-worker-result.sql
 
-docker compose exec -T postgres createdb -U postgres m12_upgrade
+create_db m12_upgrade
 docker compose cp tests/m12-upgrade.sql postgres:/tmp/m12-upgrade.sql >/dev/null 2>&1
 run_test 'M12 direct populated upgrade' docker compose exec -T postgres \
   psql -XAtq -U postgres -d m12_upgrade -v ON_ERROR_STOP=1 \

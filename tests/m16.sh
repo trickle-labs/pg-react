@@ -2,6 +2,7 @@
 set -euo pipefail
 
 image=${1:-pg-react:v0.13.0}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.13.0}
 project=${COMPOSE_PROJECT_NAME:-pgreact-m16-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
 
@@ -23,9 +24,17 @@ run_test() {
   fi
 }
 
-run_test 'M16 documentation' bash tests/m16-docs.sh
+create_db() {
+  for _ in {1..3}; do
+    if docker compose exec -T postgres createdb -U postgres "$1" >/dev/null 2>&1; then return; fi
+    sleep 1
+  done
+  docker compose exec -T postgres createdb -U postgres "$1"
+}
+
+run_test 'M16 documentation' env PG_REACT_EXPECTED_VERSION="$expected_version" bash tests/m16-docs.sh
 run_test 'M15 compatibility' env \
-  PG_REACT_EXPECTED_VERSION=0.13.0 \
+  PG_REACT_EXPECTED_VERSION="$expected_version" \
   COMPOSE_PROJECT_NAME="${project}-m15" \
   bash tests/m15.sh "$image"
 
@@ -39,7 +48,7 @@ docker compose up -d --no-build >/dev/null 2>&1
 ready=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -XAtq -U postgres -d postgres -c \
-      "SELECT extversion = '0.13.0' FROM pg_extension WHERE extname = 'pg_react'" \
+      "SELECT extversion = '$expected_version' FROM pg_extension WHERE extname = 'pg_react'" \
       2>/dev/null | grep -qx t; then ready=true; break; fi
   sleep 1
 done
@@ -60,7 +69,7 @@ run_test 'M16 typed aggregate replacement and removal' \
 
 docker compose exec -T postgres pg_dump -U postgres -d postgres -Fc \
   -t m16.groups -t m16.items --data-only -f /tmp/m16-data.dump
-docker compose exec -T postgres createdb -U postgres m16_logical
+create_db m16_logical
 docker compose exec -T postgres psql -XAtq -U postgres -d m16_logical \
   -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react'
 for fixture in m16-logical-schema m16-logical-restore; do
@@ -73,7 +82,7 @@ run_test 'M16 logical data restore and declaration replay' \
   docker compose exec -T postgres psql -XAtq -U postgres -d m16_logical \
   -v ON_ERROR_STOP=1 -f /tmp/m16-logical-restore.sql
 
-docker compose exec -T postgres createdb -U postgres m16_upgrade
+create_db m16_upgrade
 docker compose cp tests/m16-upgrade.sql postgres:/tmp/m16-upgrade.sql >/dev/null
 run_test 'M16 populated direct upgrade' \
   docker compose exec -T postgres psql -XAtq -U postgres -d m16_upgrade \

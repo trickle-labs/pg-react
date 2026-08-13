@@ -6,9 +6,9 @@
 
 The repository is a clean, coherent M16 release at extension `0.13.0`, with a
 strong inherited test and recovery discipline. M17 is not a
-partially implemented feature: it exists only as a detailed roadmap stage. No
-M17 contract, entry fixture, schema, API, runtime, evidence model, upgrade, or
-test gate exists yet.
+partially implemented feature: its release entry and semantic oracle are now
+documented, but no M17 contract, executable fixture, schema, API, runtime,
+evidence model, upgrade, or test gate exists yet.
 
 M17's entry gate requires published and verified `v0.13.0` artifacts,
 checksums, disclosures, OCI digest, and a frozen M17 reference program
@@ -17,12 +17,10 @@ published predecessor identities and freezes the reference declaration,
 schedule, outputs, diagnostics, and five semantic decision groups. The M17
 contract and executable fixture must reproduce that oracle before product code.
 
-The deeper blocker is semantic. M16 maintains one current aggregate snapshot
-per group. M17 requires durable per-window identity, requested and complete
-watermarks, ordered correction history, finalization, late-data admission,
-bounded continuation, retention protection, and replay-safe recovery. Those
-are new authoritative state, not fields that can safely be improvised while
-coding.
+The remaining blocker is translation, not an open semantic choice. M17's
+durable per-window identity, watermarks, corrections, finalization, late-data
+barrier, retention, limits, and recovery behavior must move unchanged from the
+entry oracle into the contract and executable fixture before coding.
 
 The shortest safe path is now:
 

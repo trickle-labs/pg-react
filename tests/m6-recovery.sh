@@ -13,6 +13,7 @@ case "$recovery_milestone" in
   m13) restart_fixture=m13-recovery-restore ;;
   m15) restart_fixture=m15-recovery-restart ;;
   m16) restart_fixture=m16-recovery-restart ;;
+  m17) restart_fixture=m17-recovery-restart ;;
   *) echo "unsupported recovery milestone: $recovery_milestone" >&2; exit 1 ;;
 esac
 recovery_db="${recovery_milestone}_recovery"
@@ -42,7 +43,10 @@ cleanup_physical() {
 }
 trap cleanup_physical EXIT
 
-"${compose[@]}" exec -T postgres createdb -U postgres "$recovery_db"
+for _ in {1..3}; do
+  if "${compose[@]}" exec -T postgres createdb -U postgres "$recovery_db" >/dev/null 2>&1; then break; fi
+  sleep 1
+done
 for fixture in "${recovery_milestone}-recovery-setup" "$restart_fixture" "${recovery_milestone}-recovery-restore"; do
   "${compose[@]}" cp "tests/$fixture.sql" "postgres:/tmp/$fixture.sql" >/dev/null
 done
@@ -54,6 +58,9 @@ elif test "$recovery_milestone" = m9; then
   "${compose[@]}" cp tests/m9-slice4.sql postgres:/tmp/m9-slice4.sql >/dev/null
 elif test "$recovery_milestone" = m10; then
   "${compose[@]}" cp tests/m10-slice1.sql postgres:/tmp/m10-slice1.sql >/dev/null
+elif test "$recovery_milestone" = m17; then
+  "${compose[@]}" cp tests/m17-smoke.sql postgres:/tmp/m17-smoke.sql >/dev/null
+  "${compose[@]}" cp tests/m17-continue.sql postgres:/tmp/m17-continue.sql >/dev/null
 fi
 "${compose[@]}" exec -T postgres psql -X -U postgres -d "$recovery_db" \
   -v ON_ERROR_STOP=1 -f "/tmp/${recovery_milestone}-recovery-setup.sql"
@@ -90,14 +97,14 @@ docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
   -v "$restore_volume:/var/lib/postgresql" -v "$backup_archive:$backup_archive:ro" \
   --entrypoint sh "$PG_REACT_IMAGE" -c 'mkdir -p "$1" && tar -xzf "$2" -C "$1"' \
   sh "$restore_data" "$backup_archive"
-if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17; then
   docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
     -v "$restore_volume:/var/lib/postgresql" --entrypoint touch "$PG_REACT_IMAGE" \
     "$restore_data/standby.signal"
 fi
 preload=pg_trickle
 managed_database=
-if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17; then
   preload=pg_trickle,pg_react
   managed_database=$recovery_db
 fi
@@ -126,7 +133,7 @@ done
 test "$ready" = true
 test "$(docker inspect "$restore_container" --format '{{.Image}}')" = \
   "$(docker image inspect "$PG_REACT_IMAGE" --format '{{.Id}}')"
-if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17; then
   test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \
     -c 'SELECT pg_is_in_recovery()')" = t
   test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \

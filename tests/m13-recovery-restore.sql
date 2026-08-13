@@ -43,7 +43,7 @@ BEGIN
         RAISE EXCEPTION 'M13 recovered state changed: %', actual;
     END IF;
     IF (SELECT extversion FROM pg_catalog.pg_extension
-        WHERE extname = 'pg_react') NOT IN ('0.10.0', '0.12.0', '0.13.0')
+        WHERE extname = 'pg_react') NOT IN ('0.10.0', '0.12.0', '0.13.0', '0.14.0')
        OR (SELECT function_digest = sha256(convert_to(
             pg_get_functiondef(function_oid), 'UTF8'))
            FROM pgreact_internal.consequence_bindings

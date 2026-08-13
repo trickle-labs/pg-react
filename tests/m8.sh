@@ -25,6 +25,16 @@ run_test() {
   fi
 }
 
+create_db() {
+  for _ in {1..3}; do
+    if docker compose exec -T postgres createdb -U postgres "$1" >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+  docker compose exec -T postgres createdb -U postgres "$1"
+}
+
 expect_exact_output() {
   local name=$1
   local expected=$2
@@ -60,7 +70,7 @@ run_sql_fixture() {
   local name=$1
   local database=$2
   local fixture=$3
-  docker compose exec -T postgres createdb -U postgres "$database"
+  create_db "$database"
   docker compose exec -T postgres psql -X -U postgres -d "$database" -v ON_ERROR_STOP=1 -c \
     'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react' >/dev/null
   docker compose cp tests/m8-setup.sql postgres:/tmp/m8-setup.sql >/dev/null 2>&1
@@ -73,7 +83,7 @@ run_order_fixture() {
   local database=$1
   local left_first=$2
   local output=$3
-  docker compose exec -T postgres createdb -U postgres "$database"
+  create_db "$database"
   docker compose exec -T postgres psql -X -U postgres -d "$database" -v ON_ERROR_STOP=1 -c \
     'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react' >/dev/null
   docker compose cp tests/m8-setup.sql postgres:/tmp/m8-setup.sql >/dev/null 2>&1
@@ -162,7 +172,7 @@ run_test "M8 concurrent graph remains exact" docker compose exec -T postgres psq
 run_test "M8 pack removal" docker compose exec -T postgres psql -X \
   -U postgres -d m8_pack -v ON_ERROR_STOP=1 -f /tmp/m8-pack-remove.sql
 
-docker compose exec -T postgres createdb -U postgres m8_upgrade
+create_db m8_upgrade
 docker compose cp tests/m8-setup.sql postgres:/tmp/m8-setup.sql >/dev/null 2>&1
 docker compose cp tests/m7-upgrade.sql postgres:/tmp/m7-upgrade.sql >/dev/null 2>&1
 docker compose cp tests/m8-upgrade.sql postgres:/tmp/m8-upgrade.sql >/dev/null 2>&1

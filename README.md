@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M16 is extension `0.13.0`. Its [`pgreact_api`](docs/m16-contract.md) contract adds typed `COUNT(expression)`, `SUM`, `MIN`, and `MAX` aggregate dependencies while retaining PostgreSQL-managed execution, portable keys, public diagnosis, and recovery workflows.
+> pg-react M17 is extension `0.14.0`. Its [`pgreact_api`](docs/m17-contract.md) contract adds fixed-duration event-time windows, durable watermarks, ordered corrections, and finalization while retaining M16 aggregate semantics and recovery workflows.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -201,12 +201,12 @@ M7 maintained derived knowledge is released as `0.4.0`. Non-recursive derivation
 
 M8 monotone recursive derivation is released as `0.5.0`. Versioned positive programs maintain acyclic chains and cycles to one bounded grounded least fixed point, atomically expose converged frontiers, and provide finite explanations with cycle markers. See the [contract](docs/m8-contract.md) and [evidence](docs/m8-evidence.md).
 
-M11 through M15 are released as `0.8.0` through `0.12.0`. M16 is the `0.13.0`
-repository candidate: typed aggregates retain strictly lower strata, exact
-PostgreSQL value semantics, finite evidence, and the shipped public workflow.
-See the [M16 contract](docs/m16-contract.md),
-[upgrade guide](docs/m16-upgrade.md), and
-[readiness record](docs/m16-readiness.md).
+M11 through M16 are released as `0.8.0` through `0.13.0`. M17 is the `0.14.0`
+repository candidate: fixed UTC-epoch tumbling windows add durable watermarks,
+ordered corrections, finalization, and bounded history without changing M16's
+typed aggregate semantics. See the [M17 contract](docs/m17-contract.md),
+[upgrade guide](docs/m17-upgrade.md), and
+[readiness record](docs/m17-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
@@ -222,6 +222,7 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M9 stratified negation](docs/m9-contract.md) documents deletion-sensitive ordered maintenance; [M9 evidence](docs/m9-evidence.md) records the executable gate.
 - [M13 core PostgreSQL ergonomics](docs/m13-contract.md) documents named actions, coordinated runs, vocabulary, and role grants; [M13 evidence](docs/m13-evidence.md) records the executable gate.
 - [M16 richer stratified aggregation](docs/m16-contract.md) documents typed aggregate dependencies and exact evidence; [M16 readiness](docs/m16-readiness.md) records the release path.
+- [M17 event-time windows](docs/m17-contract.md) documents watermarks, corrections, finalization, and recovery; [M17 evidence](docs/m17-evidence.md) records the executable gate.
 - [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.

@@ -25,6 +25,16 @@ run_test() {
   fi
 }
 
+create_db() {
+  for _ in {1..3}; do
+    if docker compose exec -T postgres createdb -U postgres "$1" >/dev/null 2>&1; then
+      return
+    fi
+    sleep 1
+  done
+  docker compose exec -T postgres createdb -U postgres "$1"
+}
+
 if [[ ${PG_REACT_SKIP_INHERITED:-false} != true ]]; then
   run_test "M0-M9 compatibility" env \
     COMPOSE_PROJECT_NAME="${project}-compatibility" \
@@ -50,7 +60,7 @@ done
 test "$ready" = true
 test "$(docker image inspect "$image" --format '{{.Os}}/{{.Architecture}}')" = "$platform"
 
-docker compose exec -T postgres createdb -U postgres m10_slice1
+create_db m10_slice1
 docker compose exec -T postgres psql -X -U postgres -d m10_slice1 \
   -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react' \
   >/dev/null
@@ -75,7 +85,7 @@ else
   exit 1
 fi
 
-docker compose exec -T postgres createdb -U postgres m10_upgrade
+create_db m10_upgrade
 for fixture in m8-setup m9-upgrade m10-upgrade; do
   docker compose cp "tests/$fixture.sql" "postgres:/tmp/$fixture.sql" >/dev/null 2>&1
 done

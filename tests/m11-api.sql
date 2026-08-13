@@ -25,7 +25,7 @@ BEGIN
             'run_rule', 'status', 'validate_deadline_rule', 'validate_rule',
             'worker_protocol_compatible'
         ];
-    ELSIF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.11.0', '0.12.0', '0.13.0') THEN
+    ELSIF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.11.0', '0.12.0', '0.13.0', '0.14.0') THEN
         expected := ARRAY[
             'attempts', 'author_deadline_rule', 'author_rule', 'batch_status',
             'claim', 'claim_batch', 'configure_roles', 'deadline_history',
@@ -37,13 +37,20 @@ BEGIN
             'run', 'run_rule', 'status', 'validate_deadline_rule',
             'validate_program', 'validate_rule', 'worker_protocol_compatible'
         ];
-        IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.12.0', '0.13.0') THEN
+        IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.12.0', '0.13.0', '0.14.0') THEN
             SELECT array_agg(name ORDER BY name) INTO expected
             FROM unnest(expected || ARRAY['key_codecs', 'managed_cycle', 'managed_status', 'replace_rule']) name;
         END IF;
-        IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.13.0' THEN
+        IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.13.0', '0.14.0') THEN
             SELECT array_agg(name ORDER BY name) INTO expected
             FROM unnest(expected || ARRAY['reconcile_program']) name;
+        END IF;
+        IF (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') = '0.14.0' THEN
+            SELECT array_agg(name ORDER BY name) INTO expected
+            FROM unnest(expected || ARRAY[
+                'export_window_state', 'prune_window_history', 'request_watermark',
+                'restore_window_state', 'watermark_status', 'window_corrections'
+            ]) name;
         END IF;
     END IF;
     SELECT array_agg(DISTINCT p.proname ORDER BY p.proname)
@@ -142,7 +149,7 @@ BEGIN
     );
     IF actual IS DISTINCT FROM jsonb_build_object(
         'contract_version', CASE
-            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0')
+            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0', '0.14.0')
             THEN 2 ELSE 1 END,
         'rule_name', 'm11-author-rule', 'state', 'ACTIVE', 'health', '[]'::jsonb) THEN
         RAISE EXCEPTION 'M11 facade status changed: %', actual;
@@ -152,7 +159,7 @@ BEGIN
         'contract_version', actual -> 'contract_version',
         'diagnostics', actual -> 'diagnostics') IS DISTINCT FROM
        jsonb_build_object('contract_version', CASE
-           WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0')
+           WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.9.0', '0.10.0', '0.11.0', '0.12.0', '0.13.0', '0.14.0')
            THEN 2 ELSE 1 END, 'diagnostics', '[]'::jsonb) THEN
         RAISE EXCEPTION 'M11 facade health changed';
     END IF;

@@ -26,6 +26,10 @@ run_test() {
 }
 
 create_db() {
+  for _ in {1..3}; do
+    if docker compose exec -T postgres createdb -U postgres "$1" >/dev/null 2>&1; then return; fi
+    sleep 1
+  done
   docker compose exec -T postgres createdb -U postgres "$1"
 }
 
