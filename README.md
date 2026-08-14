@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M17 is extension `0.14.0`. Its [`pgreact_api`](docs/m17-contract.md) contract adds fixed-duration event-time windows, durable watermarks, ordered corrections, and finalization while retaining M16 aggregate semantics and recovery workflows.
+> pg-react M18 is extension `0.15.0`. It hardens the complete M0–M17 product with one public-only authoring path, name-first operational diagnostics, measured release gates, recovery drills, and direct `0.14.0 -> 0.15.0` upgrade evidence without adding rule semantics.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -201,12 +201,11 @@ M7 maintained derived knowledge is released as `0.4.0`. Non-recursive derivation
 
 M8 monotone recursive derivation is released as `0.5.0`. Versioned positive programs maintain acyclic chains and cycles to one bounded grounded least fixed point, atomically expose converged frontiers, and provide finite explanations with cycle markers. See the [contract](docs/m8-contract.md) and [evidence](docs/m8-evidence.md).
 
-M11 through M16 are released as `0.8.0` through `0.13.0`. M17 is the `0.14.0`
-repository candidate: fixed UTC-epoch tumbling windows add durable watermarks,
-ordered corrections, finalization, and bounded history without changing M16's
-typed aggregate semantics. See the [M17 contract](docs/m17-contract.md),
-[upgrade guide](docs/m17-upgrade.md), and
-[readiness record](docs/m17-readiness.md).
+M11 through M17 are released as `0.8.0` through `0.14.0`. M18 is the `0.15.0`
+repository candidate: production usability, diagnostics, benchmark, recovery,
+documentation, packaging, and upgrade evidence consolidate the existing product
+without new rule-engine semantics. See the [M18 contract](docs/m18-contract.md),
+[evidence](docs/m18-evidence.md), and [readiness record](docs/m18-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
@@ -223,10 +222,11 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M13 core PostgreSQL ergonomics](docs/m13-contract.md) documents named actions, coordinated runs, vocabulary, and role grants; [M13 evidence](docs/m13-evidence.md) records the executable gate.
 - [M16 richer stratified aggregation](docs/m16-contract.md) documents typed aggregate dependencies and exact evidence; [M16 readiness](docs/m16-readiness.md) records the release path.
 - [M17 event-time windows](docs/m17-contract.md) documents watermarks, corrections, finalization, and recovery; [M17 evidence](docs/m17-evidence.md) records the executable gate.
+- [M18 production hardening](docs/m18-contract.md) documents the preserved semantic boundary and public operational surface; [M18 evidence](docs/m18-evidence.md) records the executable gate.
 - [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
-- [When PostgreSQL Data Needs to Do Something](the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
-- [PostgreSQL as an Operational Data Platform](operational-data-platform.md) places the projects in a broader operational loop.
+- [When PostgreSQL Data Needs to Do Something](vision/the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
+- [PostgreSQL as an Operational Data Platform](vision/operational-data-platform.md) places the projects in a broader operational loop.
 - [pg_trickle](https://github.com/trickle-labs/pg-trickle) is the incremental view-maintenance engine pg-react is designed to build on.
 - [pg_tide](https://github.com/trickle-labs/pg-tide) provides transactional messaging when consequences need to cross the database boundary.
 

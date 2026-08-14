@@ -1,0 +1,6 @@
+risk/fraud|constraint+review-command|exact
+inventory|derivation+aggregate|exact
+sla/deadline|overdue+escalation|exact
+derived-knowledge|positive-recursion+stratified-absence|exact
+event-time-windows|out-of-order+correction+finalization|exact
+cleanup|complete

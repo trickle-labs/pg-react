@@ -17,6 +17,7 @@ case "$recovery_milestone" in
   *) echo "unsupported recovery milestone: $recovery_milestone" >&2; exit 1 ;;
 esac
 recovery_db="${recovery_milestone}_recovery"
+logical_db="${recovery_db}_logical"
 resource_prefix="${COMPOSE_PROJECT_NAME}-${recovery_milestone}-physical"
 restore_container="${resource_prefix}-postgres"
 restore_helper="${resource_prefix}-restore"
@@ -24,6 +25,7 @@ restore_volume="${resource_prefix}-data"
 backup_dir="/tmp/${resource_prefix}"
 backup_archive="/tmp/${resource_prefix}.tar.gz"
 backup_checksum="${backup_archive}.sha256"
+logical_dump="/tmp/${resource_prefix}-logical.dump"
 
 case "$COMPOSE_PROJECT_NAME" in
   ''|*[!a-z0-9_-]*) echo "unsafe COMPOSE_PROJECT_NAME: $COMPOSE_PROJECT_NAME" >&2; exit 1 ;;
@@ -38,11 +40,15 @@ cleanup_physical() {
   docker rm -f "$restore_container" "$restore_helper" >/dev/null 2>&1 || true
   docker volume rm "$restore_volume" >/dev/null 2>&1 || true
   "${compose[@]}" exec -T postgres rm -rf -- \
-    "$backup_dir" "$backup_archive" "$backup_checksum" >/dev/null 2>&1 || true
+    "$backup_dir" "$backup_archive" "$backup_checksum" "$logical_dump" >/dev/null 2>&1 || true
+  "${compose[@]}" exec -T postgres dropdb --if-exists --force -U postgres \
+    "$logical_db" >/dev/null 2>&1 || true
   rm -f "$backup_archive" "$backup_checksum"
 }
 trap cleanup_physical EXIT
 
+"${compose[@]}" exec -T postgres dropdb --if-exists --force -U postgres \
+  "$recovery_db" >/dev/null 2>&1 || true
 for _ in {1..3}; do
   if "${compose[@]}" exec -T postgres createdb -U postgres "$recovery_db" >/dev/null 2>&1; then break; fi
   sleep 1
@@ -61,10 +67,36 @@ elif test "$recovery_milestone" = m10; then
 elif test "$recovery_milestone" = m17; then
   "${compose[@]}" cp tests/m17-smoke.sql postgres:/tmp/m17-smoke.sql >/dev/null
   "${compose[@]}" cp tests/m17-continue.sql postgres:/tmp/m17-continue.sql >/dev/null
+  if test -n "${M18_RECOVERY_ARTIFACT:-}"; then
+    "${compose[@]}" cp tests/m17-logical-schema.sql postgres:/tmp/m17-logical-schema.sql >/dev/null
+    "${compose[@]}" cp tests/m17-logical-restore.sql postgres:/tmp/m17-logical-restore.sql >/dev/null
+  fi
 fi
 "${compose[@]}" exec -T postgres psql -X -U postgres -d "$recovery_db" \
   -v ON_ERROR_STOP=1 -f "/tmp/${recovery_milestone}-recovery-setup.sql"
 
+if test "$recovery_milestone" = m17 && test -n "${M18_RECOVERY_ARTIFACT:-}"; then
+  "${compose[@]}" exec -T postgres psql -XAtq -U postgres -d "$recovery_db" \
+    -v ON_ERROR_STOP=1 -c \
+    "CREATE TABLE m17_reference.logical_export AS SELECT pgreact_api.export_window_state('m17.reference') AS state" >/dev/null
+  "${compose[@]}" exec -T postgres pg_dump -U postgres -d "$recovery_db" -Fc --data-only \
+    -t m17_reference.groups -t m17_reference.items \
+    -t m17_reference.definition -t m17_reference.logical_export -f "$logical_dump"
+  "${compose[@]}" exec -T postgres createdb -U postgres "$logical_db"
+  "${compose[@]}" exec -T postgres psql -XAtq -U postgres -d "$logical_db" \
+    -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react' \
+    -f /tmp/m17-logical-schema.sql >/dev/null
+  logical_started=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
+  "${compose[@]}" exec -T postgres pg_restore -U postgres -d "$logical_db" "$logical_dump"
+  "${compose[@]}" exec -T postgres psql -XAtq -U postgres -d "$logical_db" \
+    -v ON_ERROR_STOP=1 -f /tmp/m17-logical-restore.sql >/dev/null
+  logical_finished=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
+  logical_restore_ms=$((logical_finished - logical_started))
+  "${compose[@]}" exec -T postgres dropdb --if-exists --force -U postgres "$logical_db"
+  "${compose[@]}" exec -T postgres rm -f -- "$logical_dump"
+fi
+
+crash_started=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
 "${compose[@]}" kill -s SIGKILL postgres >/dev/null
 for _ in {1..120}; do
   if test "$("${compose[@]}" ps -a --format '{{.State}}' postgres 2>/dev/null)" != "running"; then
@@ -84,7 +116,10 @@ done
 test "$ready" = true
 "${compose[@]}" exec -T postgres psql -X -U postgres -d "$recovery_db" \
   -v ON_ERROR_STOP=1 -f "/tmp/$restart_fixture.sql"
+crash_finished=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
+crash_restart_ms=$((crash_finished - crash_started))
 
+backup_started=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
 "${compose[@]}" exec -T postgres pg_basebackup -U postgres -D "$backup_dir" -Fp -Xs --checkpoint=fast
 "${compose[@]}" exec -T postgres pg_verifybackup "$backup_dir"
 "${compose[@]}" exec -T postgres tar -C "$backup_dir" -czf "$backup_archive" .
@@ -97,7 +132,10 @@ docker cp "$primary_container:$backup_checksum" "$backup_checksum" >/dev/null
 docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
   -v "$backup_archive:$backup_archive:ro" -v "$backup_checksum:$backup_checksum:ro" \
   --entrypoint sha256sum "$PG_REACT_IMAGE" -c "$backup_checksum"
+backup_finished=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
+backup_ms=$((backup_finished - backup_started))
 
+restore_started=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
 docker volume create "$restore_volume" >/dev/null
 docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
   -v "$restore_volume:/var/lib/postgresql" -v "$backup_archive:$backup_archive:ro" \
@@ -165,5 +203,13 @@ docker cp "tests/${recovery_milestone}-recovery-restore.sql" \
   "$restore_container:/tmp/${recovery_milestone}-recovery-restore.sql" >/dev/null
 docker exec "$restore_container" psql -X -U postgres -d "$recovery_db" -v ON_ERROR_STOP=1 \
   -f "/tmp/${recovery_milestone}-recovery-restore.sql"
+restore_finished=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
+physical_restore_ms=$((restore_finished - restore_started))
+
+if [[ $recovery_milestone = m17 && -n ${M18_RECOVERY_ARTIFACT:-} ]]; then
+  printf '{"crash_restart_ms":%s,"logical_restore_ms":%s,"backup_ms":%s,"physical_restore_ms":%s}\n' \
+    "$crash_restart_ms" "$logical_restore_ms" "$backup_ms" "$physical_restore_ms" \
+    >"$M18_RECOVERY_ARTIFACT"
+fi
 
 echo "${recovery_milestone^^} crash restart and physical recovery passed"

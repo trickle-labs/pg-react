@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "milestone": "M18",
+  "release_state": "candidate",
+  "entry": "0.14.0",
+  "target": "0.15.0",
+  "direct_upgrade": "0.14.0 -> 0.15.0",
+  "supported_platform": {
+    "postgresql": "18.3",
+    "pg_trickle": "0.81.0",
+    "os": "linux",
+    "architecture": "amd64",
+    "deployment": "one primary with the inherited physical-standby recovery drill",
+    "transaction_isolation": "READ COMMITTED",
+    "rls": "unsupported on source views",
+    "key_codec": "codec-v2 bigint, uuid, and text COLLATE C tuples",
+    "worker_protocol": 2
+  },
+  "performance_envelope": {
+    "hardware": "the exact host.txt and image.json in the published complete evidence archive",
+    "cases": "tests/fixtures/m18/manifest.json#/benchmarks/complete",
+    "baseline": "tests/fixtures/m18/baseline.json",
+    "universal_sla": false
+  },
+  "known_cliffs": [
+    "pgreact_api.run and watermark maintenance serialize on the inherited database advisory lock",
+    "four workers parallelize public claim and execute only",
+    "worker queue sizes above the frozen 1,000-job batch are unmeasured",
+    "rule, fact, window, and watermark sizes above the named complete cases are unmeasured and unsupported"
+  ],
+  "recovery": {
+    "horizon": "the inherited M17 physical base-backup and logical export fixtures",
+    "measurement": "three warmups and five measured populated drills; worst sample is the conservative p95",
+    "downgrade": "restore a verified pre-upgrade physical backup; SQL downgrade is unsupported",
+    "operator": "release operator"
+  },
+  "required_artifacts": [
+    "archive",
+    "sha256",
+    "oci_digest",
+    "sbom",
+    "provenance"
+  ],
+  "signing": {
+    "mechanism": "GitHub artifact attestations signed with Sigstore OIDC",
+    "subjects": ["archive", "evidence", "oci_image", "sbom"]
+  },
+  "compatibility": "M0-M17 semantics and supported boundaries are unchanged",
+  "release_blockers": [
+    "published checksummed complete-profile evidence",
+    "independently observed developer completion in at most 15 minutes"
+  ]
+}

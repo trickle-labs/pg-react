@@ -2,6 +2,7 @@
 set -euo pipefail
 
 image=${1:-pg-react:v0.14.0}
+expected_version=${PG_REACT_EXPECTED_VERSION:-0.14.0}
 project=${COMPOSE_PROJECT_NAME:-pgreact-m17-${GITHUB_RUN_ID:-$$}}
 test_log_dir=$(mktemp -d)
 
@@ -34,7 +35,7 @@ create_db() {
 
 run_test 'M17 documentation' bash tests/m17-docs.sh
 run_test 'M0-M16 inherited compatibility' env \
-  PG_REACT_EXPECTED_VERSION=0.14.0 \
+  PG_REACT_EXPECTED_VERSION="$expected_version" \
   COMPOSE_PROJECT_NAME="${project}-m16" \
   bash tests/m16.sh "$image"
 
@@ -49,7 +50,7 @@ docker compose up -d --no-build >/dev/null 2>&1
 ready=false
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -XAtq -U postgres -d postgres -c \
-      "SELECT extversion='0.14.0' FROM pg_extension WHERE extname='pg_react'" \
+      "SELECT extversion='$expected_version' FROM pg_extension WHERE extname='pg_react'" \
       2>/dev/null | grep -qx t; then ready=true; break; fi
   sleep 1
 done

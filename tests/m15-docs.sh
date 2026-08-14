@@ -6,8 +6,10 @@ if [[ $expected_version = 0.12.0 ]]; then
   grep -Fq 'pg-react M15 is extension `0.12.0`' README.md
 elif [[ $expected_version = 0.13.0 ]]; then
   grep -Fq "pg-react M16 is extension \`$expected_version\`" README.md
-else
+elif [[ $expected_version = 0.14.0 ]]; then
   grep -Fq "pg-react M17 is extension \`$expected_version\`" README.md
+else
+  grep -Fq "pg-react M18 is extension \`$expected_version\`" README.md
 fi
 grep -Fq "shared_preload_libraries = 'pg_trickle,pg_react'" docs/m15-tasks.md
 grep -Fq "pg_react.databases = 'appdb'" docs/m15-tasks.md

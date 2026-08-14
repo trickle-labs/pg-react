@@ -42,8 +42,8 @@ pub extern "C-unwind" fn _PG_init() {
     );
     GucRegistry::define_int_guc(
         c"pg_react.batch_size",
-        c"Maximum jobs claimed by one managed worker batch.",
-        c"Reloadable bound applied independently to each configured database.",
+        c"Maximum managed maintenance batch size.",
+        c"Window maintenance uses this bound; managed job claims retain the public 100-item maximum.",
         &BATCH_SIZE,
         1,
         1_000,
@@ -98,7 +98,7 @@ pub extern "C-unwind" fn pg_react_managed_main(_arg: pg_sys::Datum) {
         }
         BackgroundWorker::transaction(|| {
             let ready = Spi::get_one::<bool>(
-                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_react' AND extversion = '0.14.0')",
+                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_react' AND extversion = '0.15.0')",
             )
             .expect("check pg_react version")
             .unwrap_or(false);

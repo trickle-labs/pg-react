@@ -8,7 +8,7 @@ expected_version=${PG_REACT_EXPECTED_VERSION:-0.3.0}
 test_log_dir=$(mktemp -d)
 
 case "$expected_version" in
-  0.3.0|0.4.0|0.5.0|0.6.0|0.7.0|0.8.0|0.9.0|0.10.0|0.11.0|0.12.0|0.13.0|0.14.0) ;;
+  0.3.0|0.4.0|0.5.0|0.6.0|0.7.0|0.8.0|0.9.0|0.10.0|0.11.0|0.12.0|0.13.0|0.14.0|0.15.0) ;;
   *) echo "unsupported M6 compatibility version: $expected_version" >&2; exit 1 ;;
 esac
 

@@ -1,30 +1,39 @@
-name: Release v0.14.0
+name: Release v0.15.0
 
 on:
   push:
     tags:
-      - v0.14.0
+      - v0.15.0
 
 permissions:
   contents: write
   packages: write
+  id-token: write
+  attestations: write
+  artifact-metadata: write
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: 1.89.0
       - name: Verify release identity
         run: |
-          grep -qx 'version = "0.14.0"' Cargo.toml
-          grep -qx "default_version = '0.14.0'" pg_react.control
+          grep -qx 'version = "0.15.0"' Cargo.toml
+          grep -qx "default_version = '0.15.0'" pg_react.control
+      - name: Require independent human usability evidence
+        run: bash tests/m18-human-evidence.sh tests/fixtures/m18/human-usability.json
       - name: Require unpublished release
-        run: "! gh release view v0.14.0 >/dev/null 2>&1"
+        run: "! gh release view v0.15.0 >/dev/null 2>&1"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo fmt --check
       - run: cargo test --no-default-features
+      - name: Audit dependencies
+        run: cargo install cargo-audit --version 0.21.2 --locked && cargo audit --locked
       - name: Check pgrx PostgreSQL 18 skeleton
         run: >-
           docker run --rm
@@ -34,9 +43,11 @@ jobs:
           ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95
           cargo check --features pg18
       - name: Name image
-        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.14.0" >> "$GITHUB_ENV"
+        run: |
+          echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.15.0" >> "$GITHUB_ENV"
       - name: Build and test release image
-        run: docker build --tag "$IMAGE" . && bash tests/m17.sh "$IMAGE"
+        run: docker build --tag "$IMAGE" . && M18_ARTIFACT_DIR="$PWD/m18-evidence" bash tests/m18.sh complete "$IMAGE"
       - name: Publish image
         run: |
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -47,17 +58,45 @@ jobs:
           echo "IMAGE_DIGEST=$image_digest" >> "$GITHUB_ENV"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Package image and checksum
+      - name: Attest published image
+        id: attest_image
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ env.IMAGE_DIGEST }}
+          push-to-registry: true
+      - name: Package image, evidence, SBOM, and checksums
         run: |
-          artifact=pg-react-v0.14.0-linux-amd64.tar.gz
+          artifact=pg-react-v0.15.0-linux-amd64.tar.gz
           docker save "$IMAGE" | gzip -n -9 > "$artifact"
-          sha256sum "$artifact" > "$artifact.sha256"
-          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> "$artifact.sha256"
-          sha256sum --check "$artifact.sha256"
+          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.15.0.spdx.json
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -cf - m18-evidence | gzip -n -9 > pg-react-v0.15.0-evidence.tar.gz
+          sha256sum "$artifact" pg-react-v0.15.0-evidence.tar.gz pg-react-v0.15.0.spdx.json > pg-react-v0.15.0.SHA256SUMS
+          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.15.0.SHA256SUMS
+          sha256sum --check pg-react-v0.15.0.SHA256SUMS
+      - name: Attest release artifacts
+        id: attest_artifacts
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
+        with:
+          subject-path: pg-react-v0.15.0-linux-amd64.tar.gz, pg-react-v0.15.0-evidence.tar.gz
+      - name: Attest release SBOM
+        id: attest_sbom
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ env.IMAGE_DIGEST }}
+          sbom-path: pg-react-v0.15.0.spdx.json
+          push-to-registry: true
+      - name: Collect signed attestation bundles
+        run: |
+          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.15.0-image.provenance.json
+          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.15.0-artifacts.provenance.json
+          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.15.0-sbom.attestation.json
       - name: Publish release artifacts
         run: |
-          artifact=pg-react-v0.14.0-linux-amd64.tar.gz
-          gh release create v0.14.0 "$artifact" "$artifact.sha256" --verify-tag \
-            --notes-file docs/m17-release-notes.md --title v0.14.0
+          artifact=pg-react-v0.15.0-linux-amd64.tar.gz
+          gh release create v0.15.0 "$artifact" pg-react-v0.15.0-evidence.tar.gz pg-react-v0.15.0.SHA256SUMS pg-react-v0.15.0.spdx.json pg-react-v0.15.0-image.provenance.json pg-react-v0.15.0-artifacts.provenance.json pg-react-v0.15.0-sbom.attestation.json --verify-tag \
+            --notes-file docs/m18-release-notes.md --title v0.15.0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

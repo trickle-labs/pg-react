@@ -359,7 +359,7 @@ BEGIN
     IF actual IS DISTINCT FROM jsonb_build_object(
         'status', jsonb_build_object(
             'contract_version', CASE
-                WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.12.0', '0.13.0', '0.14.0')
+                WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.12.0', '0.13.0', '0.14.0', '0.15.0')
                 THEN 5 ELSE 3 END,
             'rules', jsonb_build_array(expected_rule)),
         'explain', jsonb_build_object(
@@ -384,7 +384,7 @@ BEGIN
     actual := pgreact_api.run('2030-01-01 00:00:00+00');
     IF actual IS DISTINCT FROM jsonb_build_object(
         'contract_version', CASE
-            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.12.0', '0.13.0', '0.14.0')
+            WHEN (SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_react') IN ('0.12.0', '0.13.0', '0.14.0', '0.15.0')
             THEN 5 ELSE 3 END,
         'sampled_time', '2030-01-01 00:00:00+00'::timestamptz,
         'rules', jsonb_build_array(

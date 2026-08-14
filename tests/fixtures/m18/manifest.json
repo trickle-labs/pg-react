@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "milestone": "M18",
+  "entry_release": {
+    "version": "0.14.0",
+    "archive": "pg-react-v0.14.0-linux-amd64.tar.gz",
+    "archive_sha256": "d704a5a48ad99d0c5f40a297f71cd5b251a6af42b400059020acd9751d9001ce",
+    "oci": "ghcr.io/trickle-labs/pg-react:v0.14.0@sha256:e9009e483f9911bb1882274ecc09cbdb070136a82ffa0b4a02702e10d7b2c94c",
+    "sbom_status": "not published with v0.14.0",
+    "reference_fixture": "tests/m17-smoke.sql"
+  },
+  "target_version": "0.15.0",
+  "platform": {
+    "postgresql": "18.3",
+    "pg_trickle": "0.81.0",
+    "rust": "1.89.0",
+    "pgrx": "0.18.0",
+    "os": "linux",
+    "architecture": "amd64",
+    "transaction_isolation": "read committed",
+    "pg_react_databases": "postgres",
+    "poll_interval_ms": 60000,
+    "day2_poll_interval_ms": 1000,
+    "batch_size": 1000,
+    "max_pending_jobs": 10000
+  },
+  "determinism": {
+    "time_zone": "UTC",
+    "random_seed": 0.18,
+    "authoring_clock_inputs": [
+      "2030-01-01T00:00:00Z",
+      "2030-01-01T00:00:01Z",
+      "2030-01-02T00:00:00Z",
+      "2030-01-02T00:00:01Z",
+      "2030-01-02T00:00:02Z",
+      "2030-01-02T00:00:03Z",
+      "2030-01-02T00:00:04Z",
+      "2030-01-02T00:00:05Z"
+    ],
+    "upgrade_clock_inputs": [
+      "2030-01-03T00:00:00Z",
+      "2030-01-03T00:00:01Z"
+    ],
+    "day2_clock_inputs": [
+      "2030-01-04T00:00:10Z",
+      "2030-01-04T00:00:20Z",
+      "2030-01-04T00:00:21Z",
+      "2030-01-04T00:00:22Z",
+      "2030-01-04T00:00:23Z"
+    ]
+  },
+  "roles": [
+    "m18_author",
+    "m18_operator",
+    "m18_worker",
+    "m18_explainer",
+    "m18_auditor"
+  ],
+  "profiles": {
+    "small": {
+      "authoring_minutes_max": 15,
+      "database": "m18_authoring",
+      "workloads": [
+        "risk/fraud",
+        "inventory",
+        "sla/deadline",
+        "derived-knowledge",
+        "event-time-windows"
+      ],
+      "schemas": [
+        "m18_risk",
+        "m18_inventory",
+        "m18_sla",
+        "m18_knowledge",
+        "m18_windows"
+      ],
+      "sql": "tests/m18-authoring.sql",
+      "transcript": "tests/fixtures/m18/expected-small-transcript.txt"
+    },
+    "complete": {
+      "benchmark_baseline": "tests/fixtures/m18/baseline.json",
+      "release_state": "tests/fixtures/m18/release-state.json",
+      "upgrade_sql": "tests/m18-upgrade.sql",
+      "day2_sql": "tests/m18-day2.sql"
+    }
+  },
+  "measurement": {
+    "warmups": 3,
+    "measured_runs": 5,
+    "update_samples_per_run": {"default": 20, "rules_1000": 1},
+    "worker_job_cap": 1000,
+    "recovery_warmups": 3,
+    "recovery_measured_runs": 5,
+    "reruns_after_breach": 1,
+    "throughput_drop_pct": 10,
+    "latency_rise_pct": 20,
+    "resource_rise_pct": 15
+  },
+  "benchmark_sql": [
+    "tests/m18-benchmark-case.sql",
+    "tests/m18-benchmark-window.sql"
+  ],
+  "recovery_benchmark": "tests/m18-recovery-benchmark.sh",
+  "benchmarks": {
+    "fast": [
+      "rules-1-facts-1e3-updates-1-workers-1-windows-1e3-watermark-0"
+    ],
+    "complete": [
+      "rules-1-facts-1e3-updates-1-workers-1-windows-1e3-watermark-0",
+      "rules-100-facts-1e5-updates-100-workers-1-windows-1e3-watermark-1e3",
+      "rules-10-facts-1e6-updates-10000-workers-4-windows-1e5-watermark-1e5",
+      "rules-1000-facts-1e3-updates-1-workers-4-windows-1e3-watermark-0"
+    ]
+  },
+  "faults": [
+    {"name": "configuration-and-privilege", "evidence": "tests/m15-api.sql"},
+    {"name": "source-and-action-drift", "evidence": "tests/m18-public-matrix.sql"},
+    {"name": "blocked-frontier-and-late-input", "evidence": "tests/m17-late.sql"},
+    {"name": "worker-loss-during-lease", "evidence": "tests/m18-day2-queue.sql"},
+    {"name": "lease-and-failed-work", "evidence": "tests/m13-api.sql"},
+    {"name": "interrupted-watermark", "evidence": "tests/m17-concurrency-result.sql"},
+    {"name": "state-drift-and-reconciliation", "evidence": "tests/m17-late.sql"},
+    {"name": "crash-restart-and-restore", "evidence": "tests/m6-recovery.sh"},
+    {"name": "direct-upgrade", "evidence": "tests/m18-upgrade.sql"}
+  ],
+  "fixture_checksums": {
+    "tests/m18-authoring.sql": "86aa882dc894b46b3073d528a8b1293a4404674bf17f2d14686e231df9e8e3cb",
+    "tests/fixtures/m18/expected-small-transcript.txt": "aed9480d6de58f4aad439f9db0d340ba3e2d8ac504bf0c1b4bd3d474d732d48e",
+    "tests/m18-benchmark-case.sql": "bfc037e18a05ad1a4d96407384097691c429aee27faa8cec1f6b2c3042a045c5",
+    "tests/m18-benchmark-window.sql": "974f920f6cae3374c5d0ebbda728a731a0f0e99e37cb150e26ed33e386080f8b",
+    "tests/m18-benchmark-case.sh": "154de51bd4d8c82df7b860f81d196441458fd19a5fec3aeb8be2fe0e1e4bb231",
+    "tests/m18-upgrade.sql": "8ec73b18a282c6f13f8acbe567fb88352a825b51c4fe8b89756d8528b63d3326",
+    "tests/m18-day2.sql": "46cb72a0b38710a88fa0b4709d96a1c8b208d8409351a94f8ee2bbcbe4b0f150",
+    "tests/m18-day2-queue.sql": "054d67b3da786c948705eee719d999e79889896698a8fcc1155696035cce8540",
+    "tests/m18-public-matrix.sql": "804ecd1d6dfd8636dbe1061dd98d46acec586fe3804188b8250b4ec002268a8b",
+    "tests/m18-recovery-benchmark.sh": "01bec6c4ae6e45f2370d53d0ea168a28fab034279e8ec820bbd99f999b4146d1",
+    "tests/fixtures/m18/baseline.json": "2e98ec5f98b7f9aad9c92405823d1e6da2c4fdb537bb2755decb661c0e6f5143",
+    "tests/fixtures/m18/release-state.json": "64a18a014593aab3213d741fc009489df088f3ae452181b1e245dcc50ddbdc59"
+  }
+}

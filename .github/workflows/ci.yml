@@ -4,12 +4,17 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: 1.89.0
       - run: cargo fmt --check
       - run: cargo test --no-default-features
       - name: Check pgrx PostgreSQL 18 skeleton
@@ -22,8 +27,8 @@ jobs:
           cargo check --features pg18
 
   environment:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: docker compose config --quiet
-      - run: docker build --tag pg-react:v0.14.0 . && bash tests/m17.sh pg-react:v0.14.0
+      - run: docker build --tag pg-react:v0.15.0 . && bash tests/m18.sh fast pg-react:v0.15.0

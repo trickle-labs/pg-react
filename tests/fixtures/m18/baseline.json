@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "source": {
+    "kind": "local_candidate",
+    "platform": "linux/amd64 under Docker Desktop",
+    "release_requirement": "refresh and publish from the pinned ubuntu-24.04 amd64 evidence workflow before v0.15.0"
+  },
+  "warmups": 3,
+  "measured_runs": 5,
+  "budgets": {
+    "throughput_drop_pct": 10,
+    "latency_rise_pct": 20,
+    "resource_rise_pct": 15
+  },
+  "cases": [
+    {
+      "name": "rules-1-facts-1e3-updates-1-workers-1-windows-1e3-watermark-0",
+      "correctness": true,
+      "correctness_checksum": "0568bca5acaaed1e82059e8a2eb457c4",
+      "update_throughput": 84.40634904557520816716,
+      "worker_throughput": 1.4085578339761052,
+      "update_p50_ms": 4.3815,
+      "update_p95_ms": 17.5277000000001,
+      "worker_p50_ms": 102.966,
+      "worker_p95_ms": 111.023,
+      "window_p50_ms": 28251.193,
+      "window_p95_ms": 28760.324,
+      "watermark_p50_ms": 2443.782,
+      "watermark_p95_ms": 4727.142,
+      "peak_memory_bytes": 669118464,
+      "database_bytes": 29972159
+    },
+    {
+      "name": "rules-100-facts-1e5-updates-100-workers-1-windows-1e3-watermark-1e3",
+      "correctness": true,
+      "correctness_checksum": "f7d4704090497b08d32e3babd24e7f9f",
+      "update_throughput": 29.1106586085646643,
+      "worker_throughput": 122.047369024865931,
+      "update_p50_ms": 1146.2835,
+      "update_p95_ms": 7986.08425,
+      "worker_p50_ms": 0.77653125,
+      "worker_p95_ms": 4.627392187499998,
+      "window_p50_ms": 28913.522,
+      "window_p95_ms": 39142.553,
+      "watermark_p50_ms": 4584.161,
+      "watermark_p95_ms": 4684.726,
+      "peak_memory_bytes": 671678464,
+      "database_bytes": 133953215
+    },
+    {
+      "name": "rules-10-facts-1e6-updates-10000-workers-4-windows-1e5-watermark-1e5",
+      "correctness": true,
+      "correctness_checksum": "61512810f01a00c2ef6c149114ab6e8e",
+      "update_throughput": 1022.3076055806197835,
+      "worker_throughput": 203.7737679175726958,
+      "update_p50_ms": 9743.702000000001,
+      "update_p95_ms": 12840.93255,
+      "worker_p50_ms": 1.1083281249999999,
+      "worker_p95_ms": 4.531518749999989,
+      "window_p50_ms": 25777.894,
+      "window_p95_ms": 40542.387,
+      "watermark_p50_ms": 1298769.728,
+      "watermark_p95_ms": 2049263.137,
+      "peak_memory_bytes": 4686860288,
+      "database_bytes": 1911887551
+    },
+    {
+      "name": "rules-1000-facts-1e3-updates-1-workers-4-windows-1e3-watermark-0",
+      "correctness": true,
+      "correctness_checksum": "ad9af8f7b9cc09e2a9d29b4d72bdfe7e",
+      "update_throughput": 0.02516116037736205111,
+      "worker_throughput": 1.4194585049695242,
+      "update_p50_ms": 39743.795,
+      "update_p95_ms": 55739.294,
+      "worker_p50_ms": 102.609,
+      "worker_p95_ms": 110.743,
+      "window_p50_ms": 38169.694,
+      "window_p95_ms": 39855.009,
+      "watermark_p50_ms": 7569.669,
+      "watermark_p95_ms": 9669.761,
+      "peak_memory_bytes": 4881633280,
+      "database_bytes": 91002559
+    }
+  ],
+  "recovery": {
+    "crash_restart_ms": 2581,
+    "logical_restore_ms": 18053,
+    "physical_restore_ms": 5387
+  }
+}
