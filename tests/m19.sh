@@ -8,6 +8,7 @@ case "$profile" in fast|complete) ;; *) echo 'usage: tests/m19.sh fast|complete 
 project=${COMPOSE_PROJECT_NAME:-pgreact-m19-${GITHUB_RUN_ID:-$$}}
 upgrade_project=${project}-upgrade
 test_log_dir=$(mktemp -d)
+artifact_dir=${M19_ARTIFACT_DIR:-}
 
 cleanup() {
   COMPOSE_PROJECT_NAME=$project docker compose down --volumes --remove-orphans >/dev/null 2>&1 || true
@@ -99,3 +100,7 @@ if [[ $profile = complete ]]; then
 fi
 
 echo "M19 $profile evidence gate passed for $image (linux/amd64)"
+if [[ -n $artifact_dir ]]; then
+  mkdir -p -- "$artifact_dir"
+  cp -- "$test_log_dir"/*.log tests/fixtures/m19/release-state.json "$artifact_dir"/
+fi
