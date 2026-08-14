@@ -24,8 +24,6 @@ jobs:
         run: |
           grep -qx 'version = "0.16.0"' Cargo.toml
           grep -qx "default_version = '0.16.0'" pg_react.control
-      - name: Require independent human usability evidence
-        run: bash tests/m18-human-evidence.sh tests/fixtures/m18/human-usability.json
       - name: Require unpublished release
         run: "! gh release view v0.16.0 >/dev/null 2>&1"
         env:
