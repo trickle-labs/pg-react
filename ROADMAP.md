@@ -1144,19 +1144,72 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M18
+## Stage 19 — Selective immediate maintenance
+
+**Outcome:** add an explicit, bounded read-your-writes path for eligible constraint rules and finite database-local derivations while keeping scheduled maintenance as the default and every arbitrary or external consequence asynchronous.
+
+**Entry gate:** the exact `v0.15.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, including the independent M18 usability evidence, and every M0–M18 gate passes unchanged. Before the public contract freezes, capture the pinned `pg_trickle` immediate-maintenance capability matrix and a reference fixture covering eligible and rejected declarations; inserts, updates, deletes, multi-statement transactions, savepoints, rollback, and abort; one constraint and one finite acyclic derivation chain; concurrent writers; replacement, reconciliation, crash/restart, physical and logical recovery, and direct upgrade; freeze its exact public declarations, visible facts, matches, activations, supports, evidence, agenda state, diagnostics, explanations, lock outcomes, and final database state.
+
+### Deliverables
+
+- A PostgreSQL-native, per-version opt-in for immediate maintenance. Scheduled `DIFFERENTIAL` remains the default, and validation rejects an ineligible rule, program, dependency, query, source, DML shape, or platform tuple before creating or changing durable runtime state.
+- One public compatibility contract tied to the pinned PostgreSQL and `pg_trickle` tuple that names every supported immediate query and DML shape, the required critical observer, the exact `READ COMMITTED` visibility point, lock scope and order, conflict behavior, and the fallback or rejection for every unsupported case.
+- Same-transaction visibility after each supported source statement: the issuing transaction can read the final maintained match or derived relation and corresponding current pg-react truth through public APIs before commit. Match state, activations, supports, evidence, lifecycle changes, and durable agenda changes commit or roll back atomically with the source write.
+- Dependency-ordered immediate maintenance for one validated finite acyclic positive derivation closure. Every member must opt in and pass the same capability checks; an edge into a scheduled rule or program is an explicit asynchronous boundary rather than a claim of transitive read-your-writes behavior.
+- Deterministic transaction-local handling of repeated changes to one semantic key, including activate/change/deactivate oscillation, subtransactions, savepoints, statement failure, and full rollback, with no uncommitted episode visible to a worker and no consequence surviving an aborted source transaction.
+- Public validation, preview, status, doctor, and explanation output that identifies the selected maintenance mode, eligibility, visibility boundary, blocking dependency or source shape, lock/conflict outcome, and the exact public remediation without requiring private-catalog inspection.
+- Executable correctness, concurrency, failure, recovery, performance, compatibility, security, and direct-upgrade evidence for both immediate and inherited scheduled paths, plus extension `0.16.0`, release notes, compatibility inventory, compact author and operator tasks, and a direct upgrade from `0.15.0`.
+
+### Supported boundary
+
+- M19 inherits the complete M18 platform, public API, managed-worker, typed-key, security, maintenance, isolation, recovery, resource-limit, external-effect, aggregate, window, diagnostic, and usability boundaries except for this explicit immediate-maintenance expansion.
+- Immediate maintenance is opt-in and limited to the frozen query, dependency, source, and DML capability matrix under `READ COMMITTED` on the pinned platform tuple. A declaration outside that matrix fails explicitly; it is never silently downgraded or partially maintained.
+- The immediate derivation closure is finite, acyclic, positive, and database-local. Constraint matches and derived facts may become visible in the source transaction, but downstream scheduled rules cross the ordinary committed asynchronous frontier.
+- Existing lifecycle and at-least-once delivery semantics remain authoritative. Immediate maintenance may create or withdraw durable agenda work atomically, but workers observe only committed work and arbitrary user or external code never runs in the source statement.
+- Concurrency follows one published lock order and bounded wait/error policy. Every frozen conflicting schedule either produces the documented state equivalent to an allowed serialization or fails with an exact diagnostic and leaves no partial state.
+
+### Explicit non-goals
+
+- Synchronous command, outbox, manual, network, file, LLM, or other arbitrary consequence execution; rejecting a source write as a policy action; exactly-once external effects; or a general synchronous firing loop.
+- Immediate recursion, stratified negation, aggregates, event-time windows, deadline clocks, corrections, watermark advancement, cyclic programs, or a scheduled member inside one claimed immediate closure; a scheduled downstream consumer remains outside that closure.
+- Automatic immediate-mode selection, automatic common-subplan discovery, a second source-table trigger or CDC system, a new worker protocol, cross-database transactions, or global ordering across unrelated rules.
+- New isolation levels, RLS sources, key codecs, PostgreSQL or `pg_trickle` versions, operating systems, architectures, or performance promises outside the frozen immediate envelope.
+- Shared conditions, retention redesign, richer provenance, practical temporal primitives, effective-dated policy, or preparatory abstractions for M20 and later milestones.
+
+### Decisions to close before the M19 contract freezes
+
+- The exact declaration, preview, replacement, and upgrade shapes; eligible constraint and derivation forms; supported source, query, dependency, and DML matrix; observer capability detection; and whether unsupported existing declarations remain scheduled or require explicit replacement.
+- The precise visibility point after each statement and at commit, including transaction-start versus statement-start truth, transition coalescing, stable activation and episode identity, repeated semantic-key changes, savepoints, subtransactions, statement failure, transaction abort, and interaction with public reads and explicit refresh commands.
+- Lock identities, acquisition order, granularity, bounded wait and timeout behavior, deadlock prevention, concurrent DDL and replacement behavior, and the exact accepted or rejected schedules for overlapping writers and derivation closures.
+- Atomic lifecycle and agenda behavior when immediate truth activates, changes, deactivates, or oscillates; committed history and explanation rendering; worker claim barriers; downstream scheduled invalidation; and deterministic ordering across several affected keys and dependencies.
+- Resource limits, indexes, cost admission, transaction-latency envelope, drift detection, reconciliation, retention, failure injection, crash recovery, physical and logical restore, standby behavior, and downgrade or direct-upgrade treatment of immediate declarations and in-flight state.
+
+### Exit gates
+
+- After every supported insert, update, delete, and multi-statement sequence in the frozen fixture, the issuing transaction reads the exact expected match relation, derived relation, current facts, activations, supports, evidence, explanations, and agenda state before commit; a separate session sees none of it before commit and the exact same state after commit.
+- Full rollback, statement failure, and rollback to every frozen savepoint restore the exact source, maintained, lifecycle, support, evidence, and agenda state, expose no worker-claimable episode, and leave no orphaned frontier, lock, or reconciliation barrier.
+- Every equivalent supported DML ordering and every accepted concurrent schedule produces the exact canonical state and lifecycle history specified by the contract; every rejected conflict returns its exact diagnostic without partial mutation, missed truth, duplicate episode, or deadlock beyond the published bound.
+- Validation rejects every frozen unsupported mode, query, source, DML, dependency, recursion, negation, aggregate, window, deadline, isolation, platform, privilege, drift, resource-limit, or mixed-closure case before durable mutation and names the exact incompatible object and remediation.
+- The same reference rules in scheduled mode retain their M0–M18 results, ordering, recovery, performance, and asynchronous behavior; opting one eligible version into immediate mode changes only the frozen visibility and timing contract.
+- Replacement, removal, reconciliation, crash/restart, managed-worker restart, physical restore, dump/restore, and direct `0.15.0 -> 0.16.0` upgrade preserve or repair the exact mode, declarations, generated objects, facts, activations, supports, evidence, agenda state, diagnostics, explanations, and continued immediate behavior.
+- Every inherited M0–M18 semantic, operational, security, recovery, performance, compatibility, documentation, usability, and external-effect gate passes unchanged.
+- A non-superuser author and operator can validate, preview, deploy, exercise, inspect, explain, diagnose, reconcile, replace, recover, and upgrade the reference immediate constraint and derivation program using only public APIs and documentation.
+
+---
+
+## Proposed sequence after M19
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
 The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
 
-1. **M19 — Selective immediate maintenance.** Support read-your-writes for a pinned subset of constraint and database-local derivation rules under an executable isolation and locking contract; arbitrary or external consequences remain asynchronous.
-2. **M20 — Shared conditions.** Let authors explicitly name and reuse one maintained condition across compatible rules, with ownership, security, lifecycle, cost, and recovery evidence before considering automatic common-subplan discovery.
-3. **M21 — Retention and catalog scale.** Use frozen benchmarks to introduce audited pruning and, only where measured limits require it, catalog partitioning while preserving the declared replay, rollback, explanation, and recovery horizons.
-4. **M22 — Bounded synchronous rule sets.** Extend M19's immediate path with one serialized database-local consequence loop, deterministic ordering, causal controls, firing and cycle limits, and all-or-nothing rollback; external actions and general workflow orchestration remain asynchronous.
-5. **M23 — Bounded support provenance.** Record one bounded typed tuple of contributing authoritative or derived bindings per logical support and expose it through existing explanation and recovery paths, without promising arbitrary SQL lineage, minimal proofs, or unlimited enumeration.
+1. **M20 — Shared conditions.** Give one named, versioned, maintained SQL condition explicit ownership, consumers, lifecycle, security, deployment dependencies, cost, recovery, and explanation semantics so compatible rules can reuse one business concept; automatic common-subplan discovery remains out of scope.
+2. **M21 — Retention and catalog scale.** Turn M18's measured storage cliffs into audited retention policies and only evidence-driven partitioning, while preserving declared replay, rollback, explanation, reconciliation, and recovery horizons and protecting every open window, pending job, active support, and still-required correction.
+3. **M22 — Bounded support provenance.** Record canonically ordered, typed contributing business bindings for derived facts and expose them through role-checked explanation and recovery paths with strict count, continuation, and recursion bounds; arbitrary SQL lineage and minimal-proof search remain out of scope.
+4. **M23 — Practical temporal conditions.** Add a small durable set of unambiguous-clock primitives for duration, absence by deadline, cooldown, and hysteresis, building on M12 deadlines and M17 event time without claiming a general CEP or temporal-pattern language.
+5. **M24 — Effective-dated policy versions.** Let a rule or program version declare a canonical `[valid_from, valid_to)` interval, be validated and deployed before activation, and become authoritative deterministically at its logical-time boundary while audit distinguishes deployment time from business-effective time.
 
-Unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M19–M23. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M20–M24. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
