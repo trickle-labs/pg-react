@@ -16,7 +16,7 @@ jobs:
           toolchain: 1.89.0
       - run: cargo fmt --check
       - run: cargo test --no-default-features
-      - run: cargo install cargo-audit --version 0.21.2 --locked && cargo audit --locked
+      - run: cargo install cargo-audit --version 0.22.2 --locked && cargo audit
       - name: Build and record complete profile
         run: |
           docker build --tag pg-react:v0.16.0 .

@@ -32,7 +32,7 @@ jobs:
       - run: cargo fmt --check
       - run: cargo test --no-default-features
       - name: Audit dependencies
-        run: cargo install cargo-audit --version 0.21.2 --locked && cargo audit
+        run: cargo install cargo-audit --version 0.22.2 --locked && cargo audit
       - name: Check pgrx PostgreSQL 18 skeleton
         run: >-
           docker run --rm
