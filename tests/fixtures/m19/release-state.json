@@ -1,0 +1,18 @@
+{
+  "milestone": "M19",
+  "target_version": "0.16.0",
+  "direct_upgrade": "0.15.0 -> 0.16.0",
+  "default_maintenance_mode": "SCHEDULED",
+  "pinned_platform": {
+    "postgresql": "18.3",
+    "pg_trickle": "0.81.0",
+    "isolation": "READ COMMITTED",
+    "user_triggers": "auto",
+    "architecture": "linux/amd64"
+  },
+  "fast_command": "tests/m19.sh fast pg-react:v0.16.0",
+  "complete_command": "tests/m19.sh complete pg-react:v0.16.0",
+  "required_artifacts": ["archive", "sha256", "oci_digest", "sbom", "provenance", "human_usability"],
+  "next_milestone": "M20 — Shared conditions",
+  "status": "candidate; publish v0.16.0 only after complete inherited and independent evidence"
+}
