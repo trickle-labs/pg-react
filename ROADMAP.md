@@ -1197,19 +1197,72 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M19
+## Stage 20 — Shared conditions
+
+**Outcome:** let authors define one business concept as an explicitly named, versioned, maintained SQL relation that compatible rules can consume through one governed truth boundary, without duplicating its meaning or introducing a second execution model.
+
+**Entry gate:** the exact `v0.16.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, and every M0–M19 gate passes unchanged. Before the public contract freezes, capture a reference fixture with one typed shared condition consumed by constraint, command, and derivation rules; scheduled and eligible immediate maintenance; independent condition and consumer owners; named fan-out and resource profiles; compatible and incompatible replacement; removal, drift, reconciliation, concurrent source and deployment changes, crash/restart, physical and logical recovery, and direct upgrade; freeze its exact public declarations, dependency graph, condition rows, consumer truth, lifecycle state, jobs, supports, evidence, diagnostics, explanations, grants, costs, budgets, lock outcomes, and final database state.
+
+### Deliverables
+
+- A PostgreSQL-native public declaration for an explicit shared condition and its immutable version. SQL remains the definition; pg-react records its stable identity, typed semantic key and output schema, source and dependency fingerprints, owner and grants, maintenance mode, active version, and public relation.
+- Explicit consumer dependencies from compatible rule and program versions to the condition's public relation. Validation rejects an incompatible schema, key, query, maintenance mode, dependency, privilege, or platform tuple before creating or changing durable runtime state.
+- One dependency and maintenance model: shared conditions participate in the inherited program graph, strata, frontiers, invalidation, reconciliation, locking, and recovery machinery. They do not introduce another scheduler, worker protocol, lifecycle engine, or private relation that consumers may address.
+- Atomic deployment, replacement, and removal semantics. A compatible replacement moves the condition and its selected consumers together through one declared deployment; an incompatible replacement fails before cutover, and removal is blocked while an active consumer remains unless the same atomic deployment removes or replaces that dependency.
+- Public validation, preview, status, doctor, and explanation output that names the condition version, owner, maintenance state, consumers, dependency and frontier state, drift, fan-out cost, blocking incompatibility, and exact remediation. Ordinary explanation preserves the named condition boundary; authorized advanced output may expand only the inherited bounded evidence.
+- Executable correctness, concurrency, failure, recovery, performance, compatibility, security, and direct-upgrade evidence for shared and unshared equivalents, plus extension `0.17.0`, release notes, compatibility inventory, compact author and operator tasks, and a direct upgrade from `0.16.0`.
+
+### Supported boundary
+
+- M20 inherits the complete M19 platform, public API, managed-worker, typed-key, security, maintenance, isolation, immediate-mode, recovery, resource-limit, external-effect, aggregate, window, diagnostic, and usability boundaries except for this explicit shared-condition expansion.
+- Sharing is author-declared. Each logical condition has one active immutable version, one typed public relation, and explicit consumers. A condition may depend only on supported authoritative or pg-react public relations through the inherited finite dependency graph; cyclic condition dependencies are rejected.
+- Scheduled consumers observe a condition through the inherited committed frontier. Immediate visibility is available only when the condition and complete consumer closure independently satisfy the frozen M19 immediate capability contract; otherwise the dependency is an explicit asynchronous boundary or is rejected when immediate closure was requested.
+- A shared condition carries truth and evidence but has no activation, consequence, or external effect of its own. Consumer rules retain their existing lifecycle, refraction, ordering, delivery, and recovery semantics.
+- Ownership, use, inspection, and advanced evidence are separately grantable and role-checked. A consumer never gains source-row or evidence visibility merely by depending on a condition, and no public operation requires private-catalog access.
+
+### Explicit non-goals
+
+- Automatic common-subplan or common-predicate discovery, implicit consumer rewrites, cost-based sharing, transparent deduplication of existing rule SQL, or automatic migration from duplicated conditions.
+- Hidden condition lifecycle events, direct condition consequences, synchronous arbitrary code, policy rejection of source writes, a new worker protocol, or cross-database sharing.
+- A general materialized-view service, unrestricted query composition, cyclic shared conditions, dynamic or mutable schemas, string templates, client DSLs, or visual or AI authoring.
+- Retention redesign, richer provenance, practical temporal primitives, effective-dated policy, parameterized policy families, or preparatory abstractions for M21 and later milestones.
+
+### Decisions to close before the M20 contract freezes
+
+- The exact declaration, version, consumer-reference, validation, preview, deployment, replacement, removal, upgrade, and public-relation shapes, including name resolution, schema and key compatibility, allowed query and dependency forms, and supported scheduled or immediate combinations.
+- Condition-owner, consumer-owner, deployer, reader, and advanced-reader privileges; grant and revoke behavior; security-definer boundaries; source and evidence visibility; RLS rejection; and ownership changes or dropped roles.
+- Dependency identity, stratum and frontier placement, invalidation propagation, fan-out ordering, lock identities and acquisition order, bounded waits, concurrent source/deployment schedules, drift classification, and reconciliation authority.
+- Atomic cutover for compatible consumers, rejection and rollback for incompatible consumers, active-version history, pack interaction, removal blocking, downgrade behavior, and recovery when a condition or consumer changes during maintenance.
+- Resource admission, indexes, per-condition and per-consumer cost reporting, fan-out and catalog envelopes, retention requirements, failure injection, crash recovery, physical and logical restore, standby behavior, and direct-upgrade treatment of condition state and dependencies.
+
+### Exit gates
+
+- The frozen rules consume one public shared-condition version and produce the exact expected condition rows, matches, facts, activations, jobs, supports, evidence, diagnostics, explanations, and final state for every supported source insert, update, and delete; the equivalent unshared rules produce the same consumer truth and lifecycle results.
+- One source transition maintains the condition once and propagates its canonical result to every consumer in dependency order. Scheduled consumers cross the exact committed frontier, while an eligible immediate closure has the exact M19 same-transaction visibility, rollback, savepoint, and worker-isolation behavior.
+- Compatible replacement atomically exposes the new condition version and selected consumer versions with no mixed graph, partial frontier, duplicate lifecycle episode, or lost work. Every incompatible replacement or removal with a live consumer returns its exact public diagnostic before durable mutation.
+- Every accepted concurrent source, replacement, reconciliation, and consumer-deployment schedule reaches the documented state equivalent to an allowed serialization; every rejected schedule fails within the published bound without partial condition, dependency, lifecycle, evidence, or agenda state.
+- Validation rejects every frozen unsupported schema, key, query, dependency, cycle, maintenance-mode combination, privilege, RLS, drift, platform, or resource-limit case and identifies the exact condition, consumer, incompatibility, and remediation.
+- Every frozen fan-out profile reports the exact per-condition and per-consumer cost, remains within its published latency, throughput, storage, memory, and catalog budgets, and fails admission before mutation outside the supported envelope.
+- Status, doctor, preview, and explanation show the exact named condition and consumer boundary, remain bounded under the maximum supported fan-out, expose deeper evidence only to an authorized role, and reveal no source or condition value unavailable to the caller.
+- Reconciliation, crash/restart, managed-worker restart, physical restore, dump/restore, and direct `0.16.0 -> 0.17.0` upgrade preserve or repair the exact condition versions, public relations, consumer graph, frontiers, lifecycle state, jobs, supports, evidence, grants, diagnostics, explanations, and continued maintenance behavior.
+- Every inherited M0–M19 semantic, operational, security, recovery, performance, compatibility, documentation, usability, and external-effect gate passes unchanged.
+- Non-superuser condition and rule owners can declare, validate, preview, deploy, consume, inspect, explain, diagnose, reconcile, replace, remove, recover, and upgrade the reference shared condition using only granted public APIs and documentation.
+
+---
+
+## Proposed sequence after M20
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
 The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
 
-1. **M20 — Shared conditions.** Give one named, versioned, maintained SQL condition explicit ownership, consumers, lifecycle, security, deployment dependencies, cost, recovery, and explanation semantics so compatible rules can reuse one business concept; automatic common-subplan discovery remains out of scope.
-2. **M21 — Retention and catalog scale.** Turn M18's measured storage cliffs into audited retention policies and only evidence-driven partitioning, while preserving declared replay, rollback, explanation, reconciliation, and recovery horizons and protecting every open window, pending job, active support, and still-required correction.
-3. **M22 — Bounded support provenance.** Record canonically ordered, typed contributing business bindings for derived facts and expose them through role-checked explanation and recovery paths with strict count, continuation, and recursion bounds; arbitrary SQL lineage and minimal-proof search remain out of scope.
-4. **M23 — Practical temporal conditions.** Add a small durable set of unambiguous-clock primitives for duration, absence by deadline, cooldown, and hysteresis, building on M12 deadlines and M17 event time without claiming a general CEP or temporal-pattern language.
-5. **M24 — Effective-dated policy versions.** Let a rule or program version declare a canonical `[valid_from, valid_to)` interval, be validated and deployed before activation, and become authoritative deterministically at its logical-time boundary while audit distinguishes deployment time from business-effective time.
+1. **M21 — Retention and catalog scale.** Turn M18's measured storage cliffs into audited pruning and only evidence-driven partitioning so long-lived installations stay bounded without deleting state required by replay, rollback, explanation, reconciliation, recovery, open windows, pending work, active supports, or corrections.
+2. **M22 — Bounded support provenance.** Record canonically ordered, typed business bindings that actually support derived facts and expose them through role-checked explanation and recovery paths with strict count, continuation, and recursion bounds; arbitrary SQL lineage and minimal-proof search remain out of scope.
+3. **M23 — Practical temporal conditions.** Add durable, unambiguous-clock primitives for duration, absence by deadline, cooldown, and hysteresis on the M12 deadline and M17 event-time foundations, covering common operational policies without claiming a general CEP or temporal-pattern language.
+4. **M24 — Effective-dated policy versions.** Give rule and program versions canonical `[valid_from, valid_to)` intervals so future policy can be validated and deployed before activation, switch authority deterministically at its logical-time boundary, and keep deployment time distinct from business-effective time in audit.
+5. **M25 — Parameterized policy families.** Treat typed parameter relations as ordinary PostgreSQL facts consumed by one versioned policy definition, adding family identity, ownership, validation, preview, deployment, and explanation so tenant or segment variation does not require generated rule copies or a template language.
 
-Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M20–M24. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M21–M25. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
