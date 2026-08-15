@@ -1250,19 +1250,74 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M20
+## Stage 21 — Retention and catalog scale
+
+**Outcome:** keep long-lived pg-react installations within a measured storage and catalog envelope through explicit, dependency-aware, audited retention and evidence-driven physical-layout changes, without deleting current truth or state still required for replay, rollback, explanation, reconciliation, recovery, open windows, pending work, active supports, or corrections.
+
+**Entry gate:** the exact `v0.17.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, and every M0–M20 gate passes unchanged. Before the contract freezes, extend the M18 complete profile into a long-lived fixture spanning repeated rule, program, pack, and shared-condition replacement; active and inactive matches and facts; pending, leased, retryable, terminal, and replayable work; lifecycle, execution, reconciliation, runtime, and retention history; recursive and aggregate supports; open and finalized windows, corrections, and watermarks; physical and logical recovery; and direct upgrade. Freeze every retention policy and horizon, protected-row reason, preview and apply result, audit record, public diagnostic and explanation, table and index size, maintenance latency, normalized public-query plan, and final checksum.
+
+### Deliverables
+
+- One operator-owned public retention policy covering the supported historical families with explicit full-detail, minimum-audit, replay, rollback, deduplication, explanation, reconciliation, and recovery horizons. Defaults preserve inherited behavior until an operator deliberately enables pruning.
+- A read-only retention preview that resolves a requested cutoff against durable dependencies and returns exact eligible and protected row counts, bytes, effective cutoffs, blocking objects, lost capabilities, and remediation before mutation.
+- One bounded, idempotent apply path that prunes only previewed eligible state in deterministic batches, records the policy, requested and effective cutoffs, batch identity, counts, bytes, actor, outcome, and protected reasons, and resumes safely after failure or restart.
+- A frozen retention classification for every historical table and payload: current and executable state is never age-pruned; full detail may expire only after every declared horizon; the minimum immutable identity and outcome required by the audit contract survives for its declared lifetime; and public queries report when requested detail is no longer retained.
+- Public status, doctor, metrics, and operations guidance for policy state, oldest retained detail, protected backlog, eligible bytes, batch progress, failed maintenance, table and index growth, vacuum and analyze state, and any supported partition boundary, without requiring private-catalog access for ordinary diagnosis.
+- A benchmark-backed physical-layout decision for each catalog family that reaches the frozen scale envelope. Partitioning, index changes, or table rewrites ship only where the M18/M21 evidence proves the selected layout meets the published ingest, maintenance, inspection, upgrade, backup, and recovery budgets better than the inherited layout.
+- Extension `0.18.0`, compact retention and recovery tasks, compatibility and loss-of-detail documentation, release notes, executable correctness, concurrency, failure, performance, security, recovery, and direct-upgrade evidence, and a direct upgrade from `0.17.0`.
+
+### Supported boundary
+
+- M21 inherits the complete M20 platform, public API, managed-worker, typed-key, security, maintenance, isolation, immediate-mode, shared-condition, recovery, resource-limit, external-effect, aggregate, window, diagnostic, and usability boundaries except for this retention and physical-layout expansion.
+- Retention applies only to pg-react-owned historical state. It never deletes authoritative application rows, active definitions, current matches or facts, active supports, incomplete frontiers, open-window state, or work that is pending, leased, retryable, replayable, or inside the published deduplication, rollback, reconciliation, explanation, or recovery horizon.
+- A policy may shorten available historical detail only prospectively and only after preview names the exact capability boundary. Pruned detail is not reconstructed or silently approximated; reads outside retained coverage return an exact bounded diagnostic.
+- Pruning advances monotonically per historical family and commits in bounded batches. It does not promise immediate filesystem shrinkage; PostgreSQL vacuum, analyze, backup, restore, and replication behavior remains explicit in the operations contract.
+- Any partitioning is confined to private pg-react catalogs and remains invisible through stable public APIs. Unpartitioned tables remain valid where measured evidence does not justify migration.
+
+### Explicit non-goals
+
+- New truth, lifecycle, reasoning, provenance, temporal, or policy semantics; richer support provenance begins with M22.
+- Deleting or compacting authoritative source data, serving as a CDC archive, reconstructing arbitrary past database state, unlimited time travel, or preserving every detailed explanation forever.
+- External object-store archival, automatic storage-tier migration, cross-database retention coordination, a new maintenance daemon or worker protocol, or a hosted retention service.
+- Blanket partitioning, speculative sharding, zero-downtime or zero-bloat claims outside the frozen envelope, or physical rewrites without a measured advantage and tested direct-upgrade path.
+- Ad hoc legal-hold workflows, user-defined pruning SQL, private-catalog mutation, or preparatory abstractions for M22 and later milestones.
+
+### Decisions to close before the M21 contract freezes
+
+- The exact policy declaration and versioning shape, historical families, defaults, minimum and maximum horizons, clock and cutoff semantics, enable, preview, apply, pause, resume, replacement, removal, and direct-upgrade behavior.
+- The complete retention dependency graph and precedence among current truth, active supports, work states, replay and deduplication, rollback, explanation, reconciliation, windows and corrections, backup and recovery, and each minimum surviving audit identity.
+- Batch identity, size bounds, ordering, transaction boundaries, lock order, concurrency with evaluation, claims, replacement, reconciliation, watermark advancement, backup, and upgrade, plus failure rollback, retry, cancellation, and crash recovery.
+- Audit schema, count and byte accounting, role visibility, redaction, policy-drift diagnostics, audit-history retention, and exact public behavior when requested evidence predates retained coverage.
+- Candidate partition or index keys, admission thresholds, migration and rollback-by-restore procedure, constraint and foreign-key behavior, vacuum and analyze policy, standby and logical-restore treatment, and the benchmark budgets that justify each layout change.
+
+### Exit gates
+
+- For every frozen policy and cutoff, preview returns the exact eligible and protected rows, bytes, effective horizons, dependency reasons, lost capabilities, and remediation; apply removes exactly those eligible rows and records the exact audit result, while a repeated apply is a no-op.
+- Every current definition, match, fact, activation, shared-condition row, active support, incomplete frontier, open window, correction still inside its horizon, and pending, leased, retryable, replayable, or deduplicated work survives every applicable prune with exact row values.
+- Replay, rollback, explanation, reconciliation, recovery, window correction, worker execution, and idempotent external delivery return the exact frozen public results and durable logical state inside their published horizons after pruning. The same request outside retained coverage fails with its frozen diagnostic and never returns partial evidence as complete.
+- Every supported ordering of evaluation, immediate source changes, claims, completion, replacement, reconciliation, watermark advancement, preview, and apply reaches the documented state equivalent to an allowed serialization; every rejected conflict fails within the published bound without partial pruning or stale eligibility.
+- Failure before and after every batch commit, coordinator or worker restart, PostgreSQL crash/restart, and maintenance-session termination leaves the last complete audit and data boundary exact, exposes no partially pruned batch, and resumes without deleting newly protected state.
+- Unauthorized preview, policy change, apply, audit inspection, or detailed-history access fails exactly. Authorized ordinary output reveals counts and remediation without leaking payloads or evidence the caller could not otherwise inspect.
+- Each shipped layout decision is reproducible from the frozen benchmark: the selected design stays within its row-count, database-size, ingest, pruning, inspection, vacuum, backup, restore, and upgrade budgets, and no inherited supported query exceeds its declared regression budget.
+- Physical backup/restore, standby promotion, logical export/restore, reconciliation, and direct `0.17.0 -> 0.18.0` upgrade preserve the exact policies, horizons, retained state, audit history, public object inventory, grants, and continued pruning behavior; rollback follows the documented verified-backup boundary.
+- Every inherited M0–M20 semantic, operational, security, recovery, performance, compatibility, documentation, usability, and external-effect gate passes unchanged.
+- A non-superuser operator can inspect growth, preview loss, enable and apply a policy, diagnose protected state, verify the audit, recover from an interrupted batch, and prove continued application behavior using only granted public APIs and documentation.
+
+---
+
+## Proposed sequence after M21
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
 The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
 
-1. **M21 — Retention and catalog scale.** Turn M18's measured storage cliffs into audited pruning and only evidence-driven partitioning so long-lived installations stay bounded without deleting state required by replay, rollback, explanation, reconciliation, recovery, open windows, pending work, active supports, or corrections.
-2. **M22 — Bounded support provenance.** Record canonically ordered, typed business bindings that actually support derived facts and expose them through role-checked explanation and recovery paths with strict count, continuation, and recursion bounds; arbitrary SQL lineage and minimal-proof search remain out of scope.
-3. **M23 — Practical temporal conditions.** Add durable, unambiguous-clock primitives for duration, absence by deadline, cooldown, and hysteresis on the M12 deadline and M17 event-time foundations, covering common operational policies without claiming a general CEP or temporal-pattern language.
-4. **M24 — Effective-dated policy versions.** Give rule and program versions canonical `[valid_from, valid_to)` intervals so future policy can be validated and deployed before activation, switch authority deterministically at its logical-time boundary, and keep deployment time distinct from business-effective time in audit.
-5. **M25 — Parameterized policy families.** Treat typed parameter relations as ordinary PostgreSQL facts consumed by one versioned policy definition, adding family identity, ownership, validation, preview, deployment, and explanation so tenant or segment variation does not require generated rule copies or a template language.
+1. **M22 — Bounded support provenance.** Record canonically ordered, typed business bindings that actually support derived facts and expose them through role-checked explanation and recovery paths with strict count, continuation, and recursion bounds; arbitrary SQL lineage and minimal-proof search remain out of scope.
+2. **M23 — Practical temporal conditions.** Add durable, unambiguous-clock primitives for duration, absence by deadline, cooldown, and hysteresis on the M12 deadline and M17 event-time foundations, covering common operational policies without claiming a general CEP or temporal-pattern language.
+3. **M24 — Effective-dated policy versions.** Give rule and program versions canonical `[valid_from, valid_to)` intervals so future policy can be validated and deployed before activation, switch authority deterministically at its logical-time boundary, and keep deployment time distinct from business-effective time in audit.
+4. **M25 — Parameterized policy families.** Treat typed parameter relations as ordinary PostgreSQL facts consumed by one versioned policy definition, adding family identity, ownership, validation, preview, deployment, and explanation so tenant or segment variation does not require generated rule copies or a template language.
+5. **M26 — Decision tables.** Let SQL produce typed decision candidates while pg-react owns deterministic winner selection, tie and ambiguity handling, winner lifecycle, and bounded explanation of the selected result and relevant competitors, without introducing a decision-table DSL.
 
-Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M21–M25. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M22–M26. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
