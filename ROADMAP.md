@@ -1539,19 +1539,79 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M25
+## Stage 26 — Decision tables
+
+**Outcome:** turn a maintained SQL candidate relation into one durable, versioned, and explainable decision state per subject by giving candidate identity, priority, ambiguity, winner lifecycle, and bounded competitor evidence deterministic engine semantics, without adding a decision-table DSL.
+
+**Entry gate:** the exact `v0.22.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, and every M0–M25 gate passes unchanged. Before the contract freezes, extend the M25 complete profile with subjects having one candidate, several ordered candidates, no remaining candidate, and tied best candidates; candidate insert, update, and delete that preserve or change the winner; priority and result changes; parameter-driven candidates; effective-dated decision-program versions; concurrent candidate change and version transition; scheduled and eligible immediate maintenance; pause, resume, replacement, reconciliation, retention, physical and logical recovery, standby promotion, and direct upgrade. Freeze every public declaration and result, program, version, subject, candidate, priority, result, winner, ambiguity, clock and frontier, lifecycle transition, work disposition, diagnostic and explanation, normalized public-query plan, storage cost, and final checksum.
+
+### Deliverables
+
+- One versioned public decision-program declaration over one maintained PostgreSQL candidate relation. It records a stable program identity, subject semantic key, candidate identity, `bigint` priority, typed result columns, owner and grants, maintenance mode, and public winner relation.
+- Deterministic single-winner maintenance through the inherited coordinator, dependency graph, lifecycle, locking, and recovery paths. The lowest priority value wins; equally best candidates place only that subject in an explicit ambiguity state with executable work claim-barriered; removal of every candidate removes the current winner without inventing a default.
+- Validation enforcing stable subject and candidate identity, a unique `(subject, candidate)` pair, non-null `bigint` priority and supported result types, relation ownership, dependency safety, and bounded candidates per subject before durable mutation; distinct candidates may share a priority only to produce the explicit ambiguity state.
+- Public status, history, preview, and explanation that expose the selected winner, ambiguity, known-subject no-candidate, or never-observed subject state, its lifecycle identity and result when present, and a bounded canonically ordered set of relevant competitors, alongside inherited support, provenance, and diagnostics.
+- Atomic deployment and replacement of decision-program versions without mixed-version winners, plus exact lifecycle semantics for a winner appearing, disappearing, changing identity, or revising its result while its identity remains stable.
+- Extension `0.23.0`, compact author, reviewer, reader, operator, and worker tasks, decision-authoring and ambiguity-recovery guidance, compatibility and retention documentation, release notes, executable correctness, concurrency, failure, performance, security, recovery, and direct-upgrade evidence, and a direct upgrade from `0.22.0`.
+
+### Supported boundary
+
+- M26 inherits the complete M25 platform, public API, managed-worker, typed-key, security, maintenance, isolation, immediate-mode, shared-condition, retention, recovery, resource-limit, external-effect, aggregate, window, provenance, temporal, effective-dating, parameter-family, diagnostic, and usability boundaries except for this decision expansion.
+- SQL remains the only policy expression language. One declared candidate relation supplies one subject key, one stable candidate identity, one non-null `bigint` priority, and one or more typed result columns; pg-react adds durable selection semantics and never parses predicates, ranges, or table cells into rules.
+- At each complete committed frontier, exactly one candidate at the lowest priority value is authoritative; multiple candidates at that value make the subject ambiguous, with no arbitrary winner and new work barriered until resolution. Physical row order, transaction order, and maintenance timing never select a candidate.
+- Candidate maintenance recomputes only affected subjects. Losing-candidate changes that leave the same winner identity and result create no false lifecycle transition; a changed result for the same winner is a revision, while winner replacement is one ordered old-winner-out and new-winner-in transition.
+- M26 reports the no-candidate state only for subjects known through candidate or retained winner history and distinguishes it from a never-observed subject; proving coverage over an independently declared population, requiring a default, and finding unreachable candidates belong to M27.
+- Consequences remain asynchronous and at-least-once. A decision winner promises deterministic logical eligibility and catch-up at a committed frontier, not synchronous selection or exactly-once external effects.
+
+### Explicit non-goals
+
+- A decision-table DSL, spreadsheet or range syntax, predicate parser, generated SQL, visual table editor, or second evaluation engine.
+- Multi-winner decisions, weighted scoring, ensembles, optimization, probabilistic ranking, arbitrary tie-breakers, or user-defined comparison functions.
+- Predeployment coverage and conflict analysis, required defaults, unreachable-candidate detection, or winner-distribution analysis beyond exact runtime ambiguity and current-state preview.
+- Policy-set gating, hypothetical fact simulation, deployment impact simulation, historical replay, or comparative backtesting.
+- Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, domain packages, or preparatory abstractions for M27 and later milestones.
+
+### Decisions to close before the M26 contract freezes
+
+- The exact decision-program declaration, validation, preview, deployment, replacement, removal, and public-relation shapes; program, version, subject, candidate, and winner identity; priority bounds; supported result types; result nullability, equality, collation, and compatibility rules; and retained-history representation.
+- The exact never-observed, no-candidate, unique-winner, and ambiguity result shapes; candidate uniqueness; revision and activation identity; work cancellation and claim barriers; and recovery after ambiguity resolves.
+- The total order for concurrent candidate insert, update, and delete, parameter change, decision-version deployment, effective-dated transition, source refresh, immediate maintenance, pause, replacement, and reconciliation, including lock identities, acquisition order, bounded waits, rollback, and retry.
+- The exact preview and explanation contract, competitor relevance rule, canonical ordering and maximum count, truncation disclosure, support and provenance linkage, and redaction for unauthorized readers.
+- Authorization for authors, deployers, readers, auditors, operators, and workers; ownership and grant changes; relation access; and exact unauthorized, unavailable, drifted, ambiguous, and not-retained results without leaking protected decision existence or values.
+- State and index layout, per-program and per-subject candidate limits, storage and latency budgets, coordinator ownership, standby and promotion behavior, failure injection, retention protection, physical and logical restore, and direct-upgrade migration.
+
+### Exit gates
+
+- Every subject in the frozen fixture returns the exact program and version identity, candidate set, priority and result when present, winner or never-observed or no-candidate or ambiguity state, lifecycle, work, support, provenance, diagnostic, explanation, and final public result at every frozen step.
+- Candidate insert, update, and delete recompute exactly the affected subjects. A losing-candidate change that preserves winner identity and result produces byte-for-byte unchanged winner and lifecycle output, while a result revision or winner change produces exactly the frozen transition.
+- The unique lowest-priority candidate wins in every supported case. Equally best candidates always produce the same canonically ordered ambiguity evidence, no arbitrary winner, and no new executable claim until the ambiguity is resolved.
+- Winner appearance, disappearance, revision, and replacement preserve exact attribution and the frozen identity scope: a result revision retains its winner activation identity, disappearance closes it, and appearance or replacement opens a new activation. Replacement produces one ordered old-winner-out and new-winner-in transition without a frontier containing mixed versions or two authoritative winners.
+- Every missing, duplicate, nullable, wrong-typed, unsupported, drifted, RLS-protected, unauthorized, or over-limit candidate declaration is rejected before durable mutation and identifies the exact condition and remediation.
+- Public preview, status, history, and explanation return the exact selected candidate and result or exact never-observed, no-candidate, or ambiguity state, plus the frozen bounded competitor set, canonical order, truncation disclosure, support, provenance, lifecycle, and authorization result.
+- Candidate changes combined with parameter updates and effective-dated decision-version transitions at, before, or after a boundary reach a state equivalent to one documented serialization and never expose a mixed candidate, parameter, or version result.
+- Every supported interleaving of candidate change, program deployment, replacement, pause, reconciliation, retention, and recovery reaches a state equivalent to an allowed serialization; every rejected interleaving fails within its published bound without partial winner, lifecycle, provenance, or agenda state.
+- Coordinator failure before and after every frozen commit, managed-worker restart, PostgreSQL crash/restart, forward and backward clock adjustment, standby promotion, and overdue catch-up preserve the last complete frontier and produce each due winner transition at most once with exact lag and recovery evidence.
+- Every reader, author, deployer, operator, worker, unrelated role, and `PUBLIC` case returns the exact authorized or denied declaration, preview, deployment, status, history, and explanation result after grant, revoke, ownership change, replacement, retention, restore, and upgrade without leaking protected decision existence, candidates, or results.
+- The maximum frozen active-program, subject, candidates-per-subject, simultaneous-winner-change, dependency-fan-out, pending-work, and retained-history profiles remain within their published selection, explanation, memory, storage, backup, restore, and upgrade budgets and fail admission before exceeding the supported envelope.
+- Retention, replacement, reconciliation, physical restore, dump/restore, and direct `0.22.0 -> 0.23.0` upgrade preserve or repair the exact declarations, versions, candidates, winners, ambiguities, lifecycle identities, work, supports, provenance, grants, diagnostics, explanations, and continued coordinator behavior.
+- Every inherited M0–M25 semantic, operational, security, recovery, performance, compatibility, documentation, usability, retention, provenance, temporal, parameter, and external-effect gate passes unchanged.
+- Non-superuser authors, deployers, readers, operators, and workers can declare, validate, preview, deploy, exercise, inspect, explain, diagnose, reconcile, replace, remove, recover, and upgrade the reference decision programs using only granted public APIs and documentation.
+
+---
+
+## Proposed sequence after M26
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
 The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
 
-1. **M26 — Decision tables.** Let SQL produce typed decision candidates while pg-react owns deterministic winner selection, tie and ambiguity handling, winner lifecycle, and bounded explanation of the selected result and relevant competitors, without introducing a decision-table DSL.
-2. **M27 — Decision coverage and conflict analysis.** Inspect supported decision programs before deployment for ties, forbidden overlap, missing defaults, unreachable candidates, uncovered populations, and material winner-distribution changes so interactions between individually valid policies fail visibly before production.
-3. **M28 — Policy-set gating.** Apply versioned policy sets to typed PostgreSQL populations or named conditions so jurisdiction, product, tenant, contract, and rollout applicability can change independently of policy logic, with deterministic activation, transition, validation, and explanation rather than hidden engine feature flags.
-4. **M29 — Hypothetical fact simulation.** Evaluate bounded hypothetical inserts, updates, and deletes against one selected frozen policy without mutating authoritative tables, advancing real frontiers, creating durable work, or executing consequences, and return the resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions through a side-effect-free public interface.
-5. **M30 — Deployment impact simulation.** Compare the currently deployed rule or program version against a proposed replacement over current facts, reporting which business keys would activate, deactivate, change derived values, select a different decision winner, or produce different would-be work, so deployment preview becomes business impact analysis rather than schema validation alone.
+1. **M27 — Decision coverage and conflict analysis.** Inspect supported decision programs before deployment for ties, forbidden overlap, missing defaults, unreachable candidates, uncovered populations, and material winner-distribution changes so interactions between individually valid policies fail visibly before production.
+2. **M28 — Policy-set gating.** Apply versioned policy sets to typed PostgreSQL populations or named conditions so jurisdiction, product, tenant, contract, and rollout applicability can change independently of policy logic, with deterministic activation, transition, validation, and explanation rather than hidden engine feature flags.
+3. **M29 — Hypothetical fact simulation.** Evaluate bounded hypothetical inserts, updates, and deletes against one selected frozen policy without mutating authoritative tables, advancing real frontiers, creating durable work, or executing consequences, and return the resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions through a side-effect-free public interface.
+4. **M30 — Deployment impact simulation.** Compare the currently deployed rule or program version against a proposed replacement over current facts, reporting which business keys would activate, deactivate, change derived values, select a different decision winner, or produce different would-be work, so deployment preview becomes business impact analysis rather than schema validation alone.
+5. **M31 — Historical replay.** Evaluate one frozen policy version over a user-supplied initial snapshot and ordered fact history with production-equivalent lifecycle, derivation, deadline, and event-time semantics, while mutating no authoritative state, executing no consequences, and making no claim that pg-react is a source CDC archive.
 
-Bounded synchronous firing, unstratified negation, recursive aggregation, historical replay, comparative backtesting, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M26–M30. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Bounded synchronous firing, unstratified negation, recursive aggregation, comparative backtesting, policy promotion workflow, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M27–M31. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
