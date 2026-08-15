@@ -1,0 +1,11 @@
+{
+  "milestone": "M23",
+  "target_version": "0.20.0",
+  "direct_upgrade": "0.19.0 -> 0.20.0",
+  "fast_command": "tests/m23.sh fast pg-react:v0.20.0",
+  "complete_command": "tests/m23.sh complete pg-react:v0.20.0",
+  "primitives": ["DURATION", "ABSENCE", "COOLDOWN", "HYSTERESIS"],
+  "clock_domain": "DATABASE_TIME",
+  "next_milestone": "M24 — Effective-dated policy versions",
+  "status": "candidate; publish v0.20.0 only after complete inherited and independent evidence passes"
+}

@@ -1,5 +1,5 @@
 comment = 'PostgreSQL-first durable rule and derivation API over pg_trickle'
-default_version = '0.19.0'
+default_version = '0.20.0'
 relocatable = false
 superuser = true
 trusted = false

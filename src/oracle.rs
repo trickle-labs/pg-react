@@ -70,6 +70,7 @@ mod tests {
 
     #[test]
     fn same_seed_replays_the_same_history_and_outcome() {
+        #[allow(clippy::type_complexity)]
         fn replay(
             mut seed: u64,
         ) -> (

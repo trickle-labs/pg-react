@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M22 is extension `0.19.0` candidate. It adds bounded, typed support provenance to explain why derived facts are true while preserving the M21 retention boundary. See the [M22 contract](docs/m22-contract.md) and [readiness record](docs/m22-readiness.md).
+> pg-react M23 is extension `0.20.0` candidate. It adds bounded, database-time temporal conditions over the M22 provenance platform. See the [M23 contract](docs/m23-contract.md) and [readiness record](docs/m23-readiness.md).
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -203,10 +203,11 @@ M8 monotone recursive derivation is released as `0.5.0`. Versioned positive prog
 
 M11 through M17 are released as `0.8.0` through `0.14.0`. M18 is the `0.15.0`
 production-hardening baseline. M20 is released as `0.17.0`. M21 is the
-`0.18.0` retention release. M22 is the `0.19.0` repository candidate: it adds
-bounded, typed support provenance over the existing durable rule and derivation
-engine. See the [M22 contract](docs/m22-contract.md), [operations](docs/m22-operations.md),
-and [readiness record](docs/m22-readiness.md).
+`0.18.0` retention release. M22 is the `0.19.0` provenance release. M23 is the
+`0.20.0` repository candidate: it adds continuous duration, absence-by-deadline,
+cooldown, and arm/recovery hysteresis on the existing monotone database-time
+coordinator. See the [M23 contract](docs/m23-contract.md), [operations](docs/m23-operations.md),
+and [readiness record](docs/m23-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
@@ -227,6 +228,7 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M20 shared conditions](docs/m20-contract.md) documents the named, versioned truth boundary; [M20 evidence](docs/m20-evidence.md) records the executable gate.
 - [M21 retention and catalog scale](docs/m21-contract.md) documents the audited retention boundary and [operations](docs/m21-operations.md) records the operator workflow.
 - [M22 bounded support provenance](docs/m22-contract.md) documents typed proof bindings, limits, continuation, and role-checked explanation.
+- [M23 practical temporal conditions](docs/m23-contract.md) documents bounded database-time duration, absence, cooldown, and hysteresis.
 - [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](vision/the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
