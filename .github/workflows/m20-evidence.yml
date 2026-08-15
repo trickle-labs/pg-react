@@ -1,0 +1,35 @@
+name: M20 complete evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: 1.89.0
+      - run: cargo fmt --check
+      - run: cargo test --no-default-features
+      - run: cargo install cargo-audit --version 0.22.2 --locked && cargo audit
+      - name: Build and record complete profile
+        run: |
+          docker build --tag pg-react:v0.17.0 .
+          M20_ARTIFACT_DIR="$PWD/m20-evidence" bash tests/m20.sh complete pg-react:v0.17.0
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -cf - m20-evidence | gzip -n -9 > pg-react-v0.17.0-pinned-evidence.tar.gz
+          sha256sum pg-react-v0.17.0-pinned-evidence.tar.gz > pg-react-v0.17.0-pinned-evidence.sha256
+          sha256sum --check pg-react-v0.17.0-pinned-evidence.sha256
+      - name: Publish checksummed evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pg-react-v0.17.0-pinned-evidence
+          path: |
+            pg-react-v0.17.0-pinned-evidence.tar.gz
+            pg-react-v0.17.0-pinned-evidence.sha256
+          retention-days: 90

@@ -1,0 +1,14 @@
+{
+  "target_version": "0.17.0",
+  "direct_upgrade": "0.16.0 -> 0.17.0",
+  "postgresql": "18.3",
+  "pg_trickle": "0.81.0",
+  "isolation": "READ COMMITTED",
+  "user_triggers": "auto",
+  "architecture": "linux/amd64",
+  "fast_command": "tests/m20.sh fast pg-react:v0.17.0",
+  "complete_command": "tests/m20.sh complete pg-react:v0.17.0",
+  "required_artifacts": ["archive", "sha256", "oci_digest", "sbom", "provenance", "human_usability"],
+  "next_milestone": "M21 — Retention and catalog scale",
+  "status": "candidate; publish v0.17.0 only after complete inherited and independent evidence"
+}

@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M19 is extension `0.16.0` candidate. It adds explicit, bounded immediate maintenance for eligible constraint rules and finite positive database-local derivations; scheduled `DIFFERENTIAL` maintenance remains the default. See the [M19 contract](docs/m19-contract.md) and [readiness record](docs/m19-readiness.md).
+> pg-react M20 is extension `0.17.0` candidate. It adds explicit, versioned shared conditions over the existing durable rule and derivation engine; scheduled `DIFFERENTIAL` maintenance remains the default. See the [M20 contract](docs/m20-contract.md) and [readiness record](docs/m20-readiness.md).
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -202,11 +202,12 @@ M7 maintained derived knowledge is released as `0.4.0`. Non-recursive derivation
 M8 monotone recursive derivation is released as `0.5.0`. Versioned positive programs maintain acyclic chains and cycles to one bounded grounded least fixed point, atomically expose converged frontiers, and provide finite explanations with cycle markers. See the [contract](docs/m8-contract.md) and [evidence](docs/m8-evidence.md).
 
 M11 through M17 are released as `0.8.0` through `0.14.0`. M18 is the `0.15.0`
-production-hardening baseline. M19 is the `0.16.0` repository candidate: it
-adds explicit immediate visibility within a frozen PostgreSQL/pg_trickle tuple
-while preserving scheduled behavior and asynchronous consequences. See the
-[M19 contract](docs/m19-contract.md), [evidence](docs/m19-evidence.md), and
-[readiness record](docs/m19-readiness.md).
+production-hardening baseline. M20 is the `0.17.0` repository candidate: it
+adds named, versioned shared SQL conditions over the existing rule and
+derivation engine while preserving scheduled behavior and asynchronous
+consequences. See the
+[M20 contract](docs/m20-contract.md), [evidence](docs/m20-evidence.md), and
+[readiness record](docs/m20-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
@@ -224,7 +225,7 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M16 richer stratified aggregation](docs/m16-contract.md) documents typed aggregate dependencies and exact evidence; [M16 readiness](docs/m16-readiness.md) records the release path.
 - [M17 event-time windows](docs/m17-contract.md) documents watermarks, corrections, finalization, and recovery; [M17 evidence](docs/m17-evidence.md) records the executable gate.
 - [M18 production hardening](docs/m18-contract.md) documents the preserved semantic boundary and public operational surface; [M18 evidence](docs/m18-evidence.md) records the executable gate.
-- [M19 selective immediate maintenance](docs/m19-contract.md) documents the frozen read-your-writes boundary; [M19 evidence](docs/m19-evidence.md) records the executable gate.
+- [M20 shared conditions](docs/m20-contract.md) documents the named, versioned truth boundary; [M20 evidence](docs/m20-evidence.md) records the executable gate.
 - [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](vision/the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
