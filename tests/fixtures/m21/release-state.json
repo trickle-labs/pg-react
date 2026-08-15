@@ -1,0 +1,14 @@
+{
+  "target_version": "0.18.0",
+  "direct_upgrade": "0.17.0 -> 0.18.0",
+  "postgresql": "18.3",
+  "pg_trickle": "0.81.0",
+  "isolation": "READ COMMITTED",
+  "user_triggers": "auto",
+  "architecture": "linux/amd64",
+  "fast_command": "tests/m21.sh fast pg-react:v0.18.0",
+  "complete_command": "tests/m21.sh complete pg-react:v0.18.0",
+  "required_artifacts": ["archive", "sha256", "oci_digest", "sbom", "provenance", "human_usability"],
+  "next_milestone": "M22 — Bounded support provenance",
+  "status": "candidate; publish v0.18.0 only after complete inherited and independent evidence"
+}
