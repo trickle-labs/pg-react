@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M26 is extension `0.23.0` candidate. A decision program now chooses one durable winner per subject from ordinary PostgreSQL candidate rows, reports ties explicitly, and explains why. See the [M26 contract](docs/m26-contract.md) and [readiness record](docs/m26-readiness.md).
+> pg-react M27 is extension `0.24.0` candidate documentation. M27 defines bounded coverage and conflict analysis for a proposed decision version, including ties, overlap, missing defaults, unreachable candidates, uncovered subjects, and material winner-distribution changes. See the [M27 contract](docs/m27-contract.md) and [readiness record](docs/m27-readiness.md).
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -214,9 +214,10 @@ parameterized policy-family candidate: parameter rows remain ordinary typed
 PostgreSQL data, and joined condition views continue to define the business
 logic. M26 is the `0.23.0` decision-table candidate: the lowest numeric
 priority wins, equal best priorities are an explicit ambiguity, and subjects
-with no remaining candidates retain a clear no-candidate state. See the [M24
-contract](docs/m24-contract.md), [M25 contract](docs/m25-contract.md), and
-[M26 contract](docs/m26-contract.md).
+with no remaining candidates retain a clear no-candidate state. M27 is the
+`0.24.0` decision coverage and conflict-analysis candidate. See the [M24
+contract](docs/m24-contract.md), [M25 contract](docs/m25-contract.md), [M26
+contract](docs/m26-contract.md), and [M27 contract](docs/m27-contract.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
