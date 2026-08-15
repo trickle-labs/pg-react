@@ -1305,19 +1305,75 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M21
+## Stage 22 — Bounded support provenance
+
+**Outcome:** make current and retained derived truth explainable in stable business terms by recording the canonically ordered, typed bindings that actually sustain each logical support and exposing a finite, role-checked proof through public APIs, without promising arbitrary SQL lineage, proof minimization, or unbounded traversal.
+
+**Entry gate:** the exact `v0.18.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, and every M0–M21 gate passes unchanged. Before the contract freezes, extend the M21 complete profile with authoritative and derived inputs using every supported key type; a multi-input join; shared conditions; alternative and changing supports; positive recursion containing both a cycle and a grounded path; negative, aggregate, finalized-window, and corrected-window evidence; scheduled and eligible immediate maintenance; replacement, reconciliation, retention, physical and logical recovery, and direct upgrade. Freeze every public declaration and result, typed binding, proof node and edge, canonical order, count, bound, cycle and truncation marker, continuation outcome, authorization result, retained-detail diagnostic, normalized query plan, storage cost, and final checksum.
+
+### Deliverables
+
+- One immutable support-provenance record for each supported positive input that actually contributes to a logical support. It identifies the exact source or derived relation version, binding name, PostgreSQL type, canonical value, and stable business or semantic key; physical tuple identity, display text, search path, and row order are never identity inputs.
+- Atomic provenance maintenance through the inherited scheduled and immediate paths. Support creation, revision, withdrawal, reactivation, replacement, reconciliation, rollback, correction, and recovery update truth and its provenance at the same frontier, with no orphaned binding, stale edge, or provenance-only truth transition.
+- A versioned public explanation shape with canonical node and support ordering, published per-node and whole-proof count, depth, and payload bounds, exact total or omitted counts, stable grounded, cycle, truncated, unavailable, and not-retained markers, and advanced-reader continuation that cannot silently skip or duplicate evidence.
+- Typed positive bindings and derived-support edges, plus the inherited bounded summaries for absence, aggregate, and window evidence. Negative evidence identifies the tested relation and complete lower frontier; aggregate and window evidence identifies the group, value, comparison, bounds, completeness or finality, and correction frontier rather than enumerating every input row.
+- Role-checked explanation at every traversal step. Ordinary readers receive only authorized business bindings and bounded summaries; advanced readers receive the documented deeper view; neither role gains source-row, shared-condition, payload, or private-catalog visibility it did not already hold.
+- Public validation, preview, status, doctor, and explanation output for provenance eligibility, binding types, proof coverage, bounds, truncation, cycles, grounding, retained coverage, drift, storage, and exact remediation, without requiring private-catalog inspection.
+- Extension `0.19.0`, compact author, auditor, and operator tasks, compatibility and retention guidance, release notes, executable correctness, concurrency, failure, performance, security, recovery, and direct-upgrade evidence, and a direct upgrade from `0.18.0`.
+
+### Supported boundary
+
+- M22 inherits the complete M21 platform, public API, managed-worker, typed-key, security, maintenance, isolation, immediate-mode, shared-condition, retention, recovery, resource-limit, external-effect, aggregate, window, diagnostic, and usability boundaries except for this support-provenance expansion.
+- Provenance answers why a current or retained derived fact is true and why its actual support changed. Existing activation, episode, job, shared-condition, aggregate, window, and reconciliation explanations may reference that proof through their inherited stable identities; they do not acquire new truth or lifecycle semantics.
+- Positive provenance covers only bindings available from the frozen, validated derivation shapes and normalized dependency graph. Authoritative inputs end at a versioned relation and typed business key; derived inputs follow the exact logical support graph; absence, aggregates, and windows remain finite summaries.
+- Every ordinary proof is finite by published construction. Recursive expansion terminates at authoritative bindings, bounded summaries, explicit cycle markers, retained-detail markers, or a declared limit; advanced continuation remains subject to the same authorization, snapshot, count, depth, and payload ceilings.
+- Active provenance needed to justify current truth is protected from retention. Historical detail follows the operator's declared explanation and recovery horizons, and an unavailable or pruned node is reported exactly rather than reconstructed, approximated, or omitted as though the proof were complete.
+
+### Explicit non-goals
+
+- General tuple, query, expression, execution-plan, or cross-database lineage; automatic provenance for arbitrary PostgreSQL views; physical-row tracking with `ctid`; or a second change-capture system.
+- Why-not reasoning, counterfactual search, minimal-proof or best-proof selection, proof equivalence, enumeration of every valid derivation, or inference of business meaning from column names or values.
+- Enumerating every row behind absence, aggregates, or windows; unbounded proof trees, recursive expansion without cycle markers, unstratified negation, recursive aggregation, or new reasoning semantics.
+- Revealing redacted values, hidden row existence, private identifiers, or catalog structure through counts, ordering, tokens, diagnostics, timing, or error differences; provenance never bypasses inherited ownership and role boundaries.
+- Practical temporal primitives, effective-dated policy, parameterized policy families, decision tables, or preparatory abstractions for M23 and later milestones.
+
+### Decisions to close before the M22 contract freezes
+
+- The exact binding declaration or derivation shape, supported relation and key identities, type matrix, canonical encoding and JSON rendering, null and collation behavior, duplicate binding treatment, schema drift response, and compatibility rules for replacement and direct upgrade.
+- What constitutes an actual contributor for each supported join, shared-condition, recursive, negative, aggregate, and window form; proof-node and edge identity; grounding rules; and lifecycle across support revision, withdrawal, reactivation, correction, replacement, and reconciliation.
+- Default and maximum support, binding, depth, node, byte, and execution-time limits; canonical traversal order; total and omitted counts; cycle and truncation markers; continuation-token snapshot, expiry, invalidation, replay, and concurrency semantics.
+- Reader and advanced-reader authority at every hop, value-level redaction, count and existence leakage policy, security-definer boundaries, ownership or grant changes, audit requirements, and exact unauthorized, unavailable, and not-retained results.
+- Storage layout, indexes, capture and traversal budgets, retention classification and horizons, backup and restore behavior, crash recovery, standby and logical-restore treatment, drift detection, reconciliation authority, and direct-upgrade migration of existing opaque support bindings.
+
+### Exit gates
+
+- Every fact in the frozen fixture returns its exact typed, canonically ordered public proof: authoritative bindings, derived edges, actual alternative supports, negative checks, aggregate and window summaries, rule and relation versions, frontiers, cycle markers, grounding state, and retained-coverage state all match the contract.
+- Equivalent source, evaluation, support-discovery, correction, and reconciliation orderings produce the same public proof. Duplicate physical join paths do not create duplicate logical bindings, while distinct actual supports remain distinct and appear in canonical order.
+- Support creation, revision, withdrawal, reactivation, and replacement atomically produce the exact truth, lifecycle, provenance, and history transitions in scheduled and eligible immediate modes. Statement failure, savepoint rollback, and transaction abort leave no visible or worker-observable partial proof.
+- Every grounded recursive fact exposes at least one finite path to authoritative bindings or a supported bounded summary. Circular-only state is rejected or diagnosed exactly, and a cycle never causes nontermination, duplicate expansion, or a false claim of grounding.
+- At and beyond every published count, depth, byte, and execution bound, ordinary and advanced explanation return the exact totals, page contents, truncation and cycle markers, and continuation outcome within budget. A continued stable snapshot has no gaps or duplicates; changed or expired state returns its documented result.
+- Every reader, advanced-reader, owner, operator, worker, unrelated role, and `PUBLIC` case returns the exact authorized or denied result at every proof depth, including after grant, revoke, ownership change, replacement, retention, and restore, without leaking protected values or existence through metadata.
+- Retention preview and apply protect provenance required by current truth and report the exact eligible, protected, and lost-detail results. Explanation inside each horizon remains exact; explanation outside retained coverage returns the frozen not-retained structure and never presents a partial proof as complete.
+- Replacement, reconciliation, crash/restart, managed-worker restart, physical restore, dump/restore, standby promotion, and direct `0.18.0 -> 0.19.0` upgrade preserve or repair the exact bindings, proof graph, frontiers, history, grants, diagnostics, explanations, and continued truth-maintenance behavior.
+- The maximum frozen support fan-out, proof depth, recursion, and retained-history profiles stay within their published capture latency, evaluation regression, explanation latency, memory, storage, backup, restore, and upgrade budgets, and fail admission or truncate exactly outside the supported envelope.
+- Every inherited M0–M21 semantic, operational, security, recovery, performance, compatibility, documentation, usability, retention, and external-effect gate passes unchanged.
+- Non-superuser authors, readers, advanced readers, auditors, and operators can create the reference support graph, change it, inspect why it is true and changed, continue a bounded proof, diagnose truncation or lost detail, reconcile it, retain it, recover it, and upgrade it using only granted public APIs and documentation.
+
+---
+
+## Proposed sequence after M22
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
 The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
 
-1. **M22 — Bounded support provenance.** Record canonically ordered, typed business bindings that actually support derived facts and expose them through role-checked explanation and recovery paths with strict count, continuation, and recursion bounds; arbitrary SQL lineage and minimal-proof search remain out of scope.
-2. **M23 — Practical temporal conditions.** Add durable, unambiguous-clock primitives for duration, absence by deadline, cooldown, and hysteresis on the M12 deadline and M17 event-time foundations, covering common operational policies without claiming a general CEP or temporal-pattern language.
-3. **M24 — Effective-dated policy versions.** Give rule and program versions canonical `[valid_from, valid_to)` intervals so future policy can be validated and deployed before activation, switch authority deterministically at its logical-time boundary, and keep deployment time distinct from business-effective time in audit.
-4. **M25 — Parameterized policy families.** Treat typed parameter relations as ordinary PostgreSQL facts consumed by one versioned policy definition, adding family identity, ownership, validation, preview, deployment, and explanation so tenant or segment variation does not require generated rule copies or a template language.
-5. **M26 — Decision tables.** Let SQL produce typed decision candidates while pg-react owns deterministic winner selection, tie and ambiguity handling, winner lifecycle, and bounded explanation of the selected result and relevant competitors, without introducing a decision-table DSL.
+1. **M23 — Practical temporal conditions.** Add durable, unambiguous-clock primitives for duration, absence by deadline, cooldown, and hysteresis on the M12 deadline and M17 event-time foundations, covering common operational policies without claiming a general CEP or temporal-pattern language.
+2. **M24 — Effective-dated policy versions.** Give rule and program versions canonical `[valid_from, valid_to)` intervals so future policy can be validated and deployed before activation, switch authority deterministically at its logical-time boundary, and keep deployment time distinct from business-effective time in audit.
+3. **M25 — Parameterized policy families.** Treat typed parameter relations as ordinary PostgreSQL facts consumed by one versioned policy definition, adding family identity, ownership, validation, preview, deployment, and explanation so tenant or segment variation does not require generated rule copies or a template language.
+4. **M26 — Decision tables.** Let SQL produce typed decision candidates while pg-react owns deterministic winner selection, tie and ambiguity handling, winner lifecycle, and bounded explanation of the selected result and relevant competitors, without introducing a decision-table DSL.
+5. **M27 — Decision coverage and conflict analysis.** Inspect supported decision programs before deployment for ties, forbidden overlap, missing defaults, unreachable candidates, uncovered populations, and material winner-distribution changes so interactions between individually valid policies fail visibly before production.
 
-Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M22–M26. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M23–M27. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
