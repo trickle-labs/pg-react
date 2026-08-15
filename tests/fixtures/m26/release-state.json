@@ -1,0 +1,13 @@
+{
+  "milestone": "M26",
+  "target_version": "0.23.0",
+  "direct_upgrade": "0.22.0 -> 0.23.0",
+  "fast_command": "tests/m26.sh fast pg-react:v0.23.0",
+  "complete_command": "tests/m26.sh complete pg-react:v0.23.0",
+  "clock_domain": "DATABASE_TIME",
+  "selection": "lowest bigint priority; equal best priority is AMBIGUOUS",
+  "competitor_limit": 25,
+  "maintenance": "INHERITED_COORDINATOR_WITH_DECISION_REFRESH",
+  "next_milestone": "M27 - Decision coverage and conflict analysis",
+  "status": "candidate; publish v0.23.0 only after complete inherited and independent evidence passes"
+}
