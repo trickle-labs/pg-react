@@ -79,7 +79,7 @@ if [[ $profile = complete ]]; then
   git worktree add --detach "$inherited_worktree" v0.21.0 >/dev/null
   run_test 'M24 inherited complete gate' env \
     COMPOSE_PROJECT_NAME="${project}-inherited" \
-    bash -c "cd '$inherited_worktree' && bash tests/m24.sh complete pg-react:v0.21.0"
+    bash -c "cd '$inherited_worktree' && bash tests/m24.sh complete '$image'"
   export COMPOSE_PROJECT_NAME=$upgrade_project
   export PG_REACT_INIT_VERSION=0.21.0
   docker compose up -d --no-build >/dev/null 2>&1
