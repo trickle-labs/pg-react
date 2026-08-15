@@ -670,7 +670,7 @@ BEGIN
     END IF;
     PERFORM pgreact_internal.assert_decision_admission(version_id);
     UPDATE pgreact_internal.decision_program_versions SET state = 'DEPLOYED'
-    WHERE version_id = deploy_decision_program.version_id;
+    WHERE decision_program_versions.version_id = deploy_decision_program.version_id;
     RETURN deploy_decision_program.version_id;
 END
 $m27$;

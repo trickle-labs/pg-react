@@ -154,6 +154,26 @@ BEGIN
     END IF;
 END $$;
 
+DO $$
+BEGIN
+    PERFORM pgreact_api.admit_decision_version(
+        'm27-orders', (SELECT proposed_version_id FROM pgreact_internal.decision_analyses
+                       WHERE analysis_name = 'm27-pass'),
+        (SELECT analysis_id FROM pgreact_internal.decision_analyses
+         WHERE analysis_name = 'm27-pass'));
+END $$;
+DO $$
+DECLARE actual jsonb;
+BEGIN
+    actual := pgreact_api.decision_analysis_history(
+        (SELECT analysis_id FROM pgreact_internal.decision_analyses
+         WHERE analysis_name = 'm27-pass'));
+    IF jsonb_array_length(actual -> 'events') <> 3
+       OR actual -> 'events' -> -1 ->> 'event_kind' <> 'ADMITTED' THEN
+        RAISE EXCEPTION 'M27 admission history changed: %', actual;
+    END IF;
+END $$;
+
 INSERT INTO m27_reference.population VALUES (7);
 DO $$
 BEGIN
