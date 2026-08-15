@@ -1481,19 +1481,77 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M24
+## Stage 25 — Parameterized policy families
+
+**Outcome:** make policy variation across tenants, segments, and populations manageable by letting one typed rule or program definition consume a versioned, ordinary PostgreSQL parameter relation as family-scoped facts, without templating, string substitution, or generated per-instance rule copies.
+
+**Entry gate:** the exact `v0.21.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, and every M0–M24 gate passes unchanged. Before the contract freezes, extend the M24 complete profile with one or more typed parameter relations declared under a family; parameter rows added, changed, and removed independently of rule-definition changes; matches that activate and deactivate as a parameter value crosses a match boundary; multiple rule or program versions, including M24 effective-dated versions, consuming the same or different parameter states; concurrent parameter change and version transition; scheduled and eligible immediate maintenance; pause, resume, replacement, reconciliation, retention, physical and logical recovery, standby promotion, and direct upgrade. Freeze every public declaration and result, family and consuming-version identity, parameter key and value shape, clock and frontier, activation and deactivation transition, lifecycle transition, work disposition, diagnostic and explanation, normalized public-query plan, storage cost, and final checksum.
+
+### Deliverables
+
+- One versioned public parameter-family declaration for supported rule and program definitions. It records a stable family identity, the consumed parameter relation, its semantic key and required value columns and types, owner and grants, the rule or program versions allowed to consume it, maintenance mode, and public result relation.
+- Deterministic parameter-driven maintenance through the inherited coordinator, dependency graph, lifecycle, locking, and recovery paths. A parameter insert, update, or delete activates or deactivates exactly the matches it changes through the same relational maintenance used for any other input change; pg-react never compiles, templates, or otherwise mutates rule logic in place.
+- Validation enforcing parameter key uniqueness, required-value non-nullability, supported value types, ownership, and the dependency structure between a policy or program version and its declared parameter relation.
+- Public preview showing which current matches would change for a proposed parameter update, atomic deployment of a rule or program definition together with an initial parameter dataset, and replacement semantics that distinguish a new definition version from an ordinary parameter change.
+- Public explanation output that names the family identity, consuming version, and the exact parameter key and value that contributed to a match, alongside the inherited support, provenance, and diagnostic content, without private-catalog access.
+- Extension `0.22.0`, compact author, policy-value editor, reviewer, and operator tasks, parameter-authoring and dual-authorization guidance, compatibility and retention documentation, release notes, executable correctness, concurrency, failure, performance, security, recovery, and direct-upgrade evidence, and a direct upgrade from `0.21.0`.
+
+### Supported boundary
+
+- M25 inherits the complete M24 platform, public API, managed-worker, typed-key, security, maintenance, isolation, immediate-mode, shared-condition, retention, recovery, resource-limit, external-effect, aggregate, window, provenance, temporal, effective-dating, diagnostic, and usability boundaries except for this parameter expansion.
+- A parameter family declares one typed relational parameter source per consuming policy or program version. The parameter relation is ordinary PostgreSQL data with an explicit semantic key, required value columns and types, and normal join participation; no template language, string substitution, or per-instance generated rule is supported.
+- Parameter changes are facts, not hidden rule mutation. A changed, added, or removed parameter row is evaluated through the same dependency, lifecycle, and locking paths as any other input change, and may combine with an M24 effective-dated version of the same policy without ambiguity about which version and which parameter row produced a result.
+- Authorization may separate the role that may change a policy definition's logic from the role that may change its parameter values; both remain subject to the inherited ownership, grant, and RLS-rejection rules.
+- Consequences remain asynchronous and at-least-once. A parameter-driven activation or deactivation promises deterministic logical eligibility and catch-up at a committed frontier, not exact wall-clock latency.
+
+### Explicit non-goals
+
+- A templating system, string substitution, placeholder expressions, arbitrary JSON parameters, or per-instance generated rule copies.
+- Decision candidates, winner selection, decision tables, or coverage and conflict analysis over parameter-driven results.
+- Policy-set gating, hypothetical fact simulation, deployment impact simulation, historical replay, or comparative backtesting.
+- Implicit inference of a parameter's semantic key, value types, or owning family from column names, SQL text, or execution order.
+- Client DSLs, visual or AI authoring, domain packages, or preparatory abstractions for M26 and later milestones.
+
+### Decisions to close before the M25 contract freezes
+
+- The exact parameter-family declaration, validation, preview, authoring, replacement, removal, and public-relation shapes; family and consuming-version identity; supported parameter key and value-column types; required-value and nullability rules; and compatibility rules.
+- The exact activation and deactivation semantics when a parameter row is inserted, updated, or removed, including interaction with the inherited generation, refraction, and M24 effective-dated version-transition machinery.
+- The total order for concurrent parameter change, rule-version deployment, effective-dated transition, source refresh, immediate maintenance, replacement, and reconciliation, including lock identities, acquisition order, bounded waits, rollback, and retry.
+- The exact preview and explanation shape naming the family, consuming version, parameter key, and value that produced or would produce a match, and how each is redacted for an unauthorized reader.
+- Authorization for authors, policy-value editors, deployers, operators, readers, and workers; whether logic-authoring and parameter-value authorship may be separated by role; ownership and grant changes; and exact unauthorized, unavailable, and conflicted results.
+- State and index layout, per-family and per-parameter-relation admission limits, storage and latency budgets, coordinator ownership, standby and promotion behavior, failure injection, physical and logical restore, and direct-upgrade migration.
+
+### Exit gates
+
+- Every key in the frozen fixture returns the exact parameter-family identity, consuming version, parameter key and value, match and derived-truth state, lifecycle, work, support, provenance, diagnostic, explanation, and final public result at every frozen step.
+- A parameter row inserted, updated, or removed activates or deactivates exactly the matches whose value crosses the change, through the same relational maintenance as any other input change, without recompiling, templating, or otherwise mutating rule logic in place.
+- `preview` identifies exactly the matches that would change for a proposed parameter update before it is committed, and `explain` identifies the exact parameter key and value that contributed to a selected match, in every frozen case.
+- Deploying a rule or program definition together with an initial parameter dataset commits both atomically; a rule-definition replacement and an ordinary parameter change remain distinguishable in history and are never conflated as the same event.
+- Every empty, non-unique, missing-required, wrong-typed, or unauthorized-dependency parameter declaration is rejected before durable mutation and identifies the exact condition and remediation.
+- Parameter changes combined with an M24 effective-dated version transition at, before, or after its boundary reach a state equivalent to one documented serialization and never expose a mixed version-and-parameter result.
+- Every supported interleaving of parameter change, rule-version deployment, replacement, reconciliation, retention, and recovery reaches a state equivalent to an allowed serialization; every rejected interleaving fails within its published bound without partial family, lifecycle, provenance, or agenda state.
+- Coordinator failure before and after every frozen commit, managed-worker restart, PostgreSQL crash/restart, and overdue catch-up preserves the last complete frontier and produces each due parameter-driven transition at most once with the exact lag and recovery evidence.
+- Every reader, author, policy-value editor, deployer, operator, worker, unrelated role, and `PUBLIC` case returns the exact authorized or denied declaration, preview, deployment, status, history, and explanation result after grant, revoke, ownership change, replacement, retention, restore, and upgrade without leaking protected parameter existence or values.
+- The maximum frozen active-family, parameter-row, dependency-fan-out, and retained-history profiles remain within their published evaluation, explanation latency, memory, storage, backup, restore, and upgrade budgets and fail admission before exceeding the supported envelope.
+- Retention, replacement, reconciliation, physical restore, dump/restore, and direct `0.21.0 -> 0.22.0` upgrade preserve or repair the exact declarations, families, parameter state, versions, lifecycle identities, work, supports, provenance, grants, diagnostics, explanations, and continued coordinator behavior.
+- Every inherited M0–M24 semantic, operational, security, recovery, performance, compatibility, documentation, usability, retention, provenance, temporal, and external-effect gate passes unchanged.
+- Non-superuser authors, policy-value editors, deployers, readers, operators, and workers can declare, validate, preview, deploy, exercise, inspect, explain, diagnose, reconcile, replace, remove, recover, and upgrade the reference parameterized policies using only granted public APIs and documentation.
+
+---
+
+## Proposed sequence after M25
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
 The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
 
-1. **M25 — Parameterized policy families.** Treat typed parameter relations as ordinary PostgreSQL facts consumed by one versioned policy definition, adding family identity, ownership, validation, preview, deployment, and explanation so tenant or segment variation does not require generated rule copies or a template language.
-2. **M26 — Decision tables.** Let SQL produce typed decision candidates while pg-react owns deterministic winner selection, tie and ambiguity handling, winner lifecycle, and bounded explanation of the selected result and relevant competitors, without introducing a decision-table DSL.
-3. **M27 — Decision coverage and conflict analysis.** Inspect supported decision programs before deployment for ties, forbidden overlap, missing defaults, unreachable candidates, uncovered populations, and material winner-distribution changes so interactions between individually valid policies fail visibly before production.
-4. **M28 — Policy-set gating.** Apply versioned policy sets to typed PostgreSQL populations or named conditions so jurisdiction, product, tenant, contract, and rollout applicability can change independently of policy logic, with deterministic activation, transition, validation, and explanation rather than hidden engine feature flags.
-5. **M29 — Hypothetical fact simulation.** Evaluate bounded hypothetical inserts, updates, and deletes against one selected frozen policy without mutating authoritative tables, advancing real frontiers, creating durable work, or executing consequences, and return the resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions through a side-effect-free public interface.
+1. **M26 — Decision tables.** Let SQL produce typed decision candidates while pg-react owns deterministic winner selection, tie and ambiguity handling, winner lifecycle, and bounded explanation of the selected result and relevant competitors, without introducing a decision-table DSL.
+2. **M27 — Decision coverage and conflict analysis.** Inspect supported decision programs before deployment for ties, forbidden overlap, missing defaults, unreachable candidates, uncovered populations, and material winner-distribution changes so interactions between individually valid policies fail visibly before production.
+3. **M28 — Policy-set gating.** Apply versioned policy sets to typed PostgreSQL populations or named conditions so jurisdiction, product, tenant, contract, and rollout applicability can change independently of policy logic, with deterministic activation, transition, validation, and explanation rather than hidden engine feature flags.
+4. **M29 — Hypothetical fact simulation.** Evaluate bounded hypothetical inserts, updates, and deletes against one selected frozen policy without mutating authoritative tables, advancing real frontiers, creating durable work, or executing consequences, and return the resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions through a side-effect-free public interface.
+5. **M30 — Deployment impact simulation.** Compare the currently deployed rule or program version against a proposed replacement over current facts, reporting which business keys would activate, deactivate, change derived values, select a different decision winner, or produce different would-be work, so deployment preview becomes business impact analysis rather than schema validation alone.
 
-Bounded synchronous firing, unstratified negation, recursive aggregation, deployment impact simulation, historical replay, comparative backtesting, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M25–M29. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Bounded synchronous firing, unstratified negation, recursive aggregation, historical replay, comparative backtesting, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M26–M30. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
