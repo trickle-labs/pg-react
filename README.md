@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M24 is extension `0.21.0` candidate. It lets one policy have future and current versions with clear business-effective dates. See the [M24 contract](docs/m24-contract.md) and [readiness record](docs/m24-readiness.md).
+> pg-react M25 is extension `0.22.0` candidate. One policy can now use typed PostgreSQL parameter rows for tenants, regions, products, or customer tiers without copying the rule. See the [M25 contract](docs/m25-contract.md) and [readiness record](docs/m25-readiness.md).
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -209,6 +209,12 @@ cooldown, and arm/recovery hysteresis on the existing monotone database-time
 coordinator. See the [M23 contract](docs/m23-contract.md), [operations](docs/m23-operations.md),
 and [readiness record](docs/m23-readiness.md).
 
+M24 is the `0.21.0` effective-dated policy candidate. M25 is the `0.22.0`
+parameterized policy-family candidate: parameter rows remain ordinary typed
+PostgreSQL data, and joined condition views continue to define the business
+logic. See the [M24 contract](docs/m24-contract.md), [M24 readiness](docs/m24-readiness.md),
+and [M25 contract](docs/m25-contract.md).
+
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
 ## Read more
@@ -229,6 +235,8 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M21 retention and catalog scale](docs/m21-contract.md) documents the audited retention boundary and [operations](docs/m21-operations.md) records the operator workflow.
 - [M22 bounded support provenance](docs/m22-contract.md) documents typed proof bindings, limits, continuation, and role-checked explanation.
 - [M23 practical temporal conditions](docs/m23-contract.md) documents bounded database-time duration, absence, cooldown, and hysteresis.
+- [M24 effective-dated policy versions](docs/m24-contract.md) documents half-open business-effective intervals.
+- [M25 parameterized policy families](docs/m25-contract.md) documents typed parameter relations, family authorization, preview, explanation, and upgrade behavior.
 - [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](vision/the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.

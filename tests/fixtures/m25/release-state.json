@@ -1,0 +1,13 @@
+{
+  "milestone": "M25",
+  "target_version": "0.22.0",
+  "direct_upgrade": "0.21.0 -> 0.22.0",
+  "fast_command": "tests/m25.sh fast pg-react:v0.22.0",
+  "complete_command": "tests/m25.sh complete pg-react:v0.22.0",
+  "clock_domain": "DATABASE_TIME",
+  "family_key": "bigint-v1",
+  "maintenance": "INHERITED_RELATIONAL_COORDINATOR",
+  "max_rows": 100000,
+  "next_milestone": "M26 - Decision tables",
+  "status": "candidate; publish v0.22.0 only after complete inherited and independent evidence passes"
+}
