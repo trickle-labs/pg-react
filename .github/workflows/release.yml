@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Fetch inherited release tag
-        run: git fetch --no-tags origin refs/tags/v0.21.0:refs/tags/v0.21.0 refs/tags/v0.22.0:refs/tags/v0.22.0
+        run: git fetch --no-tags origin refs/tags/v0.23.0:refs/tags/v0.23.0
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
           toolchain: 1.89.0
@@ -47,8 +47,10 @@ jobs:
         run: |
           echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
           echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.24.0" >> "$GITHUB_ENV"
+      - name: Fetch inherited release image
+        run: docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.23.0" && docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.23.0" pg-react:v0.23.0
       - name: Build and test release image
-        run: docker build --tag "$IMAGE" . && M26_ARTIFACT_DIR="$PWD/m26-evidence" bash tests/m26.sh complete "$IMAGE"
+        run: docker build --tag "$IMAGE" . && M27_ARTIFACT_DIR="$PWD/m27-evidence" bash tests/m27.sh complete "$IMAGE"
       - name: Publish image
         run: |
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -72,7 +74,7 @@ jobs:
           docker save "$IMAGE" | gzip -n -9 > "$artifact"
           bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.24.0.spdx.json
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-            -cf - m26-evidence | gzip -n -9 > pg-react-v0.24.0-evidence.tar.gz
+            -cf - m27-evidence | gzip -n -9 > pg-react-v0.24.0-evidence.tar.gz
           sha256sum "$artifact" pg-react-v0.24.0-evidence.tar.gz pg-react-v0.24.0.spdx.json > pg-react-v0.24.0.SHA256SUMS
           printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.24.0.SHA256SUMS
           sha256sum --check pg-react-v0.24.0.SHA256SUMS

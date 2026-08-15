@@ -1,0 +1,19 @@
+{
+  "milestone": "M27",
+  "target_version": "0.24.0",
+  "direct_upgrade": "0.23.0 -> 0.24.0",
+  "fast_command": "tests/m27.sh fast pg-react:v0.24.0",
+  "complete_command": "tests/m27.sh complete pg-react:v0.24.0",
+  "clock_domain": "DATABASE_TIME",
+  "analysis_contract_version": 15,
+  "finding_codes": [
+    "M27_TIED_BEST_CANDIDATE",
+    "M27_FORBIDDEN_OVERLAP",
+    "M27_MISSING_REQUIRED_DEFAULT",
+    "M27_UNREACHABLE_CANDIDATE",
+    "M27_UNCOVERED_POPULATION",
+    "M27_WINNER_DISTRIBUTION"
+  ],
+  "next_milestone": "M28 - Policy-set gating",
+  "status": "candidate; publish v0.24.0 only after complete inherited and independent evidence passes"
+}

@@ -1,10 +1,10 @@
 # M27 readiness record
 
-M27 is the planned `0.24.0` decision coverage and conflict-analysis
-milestone. These documents describe the planned contract and release metadata;
-they do not certify an implementation. Tag and push `v0.24.0` only after the
-M27 implementation, direct-upgrade evidence, inherited M0–M26 gates, and the
-release artifact checks have passed.
+M27 is implemented as the `0.24.0` decision coverage and conflict-analysis
+candidate. The local fast and complete gates pass, including the inherited M26
+gate and the populated `0.23.0 -> 0.24.0` upgrade. Tag and push `v0.24.0`
+only after the release workflow has produced and verified its checksums, SBOM,
+provenance, OCI digest, and publication artifacts.
 
 The release gate must cover the explicit population and candidate catalog,
 complete-frontier fingerprints, ties, forbidden and allowed overlap, missing
