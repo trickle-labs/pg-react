@@ -1,0 +1,12 @@
+{
+  "milestone": "M24",
+  "target_version": "0.21.0",
+  "direct_upgrade": "0.20.0 -> 0.21.0",
+  "fast_command": "tests/m24.sh fast pg-react:v0.21.0",
+  "complete_command": "tests/m24.sh complete pg-react:v0.21.0",
+  "clock_domain": "DATABASE_TIME",
+  "interval": "[valid_from, valid_to)",
+  "targets": ["RULE", "PROGRAM"],
+  "next_milestone": "M25 - Parameterized policy families",
+  "status": "candidate; publish v0.21.0 only after complete inherited and independent evidence passes"
+}

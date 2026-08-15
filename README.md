@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M23 is extension `0.20.0` candidate. It adds bounded, database-time temporal conditions over the M22 provenance platform. See the [M23 contract](docs/m23-contract.md) and [readiness record](docs/m23-readiness.md).
+> pg-react M24 is extension `0.21.0` candidate. It lets one policy have future and current versions with clear business-effective dates. See the [M24 contract](docs/m24-contract.md) and [readiness record](docs/m24-readiness.md).
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 

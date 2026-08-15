@@ -44,27 +44,29 @@ wait_for_version() {
 }
 
 docs_audit() {
-  grep -Fq 'pg-react M22 is extension `0.19.0`' README.md
-  grep -Fq 'tests/m22.sh fast pg-react:v0.19.0' docs/m22-readiness.md
-  grep -Fq 'tests/m22.sh complete pg-react:v0.19.0' docs/m22-evidence.md
-  grep -Fq '0.18.0 -> 0.19.0' docs/m22-upgrade.md
-  grep -Fq 'M23 — Practical temporal conditions' docs/m22-readiness.md
+  grep -Fq 'pg-react M22 is extension `0.19.0`' README.md &&
+    grep -Fq 'tests/m22.sh fast pg-react:v0.19.0' docs/m22-readiness.md &&
+    grep -Fq 'tests/m22.sh complete pg-react:v0.19.0' docs/m22-evidence.md &&
+    grep -Fq '0.18.0 -> 0.19.0' docs/m22-upgrade.md &&
+    grep -Fq 'M23 — Practical temporal conditions' docs/m22-readiness.md
 }
 
 release_audit() {
-  grep -qx 'version = "0.19.0"' Cargo.toml
-  grep -qx "default_version = '0.19.0'" pg_react.control
-  grep -Fq "extversion = '0.19.0'" src/managed.rs
-  test -s sql/pg_react--0.18.0.sql
-  test -s sql/pg_react--0.18.0--0.19.0.sql
-  test -s sql/pg_react--0.19.0.sql
-  bash -n tests/m22.sh
-  jq -e '.target_version == "0.19.0" and .direct_upgrade == "0.18.0 -> 0.19.0"' \
-    tests/fixtures/m22/release-state.json >/dev/null
+  grep -qx 'version = "0.19.0"' Cargo.toml &&
+    grep -qx "default_version = '0.19.0'" pg_react.control &&
+    grep -Fq "extversion = '0.19.0'" src/managed.rs &&
+    test -s sql/pg_react--0.18.0.sql &&
+    test -s sql/pg_react--0.18.0--0.19.0.sql &&
+    test -s sql/pg_react--0.19.0.sql &&
+    bash -n tests/m22.sh &&
+    jq -e '.target_version == "0.19.0" and .direct_upgrade == "0.18.0 -> 0.19.0"' \
+      tests/fixtures/m22/release-state.json >/dev/null
 }
 
-run_test 'M22 documentation audit' docs_audit
-run_test 'M22 release identity audit' release_audit
+if [[ ${M22_SKIP_REPO_AUDIT:-0} != 1 ]]; then
+  run_test 'M22 documentation audit' docs_audit
+  run_test 'M22 release identity audit' release_audit
+fi
 
 export PG_REACT_IMAGE=$image
 export PG_REACT_INIT_VERSION=0.19.0

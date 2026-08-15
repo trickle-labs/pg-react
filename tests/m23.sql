@@ -22,6 +22,7 @@ SELECT id FROM m23_reference.fact WHERE enter_on;
 CREATE VIEW m23_reference.recovery_condition AS
 SELECT id FROM m23_reference.fact WHERE recovered;
 
+SELECT pgreact_api.run('2026-01-01 00:00:00+00'::timestamptz);
 SELECT frontier AS base_time FROM pgreact_internal.clock_frontier \gset
 INSERT INTO m23_reference.fact (id, duration_on, deadline, cooldown_on, enter_on)
 SELECT 1, true, frontier + interval '5 minutes', true, true

@@ -98,7 +98,7 @@ pub extern "C-unwind" fn pg_react_managed_main(_arg: pg_sys::Datum) {
         }
         BackgroundWorker::transaction(|| {
             let ready = Spi::get_one::<bool>(
-                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_react' AND extversion = '0.20.0')",
+                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_react' AND extversion = '0.21.0')",
             )
             .expect("check pg_react version")
             .unwrap_or(false);
