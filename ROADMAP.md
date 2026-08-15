@@ -1599,19 +1599,79 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M26
+## Stage 27 — Decision coverage and conflict analysis
+
+**Outcome:** make decision-program coherence inspectable and deployment-blocking by analyzing one proposed version over an explicit bounded population and candidate catalog at one complete frontier for ties, forbidden overlap, missing required defaults, unreachable candidates, uncovered subjects, and material winner-distribution changes, without parsing SQL predicates or claiming proof over hypothetical facts.
+
+**Entry gate:** the exact `v0.23.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, and every M0–M26 gate passes unchanged. Before the contract freezes, extend the M26 complete profile with an explicit typed population and candidate catalog; fully covered and uncovered subjects; present and missing required defaults; reachable and unreachable candidates; allowed and forbidden overlap; unique and tied best candidates; proposed versions below, at, and above winner-distribution limits; population, candidate, parameter, and effective-dated version changes; concurrent analysis and deployment; scheduled and eligible immediate maintenance; pause, resume, replacement, reconciliation, retention, physical and logical recovery, standby promotion, and direct upgrade. Freeze every public declaration and result, program and version, population and candidate identity, analysis frontier and fingerprint, requirement, finding, severity and blocker, canonical evidence, distribution count and delta, authorization result, normalized public-query plan, storage cost, and final checksum.
+
+### Deliverables
+
+- One versioned public decision-analysis declaration attached to an M26 decision program. It records one finite typed population relation and semantic key, one candidate catalog, required-default and overlap requirements, winner-distribution limits, owner and grants, and the proposed version to analyze.
+- Deterministic analysis of current and proposed candidate and winner relations at one complete committed frontier, returning exact findings for tied best candidates, forbidden overlaps, missing required defaults, unreachable catalog candidates, uncovered population keys, and exceeded distribution limits.
+- Canonically ordered, bounded evidence for every finding, with total affected counts and explicit truncation, plus exact current and proposed winner counts and deltas by candidate identity.
+- Deployment admission that evaluates every blocking requirement against the same relation fingerprints and complete snapshot used to admit the proposed version, and rejects a stale or failed analysis before any policy, lifecycle, provenance, or work mutation.
+- Public validation, analysis, status, and history results that expose the analyzed program and versions, frontier and fingerprints, requirements, findings, severities, blockers, distribution summary, support, provenance, diagnostics, authorization, and remediation without requiring private-catalog access.
+- Extension `0.24.0`, compact author, reviewer, deployer, reader, and operator tasks, coverage and conflict-remediation guidance, compatibility and retention documentation, release notes, executable correctness, concurrency, failure, performance, security, recovery, and direct-upgrade evidence, and a direct upgrade from `0.23.0`.
+
+### Supported boundary
+
+- M27 inherits the complete M26 platform, public API, managed-worker, typed-key, security, maintenance, isolation, immediate-mode, shared-condition, retention, recovery, resource-limit, external-effect, aggregate, window, provenance, temporal, effective-dating, parameter-family, decision, diagnostic, and usability boundaries except for this analysis expansion.
+- Analysis covers one decision program, one current version, one proposed version, one explicitly declared finite population relation, and one declared candidate catalog at one complete committed frontier. PostgreSQL SQL and types remain authoritative; pg-react compares materialized keys, candidates, priorities, and results and never interprets predicate text.
+- An uncovered subject is a declared population key with no proposed candidate. A required default is one catalog candidate identity declared to cover every population key. An unreachable candidate is a catalog identity producing no proposed candidate for the population. A forbidden overlap is more than one proposed candidate for a subject under an exclusive requirement; a tied best priority is always reported separately.
+- Winner-distribution analysis returns exact current and proposed counts and deltas by candidate identity and rejects only the frozen configured materiality limits. It does not report per-key would-be lifecycle or work changes, which belong to M30.
+- A successful report proves only the analyzed relations at its recorded complete frontier. Later fact, population, parameter, or version changes may change coverage, and M26 runtime ambiguity and claim barriers remain authoritative.
+- Analysis creates no activations, advances no production frontier, executes no consequence, and mutates no authoritative policy or fact relation. Only an explicitly admitted proposed version may become authoritative.
+
+### Explicit non-goals
+
+- A SQL predicate parser, theorem prover, SAT or SMT integration, symbolic exhaustiveness proof, generated test data, or claims about undeclared or infinite populations.
+- Policy-set gating, hypothetical fact simulation, per-key deployment impact simulation, historical replay, comparative backtesting, or policy promotion workflow.
+- Cross-program conflict analysis, multi-winner decisions, weighted scoring, optimization, probabilistic analysis, or arbitrary user-defined finding code.
+- A decision-table DSL, spreadsheet or range syntax, generated SQL, visual table editor, client DSL, visual or AI authoring, or second evaluation engine.
+- Bounded synchronous firing, unstratified negation, recursive aggregation, domain packages, or preparatory abstractions for M28 and later milestones.
+
+### Decisions to close before the M27 contract freezes
+
+- The exact analysis declaration, validation, execution, admission, status, history, replacement, and removal shapes; population and candidate-catalog declarations; required-default and exclusivity representation; and current and proposed version identity.
+- The exact finding taxonomy, stable identity, severity, deployment-blocking policy, remediation, canonical evidence order and bound, truncation disclosure, aggregate counts, and behavior when one subject produces several findings.
+- The complete-frontier and relation-fingerprint contract; whether deployment reruns or reuses analysis; stale-report detection; and the total order for concurrent population, candidate, parameter, effective-dated version, source-refresh, analysis, deployment, replacement, and reconciliation changes.
+- The exact current and proposed winner-distribution shape, candidate identity scope, zero-count handling, absolute and relative materiality limits, rounding, boundary behavior, and treatment of ambiguity and uncovered subjects.
+- Authorization for authors, reviewers, deployers, readers, auditors, operators, and workers; relation access; ownership and grant changes; and exact unauthorized, unavailable, drifted, over-limit, and not-retained results without leaking protected population, candidate, or decision values.
+- State and index layout, active-analysis and population limits, evidence and distribution bounds, latency and storage budgets, failure injection, retention protection, standby and promotion behavior, physical and logical restore, and direct-upgrade migration.
+
+### Exit gates
+
+- Every analysis in the frozen fixture returns the exact program and version identities, population and candidate-catalog identities, complete frontier and fingerprints, requirements, findings, severities, blockers, canonical evidence and truncation, current and proposed distributions and deltas, support, provenance, diagnostics, authorization, remediation, and final checksum.
+- Every tied best priority, forbidden overlap, missing required default, unreachable candidate, uncovered population key, and exceeded distribution limit is reported with the exact frozen identity, severity, blocker, affected count, and bounded evidence; allowed overlap and in-limit changes produce no false finding.
+- Repeating analysis over the same complete frontier and relation fingerprints returns byte-for-byte identical public output regardless of physical row order, query plan, transaction order, maintenance timing, restart, or standby promotion.
+- A proposed deployment with any blocking finding or stale fingerprint fails before durable mutation. A successful deployment is admitted against the frozen snapshot contract and never exposes a frontier containing an unadmitted program version or partial policy, lifecycle, provenance, or work state.
+- Every empty, duplicate, missing-required, wrong-typed, unsupported, drifted, RLS-protected, unauthorized, or over-limit population, candidate-catalog, requirement, or distribution-limit declaration is rejected before durable mutation and identifies the exact condition and remediation.
+- Population and candidate insert, update, and delete, parameter change, and effective-dated decision-version transition recompute or invalidate exactly the affected analysis under the frozen invalidation contract and never silently reuse stale evidence.
+- Current and proposed winner distributions report exact counts and deltas at, below, and above every frozen materiality boundary, including zero-count, ambiguity, default, and uncovered-subject cases, without expanding into per-key M30 impact simulation.
+- Every supported interleaving of analysis, deployment, population or candidate change, pause, replacement, reconciliation, retention, and recovery reaches a state equivalent to an allowed serialization; every rejected interleaving fails within its published bound without a partial report or deployment.
+- Coordinator failure before and after every frozen commit, managed-worker restart, PostgreSQL crash/restart, forward and backward clock adjustment, standby promotion, and overdue catch-up preserve the last complete analysis and deployment frontier and reproduce the exact report or explicit invalidation.
+- Every reader, author, reviewer, deployer, operator, worker, unrelated role, and `PUBLIC` case returns the exact authorized or denied declaration, analysis, admission, status, and history result after grant, revoke, ownership change, replacement, retention, restore, and upgrade without leaking protected population, candidate, decision, or distribution values.
+- The maximum frozen active-program, population-row, candidate-row, finding, evidence, dependency-fan-out, and retained-analysis profiles remain within their published analysis latency, memory, storage, backup, restore, and upgrade budgets and fail admission before exceeding the supported envelope.
+- Retention, replacement, reconciliation, physical restore, dump/restore, and direct `0.23.0 -> 0.24.0` upgrade preserve or repair the exact declarations, requirements, versions, analysis frontiers and fingerprints, findings, distributions, grants, diagnostics, and continued deployment-admission behavior.
+- Every inherited M0–M26 semantic, operational, security, recovery, performance, compatibility, documentation, usability, retention, provenance, temporal, parameter, decision, and external-effect gate passes unchanged.
+- Non-superuser authors, reviewers, deployers, readers, and operators can declare, validate, analyze, inspect, diagnose, remediate, admit, replace, remove, recover, and upgrade the reference decision analyses using only granted public APIs and documentation.
+
+---
+
+## Proposed sequence after M27
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
 The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
 
-1. **M27 — Decision coverage and conflict analysis.** Inspect supported decision programs before deployment for ties, forbidden overlap, missing defaults, unreachable candidates, uncovered populations, and material winner-distribution changes so interactions between individually valid policies fail visibly before production.
-2. **M28 — Policy-set gating.** Apply versioned policy sets to typed PostgreSQL populations or named conditions so jurisdiction, product, tenant, contract, and rollout applicability can change independently of policy logic, with deterministic activation, transition, validation, and explanation rather than hidden engine feature flags.
-3. **M29 — Hypothetical fact simulation.** Evaluate bounded hypothetical inserts, updates, and deletes against one selected frozen policy without mutating authoritative tables, advancing real frontiers, creating durable work, or executing consequences, and return the resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions through a side-effect-free public interface.
-4. **M30 — Deployment impact simulation.** Compare the currently deployed rule or program version against a proposed replacement over current facts, reporting which business keys would activate, deactivate, change derived values, select a different decision winner, or produce different would-be work, so deployment preview becomes business impact analysis rather than schema validation alone.
-5. **M31 — Historical replay.** Evaluate one frozen policy version over a user-supplied initial snapshot and ordered fact history with production-equivalent lifecycle, derivation, deadline, and event-time semantics, while mutating no authoritative state, executing no consequences, and making no claim that pg-react is a source CDC archive.
+1. **M28 — Policy-set gating.** Apply versioned policy sets to typed PostgreSQL populations or named conditions so jurisdiction, product, tenant, contract, and rollout applicability can change independently of policy logic, with deterministic activation, transition, validation, and explanation rather than hidden engine feature flags.
+2. **M29 — Hypothetical fact simulation.** Evaluate bounded hypothetical inserts, updates, and deletes against one selected frozen policy without mutating authoritative tables, advancing real frontiers, creating durable work, or executing consequences, and return the resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions through a side-effect-free public interface.
+3. **M30 — Deployment impact simulation.** Compare the currently deployed rule or program version against a proposed replacement over current facts, reporting which business keys would activate, deactivate, change derived values, select a different decision winner, or produce different would-be work, so deployment preview becomes business impact analysis rather than schema validation alone.
+4. **M31 — Historical replay.** Evaluate one frozen policy version over a user-supplied initial snapshot and ordered fact history with production-equivalent lifecycle, derivation, deadline, and event-time semantics, while mutating no authoritative state, executing no consequences, and making no claim that pg-react is a source CDC archive.
+5. **M32 — Comparative backtesting.** Run two frozen policy versions over the same user-supplied historical input and compare exact activation, deactivation, derived-value, decision-winner, would-be-work, and resource-usage differences so policy changes are supported by reproducible evidence rather than intuition.
 
-Bounded synchronous firing, unstratified negation, recursive aggregation, comparative backtesting, policy promotion workflow, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M27–M31. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Bounded synchronous firing, unstratified negation, recursive aggregation, policy promotion workflow, why-changed explanation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M28–M32. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
