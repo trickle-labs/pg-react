@@ -1361,19 +1361,76 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M22
+## Stage 23 — Practical temporal conditions
+
+**Outcome:** make ordinary time-based policy durable and explainable through bounded database-time primitives for continuous duration, absence at a deadline, cooldown, and explicit arm/recovery hysteresis, without introducing a general complex-event-processing language, a second timer service, or ambiguous clock semantics.
+
+**Entry gate:** the exact `v0.19.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, and every M0–M22 gate passes unchanged. Before the contract freezes, extend the M22 complete profile with keyed conditions that become true, remain true through a duration boundary, retract before it, and recur; trigger and satisfaction facts arriving before, exactly at, and after a deadline; source changes and consequence outcomes during cooldown; enter and recovery conditions that alternate around a hysteresis boundary; open, finalized, and corrected M17 window inputs; scheduled and eligible immediate maintenance; pause, resume, replacement, reconciliation, retention, physical and logical recovery, and direct upgrade. Freeze every public declaration and result, temporal-state and deadline identity, interval encoding, clock and frontier, boundary ordering, lifecycle transition, diagnostic and explanation, normalized public-query plan, storage cost, and final checksum.
+
+### Deliverables
+
+- One versioned public temporal-condition declaration over supported authoritative or pg-react public relations. It identifies exactly one primitive, one inherited typed semantic key, its input and any satisfaction or recovery relation, a finite direct deadline or positive fixed duration, the database-time clock authority, owner and grants, active version, maintenance mode, and public result relation.
+- Durable, indexed, per-key temporal state maintained through the inherited M12 coordinator, dependency graph, lifecycle, locking, reconciliation, and recovery paths. Clock advancement, due-state change, support, provenance, activation, agenda, and public evidence commit at one frontier; retry, restart, restore, or a forward clock jump catches up without duplicate or partial transitions.
+- Continuous-duration semantics: a key becomes temporally true only if its input remains true through the declared duration boundary. Retraction before the boundary cancels the pending deadline, and later truth starts a new interval with a new stable identity.
+- Absence-by-deadline semantics: one trigger establishes a key and finite deadline, and one lower-stratum positive relation satisfies it. The absence condition becomes true only when the durable frontier reaches the deadline without a qualifying satisfaction; equality and concurrent trigger, satisfaction, source-refresh, and clock-pass cases follow one frozen ordering contract.
+- Cooldown and hysteresis semantics integrated with the inherited generation and refraction model. Cooldown makes a key ineligible until one durable deadline after its declared lifecycle anchor, with exact handling of changes during the interval; hysteresis uses separate enter and recovery conditions to preserve state across an intermediate band and re-arm only after recovery, without adding a numeric-expression language.
+- Public validation, preview, status, doctor, history, and explanation output that names the primitive, version, key, clock domain, current frontier, pending or crossed deadline, continuous-since or cooldown boundary, arm and recovery state, M17 input finality when applicable, provenance coverage, drift, truncation, and exact remediation without private-catalog access.
+- Extension `0.20.0`, compact author and operator tasks, temporal and clock guidance, compatibility and retention documentation, release notes, executable correctness, concurrency, failure, performance, security, recovery, and direct-upgrade evidence, and a direct upgrade from `0.19.0`.
+
+### Supported boundary
+
+- M23 inherits the complete M22 platform, public API, managed-worker, typed-key, security, maintenance, isolation, immediate-mode, shared-condition, retention, recovery, resource-limit, external-effect, aggregate, window, provenance, diagnostic, and usability boundaries except for this practical temporal expansion.
+- M23 adds only continuous duration, absence by a direct deadline, cooldown, and arm/recovery hysteresis. Each declaration has one explicit database-time authority and bounded per-key state; fixed durations are positive integral microseconds, direct deadlines are finite non-null `timestamptz` values, and equality is due.
+- M17 event-time window results may participate only through their inherited committed relation, watermark, correction, and finality contracts. Database-time frontier, event-time watermark, source commit time, and consequence wall-clock latency remain distinct and are named wherever more than one appears.
+- Temporal inputs follow the inherited finite, stratified program graph and supported key, query, ownership, privilege, RLS, maintenance-mode, and immediate-closure rules. Volatile clock expressions, hidden polling queries, and private-catalog dependencies are rejected before durable mutation.
+- Consequences remain asynchronous and at-least-once. A temporal boundary promises deterministic logical eligibility and catch-up at a committed frontier, not exact wall-clock firing latency or rollback of the source transaction.
+
+### Explicit non-goals
+
+- A general CEP or pattern language; arbitrary event sequences; partial-match automata; rolling, hopping, session, calendar, recurring, or cron windows; temporal joins; event-time duration or absence; or unbounded temporal history.
+- User-defined timer callbacks, sleep-based workers, a second scheduler, a general background-job service, synchronous arbitrary code, source-write rejection, or an exactly-once or exact-wall-clock delivery claim.
+- Implicit inference of deadlines, recovery predicates, lifecycle anchors, time zones, calendars, or clock domains from SQL text, column names, display values, execution order, or worker time.
+- Unstratified temporal negation, recursive temporal aggregation, cycles through temporal conditions, unrestricted composition of temporal primitives, or a custom numerical threshold and hysteresis expression language.
+- Effective-dated policy versions, parameterized policy families, decision tables, policy-set analysis or gating, client DSLs, visual or AI authoring, domain packages, or preparatory abstractions for M24 and later milestones.
+
+### Decisions to close before the M23 contract freezes
+
+- The exact declaration, validation, preview, authoring, replacement, removal, and public-relation shapes; primitive and version identity; supported key and relation forms; direct deadline and fixed-duration encodings; interval bounds; clock sampling; and compatibility rules.
+- The exact continuous-since, pending, due, active, cooldown, armed, and recovered states; lifecycle anchors; equality semantics; trigger multiplicity and deadline replacement; satisfaction-key cardinality; generation and refraction interaction; changes during cooldown; overlapping enter and recovery truth; and pause, resume, replace, remove, and reconcile behavior.
+- The total order for concurrent trigger, satisfaction, input retraction, recovery, source refresh, immediate maintenance, clock advancement, consequence completion, replacement, and reconciliation, including lock identities, acquisition order, bounded waits, rollback, and retry.
+- Dependency and stratum placement, M17 open and finalized input treatment, scheduled and immediate eligibility, provenance and explanation shape, authorization and redaction at each hop, retention protection, drift classification, and exact unsupported mixed-clock diagnostics.
+- State and index layout, per-condition and per-key admission limits, deadline-batch and catch-up bounds, clock-lag thresholds, storage and latency budgets, coordinator ownership, standby and promotion behavior, failure injection, physical and logical restore, and direct-upgrade migration.
+
+### Exit gates
+
+- Every key in the frozen fixture returns the exact temporal declaration, input truth, primitive state, continuous-since value, pending or crossed deadline, cooldown boundary, arm and recovery state, clock frontier, support, provenance, activation, agenda, diagnostic, explanation, and final public result at every frozen step.
+- A continuous-duration condition activates exactly at the first committed frontier at or beyond its boundary only when input truth was uninterrupted; every pre-boundary retraction cancels it, and every later interval receives the exact documented generation and identity without stale state.
+- At the first committed frontier equal to or beyond a deadline, absence is true exactly when the qualifying satisfaction is absent under the frozen snapshot and ordering contract. Every before-, equal-, after-, and concurrent trigger, satisfaction, source-refresh, and clock-pass case reaches its documented serial result without a false absence episode.
+- Cooldown suppresses, coalesces, or reevaluates every in-interval change exactly as frozen and becomes eligible once at its boundary. Hysteresis preserves active state across the intermediate band, recovers and re-arms only through its declared relation, and never chatters or invents an episode under the frozen oscillation schedule.
+- Scheduled and eligible immediate source changes expose the exact inherited transaction, savepoint, rollback, and worker-isolation behavior. Every temporal boundary remains database-time driven, while every M17 input retains its exact watermark, correction, finality, and late-input result without mixing clock authority.
+- Every supported interleaving of evaluation, clock advancement, claim, completion, pause, resume, replacement, reconciliation, retention, and recovery reaches a state equivalent to an allowed serialization; every rejected interleaving fails within its published bound without partial temporal, lifecycle, provenance, or agenda state.
+- Coordinator failure before and after every frozen commit, managed-worker restart, PostgreSQL crash/restart, forward clock adjustment, standby promotion, and overdue catch-up preserves the last complete frontier and produces each due logical lifecycle transition at most once with the exact lag and recovery evidence. Backward adjustment pauses temporal progress without retracting due state; consequence attempts retain the inherited at-least-once contract.
+- Validation rejects every frozen unsupported key, query, interval, timestamp, clock, relation, dependency, cycle, maintenance-mode, privilege, RLS, drift, platform, and resource-limit case before durable mutation and identifies the exact condition and remediation.
+- The maximum frozen active-key, pending-deadline, expiry-density, catch-up, dependency-fan-out, and retained-history profiles remain within their published evaluation, clock-pass, explanation, memory, storage, backup, restore, and upgrade budgets and fail admission before exceeding the supported envelope.
+- Retention, replacement, reconciliation, physical restore, dump/restore, and direct `0.19.0 -> 0.20.0` upgrade preserve or repair the exact declarations, versions, temporal state, deadlines, frontiers, lifecycle identities, work, supports, provenance, grants, diagnostics, explanations, and continued coordinator behavior.
+- Every inherited M0–M22 semantic, operational, security, recovery, performance, compatibility, documentation, usability, retention, provenance, and external-effect gate passes unchanged.
+- Non-superuser authors, readers, operators, and workers can declare, validate, preview, deploy, exercise, pause, resume, inspect, explain, diagnose, reconcile, replace, remove, recover, and upgrade the reference temporal conditions using only granted public APIs and documentation.
+
+---
+
+## Proposed sequence after M23
 
 These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
 
 The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
 
-1. **M23 — Practical temporal conditions.** Add durable, unambiguous-clock primitives for duration, absence by deadline, cooldown, and hysteresis on the M12 deadline and M17 event-time foundations, covering common operational policies without claiming a general CEP or temporal-pattern language.
-2. **M24 — Effective-dated policy versions.** Give rule and program versions canonical `[valid_from, valid_to)` intervals so future policy can be validated and deployed before activation, switch authority deterministically at its logical-time boundary, and keep deployment time distinct from business-effective time in audit.
-3. **M25 — Parameterized policy families.** Treat typed parameter relations as ordinary PostgreSQL facts consumed by one versioned policy definition, adding family identity, ownership, validation, preview, deployment, and explanation so tenant or segment variation does not require generated rule copies or a template language.
-4. **M26 — Decision tables.** Let SQL produce typed decision candidates while pg-react owns deterministic winner selection, tie and ambiguity handling, winner lifecycle, and bounded explanation of the selected result and relevant competitors, without introducing a decision-table DSL.
-5. **M27 — Decision coverage and conflict analysis.** Inspect supported decision programs before deployment for ties, forbidden overlap, missing defaults, unreachable candidates, uncovered populations, and material winner-distribution changes so interactions between individually valid policies fail visibly before production.
+1. **M24 — Effective-dated policy versions.** Give rule and program versions canonical `[valid_from, valid_to)` intervals so future policy can be validated and deployed before activation, switch authority deterministically at its logical-time boundary, and keep deployment time distinct from business-effective time in audit.
+2. **M25 — Parameterized policy families.** Treat typed parameter relations as ordinary PostgreSQL facts consumed by one versioned policy definition, adding family identity, ownership, validation, preview, deployment, and explanation so tenant or segment variation does not require generated rule copies or a template language.
+3. **M26 — Decision tables.** Let SQL produce typed decision candidates while pg-react owns deterministic winner selection, tie and ambiguity handling, winner lifecycle, and bounded explanation of the selected result and relevant competitors, without introducing a decision-table DSL.
+4. **M27 — Decision coverage and conflict analysis.** Inspect supported decision programs before deployment for ties, forbidden overlap, missing defaults, unreachable candidates, uncovered populations, and material winner-distribution changes so interactions between individually valid policies fail visibly before production.
+5. **M28 — Policy-set gating.** Apply versioned policy sets to typed PostgreSQL populations or named conditions so jurisdiction, product, tenant, contract, and rollout applicability can change independently of policy logic, with deterministic activation, transition, validation, and explanation rather than hidden engine feature flags.
 
-Bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M23–M27. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+Bounded synchronous firing, unstratified negation, recursive aggregation, hypothetical simulation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M24–M28. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
