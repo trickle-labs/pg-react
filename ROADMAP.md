@@ -1787,6 +1787,8 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 **Outcome:** establish the authoritative applicability foundation for policy-set runtime truth: identity model, scope semantics, disposition matrix, relational eligibility and support state, migrations, inspection primitives, and exact applicability fixtures. M30 is a contract and schema milestone; it does not claim complete ordinary runtime behavior.
 
+**Release boundary:** M30 freezes the applicability contract. Its exit gate is the former M30-A foundation gate; no runtime implementation may redefine these semantics afterward.
+
 **Entry gate:** the exact `v0.26.0` release artifacts and populated upgrade evidence are published and verified, and every M0–M29 gate passes unchanged. Before implementation, freeze the applicability fixture transcript proving that one raw rule match plus one ineligible subject is out of scope, eligibility entry and exit are represented exactly, reentry is a new generation, and claimed work can be identified for later revalidation. The detailed planning basis is the [M30/M31 behavioral-convergence and runtime-truth proposal](pg-react-m30_to_v1_behavioural_convergence_and_runtime_truth.md).
 
 ### Deliverables
@@ -1820,7 +1822,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Exact migration states, upgrade preservation rules, invalid-source barriers, and no-mutation guarantees.
 - Exact public inspection columns, authorization, protected-subject disclosure, source-access role, unsupported-RLS, and safe-search-path contracts.
 
-### Exit gates
+### Exit gates — applicability contract frozen
 
 - Match and subject identities work independently for every supported codec-v2 type and arity, with deterministic normalization and no alternate policy-set codec.
 - The disposition matrix rejects unsupported or metadata-only ordinary behavior before mutation and records every supported limitation.
@@ -1835,7 +1837,9 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 **Outcome:** make policy-set applicability and every ordinary façade operation authoritative, fail-closed, inspectable, and testable on the M30 foundation. Release extension `0.27.0` with a populated direct `0.26.0 -> 0.27.0` upgrade, completing or narrowing M28–M29 behavior before any simulation or final v1 API freeze.
 
-**Entry gate:** M30's contract, schema, migrations, inspection primitives, and applicability fixtures pass and have committed evidence; the exact `v0.26.0` release artifacts and every inherited M0–M29 gate remain green.
+**Release boundary:** M31 freezes runtime truth: adapters, coordination, atomicity, lifecycle, work, frontiers, barriers, concurrency, and recovery are authoritative against the unchanged M30 applicability contract.
+
+**Entry gate:** every M30 exit gate passes and its applicability contract, schema, migrations, inspection primitives, and exact fixtures are committed. M31 MUST NOT redefine identity, scope, disposition, eligibility, or support semantics; the exact `v0.26.0` release artifacts and every inherited M0–M29 gate must also remain green.
 
 ### Deliverables
 
@@ -1877,7 +1881,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Exact supported active-set, member, eligible-subject, scope-support, fan-out, evidence, latency, memory, storage, backup, restore, and upgrade limits.
 - Exact authorization, ownership intersection, protected-subject disclosure, source-access role, unsupported-RLS, and safe-search-path contracts.
 
-### Exit gates
+### Exit gates — runtime truth frozen
 
 - Ineligible subjects create or retain no effective member truth, winner, scoped derived support, lifecycle transition, or executable work.
 - Eligibility entry, exit, return, expiry, removal, and overlapping-set transitions produce exact generations, revisions, supports, events, episodes, withdrawals, skips, and provenance without duplication.
@@ -1899,7 +1903,9 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 **Outcome:** make the authoritative M31 product feel like PostgreSQL with durable rules: ordinary users author typed declarations, operate by stable names, inspect relational state, receive actionable diagnostics, and complete common workflows without hand-written JSON, internal UUIDs, private catalogs, milestone-specific APIs, or engine vocabulary.
 
-**Entry gate:** extension `0.27.0` is published; M30 and M31, the independent technical review, runtime truth, policy-set gating, work revalidation, façade delegation, removal, migration, continuous qualification evidence, and every inherited M0–M29 semantic, security, recovery, concurrency, and compatibility gate pass. The recruited five-person usability cohort has already provided recorded early design feedback. Before freeze, approve one executable golden-path transcript covering condition view, typed action, `pgreact.rule`, preview, deploy, global run, matches, work, and explanation. The detailed planning basis for M32 and M33 is the [interface and qualification proposal](pg-react-m32-and-m33-interface-and-qualification.md).
+**Release boundary:** M32 freezes the public PostgreSQL-native API and UX: ordinary schemas, constructors, verbs, views, diagnostics, exports, and task workflows.
+
+**Entry gate:** extension `0.27.0` is published; every M31 exit gate passes and runtime truth is frozen. M30 and M31, the independent technical review, runtime truth, policy-set gating, work revalidation, façade delegation, removal, migration, continuous qualification evidence, and every inherited M0–M29 semantic, security, recovery, concurrency, and compatibility gate pass. The recruited five-person usability cohort has already provided recorded early design feedback. Before freeze, approve one executable golden-path transcript covering condition view, typed action, `pgreact.rule`, preview, deploy, global run, matches, work, and explanation. The detailed planning basis for M32 and M33 is the [interface and qualification proposal](pg-react-m32-and-m33-interface-and-qualification.md).
 
 ### Deliverables
 
@@ -1943,7 +1949,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Exact replacement and removal preconditions, create-versus-replace behavior, stale-preview checks, and deterministic digest rules.
 - Exact usability protocol, benchmark profiles required by M33, documentation fixture inventory, and supported resource bounds visible during authoring.
 
-### Exit gates
+### Exit gates — public API/UX frozen
 
 - Every ordinary deployable kind has a typed constructor and the complete ordinary workflow requires neither hand-written JSON nor an internal UUID.
 - The canonical `pgreact` schema is implemented, every public object is classified, and every compatibility wrapper delegates to authoritative behavior.
@@ -1963,7 +1969,9 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 **Outcome:** freeze the M30 applicability foundation, M31 runtime semantics, and M32 interface as the supported v1 contract and prove that the exact packaged product is installable, upgradeable, recoverable, secure, observable, performant within published bounds, independently usable, and safe to enter a numbered `1.0.0` release-candidate cycle.
 
-**Entry gate:** extension `0.28.0` is published; every M32 gate passes; the continuous qualification lane is green for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and representative benchmark profiles; the installed artifact can generate a complete inventory of functions, overloads, types, views, grants, finding codes, declaration fields, and compatibility aliases. M33 consolidates this existing evidence rather than exercising any matrix for the first time.
+**Release boundary:** M33 freezes and qualifies the v1 contract. No feature work remains after this boundary; only release-candidate evidence, qualification fixes, and semantics-preserving corrections are allowed.
+
+**Entry gate:** extension `0.28.0` is published; every M32 exit gate passes and the public API/UX is frozen. Every M32 gate passes; the continuous qualification lane is green for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and representative benchmark profiles; the installed artifact can generate a complete inventory of functions, overloads, types, views, grants, finding codes, declaration fields, and compatibility aliases. M33 consolidates this existing evidence rather than exercising any matrix for the first time.
 
 ### Deliverables
 
@@ -2005,7 +2013,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Exact P0/P1/P2 classification, evidence restart rules after contract-affecting fixes, pilot protocol, usability protocol, and release-candidate acceptance authority.
 - Exact artifact provenance, checksums, SBOM format, API checksum generation, documentation execution scope, and final promotion procedure.
 
-### Exit gates
+### Exit gates — v1 contract frozen and qualified
 
 - No unapproved semantic or ordinary API expansion remains, and the generated installed-reality inventory exactly matches the frozen v1 contract.
 - Adjacent upgrades and the populated direct `0.26.0 -> 1.0.0-rc.N` rehearsal preserve all valid state, execute no business work, and establish explicit barriers where reconciliation is required.

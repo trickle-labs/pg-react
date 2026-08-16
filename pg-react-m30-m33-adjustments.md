@@ -25,6 +25,8 @@ The sequencing is excellent:
 
 That is the right order. In particular, M33 explicitly excludes new semantic breadth and focuses on compatibility, installation, upgrades, recovery, isolation, security, performance, documentation, and exact-package validation. The plan also defers simulation and replay until after v1, avoiding an obvious scope trap.
 
+The release boundaries are now explicit: M30 freezes the applicability contract; M31 freezes runtime truth; M32 freezes the public API and UX; M33 freezes and qualifies the v1 contract.
+
 The gates are much better than ordinary “feature complete” language. M32 proposes measurable external usability tests: at least five PostgreSQL developers uninvolved in implementation, at least four succeeding without live guidance, and a median time to first deployment of no more than 15 minutes. M33 introduces an appropriately strict confidence budget, including zero unresolved P0/P1 correctness, recovery, or security defects; zero known façade/backend divergence; and zero skipped mandatory install or upgrade paths.
 
 There is also evidence that release engineering is being treated seriously. The `v0.26.0` release includes packaged-install verification, declaration and artifact checks, tarball and npm smoke tests, SBOM/provenance material, and reported vulnerability validation. That makes the M33 plan more credible than it would be in a project introducing release discipline only at the end.

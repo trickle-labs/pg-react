@@ -11,6 +11,8 @@
 > **Semantic scope:** complete or narrow existing M28 and M29 behavior without adding a rule language, reasoning model, simulation engine, or delivery guarantee<br>
 > **Release role:** first convergence milestone on the path to a final `1.0.0` contract
 
+> **Release boundaries:** M30 freezes the applicability contract; M31 freezes authoritative runtime truth against that unchanged contract.
+
 ---
 
 ## 1. Decision
@@ -848,7 +850,7 @@ From M30 implementation onward, CI MUST maintain one continuous v1 qualification
 
 ## 16. Milestones and implementation sequence
 
-M30 MUST complete before M31 begins. Each milestone requires a committed contract, exact fixtures, evidence, and an independently reviewable record; façade-level or assumed behavior is not acceptable evidence.
+M30 MUST complete before M31 begins. The complete M30 exit gate is the former M30-A foundation gate; M31 MUST consume its frozen contract rather than redefine applicability semantics. Each milestone requires a committed contract, exact fixtures, evidence, and an independently reviewable record; façade-level or assumed behavior is not acceptable evidence.
 
 ### M30: Applicability foundation
 
@@ -1151,9 +1153,9 @@ M30 does not add:
 
 ---
 
-## 23. Release-blocking exit gates
+## 23. M31 release-blocking exit gates
 
-M31 may publish as `v0.27.0` only when every gate below passes.
+M31 may publish as `v0.27.0` only when every gate below passes. This freezes runtime truth against the M30 applicability contract; later M32 interface work MUST NOT change these semantics.
 
 ### 23.1 Runtime gating gate
 

@@ -12,6 +12,8 @@
 > **Primary outcome:** make pg-react easy for PostgreSQL developers to learn and operate, then freeze and prove that interface as the supported `1.0.0` contract<br>
 > **Semantic scope:** no new rule, reasoning, temporal, decision, execution, policy, or delivery semantics after M31
 
+> **Release boundaries:** M32 freezes the public API/UX; M33 freezes and qualifies the v1 contract.
+
 ---
 
 ## 1. Decision
@@ -44,7 +46,7 @@ Neither milestone may introduce a second evaluation model, new reasoning semanti
 > **Primary outcome:** make ordinary pg-react usage feel like PostgreSQL with durable rules, rather than a framework whose internal engine concepts must be learned first<br>
 > **Feature policy:** no new runtime semantics
 
-M32 implementation MUST NOT begin until M30 and M31, the independent technical review, the recruited five-person usability cohort, recorded early design feedback, and the continuous v1 qualification lane are green.
+M32 implementation MUST NOT begin until every M31 exit gate passes and runtime truth is frozen against the M30 applicability contract. The independent technical review, the recruited five-person usability cohort, recorded early design feedback, and the continuous v1 qualification lane must also be green.
 
 ---
 
@@ -992,7 +994,7 @@ M32 is incomplete without:
 
 ---
 
-## 21. M32 exit gates
+## 21. M32 exit gates — public API/UX frozen
 
 M32 may publish as `0.28.0` only when:
 
@@ -1065,7 +1067,7 @@ M33 does not make pg-react broader.
 
 M33 proves that the M30 applicability foundation, M31 runtime semantics, and M32 interface are reliable enough for users to depend on for years.
 
-M33 MUST NOT begin until the continuous qualification lane has green evidence from M30, M31, and M32 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M33 reruns and consolidates that evidence against `0.29.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
+M33 MUST NOT begin until every M32 exit gate passes and the public API/UX is frozen. The continuous qualification lane must also have green evidence from M30, M31, and M32 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M33 reruns and consolidates that evidence against `0.29.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
 
 M33 MUST freeze:
 
@@ -1819,9 +1821,9 @@ M33 is incomplete without:
 
 ---
 
-## 42. M33 exit gates
+## 42. M33 exit gates — v1 contract frozen and qualified
 
-M33 may publish as `0.29.0` only when:
+M33 may publish as `0.29.0` only when every M32 exit gate has passed and:
 
 ### 42.1 Feature-freeze gate
 
