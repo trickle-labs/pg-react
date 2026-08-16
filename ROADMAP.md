@@ -1798,8 +1798,10 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Fail-closed runtime barriers for unavailable, unauthorized, drifted, incomplete, malformed, RLS-protected, or over-limit applicability sources, distinct from a valid empty population.
 - Complete authoritative adapters for ordinary `rule`, `decision_program`, and `policy_set` declarations across validation, preview, deployment, removal, status, explanation, diagnostics, authorization, migration, recovery, and global execution.
 - Generic deployment of advanced-only kinds rejected before mutation with stable actionable findings; specialized APIs remain supported.
+- One frozen v1 disposition matrix classifying every declaration and policy-set member kind as fully authoritative, supported with documented limitations, experimental, or unsupported and fail-closed; no accepted kind is metadata-only.
 - Truthful `deploy`, `run`, `remove`, `status`, `explain`, and `doctor`; read-only operations preserve the exact authoritative checksum.
 - Public relational inspection of eligibility, raw and effective truth, scope supports, lifecycle, work outcomes, barriers, and migration state without per-target function calls.
+- A continuous v1 qualification lane, green from M30-A onward, covering fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged-artifact execution, and current performance budgets.
 - Extension `0.27.0`, complete install and direct-upgrade SQL, contract, evidence, readiness, upgrade and release documentation, API inventory, and executable correctness, concurrency, security, recovery, performance, usability, and upgrade fixtures.
 
 ### Supported boundary
@@ -1832,6 +1834,17 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Exact supported active-set, member, eligible-subject, scope-support, fan-out, evidence, latency, memory, storage, backup, restore, and upgrade limits.
 - Exact authorization, ownership intersection, protected-subject disclosure, source-access role, unsupported-RLS, and safe-search-path contracts.
 
+### Internal hard gates
+
+M30 remains one public release, but later work MUST NOT proceed on façade-level or assumed behavior from an earlier gate:
+
+1. **M30-A — support boundary, identities, and relational eligibility.** Freeze the kind-disposition matrix, match and subject identities, relational eligibility schemas and indexes, migration states, and exact failing fixtures.
+2. **M30-B — authoritative adapters and lifecycle closure.** Complete every supported adapter plus referenced-object rename/drift handling and replacement/removal closure across runtime, lifecycle, work, inspection, and recovery.
+3. **M30-C — atomic policy-set coordination.** Route eligibility, member truth, decisions, derivations, lifecycle, work revalidation, and frontiers through one serialized coordinator and pass the frozen race fixtures.
+4. **M30-D — migration and release proof.** Pass populated upgrade, recovery, role-isolation, packaged-artifact, performance, documentation, and inherited evidence.
+
+Each gate requires committed exact evidence and an independently reviewable record before the next begins. Before M30 closes, at least one reviewer who did not implement the reviewed subsystem and has PostgreSQL extension, transaction, locking, and migration expertise must approve the eligibility model, lock order, policy-set atomicity, referenced-object rename/drift behavior, replacement/removal closure, failure recovery, and direct-upgrade behavior.
+
 ### Exit gates
 
 - Ineligible subjects create or retain no effective member truth, winner, scoped derived support, lifecycle transition, or executable work.
@@ -1846,6 +1859,8 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Indexed single-subject deltas require neither authoritative JSON-array scans nor whole-set JSON rewrites; the measured supported envelope and failure bounds are published.
 - The populated direct `0.26.0 -> 0.27.0` upgrade preserves all required identities, history, grants, frontiers, lifecycle, work, and M29 evidence with no silent scope activation.
 - Every ordinary documentation example executes in CI, and the scoped-rule reference workflow requires no UUID input, private catalog access, or maintainer interpretation.
+- The M30-A through M30-D records pass in order; the independent technical review has no unresolved blocker; fresh-install, populated-upgrade, rollback-by-restore, recovery, role-isolation, packaged-artifact, and performance evidence has remained green at every applicable gate.
+- The five-person M31 usability cohort is recruited before M30 closes, and early golden-path transcript or prototype feedback is recorded while the interface can still change.
 - Every inherited M0–M29 semantic, operational, security, recovery, performance, compatibility, documentation, usability, and API-governance gate passes unchanged.
 - All simulation, comparison, replay, backtesting, and why-changed work remains deferred until after M30 runtime truth, subsequent PostgreSQL-native ergonomics, and v1 hardening are complete.
 
@@ -1855,7 +1870,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 **Outcome:** make the authoritative M30 product feel like PostgreSQL with durable rules: ordinary users author typed declarations, operate by stable names, inspect relational state, receive actionable diagnostics, and complete common workflows without hand-written JSON, internal UUIDs, private catalogs, milestone-specific APIs, or engine vocabulary.
 
-**Entry gate:** extension `0.27.0` is published; M30 runtime truth, policy-set gating, work revalidation, façade delegation, removal, migration, and every inherited M0–M30 semantic, security, recovery, concurrency, and compatibility gate pass. Before freeze, approve one executable golden-path transcript covering condition view, typed action, `pgreact.rule`, preview, deploy, global run, matches, work, and explanation. The detailed planning basis for M31 and M32 is the [ergonomics and hardening proposal](pg-react-m31-and-m32-ergonomics-and-hardening.md).
+**Entry gate:** extension `0.27.0` is published; M30-A through M30-D, the independent technical review, runtime truth, policy-set gating, work revalidation, façade delegation, removal, migration, continuous qualification evidence, and every inherited M0–M30 semantic, security, recovery, concurrency, and compatibility gate pass. The recruited five-person usability cohort has already provided recorded early design feedback. Before freeze, approve one executable golden-path transcript covering condition view, typed action, `pgreact.rule`, preview, deploy, global run, matches, work, and explanation. The detailed planning basis for M31 and M32 is the [ergonomics and hardening proposal](pg-react-m31-and-m32-ergonomics-and-hardening.md).
 
 ### Deliverables
 
@@ -1867,6 +1882,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - One stable finding structure—`code`, `severity`, `blocking`, `target`, `field`, `message`, `hint`, and `details`—with an inventory of compatibility-governed finding codes.
 - Deterministic canonical export of every ordinary deployed object, suitable for validation, diffing, migration, Git storage, and deployment into another compatible environment.
 - Task-first documentation, one verbatim executable first-rule workflow, task-oriented SQL fixtures, complete API classification, compatibility guidance, and extension `0.28.0`.
+- Continued fresh-install, populated `0.26.0` upgrade, rollback-by-restore, recovery, role-isolation, packaged-artifact, and frozen benchmark evidence against every M31 candidate.
 - Required contract, API-reference, migration, usability, evidence, and readiness documents; constructor and wrapper SQL; documentation tests; populated direct-upgrade and export/import fixtures.
 
 ### Supported boundary
@@ -1909,21 +1925,22 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Every ordinary documentation example executes in CI, including the complete first-rule workflow and task fixtures for lifecycle, scope, decisions, failed work, safe replacement, and export.
 - At least four of five independent PostgreSQL developers complete the first-rule task without undocumented help; median time to first effective match is at most fifteen minutes; none uses private catalogs or internal UUIDs.
 - Every repeated confusion affecting at least two participants is fixed or recorded as a concrete M32 release blocker.
+- The continuous qualification lane remains green for fresh installation, populated upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and frozen benchmark profiles.
 - Every inherited M0–M30 gate passes unchanged against extension `0.28.0`.
 
 ---
 
 ## Stage 32 — V1 hardening and compatibility freeze
 
-**Outcome:** freeze the M30 semantics and M31 interface as the supported v1 contract and prove that the exact packaged product is installable, upgradeable, recoverable, secure, observable, performant within published bounds, independently usable, and safe to promote unchanged to `1.0.0`.
+**Outcome:** freeze the M30 semantics and M31 interface as the supported v1 contract and prove that the exact packaged product is installable, upgradeable, recoverable, secure, observable, performant within published bounds, independently usable, and safe to enter a numbered `1.0.0` release-candidate cycle.
 
-**Entry gate:** extension `0.28.0` is published; every M31 gate passes; the installed artifact can generate a complete inventory of functions, overloads, types, views, grants, finding codes, declaration fields, and compatibility aliases; representative benchmark profiles and populated upgrade fixtures are frozen before qualification begins.
+**Entry gate:** extension `0.28.0` is published; every M31 gate passes; the continuous qualification lane is green for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and representative benchmark profiles; the installed artifact can generate a complete inventory of functions, overloads, types, views, grants, finding codes, declaration fields, and compatibility aliases. M32 consolidates this existing evidence rather than exercising any matrix for the first time.
 
 ### Deliverables
 
 - One normative `v1-contract.md` enumerating exact ordinary functions, argument identities, types, views and columns, declaration fields, envelope fields, findings, states, defaults, and semantic commitments.
 - Complete compatibility, support-matrix, limits, security, upgrade, backup/restore, operations, troubleshooting, and deprecation contracts plus machine-readable API and finding inventories.
-- Adjacent upgrade tests and one populated direct `0.26.0 -> 1.0.0` rehearsal equivalent to the staged path through `0.27.0`, `0.28.0`, and `0.29.0`.
+- Adjacent upgrade tests and one populated direct `0.26.0 -> 1.0.0-rc.N` rehearsal equivalent to the staged path through `0.27.0`, `0.28.0`, and `0.29.0`.
 - Restart, physical restore, logical restoration, PITR, reconciliation, and supported standby-promotion fixtures with explicit external-effect boundaries.
 - A complete public-surface security review and regression suite covering grants, ownership, fixed search paths, exact function identity, role separation, information leakage, RLS rejection, and declaration safety.
 - Reproducible small, moderate, and supported-boundary benchmark profiles measuring runtime, inspection, work, storage, memory, WAL, and recovery behavior.
@@ -1947,7 +1964,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Deployment simulation, hypothetical facts, replay, backtesting, why-changed comparison, or other post-v1 semantic expansion.
 - Broad compatibility claims without exact tested evidence, universal throughput claims, or private-catalog repair as an operational procedure.
 - Removing compatibility surfaces solely for API neatness or rewriting immutable historical release evidence.
-- Treating `1.0.0` as another capability milestone: it is a capability-identical promotion of qualified `0.29.0`.
+- Treating `1.0.0` as another capability milestone, or promoting `0.29.0` directly to GA without a numbered release candidate.
 
 ### Decisions to close before the M32 contract freezes
 
@@ -1962,7 +1979,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 ### Exit gates
 
 - No unapproved semantic or ordinary API expansion remains, and the generated installed-reality inventory exactly matches the frozen v1 contract.
-- Adjacent upgrades and the populated direct `0.26.0 -> 1.0.0` rehearsal preserve all valid state, execute no business work, and establish explicit barriers where reconciliation is required.
+- Adjacent upgrades and the populated direct `0.26.0 -> 1.0.0-rc.N` rehearsal preserve all valid state, execute no business work, and establish explicit barriers where reconciliation is required.
 - Restart, physical restore, documented logical restoration, PITR boundaries, and every supported failover scenario pass exact recovery evidence.
 - The security review and regression suite have no unresolved blocker; `PUBLIC` and every documented role possess only frozen authority.
 - Median regressions above ten percent and p95 regressions above twenty percent are investigated; every accepted exception is understood, published, and approved.
@@ -1972,13 +1989,19 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 - Independent usability meets the M31 thresholds; at least two of three tested operators complete a documented replacement, recovery, scoping, or drift task.
 - Two controlled pilots complete upgrade, restart, backup/restore, action failure, recovery, doctor, and monitoring; together they exercise policy scoping or decisions.
 - No P0 or P1 defect remains; any retained P2 has an explicit known limitation and post-v1 disposition.
-- Every inherited M0–M31 gate passes against extension `0.29.0`; `1.0.0` promotion adds no capability, semantic change, ordinary concept, or ordinary verb.
+- Every inherited M0–M31 gate passes against extension `0.29.0`; the exact artifact has enough green evidence to produce `1.0.0-rc.1` but is not eligible for direct GA promotion.
+
+### Final release-candidate cycle
+
+After M32 publishes `0.29.0`, the project MUST publish at least one exact `1.0.0-rc.N` packaged artifact. Every candidate must pass fresh installation, populated direct upgrade from `0.26.0`, recovery, security, role-isolation, documentation, usability, pilot, and performance qualification. Any change to extension code, SQL, packaging, compatibility behavior, or normative documentation requires a new numbered candidate and reruns the affected evidence.
+
+`1.0.0` may promote only a fully qualified candidate, with no change except final version metadata and mechanically corresponding checksums and provenance.
 
 ---
 
 ## Proposed sequence after M32
 
-These are the five most relevant successor milestones, not implementation commitments. They build change-safety capabilities on the frozen v1 runtime in dependency order and must reuse its production semantics, authorization, limits, findings, evidence, and relational inspection instead of creating a second evaluator.
+The required sequence before post-v1 work is `0.29.0 -> 1.0.0-rc.1 -> later RCs as required -> 1.0.0`. The following are the five most relevant successor milestones, not implementation commitments. They build change-safety capabilities on the frozen v1 runtime in dependency order and must reuse its production semantics, authorization, limits, findings, evidence, and relational inspection instead of creating a second evaluator.
 
 1. **M33 — Deployment-impact simulation.** Compare one proposed policy version with the deployed version over the same current authoritative facts and applicability, reporting bounded exact current, proposed, and delta results without deployment, lifecycle mutation, work creation, or external effects.
 2. **M34 — Hypothetical fact simulation.** Extend the frozen comparison model with typed hypothetical inserts, updates, and deletes against an explicit policy and applicability snapshot, reusing production semantics, authorization, evidence, limits, and envelopes while mutating no authoritative state.

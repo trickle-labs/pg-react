@@ -5,8 +5,9 @@
 > **Predecessor:** M30 / proposed extension `0.27.0`<br>
 > **M31 proposed release:** extension `0.28.0`<br>
 > **M32 proposed release:** extension `0.29.0`<br>
+> **Required release candidate:** at least one exact `1.0.0-rc.N` artifact<br>
 > **Final release:** extension `1.0.0`<br>
-> **Direct v1 upgrade target:** `0.26.0 -> 1.0.0`<br>
+> **Direct v1 qualification and GA upgrade targets:** `0.26.0 -> 1.0.0-rc.N` and `0.26.0 -> 1.0.0`<br>
 > **Replaces:** the currently planned M31 deployment-impact simulation and M32 historical replay milestones<br>
 > **Primary outcome:** make pg-react easy for PostgreSQL developers to learn and operate, then freeze and prove that interface as the supported `1.0.0` contract<br>
 > **Semantic scope:** no new rule, reasoning, temporal, decision, execution, policy, or delivery semantics after M30
@@ -27,6 +28,8 @@ M31 MUST focus on the PostgreSQL developer experience.
 
 M32 MUST focus on compatibility, installation, upgrades, recovery, security, performance, documentation, and independent usability evidence.
 
+M31 design validation begins during M30: the five-person usability cohort is recruited before M31 starts, and early transcript or prototype feedback may still change the interface. Fresh-install, populated `0.26.0` upgrade, rollback-by-restore and recovery, role-isolation, packaged-artifact, and performance evidence also runs continuously through M30 and M31; M32 consolidates already-green evidence rather than discovering these matrices for the first time.
+
 Neither milestone may introduce a second evaluation model, new reasoning semantics, a proprietary rule language, historical replay, hypothetical simulation, or another ordinary API family.
 
 ---
@@ -40,6 +43,8 @@ Neither milestone may introduce a second evaluation model, new reasoning semanti
 > **Direct upgrade:** `0.27.0 -> 0.28.0`<br>
 > **Primary outcome:** make ordinary pg-react usage feel like PostgreSQL with durable rules, rather than a framework whose internal engine concepts must be learned first<br>
 > **Feature policy:** no new runtime semantics
+
+M31 implementation MUST NOT begin until all M30-A through M30-D gates and the independent technical review pass, the five-person usability cohort is recruited, early design feedback is recorded, and the continuous v1 qualification lane is green.
 
 ---
 
@@ -1031,7 +1036,11 @@ Every ordinary documentation example executes in CI.
 
 The five-person usability fixture meets the frozen completion thresholds.
 
-### 21.11 Regression gate
+### 21.11 Continuous-qualification gate
+
+Fresh installation, populated upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged-artifact execution, and the frozen benchmark profiles remain green against the M31 candidate.
+
+### 21.12 Regression gate
 
 Every M0 through M30 semantic, security, recovery, and concurrency gate passes unchanged.
 
@@ -1046,7 +1055,7 @@ Every M0 through M30 semantic, security, recovery, and concurrency gate passes u
 > **Direct upgrade:** `0.28.0 -> 0.29.0`<br>
 > **Primary outcome:** freeze the supported product contract and prove that it can safely become `1.0.0`<br>
 > **Feature policy:** feature freeze<br>
-> **Successor:** `1.0.0`
+> **Successor:** at least one `1.0.0-rc.N`, then `1.0.0`
 
 ---
 
@@ -1055,6 +1064,8 @@ Every M0 through M30 semantic, security, recovery, and concurrency gate passes u
 M32 does not make pg-react broader.
 
 M32 proves that the M30 semantics and M31 interface are reliable enough for users to depend on for years.
+
+M32 MUST NOT begin until the continuous qualification lane has green evidence from M30 and M31 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M32 reruns and consolidates that evidence against `0.29.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
 
 M32 MUST freeze:
 
@@ -1187,14 +1198,14 @@ A deliberate incompatible change requires a future major release.
 
 ### 24.4 Advanced API policy
 
-M32 MUST identify which advanced surfaces receive:
+M32 MUST confirm the kind dispositions frozen in M30 and identify which advanced surfaces receive:
 
 - the full v1 compatibility promise;
 - semantic stability but provisional presentation;
 - compatibility-only preservation;
 - eventual deprecation.
 
-No public API may be left with ambiguous support status.
+No public API may be left with ambiguous support status, and no kind rejected by the M30 matrix may become accepted during M32.
 
 ---
 
@@ -1261,9 +1272,10 @@ Historical release evidence remains immutable and linked.
 
 ### 27.1 Direct upgrade from M29
 
-The final `1.0.0` release MUST provide and test a direct supported path:
+Every numbered release candidate and the final `1.0.0` release MUST provide and test direct supported paths:
 
 ```text
+0.26.0 -> 1.0.0-rc.N
 0.26.0 -> 1.0.0
 ```
 
@@ -1276,6 +1288,7 @@ The direct path MUST perform the same logical transformations as the staged path
 → 0.27.0
 → 0.28.0
 → 0.29.0
+→ 1.0.0-rc.N
 → 1.0.0
 ```
 
@@ -1286,7 +1299,8 @@ M32 MUST also test:
 ```text
 0.27.0 -> 0.28.0
 0.28.0 -> 0.29.0
-0.29.0 -> 1.0.0
+0.29.0 -> 1.0.0-rc.N
+qualified 1.0.0-rc.N -> 1.0.0
 ```
 
 ### 27.3 Populated upgrade evidence
@@ -1335,7 +1349,7 @@ When an upgrade requires reconciliation, it MUST establish an explicit barrier a
 
 ## 28. Installation and compatibility matrix
 
-M32 MUST publish one exact tested matrix.
+Starting with the frozen M30 kind dispositions and the environment evidence accumulated through M30 and M31, M32 MUST publish one exact tested matrix.
 
 It MUST identify:
 
@@ -1648,7 +1662,7 @@ Documentation and implementation divergence is a release blocker.
 
 ## 37. Independent v1 usability qualification
 
-M32 MUST repeat usability testing against the packaged release candidate.
+M32 MUST repeat usability testing against the packaged `0.29.0` candidate, and the evidence MUST remain valid or be rerun for every numbered `1.0.0` release candidate.
 
 At least **five PostgreSQL developers who did not implement pg-react** must complete the first-rule task.
 
@@ -1793,7 +1807,7 @@ M32 is incomplete without:
 16. compatibility test suite
 17. performance benchmark definitions and results
 18. packaged-artifact qualification suite
-19. populated `0.26.0 -> 1.0.0` upgrade fixture
+19. populated `0.26.0 -> 1.0.0-rc.N` and final GA upgrade fixture
 20. physical recovery fixture
 21. logical restore fixture
 22. standby promotion fixture where supported
@@ -1801,6 +1815,7 @@ M32 is incomplete without:
 24. documentation execution suite
 25. final SBOM and provenance pipeline
 26. final release checklist
+27. qualification record for every published `1.0.0-rc.N` artifact
 
 ---
 
@@ -1818,7 +1833,7 @@ The complete v1 ordinary API and compatibility policy are frozen.
 
 ### 42.3 Upgrade gate
 
-All adjacent upgrades and the direct `0.26.0 -> 1.0.0` rehearsal preserve the required populated state.
+All adjacent upgrades and the direct `0.26.0 -> 1.0.0-rc.N` and final GA rehearsals preserve the required populated state.
 
 ### 42.4 Recovery gate
 
@@ -1856,23 +1871,29 @@ Every supported failure mode has a public diagnosis and recovery path.
 
 Every M0 through M31 correctness, concurrency, security, recovery, execution, and compatibility gate passes against the exact M32 artifact.
 
+### 42.13 Release-candidate readiness gate
+
+The exact `0.29.0` artifact has enough green evidence to produce `1.0.0-rc.1`; it is not eligible for direct promotion to `1.0.0`.
+
 ---
 
-# Part III: Final 1.0.0 Qualification
+# Part III: Final `1.0.0` Release-Candidate and GA Qualification
 
 ## 43. Relationship between M32 and `1.0.0`
 
-`0.29.0` is the final v1 qualification candidate.
+`0.29.0` is the M32 qualification baseline, not the GA candidate.
 
 The transition:
 
 ```text
-0.29.0 -> 1.0.0
+0.29.0 -> 1.0.0-rc.1 -> ... -> 1.0.0
 ```
 
-MUST NOT introduce a new product capability.
+MUST include at least one numbered release-candidate cycle and MUST NOT introduce a new product capability.
 
-Permitted changes are limited to:
+Each exact `1.0.0-rc.N` packaged artifact MUST pass the complete applicable M32 suite, including fresh installation and a populated upgrade from `0.26.0`. Any change to extension code, SQL, packaging, compatibility behavior, or normative documentation requires a new numbered candidate and reruns the affected M32 evidence.
+
+Permitted candidate changes are limited to:
 
 - fixes required by qualification;
 - packaging;
@@ -1882,6 +1903,8 @@ Permitted changes are limited to:
 - compatibility corrections.
 
 Any change that alters rule, policy, decision, reasoning, lifecycle, or execution semantics MUST rerun the complete affected M32 qualification and be explicitly recorded.
+
+`1.0.0` may be published only by promoting a fully qualified candidate with no change other than final version metadata and mechanically corresponding checksums and provenance.
 
 ---
 
@@ -1913,7 +1936,7 @@ There are no known release-blocking correctness, security, compatibility, operat
 
 ### 44.5 Exact release artifact passes
 
-Tests MUST run against the exact source archive, binaries, and container intended for publication.
+At least one exact numbered `1.0.0-rc.N` source archive, binary set, and container passes the complete qualification suite, including fresh installation and populated upgrade from `0.26.0`. The exact GA artifacts MUST differ only by the permitted final version metadata, checksums, and provenance.
 
 A passing developer-tree test is insufficient.
 
@@ -2058,6 +2081,12 @@ Primary work:
 - pilots;
 - release evidence.
 
+### `1.0.0-rc.N`
+
+**Theme:** qualify the exact packaged v1 artifact.
+
+At least one numbered candidate is required. Fresh installation, populated upgrade from `0.26.0`, recovery, security, role isolation, documentation, usability, pilots, and performance evidence MUST apply to the exact candidate. Any material fix produces another candidate.
+
 ### `1.0.0`
 
 **Theme:** freeze and publish.
@@ -2067,6 +2096,8 @@ No new semantics.
 No new ordinary concepts.
 
 No new ordinary verbs.
+
+No change from the qualified candidate except final version metadata and mechanically corresponding checksums and provenance.
 
 ---
 
@@ -2162,6 +2193,7 @@ M29 / 0.26.0
 → M30 / 0.27.0
 → M31 / 0.28.0
 → M32 / 0.29.0
+→ 1.0.0-rc.1 / later RCs as required
 → 1.0.0
 ```
 
@@ -2224,4 +2256,4 @@ M31 establishes the interface people should learn.
 
 M32 proves that interface and behavior are ready to become a long-term compatibility commitment.
 
-Only then should the project publish `1.0.0`.
+The numbered release-candidate cycle then proves the exact packaged artifact before the project publishes `1.0.0`.

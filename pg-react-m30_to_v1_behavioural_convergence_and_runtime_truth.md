@@ -158,6 +158,25 @@ Scope-support transitions have the following required semantics:
 
 This support model prevents duplicate work while preserving exact policy-set provenance.
 
+### 5.5 Frozen v1 kind disposition
+
+M30-A MUST freeze the following disposition before implementation proceeds. No accepted kind may mean metadata registration without authoritative runtime behavior.
+
+| Kind | Ordinary object disposition | Policy-set member disposition |
+|---|---|---|
+| constraint or command `rule` | Fully authoritative and required for v1 | Fully authoritative and required for v1 |
+| `decision_program` | Fully authoritative and required for v1 | Fully authoritative and required for v1 |
+| `policy_set` | Fully authoritative and required for v1 | Unsupported and fail-closed; nested sets remain outside v1 |
+| `derived_program` | Supported with documented limitations through its specialized API | Supported with documented limitations and complete scope, support, retraction, recovery, and explanation evidence |
+| `temporal_policy`, including deadline, cooldown, and hysteresis behavior | Supported with documented limitations through its specialized API | Supported with documented limitations and complete inherited temporal evidence |
+| `effective_policy` | Supported with documented limitations through its specialized API | Supported with documented limitations and complete effective-date evidence |
+| `parameter_family` and parameterized policy behavior | Supported with documented limitations through specialized APIs | Supported with documented limitations and complete parameter-selection evidence |
+| `shared_condition` | Supported with documented limitations as reusable condition and applicability infrastructure | Unsupported and fail-closed as a member |
+| `decision_analysis` | Unsupported as a deployable object; analysis evidence only | Unsupported and fail-closed |
+| Any unlisted kind | Unsupported and fail-closed | Unsupported and fail-closed |
+
+M30 has no experimental runtime member kind. A future experimental kind must remain outside ordinary deployment and the v1 support promise until a separate contract defines its isolation, inspection, and failure behavior.
+
 ---
 
 ## 6. Policy-set execution contract
@@ -801,120 +820,60 @@ Fleet-wide inspection MUST not require invoking one function per target.
 M30 is incomplete without all of the following repository artifacts:
 
 1. `docs/m30-contract.md`
-2. `docs/m30-evidence.md`
-3. `docs/m30-readiness.md`
-4. `docs/m30-upgrade.md`
-5. `docs/m30-release-notes.md`
-6. `docs/m30-api-inventory.json`
-7. `tests/m30.sql`
-8. `tests/m30.sh`
-9. populated `tests/m30-upgrade-before.sql`
-10. populated `tests/m30-upgrade-after.sql`
-11. exact recovery, concurrency, security, and usability fixtures
-12. `sql/m30.sql`
-13. `sql/pg_react--0.26.0--0.27.0.sql`
-14. complete `sql/pg_react--0.27.0.sql`
-15. updated `ROADMAP.md`, README, support statement, release-state fixture, and API classification
+2. `docs/m30-support-matrix.md`
+3. `docs/m30-independent-review.md`
+4. `docs/m30-evidence.md`
+5. `docs/m30-readiness.md`
+6. `docs/m30-upgrade.md`
+7. `docs/m30-release-notes.md`
+8. `docs/m30-api-inventory.json`
+9. `tests/m30.sql`
+10. `tests/m30.sh`
+11. populated `tests/m30-upgrade-before.sql`
+12. populated `tests/m30-upgrade-after.sql`
+13. exact recovery, concurrency, security, and usability fixtures
+14. `sql/m30.sql`
+15. `sql/pg_react--0.26.0--0.27.0.sql`
+16. complete `sql/pg_react--0.27.0.sql`
+17. updated `ROADMAP.md`, README, support statement, release-state fixture, and API classification
 
 Every SQL and command example in ordinary M30 documentation MUST execute in CI.
 
+From the first M30 implementation change onward, CI MUST maintain one continuous v1 qualification lane covering fresh installation, the populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged-artifact execution, and the current performance budgets. Every M30 hard gate records this evidence, M31 continues it, and M32 consolidates it; M32 MUST NOT be the first milestone to exercise any of these matrices.
+
 ---
 
-## 16. Implementation sequence
+## 16. Internal hard gates and implementation sequence
 
-### Slice 1: Freeze the M30 contract and failing fixtures
+M30 remains one public `0.27.0` release, but implementation proceeds through four independently reviewable hard gates. A later gate MUST NOT begin until the preceding gate's contract, exact fixtures, continuous qualification evidence, and review record are committed; façade-level or assumed behavior is not acceptable evidence.
 
-Before catalog implementation begins:
+### M30-A: Support boundary, identities, and relational eligibility
 
-1. freeze match identity, subject identity, scope mode, and support semantics;
-2. freeze the ordinary kind disposition;
-3. record the exact `0.26.0` façade and M29 behavior;
-4. add the first failing runtime-gating fixture;
-5. freeze expected transition, work, and explanation outputs.
+Before runtime implementation begins:
 
-No implementation shortcut may weaken these expected outputs into count-only assertions.
+1. freeze the v1 kind-disposition matrix, match identity, subject identity, scope mode, support semantics, schemas, indexes, limits, and migration states;
+2. record the exact `0.26.0` façade and M29 behavior;
+3. add the first failing runtime-gating fixture with exact transition, work, and explanation output;
+4. create the relational eligibility store, indexes, public views, fingerprints, and bounded evidence rendering;
+5. prove that one eligibility-row change does not rewrite a complete set snapshot.
 
-### Slice 2: Make the façade truthful
+No implementation shortcut may weaken exact expected outputs into count-only assertions.
 
-Implement the runtime-adapter registry and strict kind validation.
+### M30-B: Authoritative adapters and lifecycle closure
 
-Change generic behavior so:
+Implement the runtime-adapter registry and strict kind validation so unsupported kinds fail before mutation; status never infers deployment from metadata; explain and doctor delegate to authoritative implementations; referenced PostgreSQL-object rename or drift is resolved or blocked explicitly; replacement and removal close runtime, lifecycle, and work state; and target-based run has one documented global scope.
 
-- unsupported kinds fail before mutation;
-- status never infers deployment from metadata alone;
-- explain and doctor delegate to real implementations;
-- remove retires authoritative runtime behavior;
-- target-based run no longer has kind-dependent scope.
+Complete the command-rule vertical slice using `order_id` as match identity and `customer_id` as subject identity, including activation, change, deactivation, pending, retrying and leased work, overlapping sets, expiry, removal, source drift, and repair. Then complete exact lifecycle, provenance, work, recovery, and explanation fixtures for every supported member kind in the frozen matrix.
 
-This slice is complete before policy-set execution depends on the façade.
+### M30-C: Atomic policy-set coordination
 
-### Slice 3: Add subject identity
+Route applicability refresh, raw and effective truth, decisions, derivations, lifecycle, work revalidation, attempts, and frontiers through the existing global coordinator. Exact fixtures MUST prove eligibility entry, exit and return, overlapping support, member and set replacement, claimed-work invalidation, invalid-source barriers, crash boundaries, and every frozen lock ordering without mixed frontiers or duplicate work.
 
-Add canonical `match_keys`, `subject_keys`, and `scope_mode`.
+### M30-D: Migration and release proof
 
-Reuse codec v2 for composite subject identity.
+Complete legacy metadata classification, M29 scope migration, the populated direct upgrade, physical and logical recovery, restart, standby promotion where supported, retention, role isolation, public observability, documentation, packaged-artifact execution, and the measured performance envelope. Run every inherited M0 through M29 gate unchanged.
 
-Migrate global member versions without changing their behavior.
-
-Add exact validation for key arity, order, type, collation, nullability, duplicates, and source-column compatibility.
-
-### Slice 4: Replace JSONB eligibility with relational state
-
-Create the relational eligibility store, migration metadata, indexes, public views, fingerprints, and bounded evidence rendering.
-
-Keep the released 100,000-subject limit until measured evidence supports a new limit.
-
-Prove that one eligibility-row change does not rewrite a complete set snapshot.
-
-### Slice 5: Complete the rule vertical slice
-
-Implement end-to-end gating for one command rule with:
-
-- `order_id` as match identity;
-- `customer_id` as subject identity;
-- activation, change, and deactivation consequences;
-- pending, retrying, and leased work;
-- two overlapping policy sets;
-- set expiry and removal;
-- source drift and repair.
-
-This is the milestone’s critical vertical slice.
-
-### Slice 6: Complete every supported member adapter
-
-Add equivalent scope semantics for:
-
-- constraint rules;
-- temporal and deadline policies;
-- effective-dated policies;
-- parameterized policies;
-- decision programs;
-- derivation programs.
-
-A member kind remains unreleasable until its exact lifecycle, provenance, work, recovery, and explanation fixture passes.
-
-### Slice 7: Migration, recovery, and observability
-
-Implement:
-
-- legacy metadata classification;
-- M29 scope-migration status;
-- direct populated upgrade;
-- physical restore;
-- logical dump and restore;
-- restart and crash recovery;
-- standby promotion;
-- retention;
-- public migration and barrier views;
-- exact doctor and explanation outputs.
-
-### Slice 8: Documentation and release qualification
-
-Rewrite the ordinary workflow around scoped rules and global `run()`.
-
-Run all inherited M0 through M29 gates unchanged.
-
-Publish the exact support matrix, resource limits, known cliffs, migration steps, and evidence artifacts before tagging `v0.27.0`.
+Before M30 closes, at least one reviewer who did not implement the reviewed subsystem and has PostgreSQL extension, transaction, locking, and migration expertise MUST approve the eligibility data model, total lock order, policy-set atomicity, referenced-object rename/drift behavior, replacement and removal closure, failure recovery, and direct-upgrade behavior. Publish the support matrix, limits, known cliffs, migration steps, review record, and evidence artifacts before tagging `v0.27.0`.
 
 ---
 
@@ -1127,7 +1086,7 @@ The reference workflow MUST:
 - complete without maintainer interpretation;
 - execute in CI with exact expected output.
 
-At least five independently observed PostgreSQL developers SHOULD complete the reference workflow before the v1 API freezes. M30 records the fixture and measurement method; final v1 hardening owns the release threshold.
+Before M30 closes, the project MUST recruit at least five PostgreSQL developers who did not implement the API for the M31 usability cohort. At least two SHOULD review the M31 golden-path transcript or an executable prototype during M30 so conceptual feedback can change the interface before it freezes. M30 records that design feedback and the measurement method; M31 and final v1 hardening own their release thresholds.
 
 ---
 
@@ -1257,7 +1216,15 @@ The measured supported envelope is published, single-subject changes use indexed
 
 Every ordinary example executes in CI, and an independent PostgreSQL developer can complete the scoped-rule workflow without private knowledge.
 
-### 23.15 Inherited-evidence gate
+### 23.15 Independent-review gate
+
+The required PostgreSQL extension, transaction, locking, migration, lifecycle, recovery, and direct-upgrade review is complete, every blocking finding is resolved, and the M31 usability cohort is recruited.
+
+### 23.16 Continuous-qualification gate
+
+Fresh install, populated direct upgrade, rollback-by-restore and recovery, role-isolation, packaged-artifact, and performance-budget evidence has remained green at every applicable M30 hard gate.
+
+### 23.17 Inherited-evidence gate
 
 Every M0 through M29 release gate passes unchanged against the exact `0.27.0` artifact.
 
@@ -1273,13 +1240,16 @@ Approval of this proposal changes the immediate sequence to:
 2. **M31: PostgreSQL-Native Ergonomics**<br>
    Add typed constructors, relational diagnostics, final vocabulary, one public schema strategy, richer preview, migration-oriented export, and copy-and-run workflows.
 
-3. **M32: V1 Hardening and Release Candidate**<br>
-   Freeze the v1 compatibility matrix, documentation, upgrade path, packaging, performance envelope, deprecations, and external usability evidence.
+3. **M32: V1 Hardening and Release Qualification**<br>
+   Freeze the v1 compatibility matrix, documentation, upgrade path, packaging, performance envelope, deprecations, and external usability evidence in `0.29.0`.
 
-4. **Version 1.0.0**<br>
-   Publish only correctness, migration, documentation, compatibility, security, packaging, and operational fixes after the release-candidate freeze.
+4. **Version 1.0.0 release-candidate cycle**<br>
+   Publish at least one exact `1.0.0-rc.N` packaged artifact and qualify both fresh installation and populated upgrade from `0.26.0`; any fix requires a new candidate and affected evidence rerun.
 
-5. **Post-v1 simulation sequence**<br>
+5. **Version 1.0.0**<br>
+   Promote only a fully qualified release candidate, with no capability or semantic change.
+
+6. **Post-v1 simulation sequence**<br>
    Introduce hypothetical facts, deployment comparison, replay, backtesting, and why-changed analysis on top of the frozen runtime model.
 
 ---
