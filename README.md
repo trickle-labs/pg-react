@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M28 is extension `0.25.0` candidate documentation. M28 adds one names-first workflow—define, validate, preview, deploy, run, and inspect—while preserving the specialized M0–M27 APIs. See the [M28 contract](docs/m28-contract.md) and [readiness record](docs/m28-readiness.md).
+> pg-react M29 is extension `0.26.0` candidate documentation. M29 adds versioned policy sets: one named group of existing policies can apply only to a typed, finite PostgreSQL population. See the [M29 contract](docs/m29-contract.md) and [readiness record](docs/m29-readiness.md).
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -215,12 +215,13 @@ PostgreSQL data, and joined condition views continue to define the business
 logic. M26 is the `0.23.0` decision-table candidate: the lowest numeric
 priority wins, equal best priorities are an explicit ambiguity, and subjects
 with no remaining candidates retain a clear no-candidate state. M27 is the
-`0.24.0` decision coverage and conflict-analysis candidate. M28 is the
-`0.25.0` public API convergence candidate: it adds versioned declarations,
+`0.24.0` decision coverage and conflict-analysis release. M28 was the
+`0.25.0` public API convergence release: it added versioned declarations,
 names-first targets, common result envelopes, and additive façade verbs. See the [M24
 contract](docs/m24-contract.md), [M25 contract](docs/m25-contract.md), [M26
 contract](docs/m26-contract.md), [M27 contract](docs/m27-contract.md), and
-[M28 contract](docs/m28-contract.md).
+[M28 contract](docs/m28-contract.md). M29 is the `0.26.0` policy-set gating
+candidate; see the [M29 contract](docs/m29-contract.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 

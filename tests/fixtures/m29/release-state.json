@@ -1,0 +1,11 @@
+{
+  "milestone": "M29",
+  "target_version": "0.26.0",
+  "direct_upgrade": "0.25.0 -> 0.26.0",
+  "fast_command": "tests/m29.sh fast pg-react:v0.26.0",
+  "complete_command": "tests/m29.sh complete pg-react:v0.26.0",
+  "ordinary_kind": "policy_set",
+  "ordinary_verbs": 8,
+  "next_milestone": "M30 - Hypothetical fact simulation",
+  "status": "candidate; publish v0.26.0 only after complete inherited and independent evidence passes"
+}

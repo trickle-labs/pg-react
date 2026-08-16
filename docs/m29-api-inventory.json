@@ -1,0 +1,10 @@
+{
+  "milestone": "M29",
+  "extension_version": "0.26.0",
+  "ordinary_kind": "policy_set",
+  "ordinary_verbs": ["validate", "preview", "deploy", "run", "status", "explain", "doctor", "remove"],
+  "inspection_views": ["pgreact.policy_sets", "pgreact.policy_set_versions", "pgreact.policy_set_members", "pgreact.policy_set_eligible_subjects"],
+  "contract_version": 17,
+  "direct_upgrade": "0.25.0 -> 0.26.0",
+  "next_milestone": "M30 - Hypothetical fact simulation"
+}
