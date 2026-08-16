@@ -32,4 +32,4 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: docker compose config --quiet
-      - run: docker build --tag pg-react:v0.18.0 . && bash tests/m21.sh fast pg-react:v0.18.0
+      - run: docker build --tag pg-react:v0.26.0 . && bash tests/m29.sh fast pg-react:v0.26.0
