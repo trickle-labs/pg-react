@@ -1,0 +1,42 @@
+{
+  "milestone": "M28",
+  "api_version": "1",
+  "envelope_contract_version": 16,
+  "source_release": "0.24.0",
+  "inventory_view": "pgreact.api_inventory",
+  "ordinary": [
+    "pgreact_api.declaration",
+    "pgreact_api.target",
+    "pgreact_api.validate(declaration)",
+    "pgreact_api.preview(declaration, jsonb)",
+    "pgreact_api.deploy(declaration, jsonb)",
+    "pgreact_api.remove(target, jsonb)",
+    "pgreact_api.run(target, timestamptz)",
+    "pgreact_api.status(target, jsonb)",
+    "pgreact_api.explain(target, jsonb, jsonb)",
+    "pgreact_api.doctor(target, jsonb)"
+  ],
+  "classification": {
+    "ordinary": "recommended common workflow",
+    "advanced": "supported feature-specific control or lossless evidence",
+    "compatibility": "released M0-M27 identity retained for existing clients",
+    "administrative": "installation, grants, recovery, migration, or repair",
+    "internal": "private catalog or implementation surface"
+  },
+  "governance": {
+    "new_ordinary_verb_requires_adr": true,
+    "unknown_declaration_fields_are_errors": true,
+    "names_first": true,
+    "public_access_expanded": false
+  },
+  "representative_kinds": [
+    "rule",
+    "derived_program",
+    "temporal_policy",
+    "shared_condition",
+    "effective_policy",
+    "parameter_family",
+    "decision_program",
+    "decision_analysis"
+  ]
+}

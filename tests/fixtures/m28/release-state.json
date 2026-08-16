@@ -1,0 +1,12 @@
+{
+  "milestone": "M28",
+  "target_version": "0.25.0",
+  "direct_upgrade": "0.24.0 -> 0.25.0",
+  "fast_command": "tests/m28.sh fast pg-react:v0.25.0",
+  "complete_command": "tests/m28.sh complete pg-react:v0.25.0",
+  "envelope_contract_version": 16,
+  "ordinary_verbs": ["validate", "preview", "deploy", "remove", "run", "status", "explain", "doctor"],
+  "representative_kinds": ["rule", "derived_program", "temporal_policy", "shared_condition", "effective_policy", "parameter_family", "decision_program", "decision_analysis"],
+  "next_milestone": "M29 - Policy-set gating",
+  "status": "candidate; publish v0.25.0 only after complete inherited and independent evidence passes"
+}

@@ -3,7 +3,7 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M27 is extension `0.24.0` candidate documentation. M27 defines bounded coverage and conflict analysis for a proposed decision version, including ties, overlap, missing defaults, unreachable candidates, uncovered subjects, and material winner-distribution changes. See the [M27 contract](docs/m27-contract.md) and [readiness record](docs/m27-readiness.md).
+> pg-react M28 is extension `0.25.0` candidate documentation. M28 adds one names-first workflow—define, validate, preview, deploy, run, and inspect—while preserving the specialized M0–M27 APIs. See the [M28 contract](docs/m28-contract.md) and [readiness record](docs/m28-readiness.md).
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -215,9 +215,12 @@ PostgreSQL data, and joined condition views continue to define the business
 logic. M26 is the `0.23.0` decision-table candidate: the lowest numeric
 priority wins, equal best priorities are an explicit ambiguity, and subjects
 with no remaining candidates retain a clear no-candidate state. M27 is the
-`0.24.0` decision coverage and conflict-analysis candidate. See the [M24
+`0.24.0` decision coverage and conflict-analysis candidate. M28 is the
+`0.25.0` public API convergence candidate: it adds versioned declarations,
+names-first targets, common result envelopes, and additive façade verbs. See the [M24
 contract](docs/m24-contract.md), [M25 contract](docs/m25-contract.md), [M26
-contract](docs/m26-contract.md), and [M27 contract](docs/m27-contract.md).
+contract](docs/m26-contract.md), [M27 contract](docs/m27-contract.md), and
+[M28 contract](docs/m28-contract.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 

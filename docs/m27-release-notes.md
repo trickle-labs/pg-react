@@ -33,4 +33,5 @@ ALTER EXTENSION pg_react UPDATE TO '0.24.0';
 The review is a checkpoint, not a prediction of every future data change. The
 implementation is validated as a release candidate; publish `v0.24.0` only
 after the M27 readiness gates and all inherited M0–M26 evidence pass. The next
-planned milestone is M28, which adds policy-set gating.
+planned milestone is M28, which converges the public API around one names-first
+define, validate, preview, deploy, run, and inspect workflow.

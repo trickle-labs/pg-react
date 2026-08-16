@@ -15,7 +15,7 @@
 | Authorization | Inherited PostgreSQL ownership, grants, and reader/author/reviewer/deployer/operator boundaries |
 | Recovery | Inherited coordinator, retention, restore, standby-promotion, and worker paths |
 | Upgrade | Populated direct `0.23.0 -> 0.24.0` path |
-| Next milestone | M28 — Policy-set gating |
+| Next milestone | M28 — Public API convergence and ergonomics |
 
 M27 does not provide a predicate parser, proof over hypothetical or undeclared
 facts, policy-set gating, per-key deployment impact simulation, replay,

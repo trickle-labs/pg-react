@@ -14,6 +14,6 @@
     "M27_UNCOVERED_POPULATION",
     "M27_WINNER_DISTRIBUTION"
   ],
-  "next_milestone": "M28 - Policy-set gating",
+  "next_milestone": "M28 - Public API convergence and ergonomics",
   "status": "candidate; publish v0.24.0 only after complete inherited and independent evidence passes"
 }

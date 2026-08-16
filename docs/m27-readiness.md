@@ -22,5 +22,6 @@ authorization results, remediation, deployment state, and final checksums.
 It must also verify the release archive's checksums, SBOM, provenance, OCI
 digest, documentation, and usability record.
 
-The logical next milestone is M28 — Policy-set gating. M28 is already named in
-the roadmap, but its implementation contract is not part of M27.
+The logical next milestone is M28 — Public API convergence and ergonomics.
+Policy-set gating is now the proposed M29 milestone; M28's implementation
+contract is defined in `docs/m28-contract.md`.
