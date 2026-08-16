@@ -860,7 +860,8 @@ Before authoritative runtime implementation begins:
 2. record the exact `0.26.0` façade and M29 behavior;
 3. add the failing, then passing, applicability fixtures with exact identity, transition, support, inspection, and barrier output;
 4. create the relational eligibility and scope-support stores, indexes, public views, fingerprints, bounded evidence rendering, and migration classification;
-5. prove that one eligibility-row change does not rewrite a complete set snapshot.
+5. prove that one eligibility-row change does not rewrite a complete set snapshot;
+6. freeze the claimed-work identity and data required for later revalidation without claiming M30 skip or withdrawal execution semantics.
 
 No implementation shortcut may weaken exact expected outputs into count-only assertions.
 

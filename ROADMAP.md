@@ -1789,7 +1789,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 **Release boundary:** M30 freezes the applicability contract. Its exit gate is the former M30-A foundation gate; no runtime implementation may redefine these semantics afterward.
 
-**Entry gate:** the exact `v0.26.0` release artifacts and populated upgrade evidence are published and verified, and every M0–M29 gate passes unchanged. Before implementation, freeze the applicability fixture transcript proving that one raw rule match plus one ineligible subject is out of scope, eligibility entry and exit are represented exactly, reentry is a new generation, and claimed work can be identified for later revalidation. The detailed planning basis is the [M30/M31 behavioral-convergence and runtime-truth proposal](pg-react-m30_to_v1_behavioural_convergence_and_runtime_truth.md).
+**Entry gate:** the exact `v0.26.0` release artifacts and populated upgrade evidence are published and verified, and every M0–M29 gate passes unchanged. Before implementation, freeze the applicability fixture transcript proving that one raw rule match plus one ineligible subject is out of scope, eligibility entry and exit are represented exactly, reentry is a new generation, and the claimed-work identity/data required for later revalidation can be inspected. M30 freezes that revalidation input only; M31 proves the actual skip and withdrawal execution semantics. The detailed planning basis is the [M30/M31 behavioral-convergence and runtime-truth proposal](pg-react-m30_to_v1_behavioural_convergence_and_runtime_truth.md).
 
 ### Deliverables
 
@@ -1803,6 +1803,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 ### Supported boundary
 
 - M30 freezes the identity, scope, disposition, storage, migration, and inspection contracts that M31 will execute.
+- M30 freezes the claimed-work identity and data required for M31 revalidation, but not the resulting skip or withdrawal behavior.
 - A scoped match is modeled as effective only when raw member truth exists and at least one current policy-set-version support admits its subject.
 - Match identity and subject identity are independent; several matches may share one subject, and several sets may support one match without implying duplicate activation or work.
 - Existing M28 delegated rules and decisions migrate as `GLOBAL`; metadata-only declarations remain inspectable as `LEGACY_METADATA`; existing M29 sets remain `NEEDS_SCOPE_MIGRATION`.
