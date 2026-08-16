@@ -2,7 +2,7 @@
 
 ## A speculative 30-milestone roadmap for pg-react
 
-> **Planning status (August 2026):** this remains a product-direction document, not the canonical milestone schedule. [`ROADMAP.md`](../ROADMAP.md) now defines M30a as the applicability foundation, M30b as authoritative runtime truth, M31 as PostgreSQL-native ergonomics, and M32 as v1 hardening; the simulation, replay, backtesting, and comparison themes below move to the proposed M33–M37 sequence.
+> **Planning status (August 2026):** this remains a product-direction document, not the canonical milestone schedule. [`ROADMAP.md`](../ROADMAP.md) now defines M30 as the applicability foundation, M31 as authoritative runtime truth, M32 as the PostgreSQL-native interface, and M33 as v1 qualification and freeze; the simulation, replay, backtesting, and comparison themes below move to the proposed M34–M38 sequence.
 
 Related vision documents: [Product thesis](pg-react_product_thesis.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
 
@@ -116,7 +116,7 @@ The design should remain relational: gating populations should be typed PostgreS
 
 At this point pg-react can express and operate substantial policy. The next problem is change risk. A powerful rule system becomes genuinely valuable when users can see what a policy change would do before they commit it.
 
-## M30 — Hypothetical fact simulation
+## M35 — Hypothetical fact simulation
 
 M30 introduces side-effect-free what-if evaluation. A caller supplies bounded hypothetical inserts, updates, or deletes and asks what the selected rule or program would conclude.
 
@@ -124,15 +124,15 @@ The simulation should use the same normalized semantics as production but mutate
 
 This is useful in interactive applications, support tooling, eligibility analysis, debugging, and policy design. It also creates the evaluation kernel needed for later backtesting.
 
-## M31 — Deployment impact simulation
+## M34 — Deployment impact simulation
 
-M30 changes facts under the current policy. M31 changes policy against current facts.
+M35 changes facts under the current policy. M34 changes policy against current facts.
 
 Before replacing a rule or program, users should be able to compare the currently deployed version with the proposed version and see which business keys would activate, deactivate, change derived values, select different decision winners, or produce different would-be work.
 
 This turns deployment preview from schema validation into business impact analysis. A policy author can answer “who changes?” before the new version is made authoritative.
 
-## M32 — Historical replay
+## M36 — Historical replay
 
 Historical replay extends simulation over a deterministic sequence of fact changes. The user provides an initial snapshot and an ordered history, and pg-react evaluates one frozen policy version through that history without executing real consequences.
 
@@ -292,7 +292,7 @@ M19 through M23 make the engine structurally complete enough to support larger r
 
 M24 through M29 turn rules into **business policy** and converge its public surface. Policy gains versions, effective dates, typed variation, deterministic decisions, applicability boundaries, and one ordinary workflow.
 
-M30 through M33 make that policy **safe to change**. Users no longer need to deploy first and understand impact second. Simulation, replay, and backtesting bring evidence into the change process.
+M34 through M38 make that policy **safe to change**. Users no longer need to deploy first and understand impact second. Simulation, replay, and backtesting bring evidence into the change process.
 
 M34 through M38 make the system **deeply explainable**. Current truth, historical change, causal lineage, and policy differences become first-class inspection surfaces.
 
@@ -307,7 +307,7 @@ M19–M23   complete the rule runtime
     ↓
 M24–M29   make business policy first-class and converge its public API
     ↓
-M30–M33   make policy safe to change
+M34–M38   make policy safe to change
     ↓
 M34–M38   make decisions deeply explainable
     ↓

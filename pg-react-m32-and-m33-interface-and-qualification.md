@@ -1,56 +1,56 @@
-# M31 + M32: PostgreSQL-Native Ergonomics and V1 Hardening
+# M32 + M33: PostgreSQL-Native Interface and V1 Qualification
 
 > **Status:** Proposed v1 program<br>
 > **Date:** 2026-08-16<br>
-> **Predecessor:** M30a + M30b / proposed extension `0.27.0`<br>
-> **M31 proposed release:** extension `0.28.0`<br>
-> **M32 proposed release:** extension `0.29.0`<br>
+> **Predecessor:** M30 + M31 / proposed extension `0.27.0`<br>
+> **M32 proposed release:** extension `0.28.0`<br>
+> **M33 proposed release:** extension `0.29.0`<br>
 > **Required release candidate:** at least one exact `1.0.0-rc.N` artifact<br>
 > **Final release:** extension `1.0.0`<br>
 > **Direct v1 qualification and GA upgrade targets:** `0.26.0 -> 1.0.0-rc.N` and `0.26.0 -> 1.0.0`<br>
-> **Replaces:** the currently planned M31 deployment-impact simulation and M32 historical replay milestones<br>
+> **Replaces:** the currently planned M32 deployment-impact simulation and M33 historical replay milestones<br>
 > **Primary outcome:** make pg-react easy for PostgreSQL developers to learn and operate, then freeze and prove that interface as the supported `1.0.0` contract<br>
-> **Semantic scope:** no new rule, reasoning, temporal, decision, execution, policy, or delivery semantics after M30b
+> **Semantic scope:** no new rule, reasoning, temporal, decision, execution, policy, or delivery semantics after M31
 
 ---
 
 ## 1. Decision
 
-M31 and M32 should complete the path from the M30a/M30b behavioral foundation to pg-react `1.0.0`.
+M32 and M33 should complete the path from the M30/M31 behavioral foundation to pg-react `1.0.0`.
 
 The program is divided deliberately:
 
-> **M30a establishes the applicability foundation. M30b makes the product authoritative. M31 makes the correct product easy to use. M32 proves it is stable enough to freeze.**
+> **M30 establishes the applicability foundation. M31 makes the product authoritative. M32 makes the correct product easy to use. M33 proves it is stable enough to freeze.**
 
-The current roadmap assigns M31 to deployment-impact simulation and M32 to historical replay. Those capabilities are valuable, but neither is necessary to make the existing engine a powerful, ergonomic PostgreSQL-native rule engine. Both introduce substantial new semantic and testing surface immediately before the point where the project most needs convergence and stability. They should therefore move after `1.0.0`.
+The current roadmap assigns M32 to deployment-impact simulation and M33 to historical replay. Those capabilities are valuable, but neither is necessary to make the existing engine a powerful, ergonomic PostgreSQL-native rule engine. Both introduce substantial new semantic and testing surface immediately before the point where the project most needs convergence and stability. They should therefore move after `1.0.0`.
 
-M31 MUST focus on the PostgreSQL developer experience.
+M32 MUST focus on the PostgreSQL developer experience.
 
-M32 MUST focus on compatibility, installation, upgrades, recovery, security, performance, documentation, and independent usability evidence.
+M33 MUST focus on compatibility, installation, upgrades, recovery, security, performance, documentation, and independent usability evidence.
 
-M31 design validation begins during M30b: the five-person usability cohort is recruited before M31 starts, and early transcript or prototype feedback may still change the interface. Fresh-install, populated `0.26.0` upgrade, rollback-by-restore and recovery, role-isolation, packaged-artifact, and performance evidence also runs continuously through M30a, M30b, and M31; M32 consolidates already-green evidence rather than discovering these matrices for the first time.
+M32 design validation begins during M31: the five-person usability cohort is recruited before M32 starts, and early transcript or prototype feedback may still change the interface. Fresh-install, populated `0.26.0` upgrade, rollback-by-restore and recovery, role-isolation, packaged-artifact, and performance evidence also runs continuously through M30, M31, and M32; M33 consolidates already-green evidence rather than discovering these matrices for the first time.
 
 Neither milestone may introduce a second evaluation model, new reasoning semantics, a proprietary rule language, historical replay, hypothetical simulation, or another ordinary API family.
 
 ---
 
-# Part I: M31
+# Part I: M32
 
-# M31: PostgreSQL-Native Ergonomics
+# M32: PostgreSQL-Native Interface
 
 > **Proposed extension:** `0.28.0`<br>
-> **Predecessor:** M30a + M30b / `0.27.0`<br>
+> **Predecessor:** M30 + M31 / `0.27.0`<br>
 > **Direct upgrade:** `0.27.0 -> 0.28.0`<br>
 > **Primary outcome:** make ordinary pg-react usage feel like PostgreSQL with durable rules, rather than a framework whose internal engine concepts must be learned first<br>
 > **Feature policy:** no new runtime semantics
 
-M31 implementation MUST NOT begin until M30a and M30b, the independent technical review, the recruited five-person usability cohort, recorded early design feedback, and the continuous v1 qualification lane are green.
+M32 implementation MUST NOT begin until M30 and M31, the independent technical review, the recruited five-person usability cohort, recorded early design feedback, and the continuous v1 qualification lane are green.
 
 ---
 
-## 2. M31 objective
+## 2. M32 objective
 
-M31 is complete when a PostgreSQL developer can understand, author, deploy, inspect, diagnose, replace, and remove the ordinary pg-react objects without:
+M32 is complete when a PostgreSQL developer can understand, author, deploy, inspect, diagnose, replace, and remove the ordinary pg-react objects without:
 
 - constructing JSON by hand for the common path;
 - supplying UUIDs;
@@ -69,7 +69,7 @@ This follows the project's existing PostgreSQL-facing design goal: ordinary user
 
 ---
 
-## 3. M31 product principles
+## 3. M32 product principles
 
 ### 3.1 PostgreSQL is the language
 
@@ -113,7 +113,7 @@ Derivations, temporal state, provenance, event-time correction, parameter famili
 
 An author SHOULD specify only information pg-react cannot derive safely.
 
-M31 SHOULD infer, where unambiguous:
+M32 SHOULD infer, where unambiguous:
 
 - whether a rule is constraint-only or command-producing;
 - condition row type;
@@ -168,7 +168,7 @@ Unexpected infrastructure errors SHOULD use stable SQLSTATE values together with
 
 ## 4. Canonical v1 schema strategy
 
-M31 MUST resolve the current naming split between ordinary `pgreact_api` functions and `pgreact` inspection objects.
+M32 MUST resolve the current naming split between ordinary `pgreact_api` functions and `pgreact` inspection objects.
 
 The canonical v1 experience SHOULD use:
 
@@ -194,9 +194,9 @@ SELECT * FROM pgreact.work;
 
 Existing released `pgreact_api` functions MUST remain available through compatibility wrappers where preserving their contract is required. Compatibility wrappers MUST delegate to the same authoritative internal implementation and MUST NOT become a second behavior path.
 
-M31 documentation MUST teach one schema only for new ordinary usage.
+M32 documentation MUST teach one schema only for new ordinary usage.
 
-The project naming section already states that PostgreSQL functions belong in `pgreact`, while much of the current ordinary API is demonstrated through `pgreact_api`; M31 closes that product inconsistency.
+The project naming section already states that PostgreSQL functions belong in `pgreact`, while much of the current ordinary API is demonstrated through `pgreact_api`; M32 closes that product inconsistency.
 
 ---
 
@@ -218,11 +218,11 @@ It MUST remain supported.
 
 It MUST NOT remain the primary hand-authored SQL interface.
 
-M28 intentionally established declarations as a transport and composition format rather than a second rule language. M31 builds a PostgreSQL-native authoring layer that normalizes into that same representation.
+M28 intentionally established declarations as a transport and composition format rather than a second rule language. M32 builds a PostgreSQL-native authoring layer that normalizes into that same representation.
 
 ### 5.2 Typed constructors
 
-M31 MUST provide typed constructors for every ordinary v1 deployable kind.
+M32 MUST provide typed constructors for every ordinary v1 deployable kind.
 
 At minimum:
 
@@ -270,7 +270,7 @@ SELECT pgreact.rule(
 );
 ```
 
-The exact function signatures are frozen by the M31 contract, but they MUST satisfy these requirements:
+The exact function signatures are frozen by the M32 contract, but they MUST satisfy these requirements:
 
 - names use PostgreSQL scalar types;
 - relations use `regclass`;
@@ -285,13 +285,13 @@ The exact function signatures are frozen by the M31 contract, but they MUST sati
 
 ### 5.4 Action identity
 
-M31 MUST freeze one ordinary representation for actions.
+M32 MUST freeze one ordinary representation for actions.
 
 Database-local actions MUST resolve to exact function identity at deployment.
 
 Function overload resolution MUST NOT depend on `search_path`.
 
-The existing M13 action contract already records exact function OID, qualified `regprocedure`, function digest, dispatcher identity, and dispatcher digest so later overload or search-path changes cannot silently retarget work. M31 preserves that guarantee.
+The existing M13 action contract already records exact function OID, qualified `regprocedure`, function digest, dispatcher identity, and dispatcher digest so later overload or search-path changes cannot silently retarget work. M32 preserves that guarantee.
 
 ### 5.5 Policy-set constructor
 
@@ -331,7 +331,7 @@ No new decision semantics are permitted.
 
 ## 6. Canonical ordinary verbs
 
-M31 MUST freeze the intended `1.0.0` ordinary verb set.
+M32 MUST freeze the intended `1.0.0` ordinary verb set.
 
 The target set is:
 
@@ -348,9 +348,9 @@ pgreact.doctor([target])
 pgreact.run([sampled_time])
 ```
 
-M28 established this common workflow concept. M31 converts it from a convergence façade into the final PostgreSQL-native author experience.
+M28 established this common workflow concept. M32 converts it from a convergence façade into the final PostgreSQL-native author experience.
 
-No new top-level ordinary verb may be added in M31 unless:
+No new top-level ordinary verb may be added in M32 unless:
 
 1. an existing verb cannot represent the operation without becoming misleading;
 2. the operation has materially different side effects;
@@ -375,7 +375,7 @@ SELECT pgreact.run(sampled_time => ...);
 
 M13 already defines the canonical coordinator as one globally serialized, atomic run.
 
-M31 ordinary documentation MUST NOT teach:
+M32 ordinary documentation MUST NOT teach:
 
 ```text
 run_rule
@@ -397,7 +397,7 @@ If a maintenance operation has materially different semantics, such as repair, r
 
 ### 8.1 Required ordinary views
 
-M31 MUST freeze a compact relational inspection surface equivalent to:
+M32 MUST freeze a compact relational inspection surface equivalent to:
 
 ```text
 pgreact.rules
@@ -409,7 +409,7 @@ pgreact.attempts
 pgreact.health
 ```
 
-The exact final inventory is an M31 contract decision.
+The exact final inventory is an M32 contract decision.
 
 The ordinary views MUST be sufficient for common SQL questions without joining private catalogs.
 
@@ -559,7 +559,7 @@ Every blocking finding MUST provide a remediation.
 
 ## 10. Common finding taxonomy
 
-M31 MUST freeze a stable finding structure.
+M32 MUST freeze a stable finding structure.
 
 Every finding MUST contain:
 
@@ -613,7 +613,7 @@ The semantic meaning of a stable code MUST NOT silently change.
 
 ## 11. Preview requirements
 
-M31 MUST turn `preview` into the place where a PostgreSQL developer gains confidence before deployment.
+M32 MUST turn `preview` into the place where a PostgreSQL developer gains confidence before deployment.
 
 For an ordinary rule, preview MUST include:
 
@@ -644,7 +644,7 @@ For policy sets it additionally MUST include:
 
 For decisions it MUST reuse existing current coverage, conflict, ambiguity, and admission evidence where that evidence is part of the deployed ordinary contract.
 
-M31 does not add full deployment-impact simulation.
+M32 does not add full deployment-impact simulation.
 
 It does not promise exact per-subject hypothetical lifecycle changes under arbitrary undeployed definitions.
 
@@ -654,7 +654,7 @@ That capability remains post-v1.
 
 ## 12. Export and migration-friendly deployment
 
-M31 MUST make SQL migrations a first-class deployment workflow.
+M32 MUST make SQL migrations a first-class deployment workflow.
 
 ### 12.1 Idempotent deployment
 
@@ -678,7 +678,7 @@ The behavior MUST reject stale assumptions rather than overwrite a concurrently 
 
 ### 12.2 Canonical export
 
-M31 MUST provide a read-only way to export a deployed ordinary object as its canonical declaration.
+M32 MUST provide a read-only way to export a deployed ordinary object as its canonical declaration.
 
 The export MUST be:
 
@@ -692,7 +692,7 @@ The export MUST be:
 
 ### 12.3 No hidden promotion workflow
 
-M31 does not create a CI/CD service or policy-promotion engine.
+M32 does not create a CI/CD service or policy-promotion engine.
 
 PostgreSQL migrations, ordinary deployment tools, and canonical declarations remain sufficient.
 
@@ -700,7 +700,7 @@ PostgreSQL migrations, ordinary deployment tools, and canonical declarations rem
 
 ## 13. Documentation redesign
 
-M31 MUST replace milestone-first documentation with task-first documentation.
+M32 MUST replace milestone-first documentation with task-first documentation.
 
 The ordinary documentation hierarchy SHOULD become:
 
@@ -792,7 +792,7 @@ Those belong in later guides.
 
 ## 15. Progressive disclosure
 
-M31 documentation MUST teach concepts in this order:
+M32 documentation MUST teach concepts in this order:
 
 ```text
 SQL condition
@@ -828,9 +828,9 @@ It MUST NOT dominate initial authoring examples.
 
 ---
 
-## 16. M31 API cleanup
+## 16. M32 API cleanup
 
-M31 MUST classify every public function, type, and view as:
+M32 MUST classify every public function, type, and view as:
 
 - **ordinary**
 - **advanced**
@@ -864,9 +864,9 @@ Not directly granted or documented as supported user API.
 
 ---
 
-## 17. What M31 should remove from ordinary usage
+## 17. What M32 should remove from ordinary usage
 
-M31 MUST stop teaching the following as normal usage:
+M32 MUST stop teaching the following as normal usage:
 
 - hand-written JSON declarations;
 - UUID-first target selection;
@@ -880,15 +880,15 @@ M31 MUST stop teaching the following as normal usage:
 
 These surfaces MAY remain as compatibility or advanced APIs where required.
 
-M31 SHOULD NOT remove a released compatibility API merely because its name is unattractive.
+M32 SHOULD NOT remove a released compatibility API merely because its name is unattractive.
 
 The goal is one canonical path, not gratuitous breakage.
 
 ---
 
-## 18. M31 executable usability fixtures
+## 18. M32 executable usability fixtures
 
-M31 MUST introduce task-oriented SQL fixtures in addition to semantic regression tests.
+M32 MUST introduce task-oriented SQL fixtures in addition to semantic regression tests.
 
 ### Fixture A: first constraint rule
 
@@ -947,9 +947,9 @@ A deployed rule is exported to canonical declaration form, validated in a clean 
 
 ---
 
-## 19. M31 human usability gate
+## 19. M32 human usability gate
 
-Before M31 is considered complete, at least **five PostgreSQL developers who did not implement the tested API** MUST attempt the first-rule workflow without maintainer intervention.
+Before M32 is considered complete, at least **five PostgreSQL developers who did not implement the tested API** MUST attempt the first-rule workflow without maintainer intervention.
 
 Required measurement:
 
@@ -961,16 +961,16 @@ Required measurement:
 
 Any issue encountered by at least **2 of 5** participants MUST be:
 
-- fixed before M31 release; or
+- fixed before M32 release; or
 - documented as an explicit M32 release blocker with a concrete resolution.
 
 The test is about API comprehensibility, not participant speed.
 
 ---
 
-## 20. M31 required artifacts
+## 20. M32 required artifacts
 
-M31 is incomplete without:
+M32 is incomplete without:
 
 1. `docs/m31-contract.md`
 2. `docs/m31-api-reference.md`
@@ -992,9 +992,9 @@ M31 is incomplete without:
 
 ---
 
-## 21. M31 exit gates
+## 21. M32 exit gates
 
-M31 may publish as `0.28.0` only when:
+M32 may publish as `0.28.0` only when:
 
 ### 21.1 Typed-authoring gate
 
@@ -1038,20 +1038,20 @@ The five-person usability fixture meets the frozen completion thresholds.
 
 ### 21.11 Continuous-qualification gate
 
-Fresh installation, populated upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged-artifact execution, and the frozen benchmark profiles remain green against the M31 candidate.
+Fresh installation, populated upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged-artifact execution, and the frozen benchmark profiles remain green against the M32 candidate.
 
 ### 21.12 Regression gate
 
-Every M0 through M30a and M30b semantic, security, recovery, and concurrency gate passes unchanged.
+Every M0 through M30 and M31 semantic, security, recovery, and concurrency gate passes unchanged.
 
 ---
 
-# Part II: M32
+# Part II: M33
 
-# M32: V1 Hardening, Compatibility Freeze, and Release Qualification
+# M33: V1 Qualification and Compatibility Freeze
 
 > **Proposed extension:** `0.29.0`<br>
-> **Predecessor:** M31 / `0.28.0`<br>
+> **Predecessor:** M32 / `0.28.0`<br>
 > **Direct upgrade:** `0.28.0 -> 0.29.0`<br>
 > **Primary outcome:** freeze the supported product contract and prove that it can safely become `1.0.0`<br>
 > **Feature policy:** feature freeze<br>
@@ -1059,15 +1059,15 @@ Every M0 through M30a and M30b semantic, security, recovery, and concurrency gat
 
 ---
 
-## 22. M32 objective
+## 22. M33 objective
 
-M32 does not make pg-react broader.
+M33 does not make pg-react broader.
 
-M32 proves that the M30a applicability foundation, M30b runtime semantics, and M31 interface are reliable enough for users to depend on for years.
+M33 proves that the M30 applicability foundation, M31 runtime semantics, and M32 interface are reliable enough for users to depend on for years.
 
-M32 MUST NOT begin until the continuous qualification lane has green evidence from M30a, M30b, and M31 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M32 reruns and consolidates that evidence against `0.29.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
+M33 MUST NOT begin until the continuous qualification lane has green evidence from M30, M31, and M32 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M33 reruns and consolidates that evidence against `0.29.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
 
-M32 MUST freeze:
+M33 MUST freeze:
 
 - supported ordinary SQL API;
 - ordinary public views;
@@ -1086,7 +1086,7 @@ M32 MUST freeze:
 - security boundary;
 - documentation contract.
 
-After the M32 freeze, the burden of proof reverses.
+After the M33 freeze, the burden of proof reverses.
 
 Before the freeze, an API may justify why it should remain.
 
@@ -1094,9 +1094,9 @@ After the freeze, any incompatible change must justify why a major release is ne
 
 ---
 
-## 23. M32 feature-freeze rule
+## 23. M33 feature-freeze rule
 
-Once the M32 contract is merged:
+Once the M33 contract is merged:
 
 > **No new product capability enters the v1 release line.**
 
@@ -1134,13 +1134,13 @@ Not permitted:
 - visual authoring;
 - workflow orchestration.
 
-A correctness fix requiring a public contract change MUST restart the affected M32 compatibility and RC evidence.
+A correctness fix requiring a public contract change MUST restart the affected M33 compatibility and RC evidence.
 
 ---
 
 ## 24. V1 compatibility contract
 
-M32 MUST publish one normative `v1-contract.md`.
+M33 MUST publish one normative `v1-contract.md`.
 
 ### 24.1 Frozen ordinary surface
 
@@ -1198,14 +1198,14 @@ A deliberate incompatible change requires a future major release.
 
 ### 24.4 Advanced API policy
 
-M32 MUST confirm the kind dispositions frozen in M30 and identify which advanced surfaces receive:
+M33 MUST confirm the kind dispositions frozen in M30 and identify which advanced surfaces receive:
 
 - the full v1 compatibility promise;
 - semantic stability but provisional presentation;
 - compatibility-only preservation;
 - eventual deprecation.
 
-No public API may be left with ambiguous support status, and no kind rejected by the M30 matrix may become accepted during M32.
+No public API may be left with ambiguous support status, and no kind rejected by the M30 matrix may become accepted during M33.
 
 ---
 
@@ -1247,7 +1247,7 @@ An emergency correctness or security issue MAY force incompatible behavior, but 
 
 The repository currently contains historical material describing the earlier `0.1.1` generation as “v1” and M4 as “v1 GA,” while current development has progressed through the later pre-`1.0.0` milestone sequence.
 
-M32 MUST eliminate ambiguity without rewriting history.
+M33 MUST eliminate ambiguity without rewriting history.
 
 Historical documents SHOULD be moved or relabeled under a namespace such as:
 
@@ -1262,7 +1262,7 @@ Historical v0.1.1 GA contract
 Not the pg-react 1.0.0 contract
 ```
 
-References to “v1” without a version number MUST refer to the new semantic-versioned `1.0.0` contract after M32.
+References to “v1” without a version number MUST refer to the new semantic-versioned `1.0.0` contract after M33.
 
 Historical release evidence remains immutable and linked.
 
@@ -1294,7 +1294,7 @@ The direct path MUST perform the same logical transformations as the staged path
 
 ### 27.2 Adjacent upgrades
 
-M32 MUST also test:
+M33 MUST also test:
 
 ```text
 0.27.0 -> 0.28.0
@@ -1349,7 +1349,7 @@ When an upgrade requires reconciliation, it MUST establish an explicit barrier a
 
 ## 28. Installation and compatibility matrix
 
-Starting with the frozen M30a kind dispositions and the environment evidence accumulated through M30a, M30b, and M31, M32 MUST publish one exact tested matrix.
+Starting with the frozen M30 kind dispositions and the environment evidence accumulated through M30, M31, and M32, M33 MUST publish one exact tested matrix.
 
 It MUST identify:
 
@@ -1371,7 +1371,7 @@ A combination not present in the matrix MUST be described as unsupported or expe
 
 `doctor()` MUST detect every compatibility property that PostgreSQL allows it to determine and report a blocking finding for an unsupported tuple.
 
-M32 MUST prefer a narrow truthful matrix over an untested broad claim.
+M33 MUST prefer a narrow truthful matrix over an untested broad claim.
 
 ---
 
@@ -1402,7 +1402,7 @@ The published artifact, not a developer checkout, MUST execute the complete qual
 
 ## 30. Backup, restore, and disaster recovery
 
-M32 MUST prove the documented recovery model.
+M33 MUST prove the documented recovery model.
 
 Required scenarios:
 
@@ -1453,7 +1453,7 @@ A supported standby promotion MUST prove that stale leases, worker ownership, fr
 
 ## 31. Security qualification
 
-M32 MUST perform a complete public-surface security review.
+M33 MUST perform a complete public-surface security review.
 
 ### Required checks
 
@@ -1478,11 +1478,11 @@ A security blocker prevents `1.0.0`.
 
 ## 32. Performance qualification
 
-M32 MUST establish reproducible v1 performance baselines.
+M33 MUST establish reproducible v1 performance baselines.
 
 ### 32.1 Benchmark profiles
 
-M31 MUST freeze at least three representative benchmark profiles before M32 qualification begins:
+M32 MUST freeze at least three representative benchmark profiles before M33 qualification begins:
 
 1. **Small operational database**
 2. **Moderate rule workload**
@@ -1522,7 +1522,7 @@ Measure at minimum:
 
 ### 32.3 Regression budget
 
-Against the frozen M31 baseline, M32 MUST investigate:
+Against the frozen M32 baseline, M33 MUST investigate:
 
 - median regression greater than **10%**;
 - p95 regression greater than **20%**;
@@ -1536,7 +1536,7 @@ A regression above those thresholds may be accepted only if:
 - the impact is published;
 - the release-readiness record explicitly approves it.
 
-M32 does not promise a universal transactions-per-second figure.
+M33 does not promise a universal transactions-per-second figure.
 
 It promises measured behavior for a published workload and environment.
 
@@ -1601,7 +1601,7 @@ Private catalog access is not an observability strategy.
 
 ## 35. Operational runbooks
 
-M32 MUST provide executable runbooks for:
+M33 MUST provide executable runbooks for:
 
 1. installation;
 2. initial role configuration;
@@ -1638,7 +1638,7 @@ No runbook may instruct a normal operator to manually modify a private pg-react 
 
 ## 36. Documentation correctness gate
 
-M32 MUST treat documentation as executable product surface.
+M33 MUST treat documentation as executable product surface.
 
 Every SQL example in:
 
@@ -1662,7 +1662,7 @@ Documentation and implementation divergence is a release blocker.
 
 ## 37. Independent v1 usability qualification
 
-M32 MUST repeat usability testing against the packaged `0.29.0` candidate, and the evidence MUST remain valid or be rerun for every numbered `1.0.0` release candidate.
+M33 MUST repeat usability testing against the packaged `0.29.0` candidate, and the evidence MUST remain valid or be rerun for every numbered `1.0.0` release candidate.
 
 At least **five PostgreSQL developers who did not implement pg-react** must complete the first-rule task.
 
@@ -1720,7 +1720,7 @@ Pilot findings that reveal data loss, duplicate successful work ownership, silen
 
 ## 39. Release-severity policy
 
-M32 MUST classify unresolved defects.
+M33 MUST classify unresolved defects.
 
 ### P0: release blocker
 
@@ -1764,7 +1764,7 @@ A P2 may remain only when explicitly recorded in known limitations with a concre
 
 ## 40. Deprecation freeze
 
-M32 MUST publish the complete list of pre-v1 surfaces that are:
+M33 MUST publish the complete list of pre-v1 surfaces that are:
 
 - canonical in v1;
 - supported advanced;
@@ -1785,9 +1785,9 @@ The v1 release should be coherent without forcing unnecessary pre-v1 breakage.
 
 ---
 
-## 41. M32 required artifacts
+## 41. M33 required artifacts
 
-M32 is incomplete without:
+M33 is incomplete without:
 
 1. `docs/v1-contract.md`
 2. `docs/v1-compatibility.md`
@@ -1819,9 +1819,9 @@ M32 is incomplete without:
 
 ---
 
-## 42. M32 exit gates
+## 42. M33 exit gates
 
-M32 may publish as `0.29.0` only when:
+M33 may publish as `0.29.0` only when:
 
 ### 42.1 Feature-freeze gate
 
@@ -1869,7 +1869,7 @@ Every supported failure mode has a public diagnosis and recovery path.
 
 ### 42.12 Regression gate
 
-Every M0 through M31 correctness, concurrency, security, recovery, execution, and compatibility gate passes against the exact M32 artifact.
+Every M0 through M32 correctness, concurrency, security, recovery, execution, and compatibility gate passes against the exact M33 artifact.
 
 ### 42.13 Release-candidate readiness gate
 
@@ -1879,9 +1879,9 @@ The exact `0.29.0` artifact has enough green evidence to produce `1.0.0-rc.1`; i
 
 # Part III: Final `1.0.0` Release-Candidate and GA Qualification
 
-## 43. Relationship between M32 and `1.0.0`
+## 43. Relationship between M33 and `1.0.0`
 
-`0.29.0` is the M32 qualification baseline, not the GA candidate.
+`0.29.0` is the M33 qualification baseline, not the GA candidate.
 
 The transition:
 
@@ -1891,7 +1891,7 @@ The transition:
 
 MUST include at least one numbered release-candidate cycle and MUST NOT introduce a new product capability.
 
-Each exact `1.0.0-rc.N` packaged artifact MUST pass the complete applicable M32 suite, including fresh installation and a populated upgrade from `0.26.0`. Any change to extension code, SQL, packaging, compatibility behavior, or normative documentation requires a new numbered candidate and reruns the affected M32 evidence.
+Each exact `1.0.0-rc.N` packaged artifact MUST pass the complete applicable M33 suite, including fresh installation and a populated upgrade from `0.26.0`. Any change to extension code, SQL, packaging, compatibility behavior, or normative documentation requires a new numbered candidate and reruns the affected M33 evidence.
 
 Permitted candidate changes are limited to:
 
@@ -1902,7 +1902,7 @@ Permitted candidate changes are limited to:
 - security corrections;
 - compatibility corrections.
 
-Any change that alters rule, policy, decision, reasoning, lifecycle, or execution semantics MUST rerun the complete affected M32 qualification and be explicitly recorded.
+Any change that alters rule, policy, decision, reasoning, lifecycle, or execution semantics MUST rerun the complete affected M33 qualification and be explicitly recorded.
 
 `1.0.0` may be published only by promoting a fully qualified candidate with no change other than final version metadata and mechanically corresponding checksums and provenance.
 
@@ -1920,13 +1920,13 @@ Policy-set gating actually controls effective truth and execution.
 
 No ordinary façade operation is metadata-only or placeholder-backed.
 
-### 44.2 M31 complete
+### 44.2 M32 complete
 
 The canonical PostgreSQL-native interface is implemented.
 
 Typed authoring, names-first operation, relational inspection, actionable diagnostics, and task-first documentation are complete.
 
-### 44.3 M32 complete
+### 44.3 M33 complete
 
 Compatibility, upgrade, security, recovery, performance, usability, packaging, and pilot evidence pass.
 
@@ -2033,7 +2033,20 @@ None of these should block `1.0.0`.
 
 ## 47. Recommended sequence
 
-### M30: `0.27.0`
+### M30: Applicability foundation
+
+**Theme:** establish the durable applicability model before authoritative runtime work.
+
+Primary work:
+
+- identity and scope semantics;
+- disposition matrix;
+- relational eligibility and scope-support schema;
+- migrations;
+- inspection primitives;
+- failing and then passing applicability fixtures.
+
+### M31: `0.27.0`
 
 **Theme:** make runtime behavior truthful.
 
@@ -2048,7 +2061,7 @@ Primary work:
 - authoritative removal;
 - safe M29 migration.
 
-### M31: `0.28.0`
+### M32: `0.28.0`
 
 **Theme:** make the truthful product easy.
 
@@ -2064,7 +2077,7 @@ Primary work:
 - task-first documentation;
 - usability testing.
 
-### M32: `0.29.0`
+### M33: `0.29.0`
 
 **Theme:** prove the easy product is stable.
 
@@ -2175,7 +2188,7 @@ The final v1 product should be describable without qualification as:
 
 > **A PostgreSQL-native rule engine where SQL defines truth, typed PostgreSQL objects define behavior, pg-react durably remembers what changed, and every important decision and piece of work remains inspectable through PostgreSQL.**
 
-That is the product boundary M30a, M30b, M31, and M32 should optimize for.
+That is the product boundary M30, M31, M32, and M33 should optimize for.
 
 ---
 
@@ -2183,29 +2196,29 @@ That is the product boundary M30a, M30b, M31, and M32 should optimize for.
 
 ## 53. Approval of this proposal authorizes
 
-1. replacing the current M31 deployment-impact simulation milestone with **M31 PostgreSQL-Native Ergonomics**;
-2. replacing the current M32 historical-replay milestone with **M32 V1 Hardening, Compatibility Freeze, and Release Qualification**;
+1. replacing the current M32 deployment-impact simulation milestone with **M32 PostgreSQL-Native Interface**;
+2. replacing the current M33 historical-replay milestone with **M33 V1 Qualification, Compatibility Freeze, and Release Qualification**;
 3. moving simulation, replay, backtesting, and why-changed work after `1.0.0`;
 4. targeting the sequence:
 
 ```text
 M29 / 0.26.0
-→ M30a foundation
-→ M30b / 0.27.0
-→ M31 / 0.28.0
-→ M32 / 0.29.0
+→ M30 foundation
+→ M31 / 0.27.0
+→ M32 / 0.28.0
+→ M33 / 0.29.0
 → 1.0.0-rc.1 / later RCs as required
 → 1.0.0
 ```
 
-5. treating M30a, M30b, M31, and M32 together as the formal pg-react v1 program;
-6. prohibiting additional semantic scope once M32 begins.
+5. treating M30, M31, M32, and M33 together as the formal pg-react v1 program;
+6. prohibiting additional semantic scope once M33 begins.
 
 ---
 
-## 54. First M31 implementation change
+## 54. First M32 implementation change
 
-The first M31 implementation change SHOULD NOT be another convenience function.
+The first M32 implementation change SHOULD NOT be another convenience function.
 
 It MUST be one executable golden-path fixture showing the desired final PostgreSQL experience:
 
@@ -2231,17 +2244,17 @@ SELECT pgreact.explain(...);
 
 The expected transcript MUST be reviewed before implementing the convenience layer.
 
-If that transcript is not significantly clearer than the current workflow, M31 has not yet found the correct v1 interface.
+If that transcript is not significantly clearer than the current workflow, M32 has not yet found the correct v1 interface.
 
 ---
 
-## 55. First M32 implementation change
+## 55. First M33 implementation change
 
-The first M32 change MUST generate the proposed v1 public API inventory directly from the installed `0.28.0` extension.
+The first M33 change MUST generate the proposed v1 public API inventory directly from the installed `0.28.0` extension.
 
 Every function, overload, type, view, grant, finding code, declaration field, and compatibility alias must be classified.
 
-The M32 freeze begins from observed installed reality, not from documentation assumptions.
+The M33 freeze begins from observed installed reality, not from documentation assumptions.
 
 ---
 
@@ -2253,8 +2266,8 @@ This proposal should be accepted only if maintainers agree on one priority:
 
 M30 establishes trustworthy behavior.
 
-M31 establishes the interface people should learn.
+M32 establishes the interface people should learn.
 
-M32 proves that interface and behavior are ready to become a long-term compatibility commitment.
+M33 proves that interface and behavior are ready to become a long-term compatibility commitment.
 
 The numbered release-candidate cycle then proves the exact packaged artifact before the project publishes `1.0.0`.
