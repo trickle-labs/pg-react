@@ -94,11 +94,17 @@ For supported decision programs, validation and preview should detect conflicts 
 
 The feature is valuable because policy errors often arise not from one wrong predicate, but from interactions between otherwise valid rules. M27 makes those interactions visible before they become production incidents.
 
-## M28 — Policy-set gating
+## M28 — Public API convergence and ergonomics
+
+Before adding another semantic family, pg-react should make its representative M0–M27 capabilities feel like one product. M28 introduces a versioned declaration and target model, a small names-first ordinary verb set, common finding and result envelopes, and one lifecycle from validation through deployment and inspection.
+
+The façade remains additive and delegates to the authoritative specialized APIs. Its purpose is to preserve exact semantics, security, recovery, and compatibility while making future capabilities extend declarations and results instead of adding another unrelated public workflow.
+
+## M29 — Policy-set gating
 
 Organizations rarely apply every rule everywhere. Policies vary by jurisdiction, product line, tenant, rollout cohort, contract, or regulatory regime. Today this can be encoded inside every condition, but doing so mixes applicability with policy logic.
 
-M28 introduces explicit policy-set gating. A versioned policy set can be enabled for a defined population or regime while the contained rules remain unchanged. This gives teams a clean mechanism for staged rollout, jurisdiction-specific policy, customer-specific programs, and controlled transitions.
+M29 introduces explicit policy-set gating. A versioned policy set can be enabled for a defined population or regime while the contained rules remain unchanged. This gives teams a clean mechanism for staged rollout, jurisdiction-specific policy, customer-specific programs, and controlled transitions.
 
 The design should remain relational: gating populations should be typed PostgreSQL facts or named conditions, not hidden feature flags inside engine code.
 
@@ -108,23 +114,23 @@ The design should remain relational: gating populations should be typed PostgreS
 
 At this point pg-react can express and operate substantial policy. The next problem is change risk. A powerful rule system becomes genuinely valuable when users can see what a policy change would do before they commit it.
 
-## M29 — Hypothetical fact simulation
+## M30 — Hypothetical fact simulation
 
-M29 introduces side-effect-free what-if evaluation. A caller supplies bounded hypothetical inserts, updates, or deletes and asks what the selected rule or program would conclude.
+M30 introduces side-effect-free what-if evaluation. A caller supplies bounded hypothetical inserts, updates, or deletes and asks what the selected rule or program would conclude.
 
 The simulation should use the same normalized semantics as production but mutate no authoritative tables, create no durable jobs, advance no real watermarks, and execute no consequences. It should return resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions.
 
 This is useful in interactive applications, support tooling, eligibility analysis, debugging, and policy design. It also creates the evaluation kernel needed for later backtesting.
 
-## M30 — Deployment impact simulation
+## M31 — Deployment impact simulation
 
-M29 changes facts under the current policy. M30 changes policy against current facts.
+M30 changes facts under the current policy. M31 changes policy against current facts.
 
 Before replacing a rule or program, users should be able to compare the currently deployed version with the proposed version and see which business keys would activate, deactivate, change derived values, select different decision winners, or produce different would-be work.
 
 This turns deployment preview from schema validation into business impact analysis. A policy author can answer “who changes?” before the new version is made authoritative.
 
-## M31 — Historical replay
+## M32 — Historical replay
 
 Historical replay extends simulation over a deterministic sequence of fact changes. The user provides an initial snapshot and an ordered history, and pg-react evaluates one frozen policy version through that history without executing real consequences.
 
@@ -132,19 +138,19 @@ This does not mean pg-react becomes a source CDC archive. Historical facts remai
 
 That capability is especially valuable for fraud, compliance, SLA, finance, and operations teams that need to understand how a rule behaves over time rather than at one snapshot.
 
-## M32 — Comparative backtesting
+## M33 — Comparative backtesting
 
-M32 runs two policy versions over the same historical input and compares their results. Instead of merely saying that the new policy is valid, pg-react can report how many activations were added, removed, or changed, which decision outcomes moved, and where resource usage differs.
+M33 runs two policy versions over the same historical input and compares their results. Instead of merely saying that the new policy is valid, pg-react can report how many activations were added, removed, or changed, which decision outcomes moved, and where resource usage differs.
 
 A fraud team could compare a proposed rule against three months of transactions. A finance team could measure how many historical journals a new control would have blocked. An entitlement team could see how a new policy would alter grants and revocations.
 
 This milestone transforms policy change from intuition into evidence.
 
-## M33 — Policy promotion workflow
+## Later direction — Policy promotion workflow
 
 Once simulation and backtesting exist, they can form a disciplined promotion path: draft, validate, simulate, backtest, approve, schedule, activate.
 
-M33 should not become a general human workflow engine. The goal is narrower: make the lifecycle of a policy artifact explicit and inspectable. A deployed policy can carry immutable evidence showing which validation, simulations, backtests, approvals, and effective dates justified its activation.
+This should not become a general human workflow engine. The goal is narrower: make the lifecycle of a policy artifact explicit and inspectable. A deployed policy can carry immutable evidence showing which validation, simulations, backtests, approvals, and effective dates justified its activation.
 
 At this stage pg-react starts to look less like a component and more like a serious policy operating system.
 
@@ -282,9 +288,9 @@ The sequence matters because each phase solves a different barrier to adoption.
 
 M19 through M23 make the engine structurally complete enough to support larger real systems. They improve composability, retention, explanation, responsiveness, and practical time behavior.
 
-M24 through M28 turn rules into **business policy**. Policy gains versions, effective dates, typed variation, deterministic decisions, and applicability boundaries.
+M24 through M29 turn rules into **business policy** and converge its public surface. Policy gains versions, effective dates, typed variation, deterministic decisions, applicability boundaries, and one ordinary workflow.
 
-M29 through M33 make that policy **safe to change**. Users no longer need to deploy first and understand impact second. Simulation, replay, and backtesting bring evidence into the change process.
+M30 through M33 make that policy **safe to change**. Users no longer need to deploy first and understand impact second. Simulation, replay, and backtesting bring evidence into the change process.
 
 M34 through M38 make the system **deeply explainable**. Current truth, historical change, causal lineage, and policy differences become first-class inspection surfaces.
 
@@ -297,9 +303,9 @@ The overall path looks like this:
 ```text
 M19–M23   complete the rule runtime
     ↓
-M24–M28   make business policy first-class
+M24–M29   make business policy first-class and converge its public API
     ↓
-M29–M33   make policy safe to change
+M30–M33   make policy safe to change
     ↓
 M34–M38   make decisions deeply explainable
     ↓

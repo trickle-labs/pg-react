@@ -1659,19 +1659,79 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 ---
 
-## Proposed sequence after M27
+## Stage 28 — Public API convergence and ergonomics
 
-These are planning labels, not implementation commitments. Promote each only after its predecessor's evidence and the candidate milestone's entry fixture are credible.
+**Outcome:** make every representative M0–M27 capability usable through one coherent, names-first PostgreSQL workflow—define, validate, preview, deploy, run, and inspect—by freezing versioned declarations and targets, a small ordinary verb set, common result and finding envelopes, and public API governance, without removing specialized APIs, changing existing semantics, or creating a second evaluation or deployment engine.
 
-The planning context for this sequence is captured in the [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
+**Entry gate:** the exact `v0.24.0` release artifacts, checksums, disclosures, OCI digest, SBOM, provenance, and populated direct-upgrade path are published and verified, and every M0–M27 gate passes unchanged. Before the contract freezes, generate the complete released M0–M27 inventory of public functions, overloads, arguments, defaults, result types, grants, volatility, security-definer status, views, types, and contract versions; freeze the ordinary, advanced, compatibility, administrative, and internal classifications; and capture exact specialized-API transcripts and results for one command rule, derived program, practical temporal rule, effective-dated or parameterized policy, M26 decision program, and M27 decision analysis and deployment admission.
 
-1. **M28 — Policy-set gating.** Apply versioned policy sets to typed PostgreSQL populations or named conditions so jurisdiction, product, tenant, contract, and rollout applicability can change independently of policy logic, with deterministic activation, transition, validation, and explanation rather than hidden engine feature flags.
-2. **M29 — Hypothetical fact simulation.** Evaluate bounded hypothetical inserts, updates, and deletes against one selected frozen policy without mutating authoritative tables, advancing real frontiers, creating durable work, or executing consequences, and return the resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions through a side-effect-free public interface.
-3. **M30 — Deployment impact simulation.** Compare the currently deployed rule or program version against a proposed replacement over current facts, reporting which business keys would activate, deactivate, change derived values, select a different decision winner, or produce different would-be work, so deployment preview becomes business impact analysis rather than schema validation alone.
-4. **M31 — Historical replay.** Evaluate one frozen policy version over a user-supplied initial snapshot and ordered fact history with production-equivalent lifecycle, derivation, deadline, and event-time semantics, while mutating no authoritative state, executing no consequences, and making no claim that pg-react is a source CDC archive.
-5. **M32 — Comparative backtesting.** Run two frozen policy versions over the same user-supplied historical input and compare exact activation, deactivation, derived-value, decision-winner, would-be-work, and resource-usage differences so policy changes are supported by reproducible evidence rather than intuition.
+### Deliverables
 
-Bounded synchronous firing, unstratified negation, recursive aggregation, policy promotion workflow, why-changed explanation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M28–M32. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
+- One checked-in, machine-readable inventory and classification of every M0–M27 public function, overload, view, type, grant, result contract, and ordinary documentation reference, enforced as a release gate for future public additions.
+- One versioned declaration envelope and one names-first, schema-qualified target reference with strict field validation, explicit defaults, options and deployment preconditions, canonical normalization, deterministic digests, unambiguous resolution, and no silently ignored future fields.
+- A deliberately small ordinary façade for `validate`, `preview`, `deploy`, `remove`, `run`, `status`, `explain`, and `doctor`, with the exact `replace` decision closed before freeze and complex inputs represented as named declaration or options fields rather than long positional signatures.
+- Representative declaration and façade coverage for constraint and command rules, derived programs, temporal and deadline policy, shared conditions, effective-dated policy, parameter families, decision programs, and M27 decision coverage and admission, all delegated to the same authoritative implementation as the specialized APIs.
+- Stable, versioned result envelopes and one error and finding taxonomy covering target identity, operation, state, summary, field paths, severity, blockers, remediation, stale evidence, authorization, bounded evidence, diagnostics, compatibility notices, and explicit truncation, while preserving public relational views for fleet-wide inspection.
+- Names-first ordinary documentation organized around one lifecycle, a separate lossless advanced and compatibility reference, executable examples, an API-ergonomics scorecard, and a governance rule requiring a Public API impact section and an ADR before any genuinely new top-level ordinary verb is added.
+- Extension `0.25.0`, compact author, reviewer, deployer, reader, and operator tasks, compatibility and migration guidance, release notes, executable semantic-equivalence, concurrency, failure, performance, security, recovery, usability, and direct-upgrade evidence, and a direct upgrade from `0.24.0`.
+
+### Supported boundary
+
+- M28 inherits the complete M27 platform, public API, managed-worker, typed-key, security, maintenance, isolation, immediate-mode, shared-condition, retention, recovery, resource-limit, external-effect, aggregate, window, provenance, temporal, effective-dating, parameter-family, decision, analysis, diagnostic, and usability boundaries except for this additive interaction layer.
+- The façade covers the ordinary authoring and inspection path for the frozen representative fixtures. Specialized APIs remain supported and authoritative for compatibility, advanced controls, explicit frontiers, reusable analyses, exact operational actions, recovery, and lossless evidence.
+- Equivalent façade and specialized operations share validation, locking, mutation, lifecycle, evidence, recovery, and authorization implementations. Objects created by either surface are indistinguishable through lossless inspection; no state migration or declaration rewrite is required.
+- `validate`, `preview`, `status`, `explain`, and `doctor` are read-only. `deploy` and `remove` preserve each object kind's exact atomicity, stale-precondition, ownership, and lifecycle contracts; `run` preserves the existing bounded engine semantics.
+- Declarations reference PostgreSQL relations, columns, functions, and policy objects rather than encoding predicates or transformations in a second language. Generic calls complement, rather than replace, stable relational views.
+- Every ordinary workflow accepts stable public names and business keys. Immutable IDs remain returned and queryable but are required only for explicit historical or version-specific work.
+
+### Explicit non-goals
+
+- Removing, renaming, behaviorally weakening, or noisily deprecating an M0–M27 public function, overload, result, grant, view, or specialized workflow.
+- A generic stringly typed action executor, proprietary rule language, JSON predicate language, client SDK, visual editor, AI authoring layer, or one declaration constructor per feature.
+- Policy-set gating, hypothetical fact simulation, deployment impact simulation, historical replay, comparative backtesting, policy promotion workflow, new temporal operators, new decision semantics, bounded synchronous firing, automatic repair, unstratified negation, or recursive aggregation.
+- Collapsing distinct administrative, reconciliation, retry, correction, finalization, watermark, retention, migration, or recovery actions whose separate safety contracts remain material.
+- Granting generic callers broader authority or evidence than the corresponding specialized operation, exposing private relation identities, accepting unsafe search paths or arbitrary SQL, or changing row-level disclosure boundaries.
+
+### Decisions to close before the M28 contract freezes
+
+- The exact declaration and target PostgreSQL representations, API-version policy, supported object kinds, schema-qualified name resolution, normalization and digest algorithm, default expansion, unknown-field behavior, options, preconditions, and historical-version targeting.
+- The exact ordinary verb identities, overloads, grants, volatility, result types, positional-argument budget, create-versus-replace contract, stale-preview behavior, removal semantics, and boundary between ordinary, advanced, compatibility, administrative, and internal surfaces.
+- The exact result-envelope version and fields; finding identity, severity, blocker and remediation meanings; canonical evidence order and bounds; truncation, stale-evidence, authorization, unavailable, compatibility, and error representation; and feature-specific extension rules.
+- The delegation and equivalence contract for every representative object kind, including validation, locking, normalization, mutation, lifecycle, provenance, diagnostics, recovery, and final checksum, plus the total order for concurrent façade and specialized operations.
+- Ownership, role and `PUBLIC` grants, RLS and relation-access boundaries, security-definer behavior, disclosure limits, safe reference resolution, and exact unauthorized results without leaking protected declarations, subjects, findings, or evidence.
+- Inventory generation and CI comparison, API-review and ADR policy, documentation tiering and glossary, executable-example and independent-usability fixtures, ergonomics scorecard, acceptable façade overhead, resource bounds, failure injection, retention, standby behavior, restore, and direct-upgrade migration.
+
+### Exit gates
+
+- Every frozen representative workflow completes through `define -> validate -> preview -> deploy -> run -> status/explain` using only ordinary documentation, stable names, business keys, and the canonical façade; no feature-specific status, doctor, analysis, or admission function is required.
+- For every fixture, the façade and specialized API produce byte-for-byte equivalent normalized declarations, digests, durable state, public truth, lifecycle, provenance, evidence, findings, diagnostics, grants, and final checksums, regardless of JSON key order, physical row order, query plan, restart, restore, upgrade, or standby promotion.
+- Generic M27 preview returns the exact frozen distributions, findings, severities, blockers, evidence order and truncation, authorization, and remediation, and generic deployment rejects failed or stale analysis before any policy, lifecycle, provenance, or work mutation.
+- `validate`, `preview`, `status`, `explain`, and `doctor` create no durable state, jobs, actions, lifecycle changes, frontier changes, or hidden repair; rejected `deploy` and `remove` operations leave the same exact no-mutation checksum.
+- Every released M0–M27 public identity, overload, default, result shape, grant, view, and semantic contract remains present and unchanged, and eligible existing objects are manageable through the façade without migration.
+- Every caller receives exactly the authority and evidence available through the corresponding specialized API after grant, revoke, ownership change, replacement, retention, restore, and upgrade; unrelated roles and `PUBLIC` gain no access, and protected declarations, subjects, findings, and evidence do not leak.
+- The machine-readable inventory contains no unclassified public surface; CI detects every addition or compatibility change; ordinary documentation presents one lifecycle and one advanced compatibility reference; and every new ordinary verb has the required approved justification.
+- Ordinary examples stay within the frozen scalar-argument and concept budgets, use named declaration fields for complex inputs, require no UUID or private-catalog knowledge, and return consistent versioned envelopes and actionable field-path remediation.
+- Fresh install, direct `0.24.0 -> 0.25.0` upgrade, crash/restart, physical restore, logical restore, reconciliation, retention, and standby promotion preserve every M0–M27 identity and state and reproduce exact façade/specialized equivalence.
+- Every ordinary documentation snippet executes in CI, and an independently observed PostgreSQL developer can discover, recover from one intentional validation failure, preview the M27 decision findings, and deploy safely without maintainer interpretation.
+- The maximum frozen declaration size, target count, evidence, finding, dependency-fan-out, and concurrent-operation profiles remain within published latency, memory, storage, backup, restore, and upgrade budgets; façade overhead stays within its published bound and duplicates no materialization, analysis, or evaluation work.
+- Every inherited M0–M27 semantic, operational, security, recovery, performance, compatibility, documentation, usability, retention, provenance, temporal, parameter, decision, analysis, and external-effect gate passes unchanged.
+- Non-superuser authors, reviewers, deployers, readers, and operators can define, validate, preview, deploy, run, inspect, explain, diagnose, remove, recover, and upgrade the representative objects using only granted public APIs and documentation.
+
+---
+
+## Proposed sequence after M28
+
+These are the five most relevant next milestones, not implementation commitments. They deliberately extend the M28 declaration, target, finding, evidence, result-envelope, and governance model instead of adding unrelated feature-specific API families; promote each only after its predecessor's evidence and its own entry fixture are credible.
+
+The planning context for this sequence is captured in the [M28 public API convergence proposal](pg-react_m28_public_api_convergence_revised.md), [30-milestone vision](vision/pg-react_30_milestone_vision.md), [practical rule-engine features](vision/pg-react_practical_rule_engine_features.md), and [product thesis](vision/pg-react_product_thesis.md).
+
+1. **M29 — Policy-set gating.** Add versioned applicability to declarations so policies can target typed PostgreSQL populations or named conditions by jurisdiction, product, tenant, contract, or rollout cohort without duplicating policy logic or introducing hidden engine feature flags.
+2. **M30 — Hypothetical fact simulation.** Add one bounded, side-effect-free `simulate` operation for hypothetical inserts, updates, and deletes against a frozen policy, reusing M28 targets, findings, evidence, authorization, and truncation while mutating no authoritative state or executing consequences.
+3. **M31 — Deployment impact simulation.** Compare a proposed policy version with the deployed version over current facts and report exact current, proposed, and delta results for activations, derived values, decision winners, lifecycle, and would-be work before deployment becomes authoritative.
+4. **M32 — Historical replay.** Evaluate one frozen policy over a user-supplied initial snapshot and ordered fact history with production-equivalent lifecycle, derivation, deadline, and event-time semantics, explicit input and output frontiers, and no claim that pg-react stores source CDC history.
+5. **M33 — Comparative backtesting.** Compose replay and simulation to compare two frozen policy versions over the same historical input, returning reproducible activation, decision, would-be-work, resource, and selected changed-subject evidence through the common envelope and relational inspection model.
+
+Policy promotion workflow, why-changed explanation, richer temporal reasoning, bounded synchronous firing, unstratified negation, recursive aggregation, client DSLs, visual or AI authoring, and domain packages remain demand-driven directions rather than implied parts of M29–M33. Every public layer must continue to compile to, validate against, or inspect the canonical PostgreSQL-native model.
 
 ---
 
