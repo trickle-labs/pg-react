@@ -2,6 +2,8 @@
 
 ## A speculative 30-milestone roadmap for pg-react
 
+> **Planning status (August 2026):** this remains a product-direction document, not the canonical milestone schedule. [`ROADMAP.md`](../ROADMAP.md) now defines M30 as runtime-truth convergence, M31 as PostgreSQL-native ergonomics, and M32 as v1 hardening; the simulation, replay, backtesting, and comparison themes below move to the proposed M33–M37 sequence.
+
 Related vision documents: [Product thesis](pg-react_product_thesis.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
 
 pg-react already has the beginnings of a distinctive product thesis: PostgreSQL contains the authoritative facts, SQL describes relational truth, and pg-react adds the durable semantics needed to turn that truth into decisions, lifecycle, explanation, and work. The interesting question is not how many rule-engine features can be accumulated. The interesting question is how far that idea can be taken without losing the qualities that make it compelling in the first place.
