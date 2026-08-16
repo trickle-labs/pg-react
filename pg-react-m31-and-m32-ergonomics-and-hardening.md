@@ -2,7 +2,7 @@
 
 > **Status:** Proposed v1 program<br>
 > **Date:** 2026-08-16<br>
-> **Predecessor:** M30 / proposed extension `0.27.0`<br>
+> **Predecessor:** M30a + M30b / proposed extension `0.27.0`<br>
 > **M31 proposed release:** extension `0.28.0`<br>
 > **M32 proposed release:** extension `0.29.0`<br>
 > **Required release candidate:** at least one exact `1.0.0-rc.N` artifact<br>
@@ -10,17 +10,17 @@
 > **Direct v1 qualification and GA upgrade targets:** `0.26.0 -> 1.0.0-rc.N` and `0.26.0 -> 1.0.0`<br>
 > **Replaces:** the currently planned M31 deployment-impact simulation and M32 historical replay milestones<br>
 > **Primary outcome:** make pg-react easy for PostgreSQL developers to learn and operate, then freeze and prove that interface as the supported `1.0.0` contract<br>
-> **Semantic scope:** no new rule, reasoning, temporal, decision, execution, policy, or delivery semantics after M30
+> **Semantic scope:** no new rule, reasoning, temporal, decision, execution, policy, or delivery semantics after M30b
 
 ---
 
 ## 1. Decision
 
-M31 and M32 should complete the path from the M30 behavioral foundation to pg-react `1.0.0`.
+M31 and M32 should complete the path from the M30a/M30b behavioral foundation to pg-react `1.0.0`.
 
 The program is divided deliberately:
 
-> **M30 makes the product correct. M31 makes the correct product easy to use. M32 proves it is stable enough to freeze.**
+> **M30a establishes the applicability foundation. M30b makes the product authoritative. M31 makes the correct product easy to use. M32 proves it is stable enough to freeze.**
 
 The current roadmap assigns M31 to deployment-impact simulation and M32 to historical replay. Those capabilities are valuable, but neither is necessary to make the existing engine a powerful, ergonomic PostgreSQL-native rule engine. Both introduce substantial new semantic and testing surface immediately before the point where the project most needs convergence and stability. They should therefore move after `1.0.0`.
 
@@ -28,7 +28,7 @@ M31 MUST focus on the PostgreSQL developer experience.
 
 M32 MUST focus on compatibility, installation, upgrades, recovery, security, performance, documentation, and independent usability evidence.
 
-M31 design validation begins during M30: the five-person usability cohort is recruited before M31 starts, and early transcript or prototype feedback may still change the interface. Fresh-install, populated `0.26.0` upgrade, rollback-by-restore and recovery, role-isolation, packaged-artifact, and performance evidence also runs continuously through M30 and M31; M32 consolidates already-green evidence rather than discovering these matrices for the first time.
+M31 design validation begins during M30b: the five-person usability cohort is recruited before M31 starts, and early transcript or prototype feedback may still change the interface. Fresh-install, populated `0.26.0` upgrade, rollback-by-restore and recovery, role-isolation, packaged-artifact, and performance evidence also runs continuously through M30a, M30b, and M31; M32 consolidates already-green evidence rather than discovering these matrices for the first time.
 
 Neither milestone may introduce a second evaluation model, new reasoning semantics, a proprietary rule language, historical replay, hypothetical simulation, or another ordinary API family.
 
@@ -39,12 +39,12 @@ Neither milestone may introduce a second evaluation model, new reasoning semanti
 # M31: PostgreSQL-Native Ergonomics
 
 > **Proposed extension:** `0.28.0`<br>
-> **Predecessor:** M30 / `0.27.0`<br>
+> **Predecessor:** M30a + M30b / `0.27.0`<br>
 > **Direct upgrade:** `0.27.0 -> 0.28.0`<br>
 > **Primary outcome:** make ordinary pg-react usage feel like PostgreSQL with durable rules, rather than a framework whose internal engine concepts must be learned first<br>
 > **Feature policy:** no new runtime semantics
 
-M31 implementation MUST NOT begin until all M30-A through M30-D gates and the independent technical review pass, the five-person usability cohort is recruited, early design feedback is recorded, and the continuous v1 qualification lane is green.
+M31 implementation MUST NOT begin until M30a and M30b, the independent technical review, the recruited five-person usability cohort, recorded early design feedback, and the continuous v1 qualification lane are green.
 
 ---
 
@@ -1042,7 +1042,7 @@ Fresh installation, populated upgrade from `0.26.0`, rollback-by-restore and rec
 
 ### 21.12 Regression gate
 
-Every M0 through M30 semantic, security, recovery, and concurrency gate passes unchanged.
+Every M0 through M30a and M30b semantic, security, recovery, and concurrency gate passes unchanged.
 
 ---
 
@@ -1063,9 +1063,9 @@ Every M0 through M30 semantic, security, recovery, and concurrency gate passes u
 
 M32 does not make pg-react broader.
 
-M32 proves that the M30 semantics and M31 interface are reliable enough for users to depend on for years.
+M32 proves that the M30a applicability foundation, M30b runtime semantics, and M31 interface are reliable enough for users to depend on for years.
 
-M32 MUST NOT begin until the continuous qualification lane has green evidence from M30 and M31 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M32 reruns and consolidates that evidence against `0.29.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
+M32 MUST NOT begin until the continuous qualification lane has green evidence from M30a, M30b, and M31 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M32 reruns and consolidates that evidence against `0.29.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
 
 M32 MUST freeze:
 
@@ -1349,7 +1349,7 @@ When an upgrade requires reconciliation, it MUST establish an explicit barrier a
 
 ## 28. Installation and compatibility matrix
 
-Starting with the frozen M30 kind dispositions and the environment evidence accumulated through M30 and M31, M32 MUST publish one exact tested matrix.
+Starting with the frozen M30a kind dispositions and the environment evidence accumulated through M30a, M30b, and M31, M32 MUST publish one exact tested matrix.
 
 It MUST identify:
 
@@ -2175,7 +2175,7 @@ The final v1 product should be describable without qualification as:
 
 > **A PostgreSQL-native rule engine where SQL defines truth, typed PostgreSQL objects define behavior, pg-react durably remembers what changed, and every important decision and piece of work remains inspectable through PostgreSQL.**
 
-That is the product boundary M30, M31, and M32 should optimize for.
+That is the product boundary M30a, M30b, M31, and M32 should optimize for.
 
 ---
 
@@ -2190,14 +2190,15 @@ That is the product boundary M30, M31, and M32 should optimize for.
 
 ```text
 M29 / 0.26.0
-→ M30 / 0.27.0
+→ M30a foundation
+→ M30b / 0.27.0
 → M31 / 0.28.0
 → M32 / 0.29.0
 → 1.0.0-rc.1 / later RCs as required
 → 1.0.0
 ```
 
-5. treating M30, M31, and M32 together as the formal pg-react v1 program;
+5. treating M30a, M30b, M31, and M32 together as the formal pg-react v1 program;
 6. prohibiting additional semantic scope once M32 begins.
 
 ---

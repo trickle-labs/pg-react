@@ -2,7 +2,7 @@
 
 ## A speculative 30-milestone roadmap for pg-react
 
-> **Planning status (August 2026):** this remains a product-direction document, not the canonical milestone schedule. [`ROADMAP.md`](../ROADMAP.md) now defines M30 as runtime-truth convergence, M31 as PostgreSQL-native ergonomics, and M32 as v1 hardening; the simulation, replay, backtesting, and comparison themes below move to the proposed M33–M37 sequence.
+> **Planning status (August 2026):** this remains a product-direction document, not the canonical milestone schedule. [`ROADMAP.md`](../ROADMAP.md) now defines M30a as the applicability foundation, M30b as authoritative runtime truth, M31 as PostgreSQL-native ergonomics, and M32 as v1 hardening; the simulation, replay, backtesting, and comparison themes below move to the proposed M33–M37 sequence.
 
 Related vision documents: [Product thesis](pg-react_product_thesis.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
 

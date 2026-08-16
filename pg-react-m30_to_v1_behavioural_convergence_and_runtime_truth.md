@@ -1,12 +1,13 @@
-# M30: V1 Behavioral Convergence and Runtime Truth
+# M30a + M30b: V1 Behavioral Convergence and Runtime Truth
 
 > **Status:** Proposed milestone<br>
 > **Date:** 2026-08-16<br>
 > **Predecessor:** M29 / extension `0.26.0`<br>
-> **Proposed release:** extension `0.27.0`<br>
+> **M30a:** Applicability foundation<br>
+> **M30b proposed release:** extension `0.27.0`<br>
 > **Direct upgrade:** `0.26.0 -> 0.27.0`<br>
 > **Replaces:** the currently planned M30 hypothetical fact simulation milestone<br>
-> **Primary outcome:** make policy-set applicability and every ordinary façade operation authoritative, fail-closed, inspectable, and testable<br>
+> **Primary outcome:** establish applicability foundation in M30a, then make policy-set applicability and every ordinary façade operation authoritative, fail-closed, inspectable, and testable in M30b<br>
 > **Semantic scope:** complete or narrow existing M28 and M29 behavior without adding a rule language, reasoning model, simulation engine, or delivery guarantee<br>
 > **Release role:** first convergence milestone on the path to a final `1.0.0` contract
 
@@ -14,18 +15,18 @@
 
 ## 1. Decision
 
-M30 should pause semantic expansion and establish a strict product rule:
+M30a and M30b should pause semantic expansion and establish a strict product rule:
 
 > **No public operation may report an object as deployed, gated, active, removed, explained, or ready unless the corresponding authoritative runtime behavior has occurred and is directly inspectable.**
 
 The current roadmap assigns M30 to hypothetical fact simulation. This proposal moves simulation until after the ordinary runtime and API are coherent enough to provide a trustworthy production baseline.
 
-M30 therefore has two release-blocking responsibilities:
+The work is split into two sequential milestones:
 
-1. Complete policy-set gating so applicability changes actual member truth, lifecycle state, decisions, derivations, and work.
-2. Remove every metadata-only or placeholder-backed behavior from the ordinary M28 façade.
+1. **M30a — Applicability foundation.** Freeze the identity model, scope semantics, disposition matrix, relational eligibility and support schema, migrations, inspection primitives, and failing/then-passing applicability fixtures.
+2. **M30b — Authoritative runtime.** Complete adapters, the global coordinator, lock ordering, lifecycle and support transitions, claimed-work revalidation, frontier and barrier semantics, race and recovery testing, and release qualification.
 
-M30 does not freeze the final `1.0.0` API. It creates the truthful behavioral foundation that later ergonomics and v1 hardening milestones can safely freeze.
+M30b does not freeze the final `1.0.0` API. Together, M30a and M30b create the truthful behavioral foundation that later ergonomics and v1 hardening milestones can safely freeze.
 
 ---
 
@@ -49,13 +50,15 @@ The current generic `remove` changes the declaration catalog state without remov
 
 M29 stores eligible subjects as a JSONB array on each policy-set version. Its `run(policy_set)` path refreshes that snapshot and returns `"gated": true`. The M29 release fixture verifies declaration validation, subject counts, subject lookup, drift detection, refresh, and removal, but it does not assert that an ineligible member match cannot create an activation, derived support, decision winner, or episode of work. The M29 evidence record explicitly identifies applicability storage as the released boundary.
 
-M30 resolves these boundaries before they become part of the final v1 mental model.
+M30a and M30b resolve these boundaries before they become part of the final v1 mental model.
 
 ---
 
 ## 4. Milestone outcome
 
-M30 is complete when all of the following statements are true:
+M30a is complete when the identity model, scope semantics, disposition matrix, relational eligibility and support schema, migration states, inspection primitives, and exact failing/then-passing applicability fixtures are committed and independently reviewable. It does not claim complete runtime authority.
+
+M30b is complete when all of the following statements are true:
 
 1. **Policy-set eligibility changes authoritative runtime truth.** An ineligible subject cannot create or retain effective member truth, a current decision winner, scoped logical support, or executable work.
 
@@ -73,7 +76,7 @@ M30 is complete when all of the following statements are true:
 
 8. **The `0.26.0 -> 0.27.0` upgrade makes no silent behavioral change.** Existing M29 metadata is preserved but is not automatically converted into active runtime gating.
 
-9. **No simulation engine is introduced.** Hypothetical facts, replay, backtesting, and arbitrary deployment-impact comparison remain outside M30.
+9. **No simulation engine is introduced.** Hypothetical facts, replay, backtesting, and arbitrary deployment-impact comparison remain outside M30a and M30b.
 
 ---
 
@@ -160,7 +163,7 @@ This support model prevents duplicate work while preserving exact policy-set pro
 
 ### 5.5 Frozen v1 kind disposition
 
-M30-A MUST freeze the following disposition before implementation proceeds. No accepted kind may mean metadata registration without authoritative runtime behavior.
+M30a MUST freeze the following disposition before implementation proceeds. No accepted kind may mean metadata registration without authoritative runtime behavior.
 
 | Kind | Ordinary object disposition | Policy-set member disposition |
 |---|---|---|
@@ -817,7 +820,7 @@ Fleet-wide inspection MUST not require invoking one function per target.
 
 ## 15. Required implementation artifacts
 
-M30 is incomplete without all of the following repository artifacts:
+The M30a/M30b program is incomplete without all of the following repository artifacts:
 
 1. `docs/m30-contract.md`
 2. `docs/m30-support-matrix.md`
@@ -839,41 +842,33 @@ M30 is incomplete without all of the following repository artifacts:
 
 Every SQL and command example in ordinary M30 documentation MUST execute in CI.
 
-From the first M30 implementation change onward, CI MUST maintain one continuous v1 qualification lane covering fresh installation, the populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged-artifact execution, and the current performance budgets. Every M30 hard gate records this evidence, M31 continues it, and M32 consolidates it; M32 MUST NOT be the first milestone to exercise any of these matrices.
+From M30a implementation onward, CI MUST maintain one continuous v1 qualification lane covering fresh installation, the populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged-artifact execution, and the current performance budgets. M30a records the foundation evidence, M30b completes the runtime and release evidence, M31 continues it, and M32 consolidates it; M32 MUST NOT be the first milestone to exercise any of these matrices.
 
 ---
 
-## 16. Internal hard gates and implementation sequence
+## 16. Milestones and implementation sequence
 
-M30 remains one public `0.27.0` release, but implementation proceeds through four independently reviewable hard gates. A later gate MUST NOT begin until the preceding gate's contract, exact fixtures, continuous qualification evidence, and review record are committed; façade-level or assumed behavior is not acceptable evidence.
+M30a MUST complete before M30b begins. Each milestone requires a committed contract, exact fixtures, evidence, and an independently reviewable record; façade-level or assumed behavior is not acceptable evidence.
 
-### M30-A: Support boundary, identities, and relational eligibility
+### M30a: Applicability foundation
 
-Before runtime implementation begins:
+Before authoritative runtime implementation begins:
 
 1. freeze the v1 kind-disposition matrix, match identity, subject identity, scope mode, support semantics, schemas, indexes, limits, and migration states;
 2. record the exact `0.26.0` façade and M29 behavior;
-3. add the first failing runtime-gating fixture with exact transition, work, and explanation output;
-4. create the relational eligibility store, indexes, public views, fingerprints, and bounded evidence rendering;
+3. add the failing, then passing, applicability fixtures with exact identity, transition, support, inspection, and barrier output;
+4. create the relational eligibility and scope-support stores, indexes, public views, fingerprints, bounded evidence rendering, and migration classification;
 5. prove that one eligibility-row change does not rewrite a complete set snapshot.
 
 No implementation shortcut may weaken exact expected outputs into count-only assertions.
 
-### M30-B: Authoritative adapters and lifecycle closure
+### M30b: Authoritative runtime
 
 Implement the runtime-adapter registry and strict kind validation so unsupported kinds fail before mutation; status never infers deployment from metadata; explain and doctor delegate to authoritative implementations; referenced PostgreSQL-object rename or drift is resolved or blocked explicitly; replacement and removal close runtime, lifecycle, and work state; and target-based run has one documented global scope.
 
-Complete the command-rule vertical slice using `order_id` as match identity and `customer_id` as subject identity, including activation, change, deactivation, pending, retrying and leased work, overlapping sets, expiry, removal, source drift, and repair. Then complete exact lifecycle, provenance, work, recovery, and explanation fixtures for every supported member kind in the frozen matrix.
+Route applicability refresh, raw and effective truth, decisions, derivations, lifecycle, work revalidation, attempts, and frontiers through the existing global coordinator with one frozen total lock order. Complete the command-rule vertical slice using `order_id` as match identity and `customer_id` as subject identity, including activation, change, deactivation, pending, retrying and leased work, overlapping sets, expiry, removal, source drift, claimed-work invalidation, crash boundaries, and repair. Then complete exact lifecycle, provenance, work, recovery, explanation, role-isolation, packaged-artifact, performance, direct-upgrade, and release-qualification fixtures for every supported member kind in the frozen matrix.
 
-### M30-C: Atomic policy-set coordination
-
-Route applicability refresh, raw and effective truth, decisions, derivations, lifecycle, work revalidation, attempts, and frontiers through the existing global coordinator. Exact fixtures MUST prove eligibility entry, exit and return, overlapping support, member and set replacement, claimed-work invalidation, invalid-source barriers, crash boundaries, and every frozen lock ordering without mixed frontiers or duplicate work.
-
-### M30-D: Migration and release proof
-
-Complete legacy metadata classification, M29 scope migration, the populated direct upgrade, physical and logical recovery, restart, standby promotion where supported, retention, role isolation, public observability, documentation, packaged-artifact execution, and the measured performance envelope. Run every inherited M0 through M29 gate unchanged.
-
-Before M30 closes, at least one reviewer who did not implement the reviewed subsystem and has PostgreSQL extension, transaction, locking, and migration expertise MUST approve the eligibility data model, total lock order, policy-set atomicity, referenced-object rename/drift behavior, replacement and removal closure, failure recovery, and direct-upgrade behavior. Publish the support matrix, limits, known cliffs, migration steps, review record, and evidence artifacts before tagging `v0.27.0`.
+Before M30b closes, at least one reviewer who did not implement the reviewed subsystem and has PostgreSQL extension, transaction, locking, and migration expertise MUST approve the eligibility data model, total lock order, policy-set atomicity, referenced-object rename/drift behavior, replacement and removal closure, failure recovery, and direct-upgrade behavior. Publish the support matrix, limits, known cliffs, migration steps, review record, and evidence artifacts before tagging `v0.27.0`.
 
 ---
 
@@ -1158,7 +1153,7 @@ M30 does not add:
 
 ## 23. Release-blocking exit gates
 
-M30 may publish as `v0.27.0` only when every gate below passes.
+M30b may publish as `v0.27.0` only when every gate below passes.
 
 ### 23.1 Runtime gating gate
 
@@ -1222,7 +1217,7 @@ The required PostgreSQL extension, transaction, locking, migration, lifecycle, r
 
 ### 23.16 Continuous-qualification gate
 
-Fresh install, populated direct upgrade, rollback-by-restore and recovery, role-isolation, packaged-artifact, and performance-budget evidence has remained green at every applicable M30 hard gate.
+Fresh install, populated direct upgrade, rollback-by-restore and recovery, role-isolation, packaged-artifact, and performance-budget evidence has remained green from M30a through every applicable M30b gate.
 
 ### 23.17 Inherited-evidence gate
 
@@ -1230,33 +1225,36 @@ Every M0 through M29 release gate passes unchanged against the exact `0.27.0` ar
 
 ---
 
-## 24. Roadmap after M30
+## 24. Roadmap after M30b
 
 Approval of this proposal changes the immediate sequence to:
 
-1. **M30: V1 Behavioral Convergence and Runtime Truth**<br>
-   Complete policy-set execution, truthful façade behavior, explicit subject identity, safe migration, and authoritative removal.
+1. **M30a: Applicability Foundation**<br>
+   Freeze and implement the identity model, scope semantics, disposition matrix, relational eligibility and support schema, migrations, inspection primitives, and exact applicability fixtures.
 
-2. **M31: PostgreSQL-Native Ergonomics**<br>
+2. **M30b: Authoritative Runtime**<br>
+   Complete policy-set execution, authoritative adapters, global coordination, lock ordering, lifecycle and support transitions, claimed-work revalidation, frontier and barrier semantics, race and recovery testing, and release qualification.
+
+3. **M31: PostgreSQL-Native Ergonomics**<br>
    Add typed constructors, relational diagnostics, final vocabulary, one public schema strategy, richer preview, migration-oriented export, and copy-and-run workflows.
 
-3. **M32: V1 Hardening and Release Qualification**<br>
+4. **M32: V1 Hardening and Release Qualification**<br>
    Freeze the v1 compatibility matrix, documentation, upgrade path, packaging, performance envelope, deprecations, and external usability evidence in `0.29.0`.
 
-4. **Version 1.0.0 release-candidate cycle**<br>
+5. **Version 1.0.0 release-candidate cycle**<br>
    Publish at least one exact `1.0.0-rc.N` packaged artifact and qualify both fresh installation and populated upgrade from `0.26.0`; any fix requires a new candidate and affected evidence rerun.
 
-5. **Version 1.0.0**<br>
+6. **Version 1.0.0**<br>
    Promote only a fully qualified release candidate, with no capability or semantic change.
 
-6. **Post-v1 simulation sequence**<br>
+7. **Post-v1 simulation sequence**<br>
    Introduce hypothetical facts, deployment comparison, replay, backtesting, and why-changed analysis on top of the frozen runtime model.
 
 ---
 
 ## 25. First implementation change
 
-The first M30 change MUST be a failing end-to-end test, not a catalog migration.
+The first M30a change MUST be a failing applicability fixture, not a catalog migration.
 
 The test must establish:
 
@@ -1270,7 +1268,7 @@ one raw rule match
 
 It must then add eligibility and prove generation `1`, remove eligibility and prove deactivation plus work withdrawal, restore eligibility and prove generation `2`, and finally invalidate eligibility after claim to prove a skipped execution.
 
-M30 implementation begins only after the exact expected transcript for that fixture is reviewed and frozen.
+M30a implementation begins only after the exact expected transcript for that fixture is reviewed and frozen. M30b begins only after the M30a contract, schema, migration, inspection, and fixture evidence is complete.
 
 ---
 
@@ -1280,4 +1278,4 @@ This proposal should be approved only if maintainers agree to the following prio
 
 > **Before pg-react learns to simulate hypothetical worlds, its ordinary API and policy sets must describe the real world exactly.**
 
-Approval authorizes replacing the current M30 roadmap entry, creating the normative M30 contract, and beginning with the failing runtime-gating fixture defined above.
+Approval authorizes replacing the current M30 roadmap entry with M30a and M30b, creating the normative foundation and runtime contracts, and beginning with the failing applicability fixture defined above.
