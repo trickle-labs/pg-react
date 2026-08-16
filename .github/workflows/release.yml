@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Fetch inherited release tag
-        run: git fetch --no-tags origin refs/tags/v0.23.0:refs/tags/v0.23.0 refs/tags/v0.24.0:refs/tags/v0.24.0
+      - name: Fetch inherited release tags
+        run: git fetch --no-tags origin refs/tags/v0.21.0:refs/tags/v0.21.0 refs/tags/v0.22.0:refs/tags/v0.22.0 refs/tags/v0.23.0:refs/tags/v0.23.0 refs/tags/v0.24.0:refs/tags/v0.24.0
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
           toolchain: 1.89.0
