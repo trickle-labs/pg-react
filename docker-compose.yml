@@ -1,14 +1,16 @@
 services:
   postgres:
-    image: ${PG_REACT_IMAGE:-pg-react:v0.26.0}
+    image: ${PG_REACT_IMAGE:-pg-react:v0.27.0}
     platform: ${PG_REACT_PLATFORM:-linux/amd64}
     build:
       context: .
     environment:
       POSTGRES_PASSWORD: pgreact
-      PG_REACT_INIT_VERSION: ${PG_REACT_INIT_VERSION:-0.26.0}
+      PG_REACT_INIT_VERSION: ${PG_REACT_INIT_VERSION:-0.27.0}
     ports:
       - "${PG_REACT_PORT_BINDING:-127.0.0.1::5432}"
+    volumes:
+      - postgres-data:/var/lib/postgresql
     command:
       - postgres
       - -c
@@ -29,3 +31,6 @@ services:
       - pg_react.batch_size=${PG_REACT_BATCH_SIZE:-32}
       - -c
       - pg_react.max_pending_jobs=${PG_REACT_MAX_PENDING_JOBS:-10000}
+
+volumes:
+  postgres-data:

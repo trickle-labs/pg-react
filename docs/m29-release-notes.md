@@ -34,5 +34,6 @@ the release as published only after that workflow verifies the image,
 checksums, SBOM, provenance, OCI digest, populated upgrade evidence, and
 complete inherited gates.
 
-The logical next milestone is M30 — Hypothetical fact simulation: one bounded,
-side-effect-free way to ask what would change if selected facts changed.
+The logical next milestone is M30 — Applicability foundation: typed identities,
+relational eligibility, explicit scope modes, migration classification, and
+inspection. Authoritative runtime transitions remain a later milestone.

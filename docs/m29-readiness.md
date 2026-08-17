@@ -28,6 +28,6 @@ The complete profile must verify the populated `0.25.0 -> 0.26.0` upgrade,
 inherited M0–M28 evidence, security and recovery behavior, and the release
 workflow’s artifact checks. Passing the local fast profile is not publication.
 
-The logical next milestone is M30 — Hypothetical fact simulation. It is not
-part of M29 and should begin only after the immutable `v0.26.0` evidence is
+The logical next milestone is M30 — Applicability foundation. It is not part
+of M29 and should begin only after the immutable `v0.26.0` evidence is
 published.

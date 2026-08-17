@@ -1,0 +1,31 @@
+name: M30 complete evidence
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Fetch inherited release images
+        run: |
+          for version in 0.23.0 0.24.0 0.25.0 0.26.0; do
+            docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v$version"
+            docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v$version" "pg-react:v$version"
+          done
+      - name: Build and run complete profile
+        run: |
+          docker build --tag pg-react:v0.27.0 .
+          M30_ARTIFACT_DIR="$PWD/m30-evidence" bash tests/m30.sh complete pg-react:v0.27.0
+      - name: Publish evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pg-react-v0.27.0-m30-evidence
+          path: m30-evidence
+          retention-days: 30

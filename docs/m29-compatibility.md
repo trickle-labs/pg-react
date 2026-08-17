@@ -11,7 +11,7 @@
 | Inspection | policy-set, version, member, and eligible-subject views |
 | Security | source `SELECT` privilege and existing façade role grants are required |
 | Upgrade | `ALTER EXTENSION pg_react UPDATE TO '0.26.0'` |
-| Next milestone | M30 — Hypothetical fact simulation |
+| Next milestone | M30 — Applicability foundation |
 
 M29 is additive. Existing M0–M28 APIs, catalogs, policy behavior, and direct
 upgrade state remain available. Downgrade is not supported; restore a verified

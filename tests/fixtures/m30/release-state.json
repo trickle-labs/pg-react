@@ -1,0 +1,28 @@
+{
+  "milestone": "M30",
+  "target_version": "0.27.0",
+  "direct_upgrade": "0.26.0 -> 0.27.0",
+  "fast_command": "tests/m30.sh fast pg-react:v0.27.0",
+  "complete_command": "tests/m30.sh complete pg-react:v0.27.0",
+  "contract_version": 18,
+  "ordinary_kind": "policy_set",
+  "ordinary_verbs": [
+    "validate",
+    "preview",
+    "deploy",
+    "run",
+    "status",
+    "explain",
+    "doctor",
+    "remove"
+  ],
+  "inspection_views": [
+    "pgreact.policy_set_eligible_subjects",
+    "pgreact.policy_set_scope_supports",
+    "pgreact.match_scope_supports",
+    "pgreact.policy_set_runtime_barriers",
+    "pgreact.declaration_migrations"
+  ],
+  "next_milestone": "M31 - Authoritative runtime",
+  "status": "candidate; publish v0.27.0 only after complete inherited and independent evidence passes"
+}

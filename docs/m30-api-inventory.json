@@ -1,0 +1,26 @@
+{
+  "milestone": "M30",
+  "extension_version": "0.27.0",
+  "ordinary_kind": "policy_set",
+  "ordinary_verbs": [
+    "validate",
+    "preview",
+    "deploy",
+    "run",
+    "status",
+    "explain",
+    "doctor",
+    "remove"
+  ],
+  "contract_version": 18,
+  "canonical_fields": ["match_keys", "subject_keys", "scope_mode"],
+  "inspection_views": [
+    "pgreact.policy_set_eligible_subjects",
+    "pgreact.policy_set_scope_supports",
+    "pgreact.match_scope_supports",
+    "pgreact.policy_set_runtime_barriers",
+    "pgreact.declaration_migrations"
+  ],
+  "direct_upgrade": "0.26.0 -> 0.27.0",
+  "next_milestone": "M31 - Authoritative runtime"
+}
