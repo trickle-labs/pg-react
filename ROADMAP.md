@@ -1791,7 +1791,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 **Release candidate:** extension `0.27.0`, with direct upgrade `0.26.0 -> 0.27.0`; publish only after the complete M30 gate and inherited M0–M29 evidence pass.
 
-**Entry gate:** the exact `v0.26.0` release artifacts and populated upgrade evidence are published and verified, and every M0–M29 gate passes unchanged. Before implementation, freeze the applicability fixture transcript proving that one raw rule match plus one ineligible subject is out of scope, eligibility entry and exit are represented exactly, reentry is a new generation, and the claimed-work identity/data required for later revalidation can be inspected. M30 freezes that revalidation input only; M31 proves the actual skip and withdrawal execution semantics. The detailed planning basis is the [M30/M31 behavioral-convergence and runtime-truth proposal](pg-react-m30_to_v1_behavioural_convergence_and_runtime_truth.md).
+**Entry gate:** the exact `v0.26.0` release artifacts and populated upgrade evidence are published and verified, and every M0–M29 gate passes unchanged. Before implementation, freeze the applicability fixture transcript proving that one raw rule match plus one ineligible subject is out of scope, eligibility entry and exit are represented exactly, reentry is a new generation, and the claimed-work identity/data required for later revalidation can be inspected. M30 freezes that revalidation input only; M31 proves the actual skip and withdrawal execution semantics.
 
 ### Deliverables
 
@@ -1908,7 +1908,7 @@ All automatable M18 gates are release-blocking targets of one documented `tests/
 
 **Release boundary:** M32 freezes the public PostgreSQL-native API and UX: ordinary schemas, constructors, verbs, views, diagnostics, exports, and task workflows.
 
-**Entry gate:** extension `0.28.0` is published; every M31 exit gate passes and runtime truth is frozen. M30 and M31, the independent technical review, runtime truth, policy-set gating, work revalidation, façade delegation, removal, migration, continuous qualification evidence, and every inherited M0–M29 semantic, security, recovery, concurrency, and compatibility gate pass. The recruited five-person usability cohort has already provided recorded early design feedback. Before freeze, approve one executable golden-path transcript covering condition view, typed action, `pgreact.rule`, preview, deploy, global run, matches, work, and explanation. The detailed planning basis for M32 and M33 is the [interface and qualification proposal](pg-react-m32-and-m33-interface-and-qualification.md).
+**Entry gate:** extension `0.28.0` is published; every M31 exit gate passes and runtime truth is frozen. M30 and M31, the independent technical review, runtime truth, policy-set gating, work revalidation, façade delegation, removal, migration, continuous qualification evidence, and every inherited M0–M29 semantic, security, recovery, concurrency, and compatibility gate pass. The recruited five-person usability cohort has already provided recorded early design feedback. Before freeze, approve one executable golden-path transcript covering condition view, typed action, `pgreact.rule`, preview, deploy, global run, matches, work, and explanation.
 
 ### Deliverables
 
