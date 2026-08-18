@@ -34,6 +34,7 @@ jobs:
       - run: docker compose config --quiet
       - run: >-
           git fetch --no-tags origin
+          refs/tags/v0.21.0:refs/tags/v0.21.0
           refs/tags/v0.22.0:refs/tags/v0.22.0
           refs/tags/v0.23.0:refs/tags/v0.23.0
           refs/tags/v0.24.0:refs/tags/v0.24.0
@@ -41,6 +42,8 @@ jobs:
           refs/tags/v0.26.0:refs/tags/v0.26.0
           refs/tags/v0.27.0:refs/tags/v0.27.0
           refs/tags/v0.28.0:refs/tags/v0.28.0 &&
+          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.21.0" &&
+          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.21.0" pg-react:v0.21.0 &&
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.22.0" &&
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.22.0" pg-react:v0.22.0 &&
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.23.0" &&
