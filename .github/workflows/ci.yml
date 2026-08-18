@@ -61,12 +61,18 @@ jobs:
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" pg-react:v0.28.0 &&
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0" &&
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0" pg-react:v0.29.0 &&
+          m33_commit=$(git log --all --format=%H --grep='^Implement M33 v1 qualification baseline$' -1) &&
+          test -n "$m33_commit" &&
+          git worktree add --detach .m33-source "$m33_commit" &&
+          docker build --tag pg-react:v0.30.0 .m33-source &&
           git worktree add --detach .m30-qualification v0.27.0 &&
           git worktree add --detach .m31-qualification v0.28.0 &&
           git worktree add --detach .m32-qualification v0.29.0 &&
-          trap 'git worktree remove --force .m30-qualification; git worktree remove --force .m31-qualification; git worktree remove --force .m32-qualification' EXIT &&
+          trap 'git worktree remove --force .m30-qualification; git worktree remove --force .m31-qualification; git worktree remove --force .m32-qualification; git worktree remove --force .m33-source' EXIT &&
           (cd .m30-qualification && M30_INHERITED_IMAGE=pg-react:v0.26.0 bash tests/m30.sh complete pg-react:v0.27.0) &&
           (cd .m31-qualification && bash tests/m31.sh complete pg-react:v0.28.0) &&
           (cd .m32-qualification && bash tests/m32.sh complete pg-react:v0.29.0) &&
           docker build --tag pg-react:m33-unreleased . &&
-          bash tests/m33.sh complete pg-react:m33-unreleased
+          bash tests/m33.sh complete pg-react:m33-unreleased &&
+          docker build --tag pg-react:m34-unreleased . &&
+          bash tests/m34.sh complete pg-react:m34-unreleased

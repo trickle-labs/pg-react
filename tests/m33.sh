@@ -8,6 +8,7 @@ case "$profile" in fast|complete) ;; *) echo 'usage: tests/m33.sh fast|complete 
 
 project=${COMPOSE_PROJECT_NAME:-pgreact-m33-${GITHUB_RUN_ID:-$$}}
 run_dir="tests/.m33-run-${GITHUB_RUN_ID:-$$}"
+artifact_dir=${M33_ARTIFACT_DIR:-}
 mkdir -p -- "$run_dir"
 
 cleanup() {
@@ -141,4 +142,9 @@ if [[ $profile = complete ]]; then
     echo "M33 inherited M32 evidence not run: image '$inherited_image' is unavailable"
     echo "No inherited M32 qualification claim made"
   fi
+fi
+
+if [[ -n $artifact_dir ]]; then
+  mkdir -p -- "$artifact_dir"
+  cp -- "$run_dir"/*.log "$artifact_dir"/
 fi

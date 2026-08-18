@@ -3,12 +3,12 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M33 is the `0.30.0` v1 qualification baseline. It freezes the
-> PostgreSQL-native interface and proves the packaged product can be installed,
-> upgraded, recovered, secured, and operated. The numbered `1.0.0-rc.1`
-> candidate follows M33; `1.0.0` is not a direct promotion from `0.30.0`.
-> See the [M33 release notes](docs/m33-release-notes.md), [v1 contract](docs/v1-contract.md),
-> and [M33 readiness record](docs/m33-readiness.md).
+> pg-react M34 is the `0.31.0` deployment-impact comparison release. Before
+> deploying a proposal, users can see what would be added, removed, or changed
+> without changing the database. M35 (`0.32.0`) is next; the first numbered
+> release candidate comes only after M35 as `1.0.0-rc.1`.
+> See the [M34 release notes](docs/m34-release-notes.md), [M34 contract](docs/m34-contract.md),
+> and [M34 readiness record](docs/m34-readiness.md).
 >
 > Historical M31 documentation remains available in the
 > [M31 document set](docs/m31-release-notes.md). The existing `v0.27.0` tag
@@ -283,11 +283,11 @@ and [M30 contract](docs/m30-contract.md).
 M31 is preserved as the historical `0.28.0` authoritative-runtime milestone.
 M32 is preserved as the `0.29.0` PostgreSQL-native interface candidate. M33 is
 the `0.30.0` v1 qualification baseline: it freezes compatibility, recovery,
-security, limits, packaging, operations, and the documentation contract. The
-next logical milestone is the required `1.0.0-rc.1` qualification cycle, not a
-new feature milestone. Post-v1 simulation begins at M34. See the [M33
-contract](docs/v1-contract.md), [qualification evidence](docs/m33-evidence.md),
-and [readiness record](docs/m33-readiness.md).
+security, limits, packaging, operations, and the documentation contract. M34
+is the `0.31.0` read-only deployment-impact comparison release; M35 is the
+planned `0.32.0` hypothetical-fact simulation release. The next logical
+milestone is M35, not the final RC yet. See the [M34 contract](docs/m34-contract.md),
+[M34 evidence](docs/m34-evidence.md), and [M34 readiness record](docs/m34-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 

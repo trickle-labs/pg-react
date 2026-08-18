@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "milestone": "M34",
+  "finding_shape": [
+    "code",
+    "severity",
+    "blocking",
+    "target",
+    "field",
+    "message",
+    "hint",
+    "details"
+  ],
+  "severity": [
+    "ERROR",
+    "WARNING",
+    "INFO"
+  ],
+  "codes": [
+    {"code": "M34_INVALID_DECLARATION", "severity": "ERROR"},
+    {"code": "M34_OPTIONS", "severity": "ERROR"},
+    {"code": "M34_TARGET_NOT_FOUND", "severity": "ERROR"},
+    {"code": "M34_TARGET_KIND", "severity": "ERROR"},
+    {"code": "M34_TARGET_NAME", "severity": "ERROR"},
+    {"code": "M34_TARGET_VERSION", "severity": "ERROR"},
+    {"code": "M34_UNAUTHORIZED_TARGET", "severity": "ERROR"},
+    {"code": "M34_UNAUTHORIZED_SOURCE", "severity": "ERROR"},
+    {"code": "M34_RLS_UNSUPPORTED", "severity": "ERROR"},
+    {"code": "M34_SOURCE_DRIFT", "severity": "ERROR"},
+    {"code": "M34_PROPOSAL_DUPLICATE", "severity": "ERROR"},
+    {"code": "M34_WRONG_KEY_TYPE", "severity": "ERROR"},
+    {"code": "M34_RESOURCE_LIMIT", "severity": "ERROR"},
+    {"code": "M34_SAMPLED_TIME", "severity": "ERROR"},
+    {"code": "M34_UNSUPPORTED_KIND", "severity": "ERROR"},
+    {"code": "M34_AUTHORITATIVE_CHANGED", "severity": "ERROR"},
+    {"code": "M34_COMPARISON_INCOMPLETE", "severity": "WARNING"},
+    {"code": "M34_NO_EFFECT", "severity": "INFO"}
+  ]
+}

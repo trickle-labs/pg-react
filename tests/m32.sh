@@ -11,6 +11,7 @@ image=${2:-pg-react:m32-unreleased}
 case "$profile" in fast|complete) ;; *) echo 'usage: tests/m32.sh fast|complete [IMAGE]' >&2; exit 2 ;; esac
 
 project=${COMPOSE_PROJECT_NAME:-pgreact-m32-${GITHUB_RUN_ID:-$$}}
+artifact_dir=${M32_ARTIFACT_DIR:-}
 cleanup() {
   COMPOSE_PROJECT_NAME=$project docker compose down --volumes --remove-orphans >/dev/null 2>&1 || true
 }
@@ -37,4 +38,9 @@ for _ in {1..120}; do
 done
 docker compose exec -T postgres psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 \
   -f - < tests/m32.sql
+if [[ -n $artifact_dir ]]; then
+  mkdir -p -- "$artifact_dir"
+  printf 'M32 %s qualification passed for %s\n' "$profile" "$image" \
+    >"$artifact_dir/qualification.txt"
+fi
 echo "M32 $profile fixture passed for $image"

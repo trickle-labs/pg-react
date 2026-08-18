@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "milestone": "M34",
+  "extension_version": "0.31.0",
+  "predecessor": "M33 / 0.30.0",
+  "status": "M34 additive comparison surface",
+  "ordinary": {
+    "functions": [
+      "pgreact.compare",
+      "pgreact.compare_results"
+    ],
+    "inputs": [
+      "pgreact_api.declaration",
+      "pgreact_api.target",
+      "jsonb options: evidence_limit, sampled_time"
+    ],
+    "result_sets": [
+      "current",
+      "proposed",
+      "delta",
+      "lifecycle",
+      "work"
+    ],
+    "delta_states": [
+      "ADDED",
+      "REMOVED",
+      "CHANGED",
+      "UNCHANGED"
+    ]
+  },
+  "inherited": {
+    "contract": "M33 / 0.30.0",
+    "policy": "All existing ordinary, advanced, compatibility, and administrative surfaces remain unchanged."
+  },
+  "no_effect_boundary": [
+    "no deployment",
+    "no lifecycle mutation",
+    "no durable work or attempt",
+    "no consequence or external delivery",
+    "no frontier advancement"
+  ]
+}
