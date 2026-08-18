@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "milestone": "1.0.0-rc.1",
-  "extension_version": "1.0.0-rc.1",
+  "milestone": "M34",
+  "extension_version": "0.31.0",
   "contract_version": "1.0.0",
   "source": "generated from installed pg_catalog and pgreact_internal.m33_installed_inventory()",
-  "predecessor": "M34 / 0.31.0",
-  "status": "frozen v1 RC inventory; qualification compares this file with installed reality",
+  "predecessor": "M33 / 0.30.0",
+  "status": "frozen v1 inventory; qualification compares this file with installed reality",
   "classifications": [
     "ordinary",
     "advanced",

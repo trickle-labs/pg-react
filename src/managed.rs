@@ -1,17 +1,46 @@
+pub fn is_compatible_extension_version(version: &str) -> bool {
+    if version == "0.31.0" || version == "1.0.0" {
+        return true;
+    }
+    if let Some(rest) = version.strip_prefix("1.0.0-rc.") {
+        if !rest.is_empty()
+            && rest.chars().all(|c| c.is_ascii_digit())
+            && !(rest.starts_with('0') && rest.len() > 1)
+        {
+            if let Ok(n) = rest.parse::<u32>() {
+                return n >= 1;
+            }
+        }
+    }
+    false
+}
+
+#[cfg(feature = "pg18")]
 use pgrx::bgworkers::{BackgroundWorker, BackgroundWorkerBuilder, SignalWakeFlags};
+#[cfg(feature = "pg18")]
 use pgrx::guc::{GucContext, GucFlags, GucRegistry, GucSetting};
+#[cfg(feature = "pg18")]
 use pgrx::prelude::*;
+#[cfg(feature = "pg18")]
 use std::collections::BTreeSet;
+#[cfg(feature = "pg18")]
 use std::ffi::CString;
+#[cfg(feature = "pg18")]
 use std::time::Duration;
 
+#[cfg(feature = "pg18")]
 static DATABASES: GucSetting<Option<CString>> = GucSetting::<Option<CString>>::new(None);
+#[cfg(feature = "pg18")]
 static WORKER_ROLE: GucSetting<Option<CString>> =
     GucSetting::<Option<CString>>::new(Some(c"postgres"));
+#[cfg(feature = "pg18")]
 static POLL_INTERVAL_MS: GucSetting<i32> = GucSetting::<i32>::new(1_000);
+#[cfg(feature = "pg18")]
 static BATCH_SIZE: GucSetting<i32> = GucSetting::<i32>::new(32);
+#[cfg(feature = "pg18")]
 static MAX_PENDING_JOBS: GucSetting<i32> = GucSetting::<i32>::new(10_000);
 
+#[cfg(feature = "pg18")]
 #[pg_guard]
 pub extern "C-unwind" fn _PG_init() {
     GucRegistry::define_string_guc(
@@ -84,6 +113,7 @@ pub extern "C-unwind" fn _PG_init() {
     }
 }
 
+#[cfg(feature = "pg18")]
 #[pg_guard]
 #[unsafe(no_mangle)]
 pub extern "C-unwind" fn pg_react_managed_main(_arg: pg_sys::Datum) {
@@ -97,18 +127,57 @@ pub extern "C-unwind" fn pg_react_managed_main(_arg: pg_sys::Datum) {
             unsafe { pg_sys::ProcessConfigFile(pg_sys::GucContext::PGC_SIGHUP) };
         }
         BackgroundWorker::transaction(|| {
-            let ready = Spi::get_one::<bool>(
-                "SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_react' AND extversion = '0.31.0')",
+            let version = Spi::get_one::<String>(
+                "SELECT extversion FROM pg_extension WHERE extname = 'pg_react'",
             )
-            .expect("check pg_react version")
-            .unwrap_or(false);
-            if ready {
-                Spi::run("SELECT pgreact_api.managed_cycle()").expect("run pg-react managed cycle");
+            .expect("query pg_react extension version");
+            if let Some(v) = version {
+                if is_compatible_extension_version(&v) {
+                    Spi::run("SELECT pgreact_api.managed_cycle()")
+                        .expect("run pg-react managed cycle");
+                }
             }
         });
         if !BackgroundWorker::wait_latch(Some(Duration::from_millis(POLL_INTERVAL_MS.get() as u64)))
         {
             break;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_version_compatibility() {
+        // Supported transition & GA versions
+        assert!(is_compatible_extension_version("0.31.0"));
+        assert!(is_compatible_extension_version("1.0.0-rc.1"));
+        assert!(is_compatible_extension_version("1.0.0-rc.2"));
+        assert!(is_compatible_extension_version("1.0.0-rc.42"));
+        assert!(is_compatible_extension_version("1.0.0"));
+
+        // Unsupported pre-v1 versions
+        assert!(!is_compatible_extension_version("0.30.0"));
+        assert!(!is_compatible_extension_version("0.29.0"));
+        assert!(!is_compatible_extension_version("0.1.0"));
+
+        // Unsupported post-1.0 or future-major versions
+        assert!(!is_compatible_extension_version("1.0.1"));
+        assert!(!is_compatible_extension_version("1.1.0"));
+        assert!(!is_compatible_extension_version("2.0.0"));
+
+        // Malformed or invalid version strings
+        assert!(!is_compatible_extension_version("1.0.0-rc.0"));
+        assert!(!is_compatible_extension_version("1.0.0-rc.01"));
+        assert!(!is_compatible_extension_version("1.0.0-rc"));
+        assert!(!is_compatible_extension_version("1.0.0-rc."));
+        assert!(!is_compatible_extension_version("1.0.0-rc.1a"));
+        assert!(!is_compatible_extension_version("1.0.0-beta.1"));
+        assert!(!is_compatible_extension_version("v1.0.0"));
+        assert!(!is_compatible_extension_version("1.0.0.0"));
+        assert!(!is_compatible_extension_version(""));
+        assert!(!is_compatible_extension_version("random_string"));
     }
 }

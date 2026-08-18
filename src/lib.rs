@@ -3,8 +3,7 @@
 #[cfg(feature = "pg18")]
 pgrx::pg_module_magic!();
 
-#[cfg(feature = "pg18")]
-mod managed;
+pub mod managed;
 
 #[cfg(feature = "pg18")]
 mod rewrite;

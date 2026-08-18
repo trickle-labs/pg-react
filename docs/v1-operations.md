@@ -71,8 +71,8 @@ public view.
 
 2. **Diagnose** — confirm the current database is listed, the configured role
    can connect and has worker privileges, and both `pg_trickle` and `pg_react`
-   are preloaded. The runtime currently coordinates only extension version
-   `0.31.0`.
+   are preloaded. The runtime dynamically coordinates extension versions
+   `0.31.0`, `1.0.0-rc.N`, and `1.0.0`.
 3. **Repair prerequisite** — correct the postmaster settings or worker role.
    Changes to `pg_react.databases` and `pg_react.worker_role` require a
    PostgreSQL restart.

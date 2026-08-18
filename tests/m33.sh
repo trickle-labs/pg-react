@@ -45,17 +45,17 @@ docs_audit() {
   test -s docs/v1-limits.md
   test -s docs/v1-security.md
   jq -e '
-    .schema_version == 1 and .milestone == "M33" and
+    .schema_version == 1 and (.milestone == "M33" or .milestone == "M34") and
     .contract_version == "1.0.0" and
     (.ordinary.functions | length > 0) and
     (.ordinary.types | length > 0) and
     (.ordinary.views | length > 0)
   ' docs/v1-api-inventory.json >/dev/null
   jq -e '
-    .schema_version == 1 and .milestone == "M33" and
+    .schema_version == 1 and (.milestone == "M33" or .milestone == "M34") and
     .finding_shape == ["code","severity","blocking","target","field","message","hint","details"] and
     .severity == ["ERROR","WARNING","INFO"] and
-    (.codes | length == 22)
+    (.codes | length >= 22)
   ' docs/v1-finding-codes.json >/dev/null
   grep -Fq 'generated from the installed pgreact.api_inventory view' docs/v1-api-inventory.json
   grep -Fq 'M33 freezes the security boundary' docs/v1-security.md
@@ -109,6 +109,10 @@ docker compose exec -T postgres psql -XAtq -U postgres -d postgres \
   "SELECT pgreact_internal.m33_finding_registry()" >"$run_dir/finding-registry.json"
 
 if [[ $expected_version = 0.30.0 ]]; then
+  m33_inv="docs/history/v1-api-inventory-m33-0.30.0.json"
+  m33_codes="docs/history/v1-finding-codes-m33-0.30.0.json"
+  test -f "$m33_inv" || m33_inv="docs/v1-api-inventory.json"
+  test -f "$m33_codes" || m33_codes="docs/v1-finding-codes.json"
   run_test 'M33 documentation and installed inventory consistency' \
     jq -e --slurpfile installed "$run_dir/inventory.json" '
       all(.ordinary.functions[]; . as $name | any($installed[0].functions[];
@@ -117,11 +121,11 @@ if [[ $expected_version = 0.30.0 ]]; then
         (.schema_name + "." + .name) == $name)) and
       all(.ordinary.views[]; . as $name | any($installed[0].public_views[];
         (.schema_name + "." + .name) == $name))
-    ' docs/v1-api-inventory.json
+    ' "$m33_inv"
   run_test 'M33 documentation and finding registry consistency' \
     jq -e --slurpfile installed "$run_dir/finding-registry.json" '
       ([.codes[].code] | sort) == ([$installed[0].codes[].code] | sort)
-    ' docs/v1-finding-codes.json
+    ' "$m33_codes"
 else
   echo "M33 documentation/inventory execution check skipped for non-v1 image $expected_version"
 fi

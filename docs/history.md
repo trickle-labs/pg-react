@@ -31,6 +31,9 @@ instructions.
   [final checklist](m33-final-checklist.md)
 - [M34 evidence](m34-evidence.md), [readiness](m34-readiness.md), and
   [final checklist](m34-final-checklist.md)
+- Preserved historical milestone inventories:
+  - M33 / `0.30.0`: [API inventory](history/v1-api-inventory-m33-0.30.0.json), [Finding codes](history/v1-finding-codes-m33-0.30.0.json)
+  - M34 / `0.31.0`: [API inventory](history/v1-api-inventory-m34-0.31.0.json), [Finding codes](history/v1-finding-codes-m34-0.31.0.json)
 
 These records show what a milestone attempted or demonstrated. They do not
 create an RC artifact, broaden support, or override installed behavior.

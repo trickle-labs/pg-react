@@ -1,13 +1,8 @@
 # v1 upgrade runbook
 
-`0.31.0` contains the v1 feature set. No `1.0.0-rc.1` extension artifact or
-migration exists yet, so this page intentionally publishes no
-`0.31.0 -> 1.0.0-rc.1` command. Exact source/target pairs become supported only
-after the packaged artifacts and their upgrade tests exist.
+`0.31.0` is the v1 feature baseline. The supported release candidate upgrade path is `0.31.0 -> 1.0.0-rc.1`. Exact source/target pairs are supported through versioned migration scripts and automated qualification.
 
-The current managed worker also runs cycles only when the installed extension
-version is exactly `0.31.0`. RC/GA runtime version handling is therefore an RC
-qualification blocker, not something an operator should work around.
+The managed worker dynamically coordinates extension versions `0.31.0`, `1.0.0-rc.N`, and `1.0.0`.
 
 Every procedure follows:
 
@@ -122,12 +117,14 @@ The managed process must be absent before package or extension files change.
 3. **Repair prerequisite** — install the exact target files while workers
    remain stopped.
 4. **Invoke public operation** — run only the exact extension-update command
-   published with the qualified target release.
+   published with the qualified target release:
+
+   ```sql
+   ALTER EXTENSION pg_react UPDATE TO '1.0.0-rc.1';
+   ```
+
 5. **Verify** — confirm the command completed without invoking user
    consequences or creating external delivery.
-
-No target command is shown here because no RC artifact/migration currently
-exists. Do not substitute a guessed version string.
 
 ## 5. Pre-resume read-only verification
 

@@ -93,18 +93,7 @@ SELECT pgreact_api.configure_roles(
 
 `pg_react` is not trusted and requires superuser installation.
 
-Fresh 0.31.0 installation has a grant-order defect: the M34 comparison
-functions grant configured roles only while the extension script is running.
-After `configure_roles`, apply the intended grants explicitly:
-
-```sql
-GRANT EXECUTE ON FUNCTION
-  pgreact.compare(pgreact_api.declaration, pgreact_api.target, jsonb),
-  pgreact.compare_results(pgreact_api.declaration, pgreact_api.target, jsonb)
-TO pgreact_author, pgreact_operator, pgreact_reader;
-```
-
-The RC package must fold these grants into `configure_roles`.
+In `1.0.0-rc.1` and later, `pgreact_api.configure_roles` authoritatively configures the security boundary, granting `EXECUTE` on `pgreact.compare` and `pgreact.compare_results` to `pgreact_author`, `pgreact_operator`, and `pgreact_reader`, while revoking them from `pgreact_worker`, `pgreact_advanced_reader`, and `PUBLIC`. For historical `0.31.0` installations, apply those grants explicitly until upgraded.
 
 ## Verify the environment
 
@@ -133,7 +122,7 @@ SELECT pgreact.doctor();
 SELECT pgreact_api.managed_status();
 ```
 
-Expect PostgreSQL `18.3`, pg_trickle `0.81.0`, pg-react `0.31.0`, worker
+Expect PostgreSQL `18.3`, pg_trickle `0.81.0`, pg-react `1.0.0-rc.1` (or `0.31.0`), worker
 protocol `2`, `doctor` state `ready`, and a managed status with
 `configured = true`. After the first poll, the process should report protocol
 `2` and state `ready`.

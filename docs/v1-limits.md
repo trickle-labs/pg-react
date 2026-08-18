@@ -60,9 +60,7 @@ separate from the comparison contract.
 | Maximum backoff | `60 seconds` | `1..86400` seconds |
 | Backoff multiplier | `2` | Minimum `1` |
 
-Although the `pg_react.batch_size` GUC accepts values through `1000`, the
-public work-claim operation rejects values above `100`. Keep managed command
-work at `100` or below until this installed mismatch is resolved.
+The `pg_react.batch_size` GUC accepts values between `1` and `1000` for general processing and window maintenance. The worker job claim operation caps the claim batch to `least(batch_size, 100)` items, safely respecting the `1..100` public work-claim bound.
 
 Decision declarations default `max_candidates` to `1000` and require a
 positive value. Policy-set applicability evidence is bounded `1..1000`, and a

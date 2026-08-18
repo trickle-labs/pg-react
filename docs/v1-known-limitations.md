@@ -2,12 +2,10 @@
 
 - The only qualified environment is PostgreSQL 18.3 with pg_trickle 0.81.0 on
   Linux amd64. See the [support matrix](v1-support-matrix.md).
-- `0.31.0` contains the v1 feature set, but no `1.0.0-rc.1` or `1.0.0`
-  artifact or qualified upgrade path exists yet.
-- The managed runtime currently cycles only when the installed extension
-  version string is exactly `0.31.0`. RC/GA version handling is an RC blocker.
-- Fresh 0.31.0 installation requires an explicit post-`configure_roles` grant
-  of comparison to the author, operator, and reader roles.
+- `1.0.0-rc.1` is the current release candidate. Supported upgrade path `0.31.0 -> 1.0.0-rc.1` is qualified.
+- The managed runtime supports `0.31.0`, `1.0.0-rc.N`, and `1.0.0`.
+- In `1.0.0-rc.1`, `configure_roles` authoritatively grants comparison execution to `author`, `operator`, and `reader` roles.
+- For historical `0.31.0` installations, an explicit post-`configure_roles` grant of comparison is required until upgraded to `1.0.0-rc.1`.
 - Evaluated RLS sources are rejected. Unauthorized target/source comparison
   fails closed; there is no proven row-redacted comparison substitute.
 - Comparison varies the declaration over current authoritative facts only. It

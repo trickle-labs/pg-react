@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "milestone": "1.0.0-rc.1",
-  "extension_version": "1.0.0-rc.1",
+  "milestone": "M33",
+  "extension_version": "0.30.0",
   "contract_version": "1.0.0",
-  "source": "generated from installed pg_catalog and pgreact_internal.m33_installed_inventory()",
-  "predecessor": "M34 / 0.31.0",
-  "status": "frozen v1 RC inventory; qualification compares this file with installed reality",
+  "source": "generated from the installed pgreact.api_inventory view by tests/m33.sh",
+  "predecessor": "M32 / 0.29.0",
+  "status": "frozen v1 inventory; qualification compares this file with installed reality",
   "classifications": [
     "ordinary",
     "advanced",
@@ -15,8 +15,7 @@
   ],
   "ordinary": {
     "types": [
-      "pgreact_api.declaration",
-      "pgreact_api.target"
+      "pgreact_api.declaration"
     ],
     "functions": [
       "pgreact.rule",
@@ -27,9 +26,7 @@
       "pgreact.run",
       "pgreact.status",
       "pgreact.explain",
-      "pgreact.doctor",
-      "pgreact.compare",
-      "pgreact.compare_results"
+      "pgreact.doctor"
     ],
     "views": [
       "pgreact.rules",

@@ -361,12 +361,7 @@ After review, choose one:
 For a changed policy set, deploy a new immutable policy-set version after a
 fresh preview.
 
-For an already deployed ordinary rule or decision, installed `0.31.0` proves
-preview replacement metadata and stale-digest rejection, but the repository
-does not prove a successful names-first `pgreact.deploy()` replacement. Do not
-turn the precondition shape into an invented deployment recipe. Use the
-qualified target-specific cutover in [Operations](v1-operations.md), including
-its old-work policy, or stop until that facade gap is resolved.
+For a new rule or re-deploying a removed declaration, use `pgreact.deploy(declaration)`. For updating an already active deployed rule in place, use the qualified target-specific cutover `pgreact.replace_rule(...)` in [Operations](v1-operations.md), including its explicit old-work policy.
 
 After any qualified deployment, allow the managed runtime to process current
 facts and verify `pgreact.status`, `pgreact.matches` or

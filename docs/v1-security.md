@@ -66,10 +66,7 @@ Unauthorized comparison returns no comparison rows or protected values.
 There is no proven row-redaction substitute that returns a safe subset; grant
 the required access or do not compare the target.
 
-Fresh 0.31.0 installations must apply the explicit comparison grants shown in
-the [installation guide](v1-installation.md) after `configure_roles`. Upgrades
-from an already configured 0.30.0 installation receive those grants during the
-0.31.0 migration. The fresh-install grant ordering is an RC blocker.
+In `1.0.0-rc.1` and later, `pgreact_api.configure_roles` automatically grants `EXECUTE` on `pgreact.compare` and `pgreact.compare_results` to `pgreact_author`, `pgreact_operator`, and `pgreact_reader`, while revoking them from `pgreact_worker`, `pgreact_advanced_reader`, and `PUBLIC`. Upgrades from `0.31.0` automatically re-run `configure_roles` for configured roles during migration. For historical `0.31.0` installations, explicit post-`configure_roles` grants remain required until upgraded.
 
 ## `PUBLIC` and security-definer safety
 
