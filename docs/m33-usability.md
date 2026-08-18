@@ -1,5 +1,9 @@
 # M33 usability record
 
+> [!NOTE]
+> Historical `0.30.0` qualification record. Whether this human evidence is
+> required before the first RC remains an open release decision.
+
 M33 repeats the first-rule task against the packaged `0.30.0` candidate with
 five PostgreSQL developers who did not implement pg-react.
 

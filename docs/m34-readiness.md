@@ -1,5 +1,10 @@
 # M34 readiness
 
+> [!NOTE]
+> Historical `0.31.0` readiness record. Its M35-before-RC sequencing is
+> superseded; this file remains qualification evidence, not current release
+> instructions. See [`history.md`](history.md).
+
 **Status: M34 implementation and packaged qualification complete.**
 
 The M34 candidate is extension `0.31.0`. It adds a bounded, read-only

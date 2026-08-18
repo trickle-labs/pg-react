@@ -1,5 +1,10 @@
 # M33 qualification evidence
 
+> [!CAUTION]
+> Historical `0.30.0` evidence record. The reference below to
+> `tests/m33-security.sql` is inaccurate because that file does not exist;
+> the historical body is otherwise preserved. See [`history.md`](history.md).
+
 **Purpose:** show that the exact packaged `0.30.0` artifact is ready to begin
 the numbered `1.0.0-rc.1` cycle.
 

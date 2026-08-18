@@ -1,5 +1,9 @@
 # M34 migration: `0.30.0` to `0.31.0`
 
+> [!NOTE]
+> Versioned `0.30.0 -> 0.31.0` migration record. It is not an RC or GA
+> upgrade path. Use [`v1-upgrade.md`](v1-upgrade.md) for current guidance.
+
 M34 is an additive read-only comparison release.
 
 ```text

@@ -1,5 +1,10 @@
 # M34 — deployment-impact simulation (`0.31.0`)
 
+> [!NOTE]
+> Historical `0.31.0` release record. Statements below that place M35 before
+> the first RC are superseded: M34 is the v1 feature boundary and M35 is
+> post-v1. Current users should start at [`index.md`](index.md).
+
 **In plain English:** before changing a rule, decision, or policy set, you can
 ask pg-react what would change. It shows what is true now, what the proposal
 would change, and the difference. It does not change your database.

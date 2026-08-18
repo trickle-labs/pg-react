@@ -1,5 +1,9 @@
 # M33 migration: `0.29.0` to `0.30.0`
 
+> [!NOTE]
+> Historical `0.29.0 -> 0.30.0` migration record. It is not an RC or GA
+> upgrade path. Use [`v1-upgrade.md`](v1-upgrade.md) for current guidance.
+
 M33 is a compatibility and qualification release. It does not add a new rule
 language or change lifecycle meaning.
 

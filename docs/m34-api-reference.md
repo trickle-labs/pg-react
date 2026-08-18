@@ -1,5 +1,9 @@
 # M34 API reference
 
+> [!NOTE]
+> Versioned `0.31.0` reference retained for history. The canonical v1 lookup
+> path is [`v1-api-reference.md`](v1-api-reference.md).
+
 ## Compare before deploying
 
 ```sql

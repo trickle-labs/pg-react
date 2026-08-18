@@ -1,5 +1,9 @@
 # M34 evidence
 
+> [!NOTE]
+> Historical `0.31.0` qualification evidence. It does not create or qualify a
+> `1.0.0-rc.N` artifact. See [`history.md`](history.md).
+
 The M34 qualification lane is `tests/m34.sh complete`. It checks the exact
 upgrade pair, a populated `0.30.0 -> 0.31.0` update and rollback-by-restore,
 documentation metadata,

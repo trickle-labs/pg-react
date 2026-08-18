@@ -1,330 +1,134 @@
 # pg-react
 
-**Turn changing PostgreSQL data into durable decisions and work.**
+**Turn changing PostgreSQL facts into durable, inspectable policy state and work.**
 
-> [!IMPORTANT]
-> pg-react M34 is the `0.31.0` deployment-impact comparison release. Before
-> deploying a proposal, users can see what would be added, removed, or changed
-> without changing the database. M35 (`0.32.0`) is next; the first numbered
-> release candidate comes only after M35 as `1.0.0-rc.1`.
-> See the [M34 release notes](docs/m34-release-notes.md), [M34 contract](docs/m34-contract.md),
-> and [M34 readiness record](docs/m34-readiness.md).
->
-> Historical M31 documentation remains available in the
-> [M31 document set](docs/m31-release-notes.md). The existing `v0.27.0` tag
-> remains the M30 release.
+pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
+relations or views; declarations are typed SQL values; lifecycle, decisions,
+work, attempts, and explanations remain queryable in PostgreSQL.
 
-An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
-
-SQL can describe each condition, but a query result does not remember when a match first appeared, whether someone already handled it, or what should happen if it changes or disappears. pg-react is designed to add that memory.
-
-A PostgreSQL view defines what is true now. [pg_trickle](https://github.com/trickle-labs/pg-trickle) maintains the result incrementally. pg-react turns meaningful changes in that result into durable lifecycle events and, when needed, work for a database function or external worker.
+Extension `0.31.0` contains the v1 feature set, including read-only comparison
+of a proposed rule, decision, or policy set before deployment. Start with the
+[documentation home](docs/index.md).
 
 ```text
-ordinary PostgreSQL data
-          |
-          v
-    condition view       SQL says what is true
-          |
-          v
-      pg_trickle         keeps the result current
-          |
-          v
-       pg-react          remembers what changed and records work
-          |
-          v
- function, worker,       acts inside PostgreSQL or through an outbox
- or outbox
+authoritative PostgreSQL facts
+             |
+             v
+      condition relation
+             |
+             v
+     lifecycle / decision
+             |
+             v
+       durable work
 ```
 
-## Your first rule: one task-first workflow
+## A first rule
 
-Suppose every high-value order from a high-risk customer needs manual review.
-The ordinary path is always the same: describe the condition, declare a typed
-rule, preview it, deploy it, run pg-react, and inspect matches, work, and the
-explanation.
-
-Start with an ordinary PostgreSQL view:
+This constraint rule records the high-risk orders that currently require
+review:
 
 ```sql
 CREATE VIEW rule_def.high_value_risky_order AS
-SELECT
-    o.id          AS order_id,
-    o.customer_id AS customer_id,
-    o.amount
+SELECT o.order_id, o.customer_id, o.amount
 FROM app.orders AS o
-JOIN app.customers AS c ON c.id = o.customer_id
-WHERE o.amount > 10000
-  AND c.risk_level = 'HIGH';
-```
+WHERE o.risk_level = 'HIGH'
+  AND o.amount > 10000;
 
-Add a typed PostgreSQL action. Its arguments are normal PostgreSQL types:
+SELECT pgreact.validate(pgreact.rule(
+    name         => 'manual-review-required',
+    condition    => 'rule_def.high_value_risky_order'::regclass,
+    semantic_key => 'order_id'::name
+));
 
-```sql
-CREATE FUNCTION rule_action.open_review(
-    context pgreact.activation_context,
-    match   rule_def.high_value_risky_order
-)
-RETURNS void
-LANGUAGE SQL
-BEGIN ATOMIC
-    INSERT INTO app.manual_review_tasks (
-        order_id, customer_id, amount
-    )
-    VALUES (
-        (match).order_id,
-        (match).customer_id,
-        (match).amount
-    )
-    ON CONFLICT (order_id) DO UPDATE
-       SET customer_id = EXCLUDED.customer_id,
-           amount = EXCLUDED.amount;
-END;
-```
-
-Declare the rule with names and typed PostgreSQL identities:
-
-```sql
-SELECT pgreact.rule(
-    name        => 'manual_review_required',
-    condition   => 'rule_def.high_value_risky_order'::regclass,
-    semantic_key => 'order_id',
-    on_activate => 'rule_action.open_review(pgreact.activation_context,rule_def.high_value_risky_order)'::regprocedure
-);
-```
-
-Preview before changing the database:
-
-```sql
 SELECT pgreact.preview(pgreact.rule(
-    name        => 'manual_review_required',
-    condition   => 'rule_def.high_value_risky_order'::regclass,
-    semantic_key => 'order_id',
-    on_activate => 'rule_action.open_review(pgreact.activation_context,rule_def.high_value_risky_order)'::regprocedure
+    name         => 'manual-review-required',
+    condition    => 'rule_def.high_value_risky_order'::regclass,
+    semantic_key => 'order_id'::name
 ));
-```
 
-Deploy the same declaration, then run the one coordinator:
-
-```sql
 SELECT pgreact.deploy(pgreact.rule(
-    name        => 'manual_review_required',
-    condition   => 'rule_def.high_value_risky_order'::regclass,
-    semantic_key => 'order_id',
-    on_activate => 'rule_action.open_review(pgreact.activation_context,rule_def.high_value_risky_order)'::regprocedure
+    name         => 'manual-review-required',
+    condition    => 'rule_def.high_value_risky_order'::regclass,
+    semantic_key => 'order_id'::name
 ));
-
-SELECT pgreact.run();
 ```
 
-Inspect the result through ordinary views and explain the named rule:
+`pgreact.rule()` defaults to `kind => 'CONSTRAINT'`. A rule with
+`on_activate`, `on_change`, or `on_deactivate` consequences must explicitly use
+`kind => 'COMMAND'`. See [Getting Started](docs/getting-started.md) for the
+complete managed-runtime workflow.
 
-```sql
-SELECT * FROM pgreact.matches
-WHERE rule_name = 'manual_review_required';
+## What pg-react provides
 
-SELECT * FROM pgreact.work
-WHERE name = 'manual_review_required';
+- **Rules:** stable semantic identity, current matches, activation generations,
+  revisions, typed consequences, retries, and explanations.
+- **Decisions:** candidate evaluation with explicit winner, ambiguity, and
+  no-candidate states.
+- **Policy sets:** versioned membership and relational applicability.
+- **Safe changes:** `pgreact.compare()` and `pgreact.compare_results()` compare
+  current and proposed declarations over current authoritative facts without
+  deploying or executing effects.
+- **Advanced reasoning:** installed public surfaces include maintained derived
+  facts and logical support, bounded positive recursion, stratified negation
+  and aggregation, shared conditions, temporal and effective-dated policies,
+  parameter families, provenance, and decision analysis. These are advanced
+  APIs, not required for the ordinary first-rule path.
 
-SELECT pgreact.explain('manual_review_required');
+PostgreSQL-managed workers are the normal runtime. One managed worker is
+started for each configured database, polls on
+`pg_react.poll_interval_ms`, coordinates maintenance, and drains eligible
+work. The external `pg-reactd` program is a compatibility path; it can call
+`pgreact_api.run()` and therefore can create work as well as drain it.
+
+## Compare before deploying
+
+Comparison varies the declaration, not the facts:
+
+```text
+current facts + deployed declaration
+versus
+current facts + proposed declaration
 ```
 
-If order 42 enters the view, pg-react records one match and durable work.
-Further updates do not open duplicate reviews while the same condition remains
-true. If the order leaves and later returns, a new lifecycle generation may act
-again. This example deliberately uses no hand-written JSON, UUID, private
-catalog, or feature-specific coordinator function.
+It reports bounded `current`, `proposed`, `delta`, `lifecycle`, and would-be
+`work` evidence. It does not support hypothetical fact changes or historical
+replay. Rule comparison is limited to one `bigint` key even though separate
+advanced installed authoring surfaces support broader typed keys.
 
-The condition remains SQL. The consequence remains a PostgreSQL function. The state connecting them is explicit and queryable.
+## Guarantees and boundaries
 
-## The lifecycle model
+- PostgreSQL remains the authoritative fact store.
+- Database consequences and their pg-react state changes use PostgreSQL
+  transactions.
+- External delivery is at least once; consumers must deduplicate.
+- Private schemas and internal UUIDs are not part of the ordinary API.
+- Comparison is bounded and may be `partial`; it has no continuation token.
+- pg-react is not a synchronous write-path hook, a global-ordering service, a
+  distributed transaction coordinator, or a general workflow/BPM engine.
 
-A maintained result tells you which conditions are true now. pg-react is designed to preserve how each match develops over time:
+The qualified `0.31.0` environment is PostgreSQL 18.3, pg_trickle 0.81.0,
+pgrx 0.18.0, Linux `amd64`, `READ COMMITTED`, and the PostgreSQL-managed
+runtime. See the [Support Matrix](docs/v1-support-matrix.md) before adopting it.
 
-| Transition | Meaning | Optional consequence |
-|---|---|---|
-| A keyed row enters the result | A condition became true | `on_activate` |
-| Its watched values change | The same condition evolved | `on_change` |
-| The row leaves the result | The condition stopped being true | `on_deactivate` |
-| The row stays unchanged | Nothing new happened | None |
+## Documentation
 
-All projected non-key columns are watched by default. A rule can choose a smaller `change_columns` set when some values are needed by a consequence but should not create a new revision.
+- [Getting Started](docs/getting-started.md)
+- [Concepts](docs/concepts.md)
+- [Authoring Rules and Policies](docs/v1-authoring.md)
+- [Changing Policies Safely](docs/changing-policies.md)
+- [Operations](docs/v1-operations.md)
+- [API Reference](docs/v1-api-reference.md)
+- [Known Limitations](docs/v1-known-limitations.md)
 
-Three kinds of state stay separate:
-
-1. The match relation contains current truth.
-2. Activation state records the lifecycle of each semantic match.
-3. The agenda records requested work, leases, retries, and outcomes.
-
-This separation preserves history when a condition disappears, prevents a rebuild from looking like new work, and gives operators a direct path from source facts to a completed or failed consequence.
-
-## What pg-react is trying to achieve
-
-- Use PostgreSQL SQL as the condition language. Views stay directly queryable, explainable, typed, and governed by normal permissions.
-- Reuse incremental query maintenance. pg_trickle owns joins, aggregates, negation, windows, recursion, change capture, and refresh ordering.
-- Give business matches stable identity. Authors choose semantic keys such as `order_id` or `(tenant_id, account_id, policy_id)` instead of relying on physical rows.
-- Make work durable. Activations, immutable rule versions, agenda episodes, attempts, leases, retries, and audit history live in PostgreSQL.
-- Keep side effects honest. Database consequences run transactionally; external effects use an at-least-once outbox with deterministic event identity that receivers must deduplicate.
-- Stay inspectable. Conditions, current matches, pending work, execution history, source drift, and reconciliation state are available through SQL. Version one explains operational causality but does not promise automatic base-tuple lineage for every query.
-- Leave room for reasoning. Later releases can add logical support, derived facts, provenance, and fixed-point evaluation without introducing a second truth store.
-
-## Architecture
-
-```mermaid
-flowchart LR
-    F[Base facts] --> V[Condition view]
-    V --> T[pg_trickle match relation]
-    T --> A[Activation lifecycle]
-    A --> Q[Durable agenda]
-    Q --> W[PostgreSQL-managed worker]
-    W --> D[Database consequence]
-    W --> O[Transactional outbox]
-    D --> F
-    O --> X[External system]
-```
-
-pg-react deliberately sits above pg_trickle instead of building another RETE or DBSP engine. It observes the maintained match relation and owns the rule-specific concerns: identity, activation generations, refraction, priorities, conflict handling, versioning, recovery, and audit history.
-
-PostgreSQL owns the normal coordinator and worker lifecycle. Add `pg_react` to
-`shared_preload_libraries`, list databases in `pg_react.databases`, restart,
-and use `pgreact.doctor()` when diagnosing readiness. The bundled `pg-reactd`
-is retained only to drain compatible pending work during migration. Slow
-network calls and external delivery remain outside the extension through an
-outbox.
-
-## Rule types
-
-**Constraint rules** maintain a live set of rows that satisfy or violate a condition. They need no worker and can power operational views, controls, and diagnostics.
-
-**Command rules** add optional activation, change, and deactivation consequences. They support durable scheduling, retries, worker routing, priorities, and conflict keys.
-
-**Derivation rules** maintain logical supports and typed derived facts. Positive programs may form chains and cycles; M8 exposes only their bounded grounded least fixed point. M9 adds safe keyed absence checks over stable lower strata, so lower facts can deterministically block and restore higher support.
-
-## Where it fits
-
-pg-react is a good fit when PostgreSQL holds the authoritative facts, conditions are naturally relational, actions may run asynchronously after commit, and durable SQL-visible lifecycle state matters. Examples include risk review, inventory intervention, billing controls, entitlement changes, fraud signals, SLA violations, approval queues, and data-quality remediation.
-
-It is a poor fit when:
-
-- the source write must wait for the action;
-- one global total order is required;
-- several systems must commit atomically;
-- the workload is warehouse-scale distributed processing;
-- the primary abstraction is a long-running human workflow; or
-- arbitrary untrusted code must execute dynamically.
-
-Those requirements need a synchronous application path, an ordered workflow engine, a distributed transaction protocol, a batch platform, or a sandbox designed for untrusted code. Any future synchronous pg-react mode would be a narrowly restricted database-local fixed-point facility, not a general workflow engine.
-
-## Relation to traditional rules engines
-
-Martin Fowler’s [critique of rules engines](https://martinfowler.com/bliki/RulesEngine.html) warns that they can become difficult to understand when rules form implicit chains: one action changes facts, activates other rules, and creates control flow that is distributed across the rule set. He also cautions against treating rule engines as a way for non-programmers to maintain complex application behavior without normal engineering discipline.
-
-`pg-react` treats those concerns as design constraints. It is not intended to be a universal workflow or no-code programming system. Instead, it provides a durable reaction layer for bounded domains where PostgreSQL contains the authoritative facts:
-
-* Conditions are ordinary, directly queryable PostgreSQL views rather than a proprietary rule language.
-* Consequences are explicit typed functions or transactional outbox messages.
-* Current matches, activations, agenda episodes, retries, leases, and execution history remain visible through SQL.
-* Immutable rule versions and definition fingerprints prevent deployed behavior from changing silently.
-* Each episode executes in its own transaction by default and is revalidated immediately before execution.
-* Priorities and agenda groups help coordinate work but do not pretend to provide one global firing order.
-* External effects use at-least-once delivery and deterministic idempotency keys rather than an unrealistic exactly-once guarantee.
-
-These mechanisms make rule behavior more explicit, durable, and explainable, but they do not eliminate the complexity of interacting rules. Rule sets should remain narrowly scoped, feedback loops should be bounded, and views and consequence functions should be reviewed, tested, versioned, and deployed like other application code.
-
-## Project status
-
-M0 is implemented as a deliberately narrow walking skeleton for PostgreSQL 18.3, `pgrx` 0.18.0, and pinned pg_trickle 0.81.0. It includes the portable identity/lifecycle core, installable SQL extension, coordinated `DIFFERENTIAL` refresh path, durable catalogs and barriers, typed consequence execution, and seed-replayable Docker integration gates.
-
-M1 developer alpha is implemented on that same coordinator-owned boundary: view-backed constraint and activate-only command rules, public validation/inspection APIs, pause/resume/drained replacement/removal, one-item leases with audited manual recovery, and the `pg-reactd` coordinator script. The executable evidence is [M1 evidence](docs/m1-evidence.md). Automatic pg_trickle scheduler refreshes remain ineligible for command rules.
-
-M2 reliability beta is implemented on that same boundary: complete lifecycle payloads, heartbeats, bounded multi-worker claims, retry backoff, stale-lease rejection, audited reconciliation, and registered transactional outbox sinks. M3 operational RC is implemented as extension 0.1.1: compatibility/recovery runbooks, migration and OID rebuild, private-by-default role access, audited retention, fair bounded claims, backpressure, health/metrics, and a controlled pilot. The executable evidence is [M3 evidence](docs/m3-evidence.md).
-
-M4 v1 GA is implemented without widening that boundary: the public SQL API,
-worker protocol, migration and delivery policies are frozen; task guides and
-release notes are complete; and one exact `linux/amd64` image runs every prior
-gate, the README workflow, a physical backup/restore pilot, and the direct
-upgrade exercise before publication. See [M4 evidence](docs/m4-evidence.md)
-and the [internal pilot record](docs/m4-pilot.md).
-
-M5 safe rule-set deployment is complete as the `0.2.0` repository candidate. A portable versioned manifest can validate, preview, atomically add/replace/remove related rules, reject stale or invalid plans, preserve declared old-work behavior, and expose deployment history and diagnostics. The `v0.1.1` publication entry gate and complete M0–M5 artifact gate pass, including rollback injection, DDL/deployment races, direct upgrade, and two-environment promotion. See the [rule-pack guide](docs/m5-rule-packs.md), [evidence](docs/m5-evidence.md), and [readiness record](docs/m5-readiness.md).
-
-M6 execution maturity is released as `0.3.0`. Reviewed typed database consequences can opt into immutable `batch_safe` execution through a separate bounded endpoint and worker protocol `2`; protocol `1` and one episode per transaction remain the default. Exact rejection, partial failure, disconnect, concurrency, restart, physical restore, direct-upgrade, compatibility, and five-sample benchmark gates are executable in `tests/m6.sh`. See the [batch contract](docs/m6-contract.md), [evidence](docs/m6-evidence.md), and [readiness record](docs/m6-readiness.md).
-
-M7 maintained derived knowledge is released as `0.4.0`. Non-recursive derivation rules maintain durable logical supports and typed current facts without creating agenda work. Multiple supports collapse to one fact, last-support removal retracts it, and public provenance, reconciliation, rule-pack deployment, direct-upgrade, ordering, failure, and physical-recovery gates are executable in `tests/m7.sh`. See the [contract](docs/m7-contract.md), [evidence](docs/m7-evidence.md), and [readiness record](docs/m7-readiness.md).
-
-M8 monotone recursive derivation is released as `0.5.0`. Versioned positive programs maintain acyclic chains and cycles to one bounded grounded least fixed point, atomically expose converged frontiers, and provide finite explanations with cycle markers. See the [contract](docs/m8-contract.md) and [evidence](docs/m8-evidence.md).
-
-M11 through M17 are released as `0.8.0` through `0.14.0`. M18 is the `0.15.0`
-production-hardening baseline. M20 is released as `0.17.0`. M21 is the
-`0.18.0` retention release. M22 is the `0.19.0` provenance release. M23 is the
-`0.20.0` repository candidate: it adds continuous duration, absence-by-deadline,
-cooldown, and arm/recovery hysteresis on the existing monotone database-time
-coordinator. See the [M23 contract](docs/m23-contract.md), [operations](docs/m23-operations.md),
-and [readiness record](docs/m23-readiness.md).
-
-M24 is the `0.21.0` effective-dated policy candidate. M25 is the `0.22.0`
-parameterized policy-family candidate: parameter rows remain ordinary typed
-PostgreSQL data, and joined condition views continue to define the business
-logic. M26 is the `0.23.0` decision-table candidate: the lowest numeric
-priority wins, equal best priorities are an explicit ambiguity, and subjects
-with no remaining candidates retain a clear no-candidate state. M27 is the
-`0.24.0` decision coverage and conflict-analysis release. M28 was the
-`0.25.0` public API convergence release: it added versioned declarations,
-names-first targets, common result envelopes, and additive façade verbs. See the [M24
-contract](docs/m24-contract.md), [M25 contract](docs/m25-contract.md), [M26
-contract](docs/m26-contract.md), [M27 contract](docs/m27-contract.md), and
-[M28 contract](docs/m28-contract.md). M29 is the `0.26.0` policy-set gating candidate; M30 is the released `0.27.0`
-applicability foundation. M30 freezes typed match and subject
-identities, explicit scope mode, relational eligibility, migration states, and
-inspection views. It deliberately does not claim authoritative runtime
-transitions; those belong to M31. See the [M29 contract](docs/m29-contract.md)
-and [M30 contract](docs/m30-contract.md).
-
-M31 is preserved as the historical `0.28.0` authoritative-runtime milestone.
-M32 is preserved as the `0.29.0` PostgreSQL-native interface candidate. M33 is
-the `0.30.0` v1 qualification baseline: it freezes compatibility, recovery,
-security, limits, packaging, operations, and the documentation contract. M34
-is the `0.31.0` read-only deployment-impact comparison release; M35 is the
-planned `0.32.0` hypothetical-fact simulation release. The next logical
-milestone is M35, not the final RC yet. See the [M34 contract](docs/m34-contract.md),
-[M34 evidence](docs/m34-evidence.md), and [M34 readiness record](docs/m34-readiness.md).
-
-The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
-
-## Read more
-
-- [CONTEXT.md](CONTEXT.md) defines the canonical rule-lifecycle vocabulary.
-- [DESIGN.md](DESIGN.md) contains the product semantics, SQL API, catalog, worker architecture, security model, and testing strategy; [ROADMAP.md](ROADMAP.md) is the delivery plan.
-- [v1 contract](docs/v1-contract.md) freezes the supported API and compatibility boundary; [M33 evidence](docs/m33-evidence.md) records the qualification boundary.
-- [M5 rule packs](docs/m5-rule-packs.md) documents portable preview and atomic deployment; [M5 evidence](docs/m5-evidence.md) records the executable gate.
-- [M6 audited batching](docs/m6-contract.md) documents opt-in execution and public diagnostics; [M6 evidence](docs/m6-evidence.md) records the executable gate.
-- [M7 derived knowledge](docs/m7-contract.md) documents non-recursive truth maintenance and provenance; [M7 evidence](docs/m7-evidence.md) records the executable gate.
-- [M8 recursive derivation](docs/m8-contract.md) documents bounded grounded least-fixed-point maintenance; [M8 evidence](docs/m8-evidence.md) records the executable gate.
-- [M9 stratified negation](docs/m9-contract.md) documents deletion-sensitive ordered maintenance; [M9 evidence](docs/m9-evidence.md) records the executable gate.
-- [M13 core PostgreSQL ergonomics](docs/m13-contract.md) documents named actions, coordinated runs, vocabulary, and role grants; [M13 evidence](docs/m13-evidence.md) records the executable gate.
-- [M16 richer stratified aggregation](docs/m16-contract.md) documents typed aggregate dependencies and exact evidence; [M16 readiness](docs/m16-readiness.md) records the release path.
-- [M17 event-time windows](docs/m17-contract.md) documents watermarks, corrections, finalization, and recovery; [M17 evidence](docs/m17-evidence.md) records the executable gate.
-- [M18 production hardening](docs/m18-contract.md) documents the preserved semantic boundary and public operational surface; [M18 evidence](docs/m18-evidence.md) records the executable gate.
-- [M20 shared conditions](docs/m20-contract.md) documents the named, versioned truth boundary; [M20 evidence](docs/m20-evidence.md) records the executable gate.
-- [M21 retention and catalog scale](docs/m21-contract.md) documents the audited retention boundary and [operations](docs/m21-operations.md) records the operator workflow.
-- [M22 bounded support provenance](docs/m22-contract.md) documents typed proof bindings, limits, continuation, and role-checked explanation.
-- [M23 practical temporal conditions](docs/m23-contract.md) documents bounded database-time duration, absence, cooldown, and hysteresis.
-- [M24 effective-dated policy versions](docs/m24-contract.md) documents half-open business-effective intervals.
-- [M25 parameterized policy families](docs/m25-contract.md) documents typed parameter relations, family authorization, preview, explanation, and upgrade behavior.
-- [M26 decision tables](docs/m26-contract.md) documents deterministic winner selection, ambiguity, no-candidate state, bounded competitors, and upgrade behavior.
-- [M31 historical runtime record](docs/m31-release-notes.md) preserves the predecessor milestone and its qualification boundary.
-- [M32 PostgreSQL-native interface](docs/m32-api-reference.md) documents the ordinary task-first workflow, [support matrix](docs/m32-support-matrix.md), and [finding inventory](docs/m32-finding-codes.json).
-- [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
-- The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/v1-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrade.md), and [troubleshooting](docs/v1-troubleshooting.md).
-- [When PostgreSQL Data Needs to Do Something](vision/the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
-- [PostgreSQL as an Operational Data Platform](vision/operational-data-platform.md) places the projects in a broader operational loop.
-- [pg_trickle](https://github.com/trickle-labs/pg-trickle) is the incremental view-maintenance engine pg-react is designed to build on.
-- [pg_tide](https://github.com/trickle-labs/pg-tide) provides transactional messaging when consequences need to cross the database boundary.
+Release and milestone evidence is available through
+[History](docs/history.md), not required for normal use.
 
 ## Naming
 
-The project is **pg-react**. PostgreSQL and Rust identifiers use underscores: install `pg_react`, call functions in the `pgreact` schema, and run the optional worker as `pg-reactd`.
+The project is **pg-react**. PostgreSQL and Rust identifiers use underscores:
+install `pg_react` and call the public `pgreact` or `pgreact_api` SQL surfaces.
 
 ## License
 
-This project is licensed under the [Apache License 2.0](LICENSE).
+Licensed under the [Apache License 2.0](LICENSE).

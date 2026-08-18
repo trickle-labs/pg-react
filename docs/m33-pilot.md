@@ -1,5 +1,9 @@
 # M33 controlled pilot record
 
+> [!NOTE]
+> Historical `0.30.0` qualification record. Whether this human evidence is
+> required before the first RC remains an open release decision.
+
 Before `1.0.0`, two deployments distinct from the maintainer's development
 database must exercise real application tables, a command rule, replacement,
 action failure or injected failure, retry/recovery, backup/restore, upgrade,

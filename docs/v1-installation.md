@@ -1,15 +1,14 @@
 # v1 installation
 
-The `1.0.0` contract is qualified from the `0.30.0` artifact. The older
-`0.1.1` text in historical M4 records is not the current v1 contract.
+The published `0.31.0` package contains the v1 feature set. The qualified
+support tuple is PostgreSQL 18.3, pg_trickle 0.81.0, and Linux amd64. Other
+versions, operating systems, and architectures are not qualified.
 
-pg-react v1 uses the exact `linux/amd64` tuple in the [v1 contract](v1-contract.md):
-PostgreSQL 18.3 with pg_trickle 0.81.0, scheduler disabled, explicit
-`DIFFERENTIAL` refreshes, and `READ COMMITTED` transactions.
+## Install the package
 
-## Install the supported image
-
-Use the versioned release image by digest and verify the supplied SHA-256 checksum before starting it. For local validation of this checkout's pinned Dockerfile:
+Use `ghcr.io/trickle-labs/pg-react:v0.31.0` by the digest recorded in the
+release `pg-react-v0.31.0.SHA256SUMS` file. Verify the release checksum and
+attestation before loading the image. For a local build of this checkout:
 
 ```sh
 docker compose build postgres
@@ -17,30 +16,99 @@ docker compose up -d postgres
 docker compose exec -T postgres pg_isready -U postgres
 ```
 
-The Compose settings are part of the support contract:
+The image contains PostgreSQL 18.3, pg_trickle 0.81.0, and pg-react 0.31.0.
+pg-react was built with pgrx 0.18.0 and Rust 1.89.0; those are build facts, not
+additional user-facing compatibility promises.
+
+## Create the roles
+
+Create four application group roles and the separate advanced reader. A
+managed worker login may inherit the worker group:
+
+```sql
+CREATE ROLE pgreact_author NOLOGIN;
+CREATE ROLE pgreact_operator NOLOGIN;
+CREATE ROLE pgreact_worker NOLOGIN;
+CREATE ROLE pgreact_reader NOLOGIN;
+CREATE ROLE pgreact_advanced_reader NOLOGIN;
+
+CREATE ROLE pgreact_worker_login LOGIN;
+GRANT pgreact_worker TO pgreact_worker_login;
+GRANT CONNECT ON DATABASE appdb TO pgreact_worker_login;
+```
+
+Create application login roles separately and grant only the group membership
+they require. There is no installed deployer role.
+
+## Configure PostgreSQL
+
+Set the following values before starting the managed runtime:
 
 ```conf
-shared_preload_libraries = 'pg_trickle'
+shared_preload_libraries = 'pg_trickle,pg_react'
+
 pg_trickle.user_triggers = 'auto'
 pg_trickle.enabled = off
 pg_trickle.differential_max_change_ratio = 1.0
 default_transaction_isolation = 'read committed'
+
+pg_react.databases = 'appdb'
+pg_react.worker_role = 'pgreact_worker_login'
+pg_react.poll_interval_ms = 1000
+pg_react.batch_size = 32
+pg_react.max_pending_jobs = 10000
 ```
 
-Do not substitute another PostgreSQL, pg_trickle, OS, or architecture version without its own compatibility evidence. macOS is supported only as a Docker host.
+`pg_react.databases` is a comma-separated list. PostgreSQL starts one managed
+worker for each unique, non-empty configured database. Changing
+`shared_preload_libraries`, `pg_react.databases`, or `pg_react.worker_role`
+requires a PostgreSQL restart. The polling, batch, and pending-work settings
+are reloadable.
 
-## Enable a database
+The installed bounds are:
 
-The Compose initialization enables both extensions in its initial `postgres` database. For each additional database, connect as a superuser and install pg_trickle first:
+- `pg_react.poll_interval_ms`: default `1000`, range `10..60000`;
+- `pg_react.batch_size`: default `32`, range `1..1000`;
+- `pg_react.max_pending_jobs`: default `10000`, minimum `1`.
+
+Restart PostgreSQL after changing the preload, database list, or worker role.
+Merely reloading the configuration does not start or replace managed workers.
+
+## Enable each database
+
+Connect as a superuser and install pg_trickle before pg-react:
 
 ```sql
 CREATE EXTENSION pg_trickle;
 CREATE EXTENSION pg_react;
+
+SELECT pgreact_api.configure_roles(
+  'pgreact_author',
+  'pgreact_operator',
+  'pgreact_worker',
+  'pgreact_reader',
+  'pgreact_advanced_reader'
+);
 ```
 
-`pg_react` is not a trusted extension and requires superuser installation. Application roles should not remain superusers; configure them using the [security guide](v1-security.md).
+`pg_react` is not trusted and requires superuser installation.
 
-## Verify the install
+Fresh 0.31.0 installation has a grant-order defect: the M34 comparison
+functions grant configured roles only while the extension script is running.
+After `configure_roles`, apply the intended grants explicitly:
+
+```sql
+GRANT EXECUTE ON FUNCTION
+  pgreact.compare(pgreact_api.declaration, pgreact_api.target, jsonb),
+  pgreact.compare_results(pgreact_api.declaration, pgreact_api.target, jsonb)
+TO pgreact_author, pgreact_operator, pgreact_reader;
+```
+
+The RC package must fold these grants into `configure_roles`.
+
+## Verify the environment
+
+Run these checks in every configured database:
 
 ```sql
 SELECT extname, extversion
@@ -49,30 +117,46 @@ WHERE extname IN ('pg_react', 'pg_trickle')
 ORDER BY extname;
 
 SHOW server_version;
-SHOW pg_trickle.enabled;
+SHOW shared_preload_libraries;
 SHOW pg_trickle.user_triggers;
+SHOW pg_trickle.enabled;
 SHOW pg_trickle.differential_max_change_ratio;
 SHOW default_transaction_isolation;
+SHOW pg_react.databases;
+SHOW pg_react.worker_role;
+SHOW pg_react.poll_interval_ms;
+SHOW pg_react.batch_size;
+SHOW pg_react.max_pending_jobs;
 
-SELECT pgreact.worker_protocol_compatible(1);
-SELECT * FROM pgreact.health_check();
+SELECT pgreact_api.worker_protocol_compatible(2);
+SELECT pgreact.doctor();
+SELECT pgreact_api.managed_status();
 ```
 
-Expected results for the M33 candidate are pg-react `0.30.0`, pg_trickle
-`0.81.0`, PostgreSQL `18.3`, settings `off`, `auto`, `1`, and `read committed`,
-and no blocking health rows. The numbered RC repeats the same checks.
+Expect PostgreSQL `18.3`, pg_trickle `0.81.0`, pg-react `0.31.0`, worker
+protocol `2`, `doctor` state `ready`, and a managed status with
+`configured = true`. After the first poll, the process should report protocol
+`2` and state `ready`.
 
-## Run work
+## Supported refresh and worker behavior
 
-Create a rule using the [authoring guide](v1-authoring.md), then invoke the supplied worker with separate least-privilege connections:
+The supported runtime is PostgreSQL-managed polling. Each cycle coordinates
+an explicit pg-react run, then claims and executes durable work. Keep
+pg_trickle's scheduler off (`pg_trickle.enabled = off`), leave user triggers
+at `auto`, and keep the differential change ratio at `1.0`. Independent
+pg_trickle scheduling or other uncoordinated refreshes are unsupported.
 
-```sh
-DATABASE_URL='postgresql://pgreact_worker:secret@db/app' \
-COORDINATOR_DATABASE_URL='postgresql://pgreact_operator:secret@db/app' \
-MAX_CLAIMS=10 \
-./bin/pg-reactd 'RULE_VERSION_UUID' 'worker-1'
-```
+`pg-reactd` is a one-shot compatibility bridge, not the primary runtime. Each
+invocation calls `pgreact_api.run()` and can therefore create work before it
+claims and executes work; it is not drain-only. Use it only for migration or
+compatibility procedures that explicitly require it.
 
-One invocation performs one coordinated refresh, claims up to `MAX_CLAIMS`, executes each claimed episode in its own transaction, then exits. Run it repeatedly under your existing service scheduler. Do not enable pg_trickle's automatic scheduler for command rules or call an uncoordinated refresh.
+## RC packaging blocker
 
-Use the [operations runbook](m3-operations.md) for health, backlog, recovery, retention, and worker procedures.
+`src/managed.rs` runs managed cycles only when the installed extension version
+is the literal `0.31.0`. An RC or GA extension with another version string
+would load the worker but never run `managed_cycle()`. This must be fixed and
+qualified before publishing `1.0.0-rc.1`.
+
+Use the [current operations runbook](v1-operations.md) for backlog, recovery,
+retention, and worker procedures.

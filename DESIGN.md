@@ -1,5 +1,11 @@
 # `pg-react`: A PostgreSQL-Native Incremental Rule and Reasoning Engine
 
+> [!WARNING]
+> This is a historical M13 architecture record, not current v1 semantic or
+> runtime authority. Start at [`docs/index.md`](docs/index.md); use
+> [`docs/v1-contract.md`](docs/v1-contract.md) and installed behavior for the
+> current contract.
+
 **Status:** M13 implementation contract complete\
 **Document version:** 0.10\
 **Date:** 2026-08-12\

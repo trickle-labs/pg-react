@@ -1,5 +1,10 @@
 # M34 contract — deployment-impact simulation
 
+> [!NOTE]
+> Versioned `0.31.0` milestone contract retained for history. Current users
+> should use [`changing-policies.md`](changing-policies.md) and
+> [`v1-api-reference.md`](v1-api-reference.md).
+
 M34 targets extension `0.31.0`. It adds a read-only way to compare one
 proposed declaration with one deployed target over the current authoritative
 PostgreSQL snapshot. It does not deploy, run, enqueue work, call a

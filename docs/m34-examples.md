@@ -1,5 +1,9 @@
 # M34 executable example
 
+> [!NOTE]
+> Versioned `0.31.0` example retained for history. Use
+> [`changing-policies.md`](changing-policies.md) for the canonical v1 task.
+
 ```sql
 SELECT comparison -> 'summary'
 FROM (
