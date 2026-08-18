@@ -41,7 +41,7 @@ jobs:
           refs/tags/v0.25.0:refs/tags/v0.25.0
           refs/tags/v0.26.0:refs/tags/v0.26.0
           refs/tags/v0.27.0:refs/tags/v0.27.0
-          refs/tags/v0.28.0:refs/tags/v0.28.0 &&
+          refs/tags/v0.28.0:refs/tags/v0.28.0
           refs/tags/v0.29.0:refs/tags/v0.29.0 &&
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.21.0" &&
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.21.0" pg-react:v0.21.0 &&
