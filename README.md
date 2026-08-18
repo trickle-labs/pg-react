@@ -3,7 +3,10 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M30 is extension `0.27.0` candidate documentation. M30 records who a policy set applies to using typed, relational rows and makes that state easy to inspect. It does not yet make policy-set membership change rule lifecycle or work; that is M31. See the [M30 contract](docs/m30-contract.md) and [readiness record](docs/m30-readiness.md).
+> pg-react M30 is the released `0.27.0` applicability foundation. The current main branch adds the M31 authoritative rule/policy-set runtime slice, but it is not yet a qualified release. See the [M31 release notes](docs/m31-release-notes.md), [contract](docs/m31-contract.md), and [readiness record](docs/m31-readiness.md).
+>
+> M31 is an unreleased `0.28.0` package candidate, subject to the readiness
+> gates. The existing `v0.27.0` tag remains the M30 release.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -220,8 +223,8 @@ with no remaining candidates retain a clear no-candidate state. M27 is the
 names-first targets, common result envelopes, and additive façade verbs. See the [M24
 contract](docs/m24-contract.md), [M25 contract](docs/m25-contract.md), [M26
 contract](docs/m26-contract.md), [M27 contract](docs/m27-contract.md), and
-[M28 contract](docs/m28-contract.md). M29 is the `0.26.0` policy-set gating candidate; M30 is the `0.27.0`
-applicability-foundation candidate. M30 freezes typed match and subject
+[M28 contract](docs/m28-contract.md). M29 is the `0.26.0` policy-set gating candidate; M30 is the released `0.27.0`
+applicability foundation. M30 freezes typed match and subject
 identities, explicit scope mode, relational eligibility, migration states, and
 inspection views. It deliberately does not claim authoritative runtime
 transitions; those belong to M31. See the [M29 contract](docs/m29-contract.md)

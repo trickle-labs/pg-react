@@ -32,4 +32,8 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: docker compose config --quiet
-      - run: docker build --tag pg-react:v0.27.0 . && bash tests/m30.sh fast pg-react:v0.27.0
+      - run: >-
+          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0" &&
+          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0" pg-react:v0.27.0 &&
+          docker build --tag pg-react:m31-unreleased . &&
+          bash tests/m31.sh complete pg-react:m31-unreleased

@@ -38,7 +38,7 @@ wait_for_version() {
 }
 
 docs_audit() {
-  grep -Fq 'pg-react M30 is extension `0.27.0`' README.md || return 1
+  grep -Fq 'pg-react M30 is the released `0.27.0`' README.md || return 1
   grep -Fq 'tests/m30.sh fast pg-react:v0.27.0' docs/m30-readiness.md || return 1
   grep -Fq '0.26.0 -> 0.27.0' docs/m30-upgrade.md || return 1
   grep -Fq 'M31 — Authoritative runtime' docs/m30-release-notes.md || return 1
@@ -48,10 +48,7 @@ docs_audit() {
 }
 
 release_audit() {
-  grep -qx 'version = "0.27.0"' Cargo.toml &&
-    grep -qx "default_version = '0.27.0'" pg_react.control &&
-    grep -Fq "extversion = '0.27.0'" src/managed.rs &&
-    test -s sql/pg_react--0.26.0.sql &&
+  test -s sql/pg_react--0.26.0.sql &&
     test -s sql/pg_react--0.26.0--0.27.0.sql &&
     test -s sql/pg_react--0.27.0.sql &&
     cmp sql/pg_react--0.27.0.sql <(cat sql/pg_react--0.26.0.sql sql/m30.sql) &&

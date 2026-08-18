@@ -3,4 +3,5 @@ CREATE EXTENSION IF NOT EXISTS pg_trickle;
 SELECT format(
   'CREATE EXTENSION IF NOT EXISTS pg_react VERSION %L',
   :'pg_react_init_version'
-) \gexec
+)
+\gexec

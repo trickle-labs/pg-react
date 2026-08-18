@@ -1,0 +1,77 @@
+{
+  "milestone": "M31",
+  "theme": "Authoritative runtime",
+  "extension_version": "0.28.0",
+  "versioning_status": "candidate: M30 keeps v0.27.0; M31 publication remains gated",
+  "status": "local rule/policy-set slice and bounded decision fixture exercised; full milestone unqualified",
+  "required_authoritative_adapter_kinds": [
+    "rule",
+    "decision_program",
+    "policy_set"
+  ],
+  "required_ordinary_verbs": [
+    "validate",
+    "preview",
+    "deploy",
+    "run",
+    "remove",
+    "status",
+    "explain",
+    "doctor"
+  ],
+  "frozen_identity_fields": [
+    "match_keys",
+    "subject_keys",
+    "scope_mode"
+  ],
+  "scope_modes": ["GLOBAL", "POLICY_SET_REQUIRED"],
+  "supported_key_types": [
+    "bigint",
+    "uuid",
+    "text COLLATE \"C\""
+  ],
+  "required_inspection_concepts": [
+    "eligibility",
+    "scope_supports",
+    "effective_truth",
+    "lifecycle",
+    "decisions",
+    "derivations",
+    "work",
+    "attempts",
+    "frontiers",
+    "barriers",
+    "explanations"
+  ],
+  "finding_fields": [
+    "code",
+    "severity",
+    "blocker",
+    "object_identity",
+    "field_path",
+    "message",
+    "hint",
+    "details",
+    "evidence",
+    "truncated"
+  ],
+  "local_artifacts": [
+    "sql/m31.sql",
+    "tests/m31.sql",
+    "tests/m31-work.sql",
+    "tests/m31-security.sql",
+    "tests/m31.sh",
+    "tests/m31-upgrade-after.sql"
+  ],
+  "pending_artifacts": [
+    "independent technical review",
+    "five-person M32 usability cohort evidence",
+    "recovery, security, performance, and inherited-gate evidence"
+  ],
+  "next_milestone": {
+    "id": "M32",
+    "name": "PostgreSQL-native interface",
+    "proposed_extension_version": "0.29.0",
+    "entry_condition": "all M31 exit gates pass and runtime truth is frozen"
+  }
+}

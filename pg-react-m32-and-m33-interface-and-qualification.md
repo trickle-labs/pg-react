@@ -2,9 +2,9 @@
 
 > **Status:** Proposed v1 program<br>
 > **Date:** 2026-08-16<br>
-> **Predecessor:** M30 + M31 / proposed extension `0.27.0`<br>
-> **M32 proposed release:** extension `0.28.0`<br>
-> **M33 proposed release:** extension `0.29.0`<br>
+> **Predecessor:** M30 `0.27.0` + M31 proposed `0.28.0`<br>
+> **M32 proposed release:** extension `0.29.0`<br>
+> **M33 proposed release:** extension `0.30.0`<br>
 > **Required release candidate:** at least one exact `1.0.0-rc.N` artifact<br>
 > **Final release:** extension `1.0.0`<br>
 > **Direct v1 qualification and GA upgrade targets:** `0.26.0 -> 1.0.0-rc.N` and `0.26.0 -> 1.0.0`<br>
@@ -40,9 +40,9 @@ Neither milestone may introduce a second evaluation model, new reasoning semanti
 
 # M32: PostgreSQL-Native Interface
 
-> **Proposed extension:** `0.28.0`<br>
-> **Predecessor:** M30 + M31 / `0.27.0`<br>
-> **Direct upgrade:** `0.27.0 -> 0.28.0`<br>
+> **Proposed extension:** `0.29.0`<br>
+> **Predecessor:** M31 / `0.28.0`<br>
+> **Direct upgrade:** `0.28.0 -> 0.29.0`<br>
 > **Primary outcome:** make ordinary pg-react usage feel like PostgreSQL with durable rules, rather than a framework whose internal engine concepts must be learned first<br>
 > **Feature policy:** no new runtime semantics
 
@@ -996,7 +996,7 @@ M32 is incomplete without:
 
 ## 21. M32 exit gates — public API/UX frozen
 
-M32 may publish as `0.28.0` only when:
+M32 may publish as `0.29.0` only when:
 
 ### 21.1 Typed-authoring gate
 
@@ -1052,9 +1052,9 @@ Every M0 through M30 and M31 semantic, security, recovery, and concurrency gate 
 
 # M33: V1 Qualification and Compatibility Freeze
 
-> **Proposed extension:** `0.29.0`<br>
-> **Predecessor:** M32 / `0.28.0`<br>
-> **Direct upgrade:** `0.28.0 -> 0.29.0`<br>
+> **Proposed extension:** `0.30.0`<br>
+> **Predecessor:** M32 / `0.29.0`<br>
+> **Direct upgrade:** `0.29.0 -> 0.30.0`<br>
 > **Primary outcome:** freeze the supported product contract and prove that it can safely become `1.0.0`<br>
 > **Feature policy:** feature freeze<br>
 > **Successor:** at least one `1.0.0-rc.N`, then `1.0.0`
@@ -1067,7 +1067,7 @@ M33 does not make pg-react broader.
 
 M33 proves that the M30 applicability foundation, M31 runtime semantics, and M32 interface are reliable enough for users to depend on for years.
 
-M33 MUST NOT begin until every M32 exit gate passes and the public API/UX is frozen. The continuous qualification lane must also have green evidence from M30, M31, and M32 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M33 reruns and consolidates that evidence against `0.29.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
+M33 MUST NOT begin until every M32 exit gate passes and the public API/UX is frozen. The continuous qualification lane must also have green evidence from M30, M31, and M32 for fresh installation, populated direct upgrade from `0.26.0`, rollback-by-restore and recovery, role isolation, packaged artifacts, and the frozen performance profiles. M33 reruns and consolidates that evidence against `0.30.0` and the numbered `1.0.0` release candidate; it does not defer first execution of any matrix until final qualification.
 
 M33 MUST freeze:
 
@@ -1290,6 +1290,7 @@ The direct path MUST perform the same logical transformations as the staged path
 → 0.27.0
 → 0.28.0
 → 0.29.0
+→ 0.30.0
 → 1.0.0-rc.N
 → 1.0.0
 ```
@@ -1301,7 +1302,8 @@ M33 MUST also test:
 ```text
 0.27.0 -> 0.28.0
 0.28.0 -> 0.29.0
-0.29.0 -> 1.0.0-rc.N
+0.29.0 -> 0.30.0
+0.30.0 -> 1.0.0-rc.N
 qualified 1.0.0-rc.N -> 1.0.0
 ```
 
@@ -1664,7 +1666,7 @@ Documentation and implementation divergence is a release blocker.
 
 ## 37. Independent v1 usability qualification
 
-M33 MUST repeat usability testing against the packaged `0.29.0` candidate, and the evidence MUST remain valid or be rerun for every numbered `1.0.0` release candidate.
+M33 MUST repeat usability testing against the packaged `0.30.0` candidate, and the evidence MUST remain valid or be rerun for every numbered `1.0.0` release candidate.
 
 At least **five PostgreSQL developers who did not implement pg-react** must complete the first-rule task.
 
@@ -1823,7 +1825,7 @@ M33 is incomplete without:
 
 ## 42. M33 exit gates — v1 contract frozen and qualified
 
-M33 may publish as `0.29.0` only when every M32 exit gate has passed and:
+M33 may publish as `0.30.0` only when every M32 exit gate has passed and:
 
 ### 42.1 Feature-freeze gate
 
@@ -1875,7 +1877,7 @@ Every M0 through M32 correctness, concurrency, security, recovery, execution, an
 
 ### 42.13 Release-candidate readiness gate
 
-The exact `0.29.0` artifact has enough green evidence to produce `1.0.0-rc.1`; it is not eligible for direct promotion to `1.0.0`.
+The exact `0.30.0` artifact has enough green evidence to produce `1.0.0-rc.1`; it is not eligible for direct promotion to `1.0.0`.
 
 ---
 
@@ -1883,12 +1885,12 @@ The exact `0.29.0` artifact has enough green evidence to produce `1.0.0-rc.1`; i
 
 ## 43. Relationship between M33 and `1.0.0`
 
-`0.29.0` is the M33 qualification baseline, not the GA candidate.
+`0.30.0` is the M33 qualification baseline, not the GA candidate.
 
 The transition:
 
 ```text
-0.29.0 -> 1.0.0-rc.1 -> ... -> 1.0.0
+0.30.0 -> 1.0.0-rc.1 -> ... -> 1.0.0
 ```
 
 MUST include at least one numbered release-candidate cycle and MUST NOT introduce a new product capability.
@@ -2048,7 +2050,7 @@ Primary work:
 - inspection primitives;
 - failing and then passing applicability fixtures.
 
-### M31: `0.27.0`
+### M31: `0.28.0`
 
 **Theme:** make runtime behavior truthful.
 
@@ -2063,7 +2065,7 @@ Primary work:
 - authoritative removal;
 - safe M29 migration.
 
-### M32: `0.28.0`
+### M32: `0.29.0`
 
 **Theme:** make the truthful product easy.
 
@@ -2079,7 +2081,7 @@ Primary work:
 - task-first documentation;
 - usability testing.
 
-### M33: `0.29.0`
+### M33: `0.30.0`
 
 **Theme:** prove the easy product is stable.
 
@@ -2206,9 +2208,9 @@ That is the product boundary M30, M31, M32, and M33 should optimize for.
 ```text
 M29 / 0.26.0
 → M30 foundation
-→ M31 / 0.27.0
-→ M32 / 0.28.0
-→ M33 / 0.29.0
+→ M31 / 0.28.0
+→ M32 / 0.29.0
+→ M33 / 0.30.0
 → 1.0.0-rc.1 / later RCs as required
 → 1.0.0
 ```

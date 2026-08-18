@@ -14,6 +14,7 @@ case "$recovery_milestone" in
   m15) restart_fixture=m15-recovery-restart ;;
   m16) restart_fixture=m16-recovery-restart ;;
   m17) restart_fixture=m17-recovery-restart ;;
+  m31) restart_fixture=m31-recovery-restart ;;
   *) echo "unsupported recovery milestone: $recovery_milestone" >&2; exit 1 ;;
 esac
 recovery_db="${recovery_milestone}_recovery"
@@ -71,6 +72,9 @@ elif test "$recovery_milestone" = m17; then
     "${compose[@]}" cp tests/m17-logical-schema.sql postgres:/tmp/m17-logical-schema.sql >/dev/null
     "${compose[@]}" cp tests/m17-logical-restore.sql postgres:/tmp/m17-logical-restore.sql >/dev/null
   fi
+elif test "$recovery_milestone" = m31 && test -n "${M31_RECOVERY_ARTIFACT:-}"; then
+  "${compose[@]}" cp tests/m31-logical-schema.sql postgres:/tmp/m31-logical-schema.sql >/dev/null
+  "${compose[@]}" cp tests/m31-logical-restore.sql postgres:/tmp/m31-logical-restore.sql >/dev/null
 fi
 "${compose[@]}" exec -T postgres psql -X -U postgres -d "$recovery_db" \
   -v ON_ERROR_STOP=1 -f "/tmp/${recovery_milestone}-recovery-setup.sql"
@@ -90,6 +94,23 @@ if test "$recovery_milestone" = m17 && test -n "${M18_RECOVERY_ARTIFACT:-}"; the
   "${compose[@]}" exec -T postgres pg_restore -U postgres -d "$logical_db" "$logical_dump"
   "${compose[@]}" exec -T postgres psql -XAtq -U postgres -d "$logical_db" \
     -v ON_ERROR_STOP=1 -f /tmp/m17-logical-restore.sql >/dev/null
+  logical_finished=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
+  logical_restore_ms=$((logical_finished - logical_started))
+  "${compose[@]}" exec -T postgres dropdb --if-exists --force -U postgres "$logical_db"
+  "${compose[@]}" exec -T postgres rm -f -- "$logical_dump"
+elif test "$recovery_milestone" = m31 && test -n "${M31_RECOVERY_ARTIFACT:-}"; then
+  "${compose[@]}" exec -T postgres pg_dump -U postgres -d "$recovery_db" -Fc --data-only \
+    -t m31_recovery.orders -t m31_recovery.gate -t m31_recovery.control \
+    -f "$logical_dump"
+  "${compose[@]}" exec -T postgres dropdb --if-exists --force -U postgres "$logical_db"
+  "${compose[@]}" exec -T postgres createdb -U postgres "$logical_db"
+  "${compose[@]}" exec -T postgres psql -XAtq -U postgres -d "$logical_db" \
+    -v ON_ERROR_STOP=1 -c 'CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react' \
+    -f /tmp/m31-logical-schema.sql >/dev/null
+  logical_started=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
+  "${compose[@]}" exec -T postgres pg_restore -U postgres -d "$logical_db" "$logical_dump"
+  "${compose[@]}" exec -T postgres psql -XAtq -U postgres -d "$logical_db" \
+    -v ON_ERROR_STOP=1 -f /tmp/m31-logical-restore.sql >/dev/null
   logical_finished=$(python3 -c 'import time; print(time.monotonic_ns() // 1_000_000)')
   logical_restore_ms=$((logical_finished - logical_started))
   "${compose[@]}" exec -T postgres dropdb --if-exists --force -U postgres "$logical_db"
@@ -141,14 +162,14 @@ docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
   -v "$restore_volume:/var/lib/postgresql" -v "$backup_archive:$backup_archive:ro" \
   --entrypoint sh "$PG_REACT_IMAGE" -c 'mkdir -p "$1" && tar -xzf "$2" -C "$1"' \
   sh "$restore_data" "$backup_archive"
-if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17 || test "$recovery_milestone" = m31; then
   docker run --rm --name "$restore_helper" --platform "$PG_REACT_PLATFORM" \
     -v "$restore_volume:/var/lib/postgresql" --entrypoint touch "$PG_REACT_IMAGE" \
     "$restore_data/standby.signal"
 fi
 preload=pg_trickle
 managed_database=
-if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17 || test "$recovery_milestone" = m31; then
   preload=pg_trickle,pg_react
   managed_database=$recovery_db
 fi
@@ -177,7 +198,7 @@ done
 test "$ready" = true
 test "$(docker inspect "$restore_container" --format '{{.Image}}')" = \
   "$(docker image inspect "$PG_REACT_IMAGE" --format '{{.Id}}')"
-if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17; then
+if test "$recovery_milestone" = m15 || test "$recovery_milestone" = m16 || test "$recovery_milestone" = m17 || test "$recovery_milestone" = m31; then
   test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \
     -c 'SELECT pg_is_in_recovery()')" = t
   test "$(docker exec "$restore_container" psql -XAtq -U postgres -d "$recovery_db" \
@@ -210,6 +231,10 @@ if [[ $recovery_milestone = m17 && -n ${M18_RECOVERY_ARTIFACT:-} ]]; then
   printf '{"crash_restart_ms":%s,"logical_restore_ms":%s,"backup_ms":%s,"physical_restore_ms":%s}\n' \
     "$crash_restart_ms" "$logical_restore_ms" "$backup_ms" "$physical_restore_ms" \
     >"$M18_RECOVERY_ARTIFACT"
+elif [[ $recovery_milestone = m31 && -n ${M31_RECOVERY_ARTIFACT:-} ]]; then
+  printf '{"crash_restart_ms":%s,"logical_restore_ms":%s,"backup_ms":%s,"physical_restore_ms":%s}\n' \
+    "$crash_restart_ms" "$logical_restore_ms" "$backup_ms" "$physical_restore_ms" \
+    >"$M31_RECOVERY_ARTIFACT"
 fi
 
 echo "${recovery_milestone^^} crash restart and physical recovery passed"
