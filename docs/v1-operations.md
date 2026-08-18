@@ -1,7 +1,8 @@
 # v1 operations
 
-This is the current production runbook for the `0.31.0` v1 feature set. Use
-public SQL only. Never update `pgreact_internal` or `pgreact_runtime`.
+This is the current production runbook for the `1.0.0-rc.1` release candidate
+(`0.31.0` v1 feature baseline). Use public SQL only. Never update
+`pgreact_internal` or `pgreact_runtime`.
 
 Every procedure follows:
 

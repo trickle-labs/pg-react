@@ -1,7 +1,7 @@
 # v1 API reference
 
 This is the canonical human reference for public surfaces classified from the
-installed `0.31.0` SQL. It is intentionally non-exhaustive: exact
+installed `1.0.0-rc.1` (and baseline `0.31.0`) SQL. It is intentionally non-exhaustive: exact
 classification of every installed public function, including `export`,
 `import`, legacy worker/recovery routines, and some advanced entries, remains
 open. The M33 machine inventories are not regenerated here.

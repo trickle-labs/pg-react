@@ -4,9 +4,8 @@ This is the normative v1 contract. The v1 feature boundary is M34 / extension
 `0.31.0`: the M33 ordinary runtime plus the M34 read-only comparison surface.
 M35 hypothetical-fact simulation is post-v1.
 
-No `1.0.0-rc.N` artifact exists yet. Exact RC/GA package versions and upgrade
-paths become contractual only after the corresponding artifacts and paths are
-qualified.
+The repository targets `1.0.0-rc.1`. Exact RC/GA package versions and upgrade
+paths become contractual through qualified release artifacts and migration scripts.
 
 ## Ordinary SQL surface
 
@@ -180,8 +179,8 @@ requires a future major release and a migration path.
 
 ## Supported boundary
 
-The installed `0.31.0` qualification tuple is PostgreSQL `18.3`, pg_trickle
-`0.81.0`, pgrx `0.18.0`, Linux `amd64`, the published container artifact,
+The qualified `1.0.0-rc.1` environment is PostgreSQL `18.3`, pg_trickle
+`0.81.0`, pgrx `0.18.0`, Linux `amd64`, the container artifact,
 coordinator-owned explicit `DIFFERENTIAL` maintenance, and `READ COMMITTED`
 transactions. RLS-protected evaluated sources, uncoordinated pg_trickle
 scheduling, unsupported isolation levels, and unlisted operating systems or

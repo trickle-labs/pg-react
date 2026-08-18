@@ -1,14 +1,14 @@
 # v1 installation
 
-The published `0.31.0` package contains the v1 feature set. The qualified
-support tuple is PostgreSQL 18.3, pg_trickle 0.81.0, and Linux amd64. Other
-versions, operating systems, and architectures are not qualified.
+The release candidate `1.0.0-rc.1` contains the v1 feature set (feature baseline
+`0.31.0`). The qualified support tuple is PostgreSQL 18.3, pg_trickle 0.81.0, and
+Linux amd64. Other versions, operating systems, and architectures are not qualified.
 
 ## Install the package
 
-Use `ghcr.io/trickle-labs/pg-react:v0.31.0` by the digest recorded in the
-release `pg-react-v0.31.0.SHA256SUMS` file. Verify the release checksum and
-attestation before loading the image. For a local build of this checkout:
+Use `ghcr.io/trickle-labs/pg-react:v0.31.0` (or `pg-react:1.0.0-rc.1` candidate)
+by the digest recorded in the release SHA256SUMS file. Verify the release
+checksum and attestation before loading the image. For a local build of this checkout:
 
 ```sh
 docker compose build postgres
@@ -16,7 +16,7 @@ docker compose up -d postgres
 docker compose exec -T postgres pg_isready -U postgres
 ```
 
-The image contains PostgreSQL 18.3, pg_trickle 0.81.0, and pg-react 0.31.0.
+The image contains PostgreSQL 18.3, pg_trickle 0.81.0, and pg-react 1.0.0-rc.1.
 pg-react was built with pgrx 0.18.0 and Rust 1.89.0; those are build facts, not
 additional user-facing compatibility promises.
 
@@ -140,12 +140,11 @@ invocation calls `pgreact_api.run()` and can therefore create work before it
 claims and executes work; it is not drain-only. Use it only for migration or
 compatibility procedures that explicitly require it.
 
-## RC packaging blocker
+## Managed runtime compatibility
 
-`src/managed.rs` runs managed cycles only when the installed extension version
-is the literal `0.31.0`. An RC or GA extension with another version string
-would load the worker but never run `managed_cycle()`. This must be fixed and
-qualified before publishing `1.0.0-rc.1`.
+The managed runtime dynamically supports installed extension versions
+`0.31.0`, `1.0.0-rc.N`, and `1.0.0`, running worker cycles without requiring
+version-specific manual intervention.
 
 Use the [current operations runbook](v1-operations.md) for backlog, recovery,
 retention, and worker procedures.

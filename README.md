@@ -6,8 +6,9 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-Extension `0.31.0` contains the v1 feature set, including read-only comparison
-of a proposed rule, decision, or policy set before deployment. Start with the
+The repository currently targets `1.0.0-rc.1`. Its v1 feature baseline is
+M34 / extension `0.31.0`, including read-only comparison of a proposed rule,
+decision, or policy set before deployment. Start with the
 [documentation home](docs/index.md).
 
 ```text
@@ -107,7 +108,7 @@ advanced installed authoring surfaces support broader typed keys.
 - pg-react is not a synchronous write-path hook, a global-ordering service, a
   distributed transaction coordinator, or a general workflow/BPM engine.
 
-The qualified `0.31.0` environment is PostgreSQL 18.3, pg_trickle 0.81.0,
+The qualified `1.0.0-rc.1` environment is PostgreSQL 18.3, pg_trickle 0.81.0,
 pgrx 0.18.0, Linux `amd64`, `READ COMMITTED`, and the PostgreSQL-managed
 runtime. See the [Support Matrix](docs/v1-support-matrix.md) before adopting it.
 
