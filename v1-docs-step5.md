@@ -6,6 +6,8 @@
 **Controlling Handoff:** [`v1-docs-step4.md`](v1-docs-step4.md)  
 **Date:** 2026-08-18  
 
+> Final RC evidence tightening, including M33 complete qualification against the exact RC image, is recorded in `v1-docs-step6.md`.
+
 ---
 
 ## 1. Executive Summary
