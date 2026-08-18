@@ -76,6 +76,9 @@ jobs:
           git worktree add --detach .m30-qualification v0.27.0
           git worktree add --detach .m31-qualification v0.28.0
           git worktree add --detach .m32-qualification v0.29.0
+          if [ -f .git/shallow ]; then
+            git fetch --no-tags --unshallow origin
+          fi
           m33_commit=$(git log --all --format=%H --grep='^Implement M33 v1 qualification baseline$' -1)
           test -n "$m33_commit"
           git worktree add --detach .m33-source "$m33_commit"

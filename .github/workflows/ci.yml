@@ -61,6 +61,7 @@ jobs:
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" pg-react:v0.28.0 &&
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0" &&
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0" pg-react:v0.29.0 &&
+          test ! -f .git/shallow || git fetch --no-tags --unshallow origin &&
           m33_commit=$(git log --all --format=%H --grep='^Implement M33 v1 qualification baseline$' -1) &&
           test -n "$m33_commit" &&
           git worktree add --detach .m33-source "$m33_commit" &&
