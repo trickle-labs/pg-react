@@ -33,7 +33,23 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - run: docker compose config --quiet
       - run: >-
+          git fetch --no-tags origin
+          refs/tags/v0.25.0:refs/tags/v0.25.0
+          refs/tags/v0.26.0:refs/tags/v0.26.0
+          refs/tags/v0.27.0:refs/tags/v0.27.0
+          refs/tags/v0.28.0:refs/tags/v0.28.0 &&
+          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.25.0" &&
+          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.25.0" pg-react:v0.25.0 &&
+          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.26.0" &&
+          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.26.0" pg-react:v0.26.0 &&
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0" &&
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0" pg-react:v0.27.0 &&
-          docker build --tag pg-react:m31-unreleased . &&
-          bash tests/m31.sh complete pg-react:m31-unreleased
+          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" &&
+          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" pg-react:v0.28.0 &&
+          docker build --tag pg-react:m32-unreleased . &&
+          git worktree add --detach .m30-qualification v0.27.0 &&
+          git worktree add --detach .m31-qualification v0.28.0 &&
+          trap 'git worktree remove --force .m30-qualification; git worktree remove --force .m31-qualification' EXIT &&
+          (cd .m30-qualification && M30_INHERITED_IMAGE=pg-react:v0.26.0 bash tests/m30.sh complete pg-react:v0.27.0) &&
+          (cd .m31-qualification && bash tests/m31.sh complete pg-react:v0.28.0) &&
+          bash tests/m32.sh complete pg-react:m32-unreleased

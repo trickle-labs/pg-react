@@ -3,10 +3,15 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M30 is the released `0.27.0` applicability foundation. The current main branch adds the M31 authoritative rule/policy-set runtime slice, but it is not yet a qualified release. See the [M31 release notes](docs/m31-release-notes.md), [contract](docs/m31-contract.md), and [readiness record](docs/m31-readiness.md).
+> pg-react M32 is the `0.29.0` PostgreSQL-native interface candidate. It
+> preserves the released M30 foundation and inherited M31 qualification work;
+> the M32 human-usability and release evidence gates are not complete. See the
+> [M32 release notes](docs/m32-release-notes.md), [contract](docs/m32-contract.md),
+> and [readiness record](docs/m32-readiness.md).
 >
-> M31 is an unreleased `0.28.0` package candidate, subject to the readiness
-> gates. The existing `v0.27.0` tag remains the M30 release.
+> Historical M31 documentation remains available in the
+> [M31 document set](docs/m31-release-notes.md). The existing `v0.27.0` tag
+> remains the M30 release.
 
 An order crosses a risk threshold. An invoice becomes overdue. Available stock falls below committed demand.
 
@@ -31,11 +36,14 @@ ordinary PostgreSQL data
  or outbox
 ```
 
-## A rule in three steps
+## Your first rule: one task-first workflow
 
 Suppose every high-value order from a high-risk customer needs manual review.
+The ordinary path is always the same: describe the condition, declare a typed
+rule, preview it, deploy it, run pg-react, and inspect matches, work, and the
+explanation.
 
-First, describe the condition with an ordinary view:
+Start with an ordinary PostgreSQL view:
 
 ```sql
 CREATE VIEW rule_def.high_value_risky_order AS
@@ -49,7 +57,7 @@ WHERE o.amount > 10000
   AND c.risk_level = 'HIGH';
 ```
 
-Then define a typed PostgreSQL function for the consequence:
+Add a typed PostgreSQL action. Its arguments are normal PostgreSQL types:
 
 ```sql
 CREATE FUNCTION rule_action.open_review(
@@ -60,35 +68,71 @@ RETURNS void
 LANGUAGE SQL
 BEGIN ATOMIC
     INSERT INTO app.manual_review_tasks (
-        activation_id, order_id, customer_id, amount, condition_active
+        order_id, customer_id, amount
     )
     VALUES (
-        (context).activation_id,
         (match).order_id,
         (match).customer_id,
-        (match).amount,
-        true
+        (match).amount
     )
-    ON CONFLICT (activation_id) DO UPDATE
+    ON CONFLICT (order_id) DO UPDATE
        SET customer_id = EXCLUDED.customer_id,
-           amount = EXCLUDED.amount,
-           condition_active = true;
+           amount = EXCLUDED.amount;
 END;
 ```
 
-Finally, register the view, its semantic key, and the consequence:
+Declare the rule with names and typed PostgreSQL identities:
 
 ```sql
-SELECT pgreact_api.author_rule(
-    rule_name   => 'manual_review_required',
+SELECT pgreact.rule(
+    name        => 'manual_review_required',
     condition   => 'rule_def.high_value_risky_order'::regclass,
-    semantic_keys => ARRAY['order_id']::name[],
-    action_schema => 'rule_action',
-    on_activate => 'open_review'
+    semantic_key => 'order_id',
+    on_activate => 'rule_action.open_review(pgreact.activation_context,rule_def.high_value_risky_order)'::regprocedure
 );
 ```
 
-If order 42 enters the view, pg-react records one activation and one durable episode of work. Further updates do not open duplicate reviews while the same condition remains true. If the order leaves the view and later returns, a new activation generation begins and the rule may act again.
+Preview before changing the database:
+
+```sql
+SELECT pgreact.preview(pgreact.rule(
+    name        => 'manual_review_required',
+    condition   => 'rule_def.high_value_risky_order'::regclass,
+    semantic_key => 'order_id',
+    on_activate => 'rule_action.open_review(pgreact.activation_context,rule_def.high_value_risky_order)'::regprocedure
+));
+```
+
+Deploy the same declaration, then run the one coordinator:
+
+```sql
+SELECT pgreact.deploy(pgreact.rule(
+    name        => 'manual_review_required',
+    condition   => 'rule_def.high_value_risky_order'::regclass,
+    semantic_key => 'order_id',
+    on_activate => 'rule_action.open_review(pgreact.activation_context,rule_def.high_value_risky_order)'::regprocedure
+));
+
+SELECT pgreact.run();
+```
+
+Inspect the result through ordinary views and explain the named rule:
+
+```sql
+SELECT * FROM pgreact.matches
+WHERE rule_name = 'manual_review_required';
+
+SELECT * FROM pgreact.work
+WHERE name = 'manual_review_required';
+
+SELECT pgreact.explain('manual_review_required');
+```
+
+If order 42 enters the view, pg-react records one match and durable work.
+Further updates do not open duplicate reviews while the same condition remains
+true. If the order leaves and later returns, a new lifecycle generation may act
+again. This example deliberately uses no hand-written JSON, UUID, private
+catalog, or feature-specific coordinator function.
 
 The condition remains SQL. The consequence remains a PostgreSQL function. The state connecting them is explicit and queryable.
 
@@ -140,7 +184,12 @@ flowchart LR
 
 pg-react deliberately sits above pg_trickle instead of building another RETE or DBSP engine. It observes the maintained match relation and owns the rule-specific concerns: identity, activation generations, refraction, priorities, conflict handling, versioning, recovery, and audit history.
 
-PostgreSQL owns the normal coordinator and worker lifecycle. Add `pg_react` to `shared_preload_libraries`, list databases in `pg_react.databases`, restart, and require `pgreact_api.doctor()` to report `ready`. The bundled `pg-reactd` is retained only to drain compatible pending work during migration. Slow network calls and external delivery remain outside the extension through an outbox.
+PostgreSQL owns the normal coordinator and worker lifecycle. Add `pg_react` to
+`shared_preload_libraries`, list databases in `pg_react.databases`, restart,
+and use `pgreact.doctor()` when diagnosing readiness. The bundled `pg-reactd`
+is retained only to drain compatible pending work during migration. Slow
+network calls and external delivery remain outside the extension through an
+outbox.
 
 ## Rule types
 
@@ -230,6 +279,12 @@ inspection views. It deliberately does not claim authoritative runtime
 transitions; those belong to M31. See the [M29 contract](docs/m29-contract.md)
 and [M30 contract](docs/m30-contract.md).
 
+M31 is preserved as the historical `0.28.0` authoritative-runtime milestone.
+M32 is the `0.29.0` PostgreSQL-native interface candidate: it freezes the
+task-first ordinary verbs, relational inspection views, stable findings, and
+names-first documentation. See the [M32 contract](docs/m32-contract.md), [API
+reference](docs/m32-api-reference.md), and [readiness record](docs/m32-readiness.md).
+
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
 ## Read more
@@ -253,6 +308,8 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M24 effective-dated policy versions](docs/m24-contract.md) documents half-open business-effective intervals.
 - [M25 parameterized policy families](docs/m25-contract.md) documents typed parameter relations, family authorization, preview, explanation, and upgrade behavior.
 - [M26 decision tables](docs/m26-contract.md) documents deterministic winner selection, ambiguity, no-candidate state, bounded competitors, and upgrade behavior.
+- [M31 historical runtime record](docs/m31-release-notes.md) preserves the predecessor milestone and its qualification boundary.
+- [M32 PostgreSQL-native interface](docs/m32-api-reference.md) documents the ordinary task-first workflow, [support matrix](docs/m32-support-matrix.md), and [finding inventory](docs/m32-finding-codes.json).
 - [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
 - The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](vision/the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.

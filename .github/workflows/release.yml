@@ -1,9 +1,9 @@
-name: Release v0.28.0
+name: Release v0.29.0
 
 on:
   push:
     tags:
-      - v0.28.0
+      - v0.29.0
 
 permissions:
   contents: write
@@ -18,24 +18,25 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Fetch inherited release tags
-        run: git fetch --no-tags origin refs/tags/v0.21.0:refs/tags/v0.21.0 refs/tags/v0.22.0:refs/tags/v0.22.0 refs/tags/v0.23.0:refs/tags/v0.23.0 refs/tags/v0.24.0:refs/tags/v0.24.0 refs/tags/v0.25.0:refs/tags/v0.25.0 refs/tags/v0.26.0:refs/tags/v0.26.0 refs/tags/v0.27.0:refs/tags/v0.27.0
+        run: git fetch --no-tags origin refs/tags/v0.21.0:refs/tags/v0.21.0 refs/tags/v0.22.0:refs/tags/v0.22.0 refs/tags/v0.23.0:refs/tags/v0.23.0 refs/tags/v0.24.0:refs/tags/v0.24.0 refs/tags/v0.25.0:refs/tags/v0.25.0 refs/tags/v0.26.0:refs/tags/v0.26.0 refs/tags/v0.27.0:refs/tags/v0.27.0 refs/tags/v0.28.0:refs/tags/v0.28.0
       - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
         with:
           toolchain: 1.89.0
           components: rustfmt
       - name: Verify release identity
         run: |
-          grep -qx 'version = "0.28.0"' Cargo.toml
-          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.28.0"'
-          grep -qx "default_version = '0.28.0'" pg_react.control
-          grep -Fq "extversion = '0.28.0'" src/managed.rs
-          grep -Fq 'M31 — Authoritative runtime' docs/m31-release-notes.md
-          grep -Fq '0.27.0 -> 0.28.0' docs/m31-migration.md
-          test -s sql/pg_react--0.27.0--0.28.0.sql
-          test -s sql/pg_react--0.28.0.sql
-          git diff --quiet HEAD -- sql/pg_react--0.26.0--0.27.0.sql sql/pg_react--0.27.0.sql
+          grep -qx 'version = "0.29.0"' Cargo.toml
+          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.29.0"'
+          grep -qx "default_version = '0.29.0'" pg_react.control
+          grep -Fq "extversion = '0.29.0'" src/managed.rs
+          grep -Fq 'M32 — PostgreSQL-native interface' docs/m32-release-notes.md
+          grep -Fq '0.28.0 -> 0.29.0' docs/m32-migration.md
+          test -s docs/m32-api-inventory.json
+          test -s docs/m32-finding-codes.json
+          test -s sql/pg_react--0.28.0--0.29.0.sql
+          test -s sql/pg_react--0.29.0.sql
       - name: Require unpublished release
-        run: "! gh release view v0.28.0 >/dev/null 2>&1"
+        run: "! gh release view v0.29.0 >/dev/null 2>&1"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo fmt --check
@@ -53,7 +54,7 @@ jobs:
       - name: Name image
         run: |
           echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0" >> "$GITHUB_ENV"
       - name: Fetch inherited release image
         run: |
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.25.0"
@@ -66,8 +67,28 @@ jobs:
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.26.0" pg-react:v0.26.0
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0"
           docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0" pg-react:v0.27.0
-      - name: Build and test release image
-        run: docker build --tag "$IMAGE" . && M31_ARTIFACT_DIR="$PWD/m31-evidence" bash tests/m31.sh complete "$IMAGE"
+          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0"
+          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" pg-react:v0.28.0
+      - name: Run inherited M30 and M31 qualification
+        run: |
+          git worktree add --detach .m30-qualification v0.27.0
+          git worktree add --detach .m31-qualification v0.28.0
+          trap 'git worktree remove --force .m30-qualification; git worktree remove --force .m31-qualification' EXIT
+          (
+            cd .m30-qualification
+            M30_INHERITED_IMAGE=pg-react:v0.26.0 \
+              M30_ARTIFACT_DIR="$GITHUB_WORKSPACE/m30-evidence" \
+              bash tests/m30.sh complete pg-react:v0.27.0
+          )
+          (
+            cd .m31-qualification
+            M31_ARTIFACT_DIR="$GITHUB_WORKSPACE/m31-evidence" \
+              bash tests/m31.sh complete pg-react:v0.28.0
+          )
+      - name: Build and test M32 release lane
+        run: |
+          docker build --tag "$IMAGE" .
+          bash tests/m32.sh complete "$IMAGE"
       - name: Publish image
         run: |
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -87,36 +108,36 @@ jobs:
           push-to-registry: true
       - name: Package image, evidence, SBOM, and checksums
         run: |
-          artifact=pg-react-v0.28.0-linux-amd64.tar.gz
+          artifact=pg-react-v0.29.0-linux-amd64.tar.gz
           docker save "$IMAGE" | gzip -n -9 > "$artifact"
-          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.28.0.spdx.json
+          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.29.0.spdx.json
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-            -cf - m31-evidence | gzip -n -9 > pg-react-v0.28.0-evidence.tar.gz
-          sha256sum "$artifact" pg-react-v0.28.0-evidence.tar.gz pg-react-v0.28.0.spdx.json > pg-react-v0.28.0.SHA256SUMS
-          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.28.0.SHA256SUMS
-          sha256sum --check pg-react-v0.28.0.SHA256SUMS
+            -cf - m30-evidence m31-evidence | gzip -n -9 > pg-react-v0.29.0-evidence.tar.gz
+          sha256sum "$artifact" pg-react-v0.29.0-evidence.tar.gz pg-react-v0.29.0.spdx.json > pg-react-v0.29.0.SHA256SUMS
+          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.29.0.SHA256SUMS
+          sha256sum --check pg-react-v0.29.0.SHA256SUMS
       - name: Attest release artifacts
         id: attest_artifacts
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
-          subject-path: pg-react-v0.28.0-linux-amd64.tar.gz, pg-react-v0.28.0-evidence.tar.gz
+          subject-path: pg-react-v0.29.0-linux-amd64.tar.gz, pg-react-v0.29.0-evidence.tar.gz
       - name: Attest release SBOM
         id: attest_sbom
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ env.IMAGE_DIGEST }}
-          sbom-path: pg-react-v0.28.0.spdx.json
+          sbom-path: pg-react-v0.29.0.spdx.json
           push-to-registry: true
       - name: Collect signed attestation bundles
         run: |
-          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.28.0-image.provenance.json
-          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.28.0-artifacts.provenance.json
-          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.28.0-sbom.attestation.json
+          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.29.0-image.provenance.json
+          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.29.0-artifacts.provenance.json
+          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.29.0-sbom.attestation.json
       - name: Publish release artifacts
         run: |
-          artifact=pg-react-v0.28.0-linux-amd64.tar.gz
-          gh release create v0.28.0 "$artifact" pg-react-v0.28.0-evidence.tar.gz pg-react-v0.28.0.SHA256SUMS pg-react-v0.28.0.spdx.json pg-react-v0.28.0-image.provenance.json pg-react-v0.28.0-artifacts.provenance.json pg-react-v0.28.0-sbom.attestation.json --verify-tag \
-            --notes-file docs/m31-release-notes.md --title v0.28.0
+          artifact=pg-react-v0.29.0-linux-amd64.tar.gz
+          gh release create v0.29.0 "$artifact" pg-react-v0.29.0-evidence.tar.gz pg-react-v0.29.0.SHA256SUMS pg-react-v0.29.0.spdx.json pg-react-v0.29.0-image.provenance.json pg-react-v0.29.0-artifacts.provenance.json pg-react-v0.29.0-sbom.attestation.json --verify-tag \
+            --notes-file docs/m32-release-notes.md --title v0.29.0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
