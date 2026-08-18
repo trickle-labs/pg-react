@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "milestone": "M33",
+  "extension_version": "0.30.0",
+  "status": "stable v1 code registry; messages may improve without changing meaning",
+  "finding_shape": [
+    "code",
+    "severity",
+    "blocking",
+    "target",
+    "field",
+    "message",
+    "hint",
+    "details"
+  ],
+  "severity": ["ERROR", "WARNING", "INFO"],
+  "codes": [
+    {"code": "M32_INVALID_DECLARATION", "category": "invalid declaration", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_MISSING_OBJECT", "category": "missing PostgreSQL object", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_AMBIGUOUS_OBJECT", "category": "ambiguous PostgreSQL object", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_WRONG_KEY_TYPE", "category": "wrong key type", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_INVALID_ACTION_SIGNATURE", "category": "invalid action signature", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_UNAUTHORIZED_OBJECT", "category": "unauthorized object", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_RLS_UNSUPPORTED", "category": "RLS unsupported", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_SOURCE_DRIFT", "category": "source drift", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_ACTION_DRIFT", "category": "action drift", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_STALE_PREVIEW", "category": "stale preview", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_UNSUPPORTED_KIND", "category": "unsupported ordinary kind", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_ADVANCED_ONLY", "category": "advanced-only operation", "default_severity": "WARNING", "blocking": false},
+    {"code": "M32_RESOURCE_LIMIT", "category": "resource limit", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_RECOVERY_BARRIER", "category": "recovery barrier", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_INCOMPLETE_FRONTIER", "category": "incomplete frontier", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_POLICY_SCOPE_INCOMPATIBLE", "category": "policy-scope incompatibility", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_DECLARATION_MIGRATION_REQUIRED", "category": "declaration migration required", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_DEPRECATED_COMPATIBILITY", "category": "deprecated compatibility surface", "default_severity": "WARNING", "blocking": false},
+    {"code": "M32_RUNTIME_READY", "category": "managed runtime readiness", "default_severity": "INFO", "blocking": false, "target": "managed runtime or installation target", "field": "runtime readiness", "message": "The managed pg-react runtime is ready.", "hint": "No corrective action is required.", "details": "Structured readiness details are preserved by the M32 finding mapper."},
+    {"code": "M32_RUNTIME_NOT_READY", "category": "managed runtime readiness", "default_severity": "ERROR", "blocking": true},
+    {"code": "M32_WORK_FAILED", "category": "durable work failure", "default_severity": "ERROR", "blocking": false},
+    {"code": "M32_RETRY_EXHAUSTED", "category": "exhausted retry", "default_severity": "ERROR", "blocking": false}
+  ],
+  "stability": "These inherited M32 codes are part of the v1 compatibility inventory. A code's semantic meaning must not silently change."
+}

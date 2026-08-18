@@ -1,5 +1,8 @@
 # v1 rule authoring
 
+This guide describes the frozen `1.0.0` ordinary interface. The `0.1.1`
+references in historical M4 evidence are not the current release contract.
+
 v1 rules use an ordinary PostgreSQL view as the condition and optional typed PostgreSQL functions as consequences. The release supports constraint and command rules only; derivations, raw-query authoring, reusable conditions, and synchronous firing remain post-GA work. Extension `0.2.0` groups existing v1 rules into portable atomic deployments through the separate [M5 rule-pack contract](m5-rule-packs.md). See the [v1 contract](v1-contract.md) for the frozen single-rule signatures.
 
 ## 1. Create a condition view

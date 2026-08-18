@@ -1,6 +1,11 @@
 # v1 installation
 
-pg-react v1 is extension version `0.1.1` and worker protocol `1`. Its supported runtime is the exact `linux/amd64` tuple in the [v1 contract](v1-contract.md) and [compatibility matrix](m3-compatibility.md): PostgreSQL 18.3 with pg_trickle 0.81.0, scheduler disabled, explicit `DIFFERENTIAL` refreshes, and `READ COMMITTED` transactions.
+The `1.0.0` contract is qualified from the `0.30.0` artifact. The older
+`0.1.1` text in historical M4 records is not the current v1 contract.
+
+pg-react v1 uses the exact `linux/amd64` tuple in the [v1 contract](v1-contract.md):
+PostgreSQL 18.3 with pg_trickle 0.81.0, scheduler disabled, explicit
+`DIFFERENTIAL` refreshes, and `READ COMMITTED` transactions.
 
 ## Install the supported image
 
@@ -53,7 +58,9 @@ SELECT pgreact.worker_protocol_compatible(1);
 SELECT * FROM pgreact.health_check();
 ```
 
-Expected results are pg-react `0.1.1`, pg_trickle `0.81.0`, PostgreSQL `18.3`, settings `off`, `auto`, `1`, and `read committed`, protocol compatibility `true`, and no error health rows.
+Expected results for the M33 candidate are pg-react `0.30.0`, pg_trickle
+`0.81.0`, PostgreSQL `18.3`, settings `off`, `auto`, `1`, and `read committed`,
+and no blocking health rows. The numbered RC repeats the same checks.
 
 ## Run work
 

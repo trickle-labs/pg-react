@@ -1,4 +1,7 @@
-# v1 upgrades
+# Historical M4 upgrade record
+
+> This file documents the old `0.1.1` transition. The current M33 runbook is
+> [`v1-upgrade.md`](v1-upgrade.md).
 
 The only supported catalog upgrade into v1 is pg-react `0.1.0` to `0.1.1`. The install script and `0.1.0--0.1.1` migration are immutable release artifacts. Skipped versions, downgrades, hand-edited catalogs, and upgrades that also change PostgreSQL, pg_trickle, OS, or architecture are unsupported.
 

@@ -1,19 +1,22 @@
-# M4 v1 GA evidence
+# Historical M4 v1 GA evidence
+
+> This record is immutable evidence for the old `0.1.1` release. Its “v1”
+> wording predates the semantic-versioned `1.0.0` contract.
 
 This record maps every Stage 4 requirement to executable or published
 evidence for `pg-react:v0.1.1` on `linux/amd64`. The support boundary remains
-the exact tuple frozen in the [v1 contract](v1-contract.md).
+the exact tuple frozen in the historical [M3 compatibility matrix](m3-compatibility.md).
 
 | Requirement | Evidence |
 | --- | --- |
 | M3 entry gates on release bytes | `tests/m4.sh` builds the image once, verifies the running image ID, then runs `tests/m0.sh`, `m1.sh`, `m1-scale.sh`, `m2.sh`, and `m3.sh` against it. |
-| Frozen public contract | `docs/v1-contract.md` inventories the public composite type, five views, all 41 effective function overloads, protocol 1, migration window, compatibility boundary, and external delivery semantics. `tests/m4-api.sql` detects API inventory drift. |
+| Frozen public contract | The historical `docs/v1-release-notes.md` and `docs/m3-compatibility.md` describe the old composite type, views, overloads, protocol, migration window, and delivery semantics. `tests/m4-api.sql` detects API inventory drift. |
 | Installation through troubleshooting guides | `docs/v1-installation.md`, `v1-authoring.md`, `m3-operations.md`, `v1-security.md`, `v1-backup-restore.md`, `v1-upgrades.md`, and `v1-troubleshooting.md`. |
 | Reference example on every artifact | `tests/m4-reference.sql` copies the README's three-step rule; `tests/m4-reference.sh` runs it with `/usr/local/bin/pg-reactd` from the exact image and asserts the durable consequence. |
 | No silent correctness blocker in scope | The inherited lifecycle, concurrency, dispatch, recovery, retention, scale, and upgrade suites run first. The M4 pilot additionally proves physical restore preserves identifiers and pending work and that a new post-restore `DIFFERENTIAL` refresh schedules and completes work. Logical live-rule restore is explicitly unsupported because the pinned dependency cannot rebuild its CDC metadata. |
 | Release artifacts and disclosures together | `.github/workflows/release.yml` reruns Rust and image gates for exact tag `v0.1.1`, pushes the tested image, captures its digest, creates a checksummed OCI archive, and publishes it with `docs/v1-release-notes.md`. |
 | Production exercise | `tests/m4-pilot.sh` and `tests/m4-pilot*.sql`; narrative record in `docs/m4-pilot.md`. |
-| Small explicit support matrix | `docs/v1-contract.md` and `docs/m3-compatibility.md`; no M4 compatibility widening. |
+| Small explicit support matrix | `docs/m3-compatibility.md`; no M4 compatibility widening. |
 
 ## Release gate
 

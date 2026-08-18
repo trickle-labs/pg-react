@@ -3,11 +3,12 @@
 **Turn changing PostgreSQL data into durable decisions and work.**
 
 > [!IMPORTANT]
-> pg-react M32 is the `0.29.0` PostgreSQL-native interface candidate. It
-> preserves the released M30 foundation and inherited M31 qualification work;
-> the M32 human-usability and release evidence gates are not complete. See the
-> [M32 release notes](docs/m32-release-notes.md), [contract](docs/m32-contract.md),
-> and [readiness record](docs/m32-readiness.md).
+> pg-react M33 is the `0.30.0` v1 qualification baseline. It freezes the
+> PostgreSQL-native interface and proves the packaged product can be installed,
+> upgraded, recovered, secured, and operated. The numbered `1.0.0-rc.1`
+> candidate follows M33; `1.0.0` is not a direct promotion from `0.30.0`.
+> See the [M33 release notes](docs/m33-release-notes.md), [v1 contract](docs/v1-contract.md),
+> and [M33 readiness record](docs/m33-readiness.md).
 >
 > Historical M31 documentation remains available in the
 > [M31 document set](docs/m31-release-notes.md). The existing `v0.27.0` tag
@@ -280,10 +281,13 @@ transitions; those belong to M31. See the [M29 contract](docs/m29-contract.md)
 and [M30 contract](docs/m30-contract.md).
 
 M31 is preserved as the historical `0.28.0` authoritative-runtime milestone.
-M32 is the `0.29.0` PostgreSQL-native interface candidate: it freezes the
-task-first ordinary verbs, relational inspection views, stable findings, and
-names-first documentation. See the [M32 contract](docs/m32-contract.md), [API
-reference](docs/m32-api-reference.md), and [readiness record](docs/m32-readiness.md).
+M32 is preserved as the `0.29.0` PostgreSQL-native interface candidate. M33 is
+the `0.30.0` v1 qualification baseline: it freezes compatibility, recovery,
+security, limits, packaging, operations, and the documentation contract. The
+next logical milestone is the required `1.0.0-rc.1` qualification cycle, not a
+new feature milestone. Post-v1 simulation begins at M34. See the [M33
+contract](docs/v1-contract.md), [qualification evidence](docs/m33-evidence.md),
+and [readiness record](docs/m33-readiness.md).
 
 The design is specific about the difficult parts up front: semantic transition coalescing, crash recovery, source-definition drift, immutable versions, concurrency, reconciliation after rebuilds, typed payloads, and the exact boundary of external delivery guarantees.
 
@@ -291,7 +295,7 @@ The design is specific about the difficult parts up front: semantic transition c
 
 - [CONTEXT.md](CONTEXT.md) defines the canonical rule-lifecycle vocabulary.
 - [DESIGN.md](DESIGN.md) contains the product semantics, SQL API, catalog, worker architecture, security model, and testing strategy; [ROADMAP.md](ROADMAP.md) is the delivery plan.
-- [v1 contract](docs/v1-contract.md) freezes the supported API and compatibility boundary; [M4 evidence](docs/m4-evidence.md) records the GA qualification.
+- [v1 contract](docs/v1-contract.md) freezes the supported API and compatibility boundary; [M33 evidence](docs/m33-evidence.md) records the qualification boundary.
 - [M5 rule packs](docs/m5-rule-packs.md) documents portable preview and atomic deployment; [M5 evidence](docs/m5-evidence.md) records the executable gate.
 - [M6 audited batching](docs/m6-contract.md) documents opt-in execution and public diagnostics; [M6 evidence](docs/m6-evidence.md) records the executable gate.
 - [M7 derived knowledge](docs/m7-contract.md) documents non-recursive truth maintenance and provenance; [M7 evidence](docs/m7-evidence.md) records the executable gate.
@@ -311,7 +315,7 @@ The design is specific about the difficult parts up front: semantic transition c
 - [M31 historical runtime record](docs/m31-release-notes.md) preserves the predecessor milestone and its qualification boundary.
 - [M32 PostgreSQL-native interface](docs/m32-api-reference.md) documents the ordinary task-first workflow, [support matrix](docs/m32-support-matrix.md), and [finding inventory](docs/m32-finding-codes.json).
 - [M12 database-time deadlines](docs/m12-contract.md) documents the monotone clock and lifecycle contract; [M12 evidence](docs/m12-evidence.md) records the executable gate.
-- The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/m3-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrades.md), and [troubleshooting](docs/v1-troubleshooting.md).
+- The v1 task guides cover [installation](docs/v1-installation.md), [authoring](docs/v1-authoring.md), [operations](docs/v1-operations.md), [security](docs/v1-security.md), [backup/restore](docs/v1-backup-restore.md), [upgrades](docs/v1-upgrade.md), and [troubleshooting](docs/v1-troubleshooting.md).
 - [When PostgreSQL Data Needs to Do Something](vision/the-trifecta.md) explains how pg_trickle, pg-react, and pg_tide divide the work.
 - [PostgreSQL as an Operational Data Platform](vision/operational-data-platform.md) places the projects in a broader operational loop.
 - [pg_trickle](https://github.com/trickle-labs/pg-trickle) is the incremental view-maintenance engine pg-react is designed to build on.

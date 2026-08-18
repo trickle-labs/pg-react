@@ -1,0 +1,31 @@
+name: M33 qualification evidence
+
+on:
+  schedule:
+    - cron: '0 3 * * 2'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Fetch inherited release images
+        run: |
+          for version in 0.26.0 0.27.0 0.28.0 0.29.0; do
+            docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v$version"
+            docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v$version" "pg-react:v$version"
+          done
+      - name: Build and run M33 complete profile
+        run: |
+          docker build --tag pg-react:v0.30.0 .
+          M33_ARTIFACT_DIR="$PWD/m33-evidence" bash tests/m33.sh complete pg-react:v0.30.0
+      - name: Publish evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pg-react-v0.30.0-m33-evidence
+          path: m33-evidence
+          retention-days: 30
