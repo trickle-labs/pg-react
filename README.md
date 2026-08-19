@@ -114,6 +114,7 @@ runtime. See the [Support Matrix](docs/v1-support-matrix.md) before adopting it.
 
 ## Documentation
 
+- [Glossary](GLOSSARY.md)
 - [Getting Started](docs/getting-started.md)
 - [Concepts](docs/concepts.md)
 - [Authoring Rules and Policies](docs/v1-authoring.md)

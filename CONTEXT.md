@@ -1,8 +1,13 @@
 # pg-react Rule Lifecycle
 
-The project turns changing relational conditions into durable lifecycle history and optional work. These terms are canonical across design, code, APIs, and operations.
+The shared vocabulary is in [GLOSSARY.md](GLOSSARY.md). This document records
+the lifecycle-specific contract for changing relational conditions, durable
+history, and optional work.
 
 ## Language
+
+The terms below use the definitions in [GLOSSARY.md](GLOSSARY.md) and add
+lifecycle-specific invariants.
 
 **Rule**:
 A stable named policy whose condition may create lifecycle events and consequences.

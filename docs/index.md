@@ -6,6 +6,7 @@ boundary is M34 / extension `0.31.0`; the release sequence is
 
 ## Start
 
+- [Glossary](../GLOSSARY.md)
 - [Getting Started](getting-started.md)
 - [Concepts](concepts.md)
 
