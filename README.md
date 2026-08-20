@@ -116,6 +116,7 @@ runtime. See the [Support Matrix](docs/v1-support-matrix.md) before adopting it.
 
 - [Glossary](GLOSSARY.md)
 - [Getting Started](docs/getting-started.md)
+- [Order review showcase](showcase/order-review/README.md): a runnable PostgreSQL example covering rules, durable review work, routing decisions, retries, policy applicability, and side-effect-free comparison.
 - [Concepts](docs/concepts.md)
 - [Authoring Rules and Policies](docs/v1-authoring.md)
 - [Changing Policies Safely](docs/changing-policies.md)
