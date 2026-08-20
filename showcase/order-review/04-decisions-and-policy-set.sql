@@ -1,6 +1,8 @@
 \set ON_ERROR_STOP on
 SET TIME ZONE 'UTC';
 
+-- A decision chooses a reviewer candidate. It is separate from the rule that
+-- decides whether an order currently needs review.
 CREATE VIEW rule_def.review_candidates AS
 SELECT order_id, reviewer_id, priority, queue_name
 FROM app.reviewer_candidates;
@@ -11,6 +13,8 @@ FROM app.orders AS orders
 WHERE orders.status = 'PENDING'
     AND orders.customer_account_status = 'OPEN';
 
+-- The policy set combines work and routing, but applicability remains its own
+-- question: eligible does not necessarily mean currently matched.
 WITH declaration AS (
     SELECT pgreact.decision(
         name               => 'order-review-route',

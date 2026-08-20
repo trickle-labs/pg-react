@@ -1,6 +1,8 @@
 \set ON_ERROR_STOP on
 SET TIME ZONE 'UTC';
 
+-- The fixture gives each scenario a named order: an initial match, a proposed
+-- match, a full lifecycle, and an ineligible high-risk order.
 INSERT INTO app.customers (customer_id, chargeback_count, account_status) VALUES
     (501, 1, 'OPEN'),
     (502, 0, 'OPEN'),

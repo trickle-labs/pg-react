@@ -1,6 +1,8 @@
 \set ON_ERROR_STOP on
 SET TIME ZONE 'UTC';
 
+-- This view answers the constraint question: which pending, open, high-risk
+-- orders are at least $1,000? The order_id is the semantic key.
 CREATE VIEW rule_def.risky_orders AS
 SELECT orders.order_id,
        orders.customer_id,
@@ -35,6 +37,8 @@ WHERE orders.status = 'PENDING'
   AND orders.risk_level = 'HIGH'
   AND orders.amount >= 500.00;
 
+-- Consequences are ordinary PostgreSQL functions. pg-react supplies the
+-- activation context and the typed row that matched the condition.
 CREATE FUNCTION rule_action.open_review(
     context pgreact.activation_context,
     match rule_def.risky_orders

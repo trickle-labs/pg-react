@@ -1,5 +1,6 @@
 \set ON_ERROR_STOP on
 
+-- Remove managed objects before dropping the schemas that define their inputs.
 DO $$
 DECLARE
     pending_work record;

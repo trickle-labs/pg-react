@@ -1,6 +1,8 @@
 \set ON_ERROR_STOP on
 SET TIME ZONE 'UTC';
 
+-- Fixed logical times make the transcript reproducible. pgreact.run refreshes
+-- truth and creates durable work; managed_cycle executes that work.
 SELECT jsonb_build_object(
     'step', 'initial truth',
     'active_orders', jsonb_agg(semantic_key ORDER BY semantic_key),
@@ -14,6 +16,7 @@ UPDATE app.orders
 SET risk_level = 'HIGH'
 WHERE order_id = 1003;
 
+-- Order 1003 enters the rule for the first time: generation 1, revision 0.
 DO $$ BEGIN
     PERFORM pgreact.run('2035-01-01 12:11:00+00');
     PERFORM pgreact_api.managed_cycle();
@@ -51,6 +54,7 @@ UPDATE app.orders
 SET amount = 1350.00
 WHERE order_id = 1003;
 
+-- A watched change keeps the same generation and increments its revision.
 DO $$ BEGIN
     PERFORM pgreact.run('2035-01-01 12:12:00+00');
     PERFORM pgreact_api.managed_cycle();
@@ -88,6 +92,7 @@ UPDATE app.customers
 SET chargeback_count = 1
 WHERE customer_id = 503;
 
+-- The customer trigger updates the order facts, producing another revision.
 DO $$ BEGIN
     PERFORM pgreact.run('2035-01-01 12:13:00+00');
     PERFORM pgreact_api.managed_cycle();
@@ -125,6 +130,7 @@ UPDATE app.orders
 SET risk_level = 'LOW'
 WHERE order_id = 1003;
 
+-- Leaving the condition closes generation 1 instead of deleting its history.
 DO $$ BEGIN
     PERFORM pgreact.run('2035-01-01 12:14:00+00');
     PERFORM pgreact_api.managed_cycle();
@@ -166,6 +172,7 @@ UPDATE app.orders
 SET risk_level = 'HIGH'
 WHERE order_id = 1003;
 
+-- Re-entering starts generation 2. The injected failure makes retry visible.
 DO $$ BEGIN
     PERFORM pgreact.run('2035-01-01 12:15:00+00');
     PERFORM pgreact_api.managed_cycle();
@@ -206,6 +213,7 @@ UPDATE app.failure_controls
 SET fail_review_task = false
 WHERE order_id = 1003;
 
+-- Retry is bounded by managed cycles, so the fixture never waits on sleep.
 DO $$
 DECLARE
     latest_state text;
@@ -265,6 +273,7 @@ SELECT jsonb_build_object(
 DELETE FROM app.reviewer_candidates
 WHERE order_id = 1003;
 
+-- Removing the last candidate preserves the decision as NO_CANDIDATE.
 DO $$ BEGIN
     PERFORM pgreact.run('2035-01-01 12:16:00+00');
 END $$;
@@ -298,6 +307,7 @@ SELECT (SELECT rule_version_id::text FROM pgreact.rules WHERE name = 'order-revi
        (SELECT count(*) FROM pgreact.attempts WHERE name = 'order-review-work') AS attempt_count,
        (SELECT count(*) FROM app.review_tasks WHERE order_id = 1002) AS proposed_task_count;
 
+-- Compare the lower threshold without deploying it or creating command work.
 CREATE TEMP TABLE showcase_comparison AS
 SELECT pgreact.compare(
     pgreact.rule(

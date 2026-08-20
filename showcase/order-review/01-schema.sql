@@ -1,7 +1,9 @@
 \set ON_ERROR_STOP on
 SET TIME ZONE 'UTC';
 
+-- The app schema holds business data and rows written by consequences.
 CREATE SCHEMA app;
+-- Rule conditions and consequence functions use separate schemas.
 CREATE SCHEMA rule_def;
 CREATE SCHEMA rule_action;
 
@@ -36,6 +38,7 @@ BEGIN
 END;
 $$;
 
+-- A customer change becomes an order change, so the rule can watch one view.
 CREATE TRIGGER sync_customer_order_facts
 AFTER UPDATE OF chargeback_count, account_status ON app.customers
 FOR EACH ROW
@@ -72,6 +75,7 @@ CREATE TABLE app.review_tasks (
     PRIMARY KEY (order_id, generation)
 );
 
+-- This flag makes the retry scenario deterministic without a remote service.
 CREATE TABLE app.failure_controls (
     order_id bigint PRIMARY KEY REFERENCES app.orders (order_id),
     fail_review_task boolean NOT NULL
