@@ -34,6 +34,12 @@ Run from the repository root with Docker available and the `pg-react:1.0.0-rc.1`
 ./tests/order-review-showcase.sh
 ```
 
+To run the same fixture against a locally built image, pass its tag:
+
+```bash
+./tests/order-review-showcase.sh pg-react:my-local-image
+```
+
 A passing run prints four summary lines: SQL assertions, transcript, cleanup, and the complete example all pass. Failures print the captured PostgreSQL or transcript diff output instead of burying the useful line in routine server notices.
 
 ## Script order
@@ -50,6 +56,19 @@ UUIDs or private catalog state.
 This example does not reject an order write, call a remote service, assign a
 human case, or guarantee exactly-once external delivery. It creates durable
 PostgreSQL work and executes a database-local function.
+
+```mermaid
+flowchart LR
+	A[Order facts change] --> B[Condition view refreshes]
+	B --> C{Match state}
+	C -->|Activate| D[Durable work]
+	C -->|Change| E[Revision on same generation]
+	C -->|Deactivate| F[Deactivate work]
+	D --> G[PostgreSQL consequence]
+	G --> H[Review task]
+	G -->|Failure| I[Retry wait]
+	I --> G
+```
 
 ## Expected behavior and limits
 
@@ -86,4 +105,21 @@ ORDER BY order_id, generation;
 SELECT *
 FROM pgreact.decision_winners
 WHERE program_name = 'order-review-route';
+```
+
+For a failed terminal rule episode, inspect the complete error before
+requeueing it. Repair the consequence or dependency first; external delivery
+remains at least once.
+
+```sql
+SELECT w.work_id, w.state, a.attempt_no, a.status,
+			 a.error_code, a.error_message
+FROM pgreact.work AS w
+LEFT JOIN pgreact.attempts AS a
+	ON a.episode_id::text = w.work_id
+WHERE w.kind = 'rule'
+	AND w.name = 'order-review-work'
+ORDER BY w.updated_at DESC NULLS LAST, a.attempt_no DESC;
+
+SELECT pgreact.requeue_episode(<work_id>::bigint);
 ```
