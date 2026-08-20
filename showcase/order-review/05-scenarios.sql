@@ -213,12 +213,14 @@ UPDATE app.failure_controls
 SET fail_review_task = false
 WHERE order_id = 1003;
 
--- Retry is bounded by managed cycles, so the fixture never waits on sleep.
+-- Retry availability uses the database wall clock, so cross the configured
+-- one-second backoff before draining managed work.
 DO $$
 DECLARE
     latest_state text;
 BEGIN
     PERFORM pgreact.run('2035-01-01 12:15:02+00');
+    PERFORM pg_sleep(1.1);
     FOR cycle_no IN 1..100 LOOP
         PERFORM pgreact_api.managed_cycle();
         SELECT state INTO latest_state

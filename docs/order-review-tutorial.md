@@ -134,7 +134,7 @@ The second command also deploys the routing decision and previews the policy set
 
 ## 7. Change facts and follow the lifecycle
 
-Now run the scenario and save its compact JSON transcript. Order `1003` enters the condition, changes amount, changes reason when customer `503` gains a chargeback, leaves the condition, and enters again as generation 2. Fixed calls to `pgreact.run()` advance relational truth. Managed cycles execute the resulting PostgreSQL work, and the retry loop is bounded at 100 cycles rather than sleeping for an arbitrary amount of wall time.
+Now run the scenario and save its compact JSON transcript. Order `1003` enters the condition, changes amount, changes reason when customer `503` gains a chargeback, leaves the condition, and enters again as generation 2. Fixed calls to `pgreact.run()` advance relational truth. Managed cycles execute the resulting PostgreSQL work. The retry path waits for its configured one-second wall-clock backoff, then drains with a bounded 100-cycle loop.
 
 ```bash
 docker compose exec -T -e 'PGOPTIONS=-c client_min_messages=error' postgres \
