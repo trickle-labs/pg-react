@@ -1,0 +1,16 @@
+\set ON_ERROR_STOP on
+
+-- Advanced chapters are intentionally omitted from the 1.0.0-rc.1 showcase.
+-- Add one only after its specialized public API and exact transcript pass in
+-- the qualified PostgreSQL 18.3 and pg_trickle 0.81.0 Docker environment.
+
+SELECT jsonb_build_object(
+	'step', 'advanced chapters',
+	'state', 'omitted',
+	'chapters', jsonb_build_array(
+		'deadline escalation',
+		'derived facts and provenance',
+		'effective-dated policy versions'
+	),
+	'reason', 'no specialized API call is qualified by this fixture'
+);

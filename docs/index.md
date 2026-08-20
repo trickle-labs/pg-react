@@ -8,6 +8,8 @@ boundary is M34 / extension `0.31.0`; the release sequence is
 
 - [Glossary](../GLOSSARY.md)
 - [Getting Started](getting-started.md)
+- [Order Review Tutorial](order-review-tutorial.md)
+- [Runnable Order Review Package](../showcase/order-review/README.md)
 - [Concepts](concepts.md)
 
 ## Build

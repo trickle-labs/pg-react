@@ -1,0 +1,26 @@
+{"step": "validate constraint", "state": "ready", "findings": 0}
+{"step": "preview constraint", "deployment": "create", "current_state": null}
+{"step": "deploy constraint", "state": "deployed"}
+{"step": "validate command", "state": "ready", "findings": 0}
+{"step": "preview command", "deployment": "create", "current_state": null}
+{"step": "deploy command", "state": "deployed"}
+{"step": "bootstrap", "work_items": 0, "review_tasks": 0, "current_matches": 1}
+{"step": "validate decision", "state": "ready", "findings": 0}
+{"step": "preview decision", "deployment": "create", "current_state": null}
+{"step": "deploy decision", "state": "deployed"}
+{"step": "validate policy set", "state": "ready", "findings": 0}
+{"step": "preview policy set", "deployment": "create", "current_state": null}
+{"step": "routing matrix", "subjects": [{"state": "WINNER", "order_id": 1001, "queue_name": "chargeback-review", "reviewer_id": 201}, {"state": "AMBIGUOUS", "order_id": 1002, "queue_name": null, "reviewer_id": null}, {"state": "WINNER", "order_id": 1003, "queue_name": "general-review", "reviewer_id": 205}]}
+{"step": "initial truth", "work_items": 0, "review_tasks": 0, "active_orders": [1001]}
+{"step": "activate order 1003", "task": {"state": "OPEN", "amount": 1200.00, "generation": 1, "reason_code": "HIGH_RISK_VALUE", "last_revision": 0}, "match": {"active": true, "revision": 0, "generation": 1}, "attempt": {"status": "COMPLETED", "attempt_no": 1, "event_kind": "ACTIVATE"}}
+{"step": "change order amount", "task": {"state": "OPEN", "amount": 1350.00, "generation": 1, "reason_code": "HIGH_RISK_VALUE", "last_revision": 1}, "match": {"active": true, "revision": 1, "generation": 1}, "attempt": {"status": "COMPLETED", "attempt_no": 1, "event_kind": "CHANGE"}}
+{"step": "change supporting customer fact", "task": {"state": "OPEN", "amount": 1350.00, "generation": 1, "reason_code": "PRIOR_CHARGEBACK", "last_revision": 2}, "match": {"active": true, "revision": 2, "generation": 1}, "attempt": {"status": "COMPLETED", "attempt_no": 1, "event_kind": "CHANGE"}}
+{"step": "deactivate order 1003", "task": {"state": "CLOSED", "amount": 1350.00, "generation": 1, "reason_code": "PRIOR_CHARGEBACK", "last_revision": 0}, "match": {"active": false, "revision": 2, "generation": 1}, "attempt": {"status": "COMPLETED", "attempt_no": 1, "event_kind": "DEACTIVATE"}}
+{"step": "first reactivation attempt", "match": {"active": true, "revision": 0, "generation": 2}, "attempt": {"status": "RETRY_WAIT", "attempt_no": 1, "error_code": "P6001", "event_kind": "ACTIVATE", "error_message": "injected review-task failure for order 1003"}, "work_state": "RETRY_WAIT", "generation_2_tasks": 0}
+{"step": "successful retry", "task": {"state": "OPEN", "amount": 1350.00, "generation": 2, "reason_code": "PRIOR_CHARGEBACK", "last_revision": 0}, "attempts": [{"status": "RETRY_WAIT", "attempt_no": 1, "error_code": "P6001", "event_kind": "ACTIVATE"}, {"status": "COMPLETED", "attempt_no": 2, "error_code": null, "event_kind": "ACTIVATE"}], "work_state": "COMPLETED", "generation_2_tasks": 1}
+{"step": "routing after candidate removal", "subjects": [{"state": "WINNER", "order_id": 1001, "queue_name": "chargeback-review", "reviewer_id": 201}, {"state": "AMBIGUOUS", "order_id": 1002, "queue_name": null, "reviewer_id": null}, {"state": "NO_CANDIDATE", "order_id": 1003, "queue_name": null, "reviewer_id": null}]}
+{"kind": "rule", "name": "order-review-work", "step": "bounded explanation", "state": "deployed", "subject": 1003, "truncated": false, "runtime_state": "AUTHORITATIVE"}
+{"step": "compare lower threshold", "state": "ready", "complete": true, "added_orders": ["1002"], "counts_exact": true, "delta_counts": {"added": 1, "changed": 0, "removed": 0, "unchanged": 2}, "current_count": 2, "would_be_work": [{"state": "MATCH", "change": null, "order_id": "1002"}], "proposed_count": 3, "checksums_equal": true}
+{"step": "comparison has no effects", "work_unchanged": true, "attempts_unchanged": true, "proposed_task_count": 0, "rule_version_unchanged": true}
+{"step": "deploy policy set", "state": "deployed"}
+{"step": "policy applicability", "eligible": [1001, 1002, 1003], "current_constraint_matches": [1001, 1003]}
