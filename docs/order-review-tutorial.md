@@ -154,6 +154,16 @@ grep -E 'activate order|change order|supporting customer|deactivate order' \
 
 Generation identifies an activation episode; revision counts watched changes inside that episode. The amount and customer fact update the same generation 1 task, deactivation closes it, and reactivation creates generation 2 instead of reopening history under a new name.
 
+The lifecycle in one view:
+
+| Time | Source change | Match state | Generation | Revision | Work result |
+|---|---|---|---:|---:|---|
+| 12:11 | `risk_level = HIGH` | Activates | 1 | 0 | Task opens |
+| 12:12 | Amount changes | Remains active | 1 | 1 | Task updates |
+| 12:13 | Customer chargeback changes | Remains active | 1 | 2 | Task updates |
+| 12:14 | `risk_level = LOW` | Deactivates | 1 | 2 | Task closes |
+| 12:15 | `risk_level = HIGH` | Activates again | 2 | 0 | Retryable task opens |
+
 ## 8. Route reviews with a decision
 
 The decision reads candidate rows, chooses the lowest numeric priority, and refuses to break equal best priorities behind your back. Order `1001` has a clear winner, `1002` is ambiguous, and deleting order `1003`'s only candidate leaves a retained `NO_CANDIDATE` state. An unseen order with no candidate is `never_observed` and receives no row at all.

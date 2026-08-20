@@ -11,6 +11,15 @@ M34 / extension `0.31.0`, including read-only comparison of a proposed rule,
 decision, or policy set before deployment. Start with the
 [documentation home](docs/index.md).
 
+## Choose a path
+
+| Audience | Start here | Main question |
+|---|---|---|
+| Application developer | [Getting Started](docs/getting-started.md) | How do I define and deploy a first rule? |
+| PostgreSQL developer | [Order review showcase](showcase/order-review/README.md) | How do facts, views, consequences, and durable work fit together? |
+| Operator | [Operations](docs/v1-operations.md) | How do I inspect, retry, pause, replace, and remove work? |
+| Reviewer or architect | [Concepts](docs/concepts.md) and [Changing Policies Safely](docs/changing-policies.md) | What does pg-react guarantee, and where are the boundaries? |
+
 ```text
 authoritative PostgreSQL facts
              |
