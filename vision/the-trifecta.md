@@ -1,137 +1,103 @@
-# When PostgreSQL Data Needs to Do Something
+# When PostgreSQL data needs to do something
 
-Related vision documents: [Product thesis](pg-react_product_thesis.md) · [30-milestone vision](pg-react_30_milestone_vision.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
+Related documents: [Product thesis](pg-react_product_thesis.md), [PostgreSQL as an operational data platform](operational-data-platform.md), and [Practical rule-engine features](pg-react_practical_rule_engine_features.md).
 
-An order crosses €10,000 while the customer is already marked high risk. Someone now has to open a review and notify the risk platform.
+> Current state: pg-react targets `1.0.0-rc.1`, with M34 and extension `0.31.0` as the v1 feature boundary. The qualified stack uses PostgreSQL 18.3 and pg_trickle 0.81.0. See the [support matrix](../docs/v1-support-matrix.md). pg_trickle and pg_tide remain separate projects whose own documentation defines their releases and APIs.
 
-The facts live in PostgreSQL, but the reaction often gets scattered across a refresh job, application callbacks, a queue, a retry worker, and whatever code remembers whether this order has already triggered a review. Coordinating those parts is harder than any one of them.
+An order crosses EUR 10,000 while its customer is marked high risk. The business must open a manual review and notify a risk platform.
 
-Three PostgreSQL projects cover that path:
+The facts live in PostgreSQL, but the reaction often gets scattered across a refresh job, application callbacks, a queue, retry workers, and code that remembers whether this order already opened a review. Three PostgreSQL projects divide that path by responsibility:
 
-- [pg_trickle](https://github.com/trickle-labs/pg-trickle) keeps the SQL result that finds risky orders up to date.
-- [pg_react](https://github.com/trickle-labs/pg-react) is the PostgreSQL-native rule and lifecycle layer that notices when an order enters or leaves that result and records the work to do.
-- [pg_tide](https://github.com/trickle-labs/pg-tide) carries the resulting event to another system without losing it after the database commits.
+- [pg_trickle](https://github.com/trickle-labs/pg-trickle) maintains the SQL result that finds risky orders.
+- [pg-react](https://github.com/trickle-labs/pg-react) records when an order enters, changes within, or leaves that result and creates durable work when policy requires it.
+- [pg_tide](https://github.com/trickle-labs/pg-tide) is the delivery project for carrying committed intent to another system. Its documentation owns the exact transport and receipt contract.
 
-pg_trickle maintains the answer. pg_react decides whether the answer calls for work. pg_tide delivers that work beyond PostgreSQL.
+pg_trickle maintains the answer. pg-react decides whether the answer changes policy state or requires work. A transactional delivery layer carries the work beyond PostgreSQL.
 
 ```text
-Order and customer data
-      │
-      ▼
- pg_trickle
-Keeps the matching query current
-      │
-      ▼
-  pg_react
-Notices lifecycle changes and records work
-      │
-      ▼
-   pg_tide
-Delivers an event to the risk platform
+Order and customer facts
+          |
+          v
+      pg_trickle
+Maintained condition relation
+          |
+          v
+       pg-react
+Lifecycle, decision, and durable work
+          |
+          v
+ Transactional outbox
+          |
+          v
+External risk platform
 ```
 
-pg_trickle and pg_tide stand on their own. The pg-react repository has implemented M0–M17; M17 adds fixed UTC-epoch tumbling windows, durable watermarks, ordered corrections, finalization, and bounded history. This integrated path uses pg_trickle for maintained results and pg_tide only when work must leave the database. The longer-term policy-platform direction is described in the linked vision documents. pg_trickle is also under active pre-1.0 development, so check current releases and compatibility before adopting either project.
+## Keep the condition current
 
-## Keep expensive queries current
+SQL can find every high-risk order over EUR 10,000. The qualified pg-react runtime uses pg_trickle with its scheduler off and coordinates explicit differential refresh itself. That creates one controlled boundary between committed source facts and policy evaluation.
 
-SQL can find every high-risk order over €10,000. Running that query after every write is another matter, especially when it joins large tables or computes aggregates.
+The maintained condition is still a PostgreSQL relation. Each row means that the order matches now. It is not a durable event and does not record what an earlier match already caused.
 
-pg_trickle maintains the result incrementally. You define a **stream table** with a SQL query, much as you would define a view. When source rows change, pg_trickle computes their effect on the result instead of rerunning the query over the full dataset. One new order should require work proportional to that change, not to years of order history.
+For a dashboard, the relation may be enough. A policy needs identity and history.
 
-The result is still a PostgreSQL relation. You can query it, index it, grant permissions on it, back it up, and join it with other tables. Stream tables can also depend on one another; pg_trickle tracks the dependency order and refreshes them accordingly.
+## Remember what the match caused
 
-For a dashboard or a live aggregate, that may be the whole job. A rule needs more context. Order 42 appearing in the result could be a new problem, a changed problem, or a problem that already produced a review task. The query result alone does not remember which.
+A pg-react rule uses a relation or view as its condition. A semantic key identifies the subject. If order 42 rises from EUR 9,000 to EUR 12,000, the order enters the condition and pg-react records an activation.
 
-## Remember what a match has already done
+A constraint rule records the match without executing a consequence. A command rule may create durable work for activation, change, or deactivation. If the amount rises again while the order remains active, pg-react can update the revision or create `on_change` work according to the declaration. It does not create another activation merely because a source row changed.
 
-pg_react is a PostgreSQL-native rule runtime built on pg_trickle. A rule condition is ordinary SQL, preferably a PostgreSQL view. Each row represents a situation that currently needs attention. pg_trickle keeps those rows current; pg_react remembers their history. Its derived-fact and event-time capabilities extend the same model with durable supports, windows, watermarks, corrections, and finalization.
+If the order drops below EUR 10,000, the activation ends. A later rise starts a new generation. This separates one continuous period of truth from the next.
 
-Suppose order 42 rises from €9,000 to €12,000. It enters the matching view, so pg_react records an activation and creates a durable agenda item, called an **episode**. If the amount rises again to €14,000, an activation-only rule does not open a second review. Avoiding repeat work while the same condition remains true is known as refraction.
+The current public model exposes matches, work, attempts, decisions, and policy sets. Work can be claimed, leased, retried, completed, failed, or withdrawn. Priorities and conflict keys influence claims, but independent workers do not share one global order.
 
-If the order drops below €10,000, the activation ends. A later rise starts a new **activation generation**, meaning a new continuous period during which the condition holds. The rule may then create a fresh review. Rules can also define `on_change` or `on_deactivate` consequences when those transitions matter.
-
-To make this work, pg_react gives each logical match a stable identity and stores its lifecycle separately from the current query result. The pg_trickle table says which orders match now. Activation state says when each match began and ended. The agenda says what work was requested and whether it is pending, running, complete, failed, withdrawn, or cancelled.
-
-This separation keeps history intact. If yesterday's risk condition disappears today, an operator can still find the rule version that opened the review, the values that matched, and the eventual outcome. Rebuilding the maintained result also does not make an old match look new just because its physical row changed.
-
-The runtime includes the less glamorous pieces that make durable work usable: leases, retries, worker routing, priorities, and conflict keys that stop incompatible actions for the same customer from running together. Priorities influence what a worker claims next; they do not promise one global firing order across all workers.
-
-A consequence can stay inside PostgreSQL, perhaps by inserting a row into `manual_review_tasks`. It can also need an HTTP call, a Kafka event, or a notification to another service. That second case crosses a transaction boundary.
+pg-react can also route the review with a decision declaration. SQL emits reviewer or queue candidates. The lowest numeric priority wins; a tied best priority becomes `AMBIGUOUS`, and losing all candidates becomes `NO_CANDIDATE`. A policy set can group the review rule and routing decision and limit them with a relational applicability source.
 
 ## Deliver without a dual write
 
-Consider the transaction that completes a review episode and publishes `order.review_requested`. If PostgreSQL commits but the broker call fails, the review exists without its event. If the broker accepts the event and PostgreSQL rolls back, the risk platform hears about a review that does not exist. This is the dual-write problem.
+Suppose one worker must create the local review and notify a remote risk platform. Calling the remote service inside the PostgreSQL transaction does not make the two systems atomic.
 
-pg_tide solves the PostgreSQL side with a transactional outbox. The worker writes the business change and an outgoing message in one transaction. A commit keeps both; a rollback keeps neither. Afterward, a relay reads the committed message and delivers it to a broker, an HTTP endpoint, another PostgreSQL database, or another supported destination.
+The safe local contract is a transactional outbox. The worker writes the review row and outgoing intent in the same transaction that completes pg-react work. A commit keeps them together; a rollback removes them together. A relay delivers the message after commit.
 
-Delivery is **at least once**. If a connection drops at the wrong moment, the relay cannot know whether the destination accepted the message, so it sends it again. pg_tide gives the message a stable identity, but the receiver must use that identity to reject duplicates. A third-party HTTP endpoint does not become idempotent merely because the sender has an outbox.
+Delivery remains at least once. If a connection fails after the receiver accepts the message, the relay may repeat it. The receiver must deduplicate by stable identity.
 
-For messages coming into PostgreSQL, pg_tide's idempotent inbox records which event identities have already been processed. Other receivers need an equivalent deduplication mechanism.
-
-Under this contract, PostgreSQL commits local state and the outbox message atomically. pg_tide preserves and retries the message, and the destination handles possible duplicates.
+pg_tide can fill the delivery role in this architecture, but pg-react does not bundle or qualify pg_tide's transports. Use the pg_tide project documentation to choose and operate that relay.
 
 ## Follow one order through the stack
 
-> When an order from a high-risk customer exceeds €10,000, open a manual review and notify the risk platform.
+For order 42, the policy runs as follows:
 
-For order 42, that policy runs as follows:
+1. The application commits an update that raises the order from EUR 9,000 to EUR 12,000.
+2. The managed pg-react cycle asks pg_trickle to refresh the eligible maintained condition.
+3. pg-react records a new activation and creates durable review work.
+4. A worker claims the work. It inserts the local review row and, if remote delivery is required, an outbox row in one transaction with the pg-react completion.
+5. A relay delivers the committed message. Failed delivery leaves durable state for retry.
+6. The risk platform's response returns through an application or inbox path and becomes another PostgreSQL fact.
+7. A later coordinated cycle updates the condition and records the next lifecycle transition.
 
-1. The application commits an update that raises the order from €9,000 to €12,000.
-2. pg_trickle refreshes the maintained query. Because the customer is high risk, order 42 enters the result.
-3. pg_react records a new activation and adds a review episode to its agenda.
-4. A worker claims the episode. In one transaction, it inserts a row into `manual_review_tasks`, writes a pg_tide outbox message with a deterministic idempotency key, and completes the episode.
-5. pg_tide relays the message to the risk platform. A failed attempt leaves the message in PostgreSQL for retry.
-6. The risk platform's decision returns through an inbox or another application write. That fact can update another stream table and activate another rule.
+Each handoff leaves durable PostgreSQL state before the next stage begins. The components do not claim that the whole path is one distributed transaction.
 
-Each handoff leaves durable evidence in PostgreSQL before the next begins. The components do not pretend the whole path is one distributed transaction.
+## Compare a policy change before deployment
 
-```text
-Order data commits
-        │
-        ▼
-pg_trickle updates the matching relation
-        │
-        ▼
-pg_react records lifecycle state and work
-        │
-        ▼
-A worker commits local effects and an outbox message
-        │
-        ▼
-pg_tide retries delivery until the destination accepts it
-        │
-        ▼
-The external decision returns as another fact
-```
+The current pg-react product can compare a deployed rule, decision, or policy set with a proposed declaration over current authoritative facts. `pgreact.compare()` returns bounded current, proposed, delta, lifecycle, and would-be work evidence without deploying the proposal or executing consequences.
 
-## Know where the boundaries are
+For this order policy, a team can lower the threshold in a proposed rule and see which current orders would be added, removed, or changed. The [order review showcase](../showcase/order-review/README.md) runs that exact kind of comparison.
 
-The default flow is epochal. The application commits source data first. pg_trickle incorporates that change at its configured refresh boundary. pg_react records the resulting lifecycle transition and agenda work. A worker executes the consequence in a later transaction.
+Comparison does not change the order facts and does not replay history. Hypothetical fact changes and backtesting are not supported in v1.
 
-This means rule consequences are not synchronous with the original write. Freshness depends on pg_trickle's refresh mode and schedule, and independent workers do not share a global firing order.
+## Know the transaction and runtime boundaries
 
-Inside PostgreSQL, related records can still commit together:
+The default flow is asynchronous. The source transaction commits before refresh, evaluation, and consequence execution. Code that must accept or reject the original write synchronously belongs in the application write path.
 
-- pg_trickle can commit a maintained result and its pg_tide refresh-summary event in one transaction.
-- pg_react commits a lifecycle transition with its agenda episode.
-- A worker can commit a database consequence with its execution record, or complete an external episode with its outbox message.
+The qualified runtime uses one PostgreSQL-managed worker for each configured database, `READ COMMITTED`, pg_trickle scheduling disabled, and coordinated differential refresh. `pg-reactd` remains a compatibility path, not the normal runtime.
 
-The guarantee ends at the external destination. pg_tide keeps retrying a committed message, but end-to-end exactly-once behavior requires the receiver to deduplicate by event identity.
+The external guarantee ends at the destination. An outbox preserves and retries committed intent, but end-to-end exactly-once behavior requires receiver-side deduplication.
+
+Logical restore also has a boundary. Restore the application schema and data, replay declarations, then rebuild and reconcile pg-react state. Do not treat private pg-react catalogs as a portable logical backup.
 
 ## Adopt only the pieces you need
 
-pg_trickle alone is useful for live aggregates, operational summaries, and query results that are expensive to rebuild. pg_tide alone gives an application a transactional outbox and inbox. pg_react with pg_trickle can support continuously evaluated constraints or database-local automation without sending anything outside PostgreSQL.
+Use pg_trickle alone when a maintained SQL result is the full requirement. Use pg-react when the result needs semantic identity, lifecycle, deterministic policy, bounded explanation, or durable database work. Add an outbox and relay only when an effect must leave PostgreSQL.
 
-pg_trickle and pg_tide can also connect directly. A stream table may publish a summary event after a non-empty refresh, including the source table and counts of inserted or deleted rows. This works for invalidation and refresh coordination, but it is a refresh summary rather than a row-level change feed.
+The full path fits when PostgreSQL owns the facts, the condition is relational, and later execution is acceptable. It is a poor fit for synchronous write rejection, one global execution order, cross-system atomic commit, or a general human workflow.
 
-The full stack fits when PostgreSQL holds the authoritative facts, the condition is naturally relational, and later worker execution is acceptable. It is a poor fit for work that must happen synchronously with every source write, requires one global order, or needs atomic commits across unrelated systems. Those requirements call for a synchronous application path, an ordered workflow engine, or a distributed transaction protocol.
-
-## Why keep this in PostgreSQL?
-
-Each stage leaves a row an operator can inspect. For order 42, you can follow the source data to the maintained match, activation, episode, execution attempt, and outbox message. Those records use PostgreSQL's existing backup, recovery, replication, permissions, and auditing machinery.
-
-The design also gives failures an obvious home. A stale query result belongs to pg_trickle's refresh path. Work stuck before execution appears in pg_react's agenda. A message that has not reached its destination remains in pg_tide's outbox. Operators do not have to reconstruct the whole story from timestamps across several log systems.
-
-pg_trickle answers a changing SQL query efficiently. pg_react remembers when an answer became actionable and what happened next. pg_tide carries the result across the boundary PostgreSQL cannot commit through on its own.
-
-For applications built around relational conditions, a fact can become durable work without losing its history on the way out of the database. The longer-term vision extends this foundation with shared conditions, effective-dated and parameterized policy, deterministic decision tables, simulation and backtesting, practical temporal rules, and bounded provenance—without moving authority away from PostgreSQL.
+For order 42, the division stays simple: pg_trickle maintains the matching relation, pg-react remembers what the match means and what work it caused, and the delivery layer carries committed intent across the boundary PostgreSQL cannot cross alone.

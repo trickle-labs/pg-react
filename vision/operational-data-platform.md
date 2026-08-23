@@ -1,124 +1,103 @@
-# PostgreSQL as an Operational Data Platform
+# PostgreSQL as an operational data platform
 
-Related vision documents: [The trifecta](the-trifecta.md) · [Product thesis](pg-react_product_thesis.md) · [30-milestone vision](pg-react_30_milestone_vision.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
+Related documents: [The trifecta](the-trifecta.md), [Product thesis](pg-react_product_thesis.md), and [Practical rule-engine features](pg-react_practical_rule_engine_features.md).
 
-Warehouse 7 has promised 50 units of a product, holds 38, and just learned that its replenishment shipment will arrive two days late. The shortage emerges from inventory, open orders, reservations, and shipment status rather than any single row. Someone needs to intervene before customers receive bad news, and the procurement system needs to know.
+> Current state: pg-react targets `1.0.0-rc.1`, with M34 and extension `0.31.0` as the v1 feature boundary. Its qualified stack uses PostgreSQL 18.3 and pg_trickle 0.81.0 on Linux `amd64`. See the [support matrix](../docs/v1-support-matrix.md) for the complete boundary. This essay describes the cross-project architecture; each sibling project's documentation owns its current releases and APIs.
 
-For an operations team, the useful answer must arrive while there is still time to act. The system must also remember the action, deliver it, and incorporate the response.
+Warehouse 7 has promised 50 units of a product, holds 38, and learns that its replenishment shipment will arrive two days late. The shortage emerges from inventory, reservations, open orders, and shipment status. Someone needs to act before customers receive bad news, and procurement needs the decision.
 
-PostgreSQL already holds the facts and provides transactions, SQL, indexes, permissions, backup, and recovery. Three projects extend those strengths into an operational loop:
+PostgreSQL already holds the authoritative facts. Three projects give those facts distinct operational roles:
 
-- [pg_trickle](https://github.com/trickle-labs/pg-trickle) keeps derived SQL results current as source data changes.
-- [pg_react](https://github.com/trickle-labs/pg-react) is the PostgreSQL-native rule and lifecycle layer that turns meaningful changes in those results into durable decisions and work.
-- [pg_tide](https://github.com/trickle-labs/pg-tide) delivers that work and records incoming message identities so retries can be deduplicated.
-
-The three projects let PostgreSQL maintain operational state and act on it, while preserving the facts behind each action.
+- [pg_trickle](https://github.com/trickle-labs/pg-trickle) maintains SQL results as source facts change.
+- [pg-react](https://github.com/trickle-labs/pg-react) records policy state, lifecycle, decisions, and durable work from those results.
+- [pg_tide](https://github.com/trickle-labs/pg-tide) is the delivery project in this architecture when work must cross the database boundary. Its own documentation defines its current delivery and receipt contracts.
 
 ```text
 Authoritative facts
-        │
-        ▼
+        |
+        v
 Current derived state       pg_trickle
-        │
-        ▼
-Durable decisions           pg_react
-        │
-        ▼
-Messages and commands       pg_tide
-        │
-        ▼
+        |
+        v
+Policy state and work       pg-react
+        |
+        v
+External delivery           transactional outbox, optionally pg_tide
+        |
+        v
 External outcomes return as new facts
 ```
 
-Here, "complete" describes a bounded operational loop. Applications commit facts, pg_trickle maintains current state, pg_react creates work from meaningful changes, pg_tide delivers it, and outcomes return to the system of record. Warehousing, business intelligence, cataloging, and large-scale file processing remain separate jobs.
+This is a bounded operational loop. Applications commit facts. pg_trickle maintains eligible conditions at a coordinated refresh boundary. pg-react records the resulting lifecycle or decision and may create work. A transactional outbox records outgoing intent, and a relay carries it across the first boundary that PostgreSQL cannot commit through. Responses return through an application or inbox path as new facts.
 
-The pg-react repository has implemented M0–M17, adding derived facts, recursion, negation, aggregates, database-time deadlines, fixed UTC tumbling windows, durable watermarks, ordered corrections, and bounded history. pg_trickle is under active pre-1.0 development. Check the current releases and compatibility requirements before adopting the stack.
+Warehousing, business intelligence, file processing, synchronous authorization, and general workflow remain separate jobs.
 
 ## Operational data is about now
 
-An analytical system may explain last quarter or compare customer cohorts. An operational system has to tell warehouse 7 whether it can still fulfill its promises, identify the account that needs review, or detect the service that has exceeded its error budget.
+An analytical system may explain last quarter. An operational system must say whether warehouse 7 can still meet its promises and which intervention is already in progress.
 
-Detecting a shortage creates an obligation that may need an owner, a deadline, a retry policy, or a message sent to another system. The platform has to distinguish a new problem from one already handled and preserve the response if a worker crashes.
+Detecting a shortage creates an obligation with identity. The system must distinguish a new problem from one already handled, retain attempt state, and recover if a worker stops after claiming work.
 
-Teams often assemble that behavior from an OLTP database, CDC pipeline, stream processor, rule service, broker, retry workers, and application callbacks. Each component can be excellent. Preserving identity and transaction intent across all of them is the difficult part.
+Teams often assemble this behavior from an OLTP database, change-data capture, a stream processor, a rule service, a broker, retry workers, and application callbacks. The hard part is preserving business identity and transaction intent while data changes shape between those systems.
 
-As data moves, a customer ID may be recast as a message key, a query result as an event, and that event as a workflow instance. Logs often become the only record connecting the stages. When delivery fails or a condition reverses, operators must reconstruct which system believed what and when.
+Keeping facts, current conditions, policy state, and work in PostgreSQL reduces that translation. Work leaves the database only when the effect requires another system.
 
-A PostgreSQL-native platform keeps authoritative facts, derived state, decision history, and delivery state in relations until work has to leave the database.
+## Maintained relations describe current conditions
 
-## Keep derived state current
+The warehouse shortage is a SQL query. It joins inventory, reservations, open orders, and expected replenishments, then returns each warehouse and product whose expected supply is below committed demand.
 
-The warehouse shortage can be expressed as SQL. Join inventory with reservations and open orders, include expected replenishments, then return each product and warehouse whose available supply falls below committed demand.
+In the qualified pg-react configuration, pg_trickle maintains eligible condition relations and pg-react coordinates explicit differential refresh. The pg_trickle scheduler remains off so the managed runtime observes one controlled maintenance boundary.
 
-Running that query occasionally produces a report. Running it after every source write wastes work as the tables grow. pg_trickle turns the query into a **stream table** and maintains its result incrementally. A new order, stock adjustment, or delayed shipment updates only the affected part of the result.
+The maintained relation describes what is true now. Dashboards and other SQL can read it. pg-react treats each row as a current match, not as an event. The relation alone does not remember whether a shortage is new, changed, resolved, or recurring.
 
-The maintained result remains a PostgreSQL relation. Applications can query it, index it, join it with other relations, grant access to it, and include it in normal backup and recovery. Teams do not have to translate the condition into a separate streaming language or treat the result as an opaque cache owned by another service.
+## pg-react records policy state
 
-That relation is also a stable representation of what is true now. Dashboards can read it directly, other derived relations can build on it, and rules can observe rows entering, changing, and leaving.
+pg-react gives each logical match a semantic identity and lifecycle. When a warehouse and product first enter the shortage condition, pg-react records an activation. A command rule may also create durable work. If the shortage clears and later returns, pg-react starts a new generation instead of reviving work from the earlier period.
 
-For warehouse 7, pg_trickle can keep the shortage visible for as long as committed demand exceeds expected supply. It does not decide whether to page an operator, create a replenishment request, or suppress a duplicate alert. Those decisions need memory.
+Constraint rules record current truth without consequences. Command rules may bind typed `on_activate`, `on_change`, and `on_deactivate` consequences. Work is claimable, leased, retried, completed, failed, or withdrawn according to the public runtime contract. Attempts remain queryable.
 
-## Give decisions a history
+Rules are only one part of the current product. A decision declaration selects the lowest-priority candidate for each subject and makes tied winners `AMBIGUOUS`. A policy set groups rules and decisions under an immutable version and uses a relation to define applicability.
 
-A stateless callback sees the shortage every time an input changes. Without durable context, it may open five tickets for the same underlying problem or lose track of a ticket when the result is rebuilt.
+PostgreSQL-managed workers are the normal runtime. One worker runs for each configured database, coordinates maintenance, and drains eligible work. Execution happens after source data commits.
 
-pg_react is designed to give each logical match a stable identity and lifecycle. When the warehouse-product pair first enters the shortage relation, the rule records an activation and creates a durable agenda episode. Changes while the shortage remains active can update its payload or create separate `on_change` work. When supply catches up, the activation ends and may produce an `on_deactivate` consequence. Derived facts, stratified negation, aggregate thresholds, deadlines, and event-time windows build upon this same lifecycle foundation with durable supports and watermarks.
+## Cross the external boundary with an outbox
 
-The rule responds to business transitions rather than raw row operations. It can open one intervention when the shortage begins, avoid duplicates while it continues, and open a new intervention if the shortage clears and later returns.
+A database consequence can update application state and complete pg-react work in one PostgreSQL transaction. An HTTP request or broker publish cannot share that local atomic commit.
 
-pg_react stores the agenda in PostgreSQL, including pending, leased, completed, failed, withdrawn, and cancelled work. Leases and retries let another worker recover an episode after a crash. Conflict keys can stop two actions for the same warehouse or account from running at once. Immutable rule versions preserve the meaning of work created under an older policy.
+The safe boundary is a transactional outbox. The consequence writes the business change and the outgoing intent in the same transaction. A rollback removes both. After commit, a relay delivers the message.
 
-Current truth and historical work stay separate. pg_trickle says which shortages exist now. pg_react records how each shortage developed and which work the rule created. An operator can inspect both—and trace bounded causal provenance—without inferring state from application logs.
+Delivery is at least once. A broken connection can hide whether the destination accepted an attempt, so a relay may send the same intent again. The receiver must deduplicate by stable identity. pg-react does not turn an unrelated remote system into part of a PostgreSQL transaction.
 
-## Cross system boundaries without losing intent
+If procurement returns an expedited arrival date, the application or an inbox path stores that response as a new fact. pg_trickle updates the condition. pg-react then records whether the shortage remains active. The response uses the same fact-to-condition path as any other source change.
 
-Some consequences belong inside PostgreSQL. A worker can create an intervention record and complete its agenda episode in one transaction. Other consequences must reach procurement software, a carrier, a broker, or an HTTP service.
+## Current pg-react capabilities
 
-Calling the external system inside the transaction does not make the two systems atomic. PostgreSQL might commit after the remote call succeeds, or the remote call might fail after PostgreSQL commits. Either order can leave the systems disagreeing.
+The ordinary v1 API provides typed constructors for rules, decisions, and policy sets. Authors use `validate`, `preview`, and `deploy`; operators use stable names, public views, `status`, `explain`, `doctor`, and documented recovery operations.
 
-pg_tide provides the transactional outbox for this boundary. The worker records the outgoing command in the same PostgreSQL transaction that completes the episode and applies any local change. A rollback removes all of them. After commit, a relay delivers the message and retries failures.
+Installed advanced APIs support derived facts, bounded positive recursion, stratified negation and aggregation, shared conditions, temporal and effective-dated policy, parameter families, decision analysis, and bounded provenance.
 
-Delivery is at least once because a broken connection can hide whether the receiver accepted the previous attempt. Each message carries a stable identity so a participating destination can reject duplicates. pg_tide's inbox applies the same principle to messages returning to PostgreSQL.
+M34 adds read-only declaration comparison. `pgreact.compare()` and `pgreact.compare_results()` compare a deployed and proposed rule, decision, or policy set over current authoritative facts. They expose bounded current, proposed, delta, lifecycle, and would-be work evidence without deployment or effects.
 
-Suppose procurement responds with an expedited shipment. The inbox records the response, and the application stores the new arrival estimate as another fact. pg_trickle updates the shortage relation. pg_react sees whether the intervention is still needed. The loop closes without inventing a special path for the response.
-
-## The loop is the platform
-
-The shared PostgreSQL substrate turns these extensions into a platform. Facts, maintained results, activations, episodes, execution attempts, inbox entries, and outbox messages all have durable identities. Transactions define which local changes belong together, and SQL remains the language for conditions and inspection.
-
-An operator can trace a command back through its outbox message, episode, activation, maintained result, and source facts. If the result later vanishes, the activation preserves its history. If a worker completes an external episode, the outbox row can commit with that completion. A process restart leaves pending agenda work in PostgreSQL.
-
-Permissions, backup, point-in-time recovery, and replication also cover the state that explains each decision. The platform uses the database's existing operational machinery instead of creating a second truth store for derived state and work.
-
-The projects remain useful independently. A team can adopt pg_trickle for maintained operational views, pg_tide for transactional messaging, or pg_trickle with pg_react for database-local automation. Each addition solves a specific problem without forcing a platform migration first.
-
-```text
-PostgreSQL provides       transactions, SQL, security, recovery
-pg_trickle provides       current derived state
-pg_react provides        lifecycle, policy, and durable work
-pg_tide provides          reliable delivery and receipt
-```
-
-Failures remain visible at the stage that owns them. Refresh lag appears in maintained-state progress, unclaimed or failed work appears in the agenda, and undelivered messages remain in the outbox. Operators can find the stalled stage without comparing timestamps across unrelated services.
+Comparison is not general simulation. It cannot change facts, replay history, or backtest policy. Rule comparison is limited to one non-null, unique `bigint` key, and partial results have no continuation token.
 
 ## Keep the boundaries explicit
 
-Historical analytics may still belong in a warehouse. Large-scale file processing may belong in an object store and compute engine. Source ingestion may still use connectors or application APIs. This platform covers the operational loop around facts already committed to PostgreSQL.
+The default flow is asynchronous. Source facts commit first. Managed maintenance records policy state and work later. Consequences that must finish before the source transaction returns belong in the application's synchronous path.
 
-Independent pg_react workers do not share one global firing order. Priorities and agenda groups influence execution, but distributed work remains concurrent. A process that requires centrally ordered steps should use a workflow engine built around that guarantee.
+Independent workers do not share one global firing order. Priority and conflict keys influence eligible work, but they do not turn concurrent execution into a workflow with one total order.
 
-External delivery is at least once. PostgreSQL can atomically commit local state with an outbox message, but it cannot atomically commit with an unrelated broker or HTTP service without a shared distributed transaction protocol. Receivers must honor idempotency keys.
+External effects are at least once. Consumers must deduplicate. Cross-system atomic commit requires a distributed transaction protocol that this architecture does not provide.
 
-The default flow is asynchronous. pg_trickle refreshes at its configured boundary, pg_react records work from that maintained state, and a worker executes later. Actions that must complete before the original transaction returns belong in the application's synchronous path.
+Evaluated relations must be schema-qualified, readable by the caller, and free of RLS. Logical restore replays declarations after restoring application schema and data, then rebuilds and reconciles pg-react state. Portable restoration of live private catalogs is not part of the contract.
 
-The platform owns the durable operational loop inside PostgreSQL and defines the contract for systems that participate beyond it.
+Historical analytics may still belong in a warehouse. Large file processing may belong in object storage and a compute engine. A process with centrally ordered human steps may belong in a workflow product.
 
-## Where it fits
+## Where this platform fits
 
-This model works best when PostgreSQL is the authoritative source, the condition is relational, and the response can run after the source transaction commits.
+This model fits when PostgreSQL owns the facts, the condition is relational, and the response can run after the source transaction commits.
 
-It fits risk review, inventory intervention, billing controls, entitlement changes, fraud signals, SLA violations, approval queues, and data-quality remediation. In each case, several facts combine into a current condition, the transition matters more than another physical update, and the response needs durable execution or reliable delivery.
+Examples include risk review, inventory intervention, billing controls, entitlement drift, reconciliation, SLA violations, and data-quality remediation. Several facts combine into a current condition. The transition matters. The response needs durable state or work.
 
-Many operational applications already have the essential foundation: a transactional, relational account of the business. pg_trickle can keep important interpretations of that account current. pg_react can remember which interpretations became actionable. pg_tide can carry the resulting intent across system boundaries.
+Teams can adopt the pieces separately. pg_trickle can maintain operational SQL without pg-react. pg-react can drive database-local consequences without an external delivery project. An outbox and relay are needed only when work must leave PostgreSQL.
 
-A warehouse shortage begins as several ordinary rows. On this platform, it becomes current state, one durable intervention, a reliably delivered command, and eventually a new fact that resolves the condition. PostgreSQL carries the decision from current data, through action, and back into current data with durable state at every step. The broader vision expands this into a full policy platform—supporting shared conditions, effective-dated and parameterized policy, deterministic decision tables, what-if simulation, and backtesting—while keeping PostgreSQL the single authoritative foundation.
+The warehouse shortage starts as ordinary rows. In this architecture it becomes a maintained condition, one durable lifecycle, explicit work, and, if needed, an outbox message. A later procurement response returns as another fact. PostgreSQL retains the policy state that connects each step.
