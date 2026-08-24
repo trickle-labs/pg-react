@@ -34,9 +34,11 @@ Historical replay and comparative backtesting (M36-M37) remain research until re
 
 Correctness is necessary but does not decide whether a capability belongs in the product. Before implementation, each milestone must define the evidence that would justify shipping it and the evidence that would cause the team to narrow or reject it.
 
+Qualification milestones reuse a versioned reference workload corpus and add capability-specific scenarios where necessary.
+
 Every qualification milestone must include:
 
-- at least three production-shaped workloads drawn from financial exceptions and access drift, with at least one derived from an external evaluator or design partner, migrated from a real application schema, or independently reviewed by an operator responsible for the corresponding control;
+- at least three production-shaped workloads across the reference markets where the capability applies, with at least one derived from an external evaluator or design partner, migrated from a real application schema, or independently reviewed by an operator responsible for the corresponding control;
 - migration evidence from rules previously implemented in application branches, scheduled queries, or triggers;
 - evidence from successful and unsuccessful evaluations, including lost-user evidence caused by installation, preload, managed-service, row-level security, or compatibility constraints;
 - measured time for a PostgreSQL developer to deploy a first rule and explain an unexpected outcome using public SQL;
@@ -53,6 +55,8 @@ M34 compares a deployed declaration with a proposal over current authoritative f
 ### M35: Hypothetical fact simulation
 
 M35 accepts typed hypothetical inserts, updates, and deletes against an explicit policy, applicability snapshot, source frontier, and sampled time. It returns bounded lifecycle, decision, and would-be work changes. Within published limits, those changes must match production semantics.
+
+The directional contract covers inserts, updates, and deletes. Its first qualified profile may support a declared subset and must reject unsupported change forms during validation.
 
 Simulation must leave source data, pg-react state, frontiers, and external systems unchanged. SQL relations hold the hypothetical changes. pg-react adds no scenario language or alternate fact model.
 
@@ -126,7 +130,7 @@ The implementation should reuse the existing watermark and correction model. It 
 
 ### M46: Business calendar windows
 
-M46 adds days, months, billing periods, and named business calendars where fixed UTC durations are wrong. The contract must define time zones, daylight-saving transitions, month boundaries, late input, and deterministic reconstruction.
+M46 adds days, months, billing periods, and named business calendars where fixed UTC durations are wrong. The contract must define time zones, daylight-saving transitions, month boundaries, and late input. Reevaluation from the same declared facts, time inputs, frontiers, and retained correction state must produce the same result.
 
 PostgreSQL date and time types remain the authoring model. pg-react should not introduce a calendar expression language.
 
@@ -146,7 +150,7 @@ The engine records which event opened the wait, which frontier closed it, and ho
 
 M49 makes every temporal result consumable as an ordinary named condition or derived fact. Decision and command rules should not care whether their input came from a join, a deadline, a window, or a sequence.
 
-The milestone adds recovery, deterministic reconstruction, retention, correction, and scale evidence across all supported temporal forms. It adds replay evidence only if M36 passes its research gate. No additional temporal syntax belongs in M49.
+The milestone adds recovery, retention, correction, and scale evidence across all supported temporal forms. It must also prove deterministic reevaluation from the same declared facts, time inputs, frontiers, and retained correction state. It adds replay evidence only if M36 passes its research gate. No additional temporal syntax belongs in M49.
 
 ## Capability area 4: Improve rule-set behavior
 
