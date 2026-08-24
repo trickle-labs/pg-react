@@ -1,4 +1,4 @@
-# The next 30 milestones for pg-react
+# The M35-M64 vision for pg-react
 
 > Planning status (August 2026): M34 is complete, extension `0.31.0` is the v1 feature boundary, and the repository targets `1.0.0-rc.1`. The release-candidate cycle and `1.0.0` come before M35. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
 
@@ -22,6 +22,8 @@ The only committed sequence is the release-candidate cycle, `1.0.0`, and the ent
 
 The first post-v1 vertical slice should combine hypothetical fact simulation (M35), semantic policy differences (M43), why-changed comparison (M38), and end-to-end causal paths (M41), then pass the simulation qualification gate (M39). This gives operators one safe-change journey from proposal to explanation.
 
+The first qualified slice may restrict declaration kinds, key shapes, hypothetical change forms, and evidence depth. It must still deliver the complete proposal-to-explanation journey for its supported subset.
+
 Policy-set packaging (M53), DDL impact planning (M55), rebuild and reconciliation (M56), authorization alignment (M58), and supported-scale qualification (M59) are also strategic. Their implementation should advance alongside earlier capabilities rather than wait for every temporal or rule-interaction milestone.
 
 ### Research horizon
@@ -34,8 +36,9 @@ Correctness is necessary but does not decide whether a capability belongs in the
 
 Every qualification milestone must include:
 
-- at least three production-shaped workloads drawn from financial exceptions and access drift;
+- at least three production-shaped workloads drawn from financial exceptions and access drift, with at least one derived from an external evaluator or design partner, migrated from a real application schema, or independently reviewed by an operator responsible for the corresponding control;
 - migration evidence from rules previously implemented in application branches, scheduled queries, or triggers;
+- evidence from successful and unsuccessful evaluations, including lost-user evidence caused by installation, preload, managed-service, row-level security, or compatibility constraints;
 - measured time for a PostgreSQL developer to deploy a first rule and explain an unexpected outcome using public SQL;
 - declared latency, write, WAL, memory, storage, and recovery-to-authoritative-state budgets at supported scale;
 - a compatibility matrix in which unsupported feature combinations fail during validation;
@@ -101,7 +104,7 @@ This is not a database snapshot or a second source of truth. Authors opt in for 
 
 ### M43: Semantic policy differences
 
-M43 describes supported declaration changes in policy terms rather than relying only on a textual SQL diff. Examples include a changed threshold, applicability relation, effective interval, priority, result column, or action binding.
+M43 describes supported declaration changes in policy terms rather than relying only on a textual SQL diff. Examples include a changed modeled parameter value, applicability relation, effective interval, priority, declared result column, or action binding. A threshold embedded only in arbitrary SQL receives a textual or object-level difference, not a semantic interpretation.
 
 The feature should report only semantics that pg-react already models. It must not claim to understand the business meaning of arbitrary SQL text.
 
@@ -123,7 +126,7 @@ The implementation should reuse the existing watermark and correction model. It 
 
 ### M46: Business calendar windows
 
-M46 adds days, months, billing periods, and named business calendars where fixed UTC durations are wrong. The contract must define time zones, daylight-saving transitions, month boundaries, late input, and deterministic replay.
+M46 adds days, months, billing periods, and named business calendars where fixed UTC durations are wrong. The contract must define time zones, daylight-saving transitions, month boundaries, late input, and deterministic reconstruction.
 
 PostgreSQL date and time types remain the authoring model. pg-react should not introduce a calendar expression language.
 
@@ -143,7 +146,7 @@ The engine records which event opened the wait, which frontier closed it, and ho
 
 M49 makes every temporal result consumable as an ordinary named condition or derived fact. Decision and command rules should not care whether their input came from a join, a deadline, a window, or a sequence.
 
-The milestone adds recovery, replay, retention, correction, and scale evidence across all supported temporal forms. No additional temporal syntax belongs in M49.
+The milestone adds recovery, deterministic reconstruction, retention, correction, and scale evidence across all supported temporal forms. It adds replay evidence only if M36 passes its research gate. No additional temporal syntax belongs in M49.
 
 ## Capability area 4: Improve rule-set behavior
 
@@ -201,7 +204,7 @@ The engine should preserve unaffected lifecycle and work. It must fail closed wh
 
 ### M57: Long-lived history
 
-M57 qualifies retention and storage for installations that run for years. Retention settings control when pg-react can prune activations, attempts, support evidence, corrections, comparisons, and replay results.
+M57 qualifies retention and storage for installations that run for years. Retention settings control when pg-react can prune activations, attempts, support evidence, corrections, and comparisons. Replay results enter the retention contract only if M36 passes its research gate.
 
 Partitioning or compaction belongs here only when measured workloads require it. Recovery, audit, and explanation horizons take precedence over smaller catalogs.
 
@@ -215,13 +218,13 @@ Richer source-security support belongs here only if pg-react can preserve determ
 
 M59 expands only the scale and PostgreSQL configurations backed by repeatable evidence. Tests cover rule count, match count, dependency fan-out, work backlog, temporal state, retained history, memory, WAL, recovery time, and upgrade time.
 
-The project should publish useful limits instead of universal throughput claims. New configuration combinations remain unsupported until the same correctness and recovery evidence passes. Qualification must cover interactions among replay, effective dates, temporal corrections, firing policies, policy replacement, retained evidence, recursion, authorization, restore, and work generation where those features exist.
+The project should publish useful limits instead of universal throughput claims. New configuration combinations remain unsupported until the same correctness and recovery evidence passes. Qualification must cover interactions among effective dates, temporal corrections, firing policies, policy replacement, retained evidence, recursion, authorization, restore, and work generation when those features are supported. It includes replay only if M36 passes its research gate.
 
 ## Compatibility strategy
 
-The v1 support tuple is deliberately narrow: PostgreSQL 18.3, pinned pg_trickle 0.81.0, Linux `amd64`, `READ COMMITTED`, coordinated refresh, required preload, and the documented managed-worker topology. The project should treat controlled installations as the default until adoption evidence justifies a wider matrix.
+The v1 support tuple is deliberately narrow: PostgreSQL 18.3, pinned pg_trickle 0.81.0, Linux `amd64`, `READ COMMITTED`, coordinated refresh, required preload, and the documented managed-worker topology. The project should treat controlled installations as the default until evaluation, adoption, or lost-user evidence justifies a wider matrix.
 
-Expansion should proceed one dimension at a time. PostgreSQL major versions and pg_trickle releases need independent install, upgrade, recovery, and semantic-equivalence evidence. The versioned SQL adapter should continue to isolate pg_trickle coupling, but a compatible range is a claim to prove, not infer. Preload remains an accepted constraint until reference users show that it blocks adoption. Managed PostgreSQL is supportable only where the service exposes the required extensions, preload settings, backup behavior, and operational controls.
+Expansion should proceed one dimension at a time. PostgreSQL major versions and pg_trickle releases need independent install, upgrade, recovery, and semantic-equivalence evidence. The versioned SQL adapter should continue to isolate pg_trickle coupling, but a compatible range is a claim to prove, not infer. Preload remains an accepted constraint until evaluation, adoption, or lost-user evidence shows that it materially blocks the product wedge. Managed PostgreSQL is supportable only where the service exposes the required extensions, preload settings, backup behavior, and operational controls.
 
 Each qualification release must state whether it keeps the controlled envelope or expands it. Universal portability is not a goal; a useful, maintained support matrix is.
 
@@ -237,7 +240,7 @@ Released compatibility calls may delegate to the same implementation. The projec
 
 ### M61: One inspection model
 
-M61 aligns public views and functions for current state, history, decisions, work, simulation, replay, and explanation. Stable business identities connect the records without private catalog joins.
+M61 aligns public views and functions for current state, history, decisions, work, simulation, and explanation. Replay joins this model only if M36 passes its research gate. Stable business identities connect the records without private catalog joins.
 
 Common investigations should use ordinary `SELECT` statements. JSON remains limited to bounded nested evidence and canonical declarations.
 
@@ -249,7 +252,7 @@ The contract continues to acknowledge at-least-once external delivery. No backup
 
 ### M63: Production qualification
 
-M63 runs at least three representative financial-exception and access-drift workloads through install, rule migration, policy change, load, failure, restore, and upgrade. It measures first-rule time, investigation time, simulation or comparison latency, write and storage overhead, and restore-to-authoritative-state time. The exact packaged artifacts and documented procedures must pass.
+M63 runs at least three representative financial-exception and access-drift workloads that meet the shared evidence requirements through install, rule migration, policy change, load, failure, restore, and upgrade. It measures first-rule time, investigation time, simulation or comparison latency, write and storage overhead, and restore-to-authoritative-state time. The exact packaged artifacts and documented procedures must pass.
 
 This milestone favors fewer supported combinations with strong evidence. It also records which proposed capabilities were merged, deferred, or rejected and why. Broader claims wait for users and repeatable tests that justify them.
 
@@ -280,6 +283,6 @@ The roadmap excludes hosted control planes, human workflow, visual or AI rule au
 
 The destination is not the broadest rule engine. It is the rule engine a PostgreSQL team reaches for when a relational condition must become durable, explainable state or work, starting with financial exceptions and access drift.
 
-Teams should be able to express rules with the database objects they already understand. They should be able to compare a policy before deployment, replay supplied history, inspect why a decision changed, use practical time-based rules, and recover after failure. The engine should keep those guarantees through ordinary PostgreSQL transactions, types, roles, backup, restore, and SQL inspection.
+Teams should be able to express rules with the database objects they already understand. They should be able to compare a policy before deployment, inspect why a decision changed, use practical time-based rules, and recover after failure. Where representative source-history contracts justify M36, they should also be able to replay supplied history. The engine should keep those guarantees through ordinary PostgreSQL transactions, types, roles, backup, restore, and SQL inspection.
 
-That product is ambitious enough. pg-react should spend the next 30 milestones making it excellent.
+That product is ambitious enough. pg-react should use the M35-M64 option space to make it excellent.
