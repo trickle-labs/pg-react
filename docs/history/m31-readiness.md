@@ -45,6 +45,6 @@ The M31 package identity is **`0.28.0`**, not `0.27.0`. Once every gate is
 green, update release evidence together, then tag and push `v0.28.0`.
 
 The logical next milestone is **M32 — PostgreSQL-native interface**, planned
-for extension `0.29.0`. It is defined in [ROADMAP.md](../ROADMAP.md), but its
+for extension `0.29.0`. It is defined in [ROADMAP.md](../../ROADMAP.md), but its
 entry gate is a qualified M31, so only preparation—not M32 feature freeze—
 should begin now.

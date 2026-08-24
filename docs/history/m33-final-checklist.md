@@ -3,7 +3,7 @@
 > [!NOTE]
 > Historical unchecked `0.30.0` qualification checklist. It is retained as
 > evidence and does not block the current M34 / `0.31.0` v1 boundary by
-> itself. See [`history.md`](history.md).
+> itself. See [`history.md`](../history.md).
 
 - [ ] Installed-reality API inventory equals the frozen JSON inventory.
 - [ ] Finding registry and result-envelope shape are stable.

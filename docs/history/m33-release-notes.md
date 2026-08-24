@@ -3,7 +3,7 @@
 > [!NOTE]
 > Historical `0.30.0` release record. Its original v1 sequencing is
 > superseded: M34 / `0.31.0` is the v1 feature boundary and M35 is post-v1.
-> Current users should start at [`index.md`](index.md).
+> Current users should start at [`index.md`](../index.md).
 
 `0.30.0` is the release that makes pg-react boring to depend on. It does not
 add simulation, replay, or a new rule language. It checks that the existing

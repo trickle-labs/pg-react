@@ -16,4 +16,4 @@ Independent verification matched:
 
 The complete `tests/m5.sh pg-react:m5-dev` gate was then rerun against implementation commit `0d6d37a749fe25ad0a44c860af548720f081f85e` and passed every compatibility, API, upgrade, rollback, concurrency, and promotion phase. Formatting, host tests, the pinned PostgreSQL 18 builder check, and Compose validation also pass. M5 is complete.
 
-M6 is now defined in [`ROADMAP.md`](../ROADMAP.md) as execution maturity focused on audited batch execution. Planning and gate design may begin, but its product work remains behind the published `v0.2.0` release and measured-bottleneck entry gates.
+M6 is now defined in [`ROADMAP.md`](../../ROADMAP.md) as execution maturity focused on audited batch execution. Planning and gate design may begin, but its product work remains behind the published `v0.2.0` release and measured-bottleneck entry gates.

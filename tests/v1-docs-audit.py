@@ -32,7 +32,7 @@ canonical_docs = [
     docs_dir / "v1-deprecations.md",
 ]
 
-all_markdown_files = [root / "README.md", root / "ROADMAP.md", *sorted(docs_dir.glob("*.md"))]
+all_markdown_files = [root / "README.md", root / "ROADMAP.md", *sorted(docs_dir.rglob("*.md"))]
 
 errors = []
 

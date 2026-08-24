@@ -2,8 +2,8 @@
 
 > [!WARNING]
 > This immutable file records the historical M4 `0.1.1` release. It is not the
-> current v1 release note. See [`1.0-release-notes.md`](1.0-release-notes.md)
-> and [`history.md`](history.md).
+> current v1 release note. See [`1.0-release-notes.md`](../1.0-release-notes.md)
+> and [`history.md`](../history.md).
 
 Version `0.1.1` froze the first public contract: SQL API v1, worker protocol
 `1`, outbox envelope `1`, the direct `0.1.0 -> 0.1.1` catalog migration, and the

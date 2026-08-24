@@ -2,9 +2,9 @@
 
 The M4 pilot is an isolated production-style exercise against the exact
 `pg-react:v0.1.1` `linux/amd64` image. It is executable in
-[`tests/m4-pilot.sh`](../tests/m4-pilot.sh); the SQL assertions are in
-[`m4-pilot.sql`](../tests/m4-pilot.sql) and
-[`m4-pilot-restore.sql`](../tests/m4-pilot-restore.sql).
+[`tests/m4-pilot.sh`](../../tests/m4-pilot.sh); the SQL assertions are in
+[`m4-pilot.sql`](../../tests/m4-pilot.sql) and
+[`m4-pilot-restore.sql`](../../tests/m4-pilot-restore.sql).
 
 ## Exercise
 

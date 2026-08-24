@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > Historical `0.30.0` qualification profile, not the current v1 performance
-> contract. See [`history.md`](history.md).
+> contract. See [`history.md`](../history.md).
 
 The benchmark is reproducible rather than a universal throughput promise.
 

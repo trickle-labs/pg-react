@@ -3,7 +3,7 @@
 M11 product work starts only after the immutable `v0.7.0` release is
 published. The release must tag the corrected qualification commit, rebuild
 `tests/m10.sh`, and publish the archive, checksum manifest, release notes, and
-`linux/amd64` OCI digest required by [the release workflow](../.github/workflows/release.yml).
+`linux/amd64` OCI digest required by [the release workflow](../../.github/workflows/release.yml).
 
 Until that happens, this document freezes the replacement-API task baseline;
 it is not an M11 API contract.
@@ -32,8 +32,8 @@ than preserve them as aliases.
 ## Provisional inventory baseline
 
 The exact provisional `0.7.0` inventory is the installed extension defined by
-[`sql/pg_react--0.7.0.sql`](../sql/pg_react--0.7.0.sql), with its upgrade chain,
-and the current worker invocation in [`bin/pg-reactd`](../bin/pg-reactd). Its public
+[`sql/pg_react--0.7.0.sql`](../../sql/pg_react--0.7.0.sql), with its upgrade chain,
+and the current worker invocation in [`bin/pg-reactd`](../../bin/pg-reactd). Its public
 SQL inventory is exercised by `tests/m4-api.sql`, `tests/m5-api.sql`, and
 `tests/m6-api.sql`; pack manifest fields are exercised by `tests/m5-setup.sql`,
 `tests/m7-pack.sql`, and `tests/m8-pack.sql`.

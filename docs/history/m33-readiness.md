@@ -3,7 +3,7 @@
 > [!NOTE]
 > Historical `0.30.0` readiness record, retained as qualification evidence.
 > It does not establish current RC readiness or sequencing. See
-> [`history.md`](history.md).
+> [`history.md`](../history.md).
 
 **Status: implementation and automated qualification lane prepared.**
 
