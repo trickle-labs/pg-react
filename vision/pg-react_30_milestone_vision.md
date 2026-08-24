@@ -1,343 +1,235 @@
-# From Durable Rules to a PostgreSQL Policy Platform
+# The next 30 milestones for pg-react
 
-## A speculative 30-milestone roadmap for pg-react
+> Planning status (August 2026): M34 is complete, extension `0.31.0` is the v1 feature boundary, and the repository targets `1.0.0-rc.1`. The release-candidate cycle and `1.0.0` come before M35. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
 
-> **Planning status (August 2026):** this remains a product-direction document, not the canonical milestone schedule. [`ROADMAP.md`](../ROADMAP.md) now defines M30 as the applicability foundation, M31 as authoritative runtime truth, M32 as the PostgreSQL-native interface, and M33 as v1 qualification and freeze; the simulation, replay, backtesting, and comparison themes below move to the proposed M34–M38 sequence.
+Related documents: [Product thesis](pg-react_product_thesis.md), [Practical rule-engine features](pg-react_practical_rule_engine_features.md), and [PostgreSQL as an operational data platform](operational-data-platform.md).
 
-Related vision documents: [Product thesis](pg-react_product_thesis.md) · [Practical rule-engine features](pg-react_practical_rule_engine_features.md)
+pg-react should first and foremost be an excellent PostgreSQL-native rule engine. PostgreSQL owns the facts. SQL expresses conditions and candidates. pg-react adds durable identity, lifecycle, decisions, work, time, and bounded evidence.
 
-pg-react already has the beginnings of a distinctive product thesis: PostgreSQL contains the authoritative facts, SQL describes relational truth, and pg-react adds the durable semantics needed to turn that truth into decisions, lifecycle, explanation, and work. The interesting question is not how many rule-engine features can be accumulated. The interesting question is how far that idea can be taken without losing the qualities that make it compelling in the first place.
+That is enough scope for a substantial product. pg-react does not need to become a hosted policy service, a general workflow system, a visual authoring suite, a distributed event processor, or a second programming language. It should make relational rules unusually safe to run and change.
 
-A useful long-term roadmap should therefore avoid becoming a shopping list of traditional rule-engine capabilities. The goal should not be to reproduce every concept from Drools, CEP engines, policy servers, workflow products, or event-processing systems. Instead, each milestone should make one of four things better: policy should become easier to express, safer to change, easier to explain, or more reliable to operate.
+This vision starts at M35 and covers another 30 possible milestones. M35 follows the contract in `ROADMAP.md`. M36 through M64 are direction, not commitments. Each phase ends with qualification or consolidation before the engine gains more semantics.
 
-The following 30 milestones imagine pg-react evolving from the production-hardened M18 baseline into a much broader PostgreSQL-native policy platform. The sequence is deliberately conservative. Each phase earns the right to introduce more power by first proving the previous layer understandable and operationally sound. Later milestones are increasingly speculative and should remain demand-driven. The destination is not “the most expressive rule engine possible.” It is a system in which sophisticated business policy can remain recognizably PostgreSQL.
+## Phase 1: Make policy changes safe
 
----
+M34 compares a deployed declaration with a proposal over current authoritative facts. The next step is to vary facts and time without creating a second evaluator or mutating production state.
 
-# Phase 1 — Finish the core operating model
+### M35: Hypothetical fact simulation
 
-The first phase after M18 should not immediately chase glamorous policy features. It should complete a few structural capabilities that make the existing rule system more composable, more responsive, and easier to explain. These are the foundations on which later business-policy features depend.
+M35 accepts typed hypothetical inserts, updates, and deletes against an explicit policy, applicability snapshot, source frontier, and sampled time. It returns bounded lifecycle, decision, and would-be work changes. Within published limits, those changes must match production semantics.
 
-## M19 — Selective immediate maintenance
+Simulation must leave source data, pg-react state, frontiers, and external systems unchanged. SQL relations hold the hypothetical changes. pg-react adds no scenario language or alternate fact model.
 
-M19 introduces a carefully bounded read-your-writes path for constraint rules and database-local derivation rules. The important word is **selective**. pg-react should not abandon its asynchronous, coordinated model and attempt to make every rule synchronous. Instead, authors should be able to mark a proven subset of rules as eligible for immediate maintenance when application correctness genuinely requires derived truth to be visible in the same transaction.
+### M36: Historical replay
 
-This milestone is valuable because many users will eventually run into the gap between “the rule engine will catch up safely” and “the next statement in this transaction needs the result now.” Entitlement derivation, quota checks, local consistency constraints, and certain policy-driven writes can all create this demand.
+M36 evaluates one frozen policy over a user-supplied initial snapshot and an ordered history of fact changes. The caller supplies history because pg-react is not a source-history archive. It cannot reconstruct facts that PostgreSQL no longer holds.
 
-M19 should freeze a narrow isolation and locking contract, reject unsupported dependency shapes, and keep arbitrary external consequences asynchronous. Its real contribution is not speed. It establishes a trustworthy bridge between ordinary PostgreSQL transactions and pg-react-maintained truth.
+Replay advances database time, event time, and source frontiers through explicit inputs. The result must match the production engine at every supported step without executing consequences.
 
-## M20 — Shared conditions
+### M37: Comparative backtesting
 
-Once users build larger rule sets, duplicated business concepts become a bigger problem than duplicated code. Several rules may independently define “high-risk customer,” “account delinquent,” “legal hold active,” or “inventory constrained.” M20 gives those concepts explicit identity.
+M37 runs two frozen policy versions over the same supplied history. It reports exact differences in matches, lifecycle transitions, decisions, and would-be work, plus bounded evidence for the affected subjects.
 
-A shared condition should be a named, versioned, maintained relation that several rules can consume. PostgreSQL still defines the condition using SQL, but pg-react understands its ownership, consumers, lifecycle, deployment dependencies, and explanation boundary.
+Backtesting should answer a practical deployment question: what would this policy have changed? It is not an optimizer, a forecasting system, or proof that historical behavior predicts future behavior.
 
-This creates a domain vocabulary inside the database. Instead of five unrelated rules embedding subtly different definitions of “high risk,” one canonical condition can feed payment review, step-up authentication, credit policy, and customer-service workflows. The benefit is as much organizational as computational: policy authors can reason in named concepts rather than repeated predicates.
+### M38: Why-changed comparison
 
-## M21 — Retention and catalog scale
+M38 explains why two versions, revisions, or frontiers differ. It connects each reported delta to changed facts, applicability, support, parameters, deadlines, or decision candidates.
 
-By this point, pg-react will have accumulated substantial durable history: activations, jobs, attempts, supports, explanations, windows, corrections, and diagnostics. M18 should have measured where the storage and performance cliffs actually are. M21 uses that evidence to introduce audited pruning and, only where justified, catalog partitioning or other scale-oriented storage changes.
+The explanation remains finite and deterministic. pg-react should identify the supported causal difference, not attempt arbitrary SQL lineage or open-ended counterfactual reasoning.
 
-This milestone is intentionally unglamorous. It is what lets the product survive long-lived installations. Retention policies must preserve published recovery, replay, rollback, and explanation horizons. Open windows, pending work, active supports, and data still needed for reconciliation cannot disappear merely because a cleanup job prefers a smaller table.
+### M39: Simulation qualification
 
-A rule engine becomes trustworthy when old state disappears only under an explicit policy. M21 makes that principle executable.
+M39 adds no new simulation mode. It qualifies comparison, hypothetical changes, replay, and backtesting as one coherent contract with shared findings, limits, authorization, evidence, and result shapes.
 
-## M22 — Bounded support provenance
+The milestone should prove semantic equivalence with isolated production runs, publish resource ceilings, and make cancellation or failure leave no hypothetical state behind. If the four modes require separate mental models, M39 is not done.
 
-pg-react already has finite explanation and support concepts. M22 deepens them by recording stable contributing business bindings for derived facts. The goal is not arbitrary SQL lineage. It is a bounded answer to “which facts actually supported this result?”
+## Phase 2: Make outcomes explainable
 
-For example, an entitlement could explain that it exists because employee 42 has role `approver`, belongs to region `NO`, and is covered by policy version 7. A reconciliation finding could point to the specific order and settlement keys that disagree. A derived risk fact could identify the lower-level facts that produced it.
+Rules become easier to trust when an operator can move from an outcome to the facts and policy that caused it. The engine should answer bounded questions well instead of promising a universal proof system.
 
-The milestone should preserve strict bounds: canonical support ordering, maximum counts, cycle markers for recursion, continuation only through advanced interfaces, and role-checked visibility. M22 makes explanation much more useful without turning pg-react into a general provenance research system.
+### M40: Bounded why-not
 
-## M23 — Practical temporal conditions
+M40 explains missing results only for rule shapes with a finite answer. A decision might identify that no candidate matched. A derivation might identify a missing positive dependency, a failed threshold, an inapplicable policy, or an inactive effective period.
 
-M17 gives pg-react event-time tumbling windows. Earlier milestones provide database-time deadlines. M23 should combine those foundations into the temporal rules ordinary businesses actually ask for: “has been true for 10 minutes,” “did not happen before the deadline,” “do not fire again for 30 minutes,” and “re-arm only after the condition has recovered.”
+The engine must reject unsupported questions rather than invent an explanation. General SQL counterfactuals remain out of scope.
 
-These semantics appear constantly in SLAs, compliance, security drift, billing, monitoring, and remediation. They are rule-engine problems because the difficulty lies in durable timing and lifecycle, not the predicate itself.
+### M41: End-to-end causal paths
 
-M23 should resist the label “CEP.” It should add a few small, explicit temporal primitives whose state is bounded and whose clock domain is unambiguous. Database-time duration, absence-by-deadline, cooldown, and hysteresis are enough to unlock a large amount of practical value.
+M41 connects existing evidence across named conditions, derived facts, decisions, lifecycle, and work. Public paths use business keys and declaration names instead of private catalog identifiers.
 
----
+An operator should be able to start with a work item or decision and follow a bounded path back to authoritative facts. Cycles, truncation, unavailable evidence, and authorization gaps stay explicit.
 
-# Phase 2 — Make business policy first-class
+### M42: Evidence snapshots
 
-With the core operating model complete, pg-react can begin addressing a different class of problem: policy itself changes, varies across populations, and often needs deterministic selection semantics. This phase moves pg-react from a durable reaction engine toward a true business-policy system.
+M42 preserves compact evidence for selected audited outcomes after ordinary source data or detailed history expires. A snapshot records the policy version, business keys, result, relevant time, and bounded support needed to explain the outcome.
 
-## M24 — Effective-dated policy versions
+This is not a database snapshot or a second source of truth. Authors opt in for specific declarations, and retention follows PostgreSQL ownership and authorization.
 
-Business policy frequently changes on a business date rather than a deployment date. A tax rule starts January 1. A contract changes at renewal. A pricing policy becomes effective next quarter.
+### M43: Semantic policy differences
 
-M24 should let a rule or program version declare a canonical validity interval such as `[valid_from, valid_to)`. A future policy can be deployed and validated in advance, remain dormant until its effective boundary, and become authoritative deterministically through pg-react’s logical time model.
+M43 describes supported declaration changes in policy terms rather than relying only on a textual SQL diff. Examples include a changed threshold, applicability relation, effective interval, priority, result column, or action binding.
 
-This separates two important facts: when software was deployed and when business policy became applicable. That distinction matters for auditability, compliance, and controlled change.
+The feature should report only semantics that pg-react already models. It must not claim to understand the business meaning of arbitrary SQL text.
 
-## M25 — Parameterized policy families
+### M44: Explanation qualification
 
-Many policies have identical logic but different values by tenant, geography, product, risk class, or customer tier. Users should not need 500 copies of the same rule merely because each tenant has a different threshold.
+M44 freezes one explanation contract across current state, historical changes, comparisons, decisions, and work. It aligns ordering, redaction, truncation, retention, and stable identities.
 
-M25 should formalize typed relational parameters as part of a policy family. Parameters remain ordinary PostgreSQL rows and participate in normal joins; there is no need for string templating or a new expression language. pg-react adds the surrounding semantics: validation, ownership, preview, explanation, deployment relationships, and policy-family identity.
+Qualification should include large support sets, cycles, pruned history, changed authorization, upgrades, and restored databases. Explanation is operational evidence, so its cost and failure modes need published bounds.
 
-A threshold change becomes a fact change, not hidden mutation of compiled rule logic. That keeps the system relational and predictable.
+## Phase 3: Cover practical time-based rules
 
-## M26 — Decision tables
+pg-react already supports deadlines, duration, absence, cooldown, hysteresis, and fixed tumbling windows. This phase adds common temporal shapes while keeping state finite and clock semantics explicit.
 
-A huge fraction of business rules are really decision problems: several policies may match, but one authoritative outcome must be selected. Underwriting tiers, shipping policies, customer classes, discounts, routing decisions, approval levels, and risk categories all fit this shape.
+### M45: Rolling and hopping windows
 
-M26 should let SQL produce decision candidates while pg-react owns deterministic winner semantics. A candidate relation might contain a subject key, policy identifier, priority, and result. The engine guarantees exactly how a winner is chosen, rejects ambiguity when the contract requires uniqueness, preserves winner lifecycle, and explains both the winning candidate and relevant competitors.
+M45 supports rules such as "three failed payments in the previous hour" through bounded rolling or hopping windows. Authors must choose the event-time source, window size, step, lateness policy, and retained correction horizon.
 
-This avoids creating a decision-table DSL. PostgreSQL still expresses the conditions. pg-react gives the decision durable meaning.
+The implementation should reuse the existing watermark and correction model. It should reject configurations whose state cannot stay within declared limits.
 
-## M27 — Decision coverage and conflict analysis
+### M46: Business calendar windows
 
-Once decision tables exist, users will want to know whether their policy set is coherent before deployment. M27 turns policy quality into something pg-react can inspect.
+M46 adds days, months, billing periods, and named business calendars where fixed UTC durations are wrong. The contract must define time zones, daylight-saving transitions, month boundaries, late input, and deterministic replay.
 
-For supported decision programs, validation and preview should detect conflicts such as ties, overlapping policies that violate exclusivity, missing defaults, unreachable candidates, or populations with no valid outcome. It should also identify policy edits that cause large changes in winner distribution.
+PostgreSQL date and time types remain the authoring model. pg-react should not introduce a calendar expression language.
 
-The feature is valuable because policy errors often arise not from one wrong predicate, but from interactions between otherwise valid rules. M27 makes those interactions visible before they become production incidents.
+### M47: Finite event sequences
 
-## M28 — Public API convergence and ergonomics
+M47 supports short patterns such as event A followed by event B within a fixed interval for one semantic key. Sequence length, partial matches, ordering, expiration, and retained evidence all have hard bounds.
 
-Before adding another semantic family, pg-react should make its representative M0–M27 capabilities feel like one product. M28 introduces a versioned declaration and target model, a small names-first ordinary verb set, common finding and result envelopes, and one lifecycle from validation through deployment and inspection.
+This milestone must not grow into a general complex-event-processing language. A few common finite sequences cover the intended rule-engine use cases.
 
-The façade remains additive and delegates to the authoritative specialized APIs. Its purpose is to preserve exact semantics, security, recovery, and compatibility while making future capabilities extend declarations and results instead of adding another unrelated public workflow.
+### M48: Absence after an event
 
-## M29 — Policy-set gating
+M48 supports rules such as "payment started, but settlement did not arrive before the deadline." The result becomes authoritative only when the relevant event-time frontier proves the absence.
 
-Organizations rarely apply every rule everywhere. Policies vary by jurisdiction, product line, tenant, rollout cohort, contract, or regulatory regime. Today this can be encoded inside every condition, but doing so mixes applicability with policy logic.
+The engine records which event opened the wait, which frontier closed it, and how a permitted late correction changes the result. Process clocks never decide the outcome.
 
-M29 introduces explicit policy-set gating. A versioned policy set can be enabled for a defined population or regime while the contained rules remain unchanged. This gives teams a clean mechanism for staged rollout, jurisdiction-specific policy, customer-specific programs, and controlled transitions.
+### M49: Temporal rule qualification
 
-The design should remain relational: gating populations should be typed PostgreSQL facts or named conditions, not hidden feature flags inside engine code.
+M49 makes every temporal result consumable as an ordinary named condition or derived fact. Decision and command rules should not care whether their input came from a join, a deadline, a window, or a sequence.
 
----
+The milestone adds recovery, replay, retention, correction, and scale evidence across all supported temporal forms. No additional temporal syntax belongs in M49.
 
-# Phase 3 — Make policy safe to change
+## Phase 4: Improve rule-set behavior
 
-At this point pg-react can express and operate substantial policy. The next problem is change risk. A powerful rule system becomes genuinely valuable when users can see what a policy change would do before they commit it.
+Traditional rule engines offer many ways for rules to interact. pg-react should add only the interactions that have deterministic PostgreSQL semantics and clear operational value.
 
-## M35 — Hypothetical fact simulation
+### M50: Explicit firing policies
 
-M30 introduces side-effect-free what-if evaluation. A caller supplies bounded hypothetical inserts, updates, or deletes and asks what the selected rule or program would conclude.
+M50 extends the default once-per-continuous-match lifecycle with a small set of explicit policies, such as once ever, once per window, cooldown, and manual reset. Each policy becomes durable state that survives restart, restore, and rule replacement.
 
-The simulation should use the same normalized semantics as production but mutate no authoritative tables, create no durable jobs, advance no real watermarks, and execute no consequences. It should return resulting matches, derived facts, decision outcomes, and would-be lifecycle transitions.
+Worker timing must not affect whether a rule fires. Unsupported combinations should fail during validation.
 
-This is useful in interactive applications, support tooling, eligibility analysis, debugging, and policy design. It also creates the evaluation kernel needed for later backtesting.
+### M51: Conflict groups
 
-## M34 — Deployment impact simulation
+M51 lets several command rules declare that only one may create work for a business key. The group has deterministic precedence and exposes both the winner and the suppressed matches.
 
-M35 changes facts under the current policy. M34 changes policy against current facts.
+This reuses decision semantics where possible. It does not add an agenda whose ordering depends on execution timing.
 
-Before replacing a rule or program, users should be able to compare the currently deployed version with the proposed version and see which business keys would activate, deactivate, change derived values, select different decision winners, or produce different would-be work.
+### M52: Bounded database-local closure
 
-This turns deployment preview from schema validation into business impact analysis. A policy author can answer “who changes?” before the new version is made authoritative.
+M52 explores one narrow synchronous rule set whose database-local effects may cause more eligible rules to run before commit. The contract requires serialized evaluation, deterministic order, maximum firings, cycle detection, and complete rollback on failure.
 
-## M36 — Historical replay
+External actions stay asynchronous and outside the closure. If useful workloads cannot fit a small, predictable contract, this milestone should be dropped.
 
-Historical replay extends simulation over a deterministic sequence of fact changes. The user provides an initial snapshot and an ordered history, and pg-react evaluates one frozen policy version through that history without executing real consequences.
+### M53: Complete policy-set packaging
 
-This does not mean pg-react becomes a source CDC archive. Historical facts remain user-supplied. The feature merely guarantees that the same lifecycle, derivation, deadline, and event-time semantics can be replayed in isolation.
+M53 lets existing policy sets include shared conditions, parameter relations, and explicit dependencies under one versioned name. A policy set can be validated, compared, exported, deployed, inspected, and removed as a unit.
 
-That capability is especially valuable for fraud, compliance, SLA, finance, and operations teams that need to understand how a rule behaves over time rather than at one snapshot.
+The underlying objects remain PostgreSQL relations and typed pg-react declarations. This extends the current grouping boundary without adding nested sets or a package language.
 
-## M33 — Comparative backtesting
+### M54: Rule-set qualification
 
-M33 runs two policy versions over the same historical input and compares their results. Instead of merely saying that the new policy is valid, pg-react can report how many activations were added, removed, or changed, which decision outcomes moved, and where resource usage differs.
+M54 adds no rule interaction. It tests conflict groups, firing policies, bounded closure, policy sets, and existing recursion under replacements, failures, concurrency, restore, and upgrade.
 
-A fraud team could compare a proposed rule against three months of transactions. A finance team could measure how many historical journals a new control would have blocked. An entitlement team could see how a new policy would alter grants and revocations.
+The result should remain understandable through ordinary SQL inspection. Any feature that requires a hidden execution agenda or private repair procedure should not pass this milestone.
 
-This milestone transforms policy change from intuition into evidence.
+## Phase 5: Deepen PostgreSQL operation
 
-## Later direction — Policy promotion workflow
+A PostgreSQL-native rule engine must behave well through schema changes, access control, maintenance, growth, backup, and restore. These concerns are core product work, not secondary platform work.
 
-Once simulation and backtesting exist, they can form a disciplined promotion path: draft, validate, simulate, backtest, approve, schedule, activate.
+### M55: DDL impact planning
 
-This should not become a general human workflow engine. The goal is narrower: make the lifecycle of a policy artifact explicit and inspectable. A deployed policy can carry immutable evidence showing which validation, simulations, backtests, approvals, and effective dates justified its activation.
+M55 shows which declarations depend on a proposed table, column, type, function, or view change. It identifies invalidated rules and the safe order for replacement or removal before PostgreSQL applies the change.
 
-At this stage pg-react starts to look less like a component and more like a serious policy operating system.
+PostgreSQL dependencies and exact object identities remain authoritative. pg-react adds rule-specific findings and preview, not a separate schema registry.
 
----
+### M56: Online rebuild and reconciliation
 
-# Phase 4 — Make decisions deeply explainable
+M56 makes supported rebuilds explicit when a rule, dependency, or maintained relation changes. Operators can see the rebuild frontier, affected declarations, blocked work, and reconciliation result through public SQL.
 
-Policy is safer when people can understand not just what happened, but how one state differed from another and which causal chain mattered.
+The engine should preserve unaffected lifecycle and work. It must fail closed when it cannot prove that old and rebuilt state agree.
 
-## M34 — Why-changed explanations
+### M57: Long-lived history
 
-M34 answers a question operators ask constantly: “why did this change?”
+M57 qualifies retention and storage for installations that run for years. Retention settings control when pg-react can prune activations, attempts, support evidence, corrections, comparisons, and replay results.
 
-Rather than showing only current evidence, pg-react should compare two frontiers, revisions, or policy versions and identify the bounded causal difference: a support appeared, a threshold changed, a lower fact disappeared, a deadline was crossed, or a different decision candidate became dominant.
+Partitioning or compaction belongs here only when measured workloads require it. Recovery, audit, and explanation horizons take precedence over smaller catalogs.
 
-This makes regressions and policy updates far easier to diagnose.
+### M58: PostgreSQL authorization alignment
 
-## M35 — Bounded why-not
+M58 reduces special pg-react permission concepts where PostgreSQL roles, ownership, grants, and security contexts can express the same rule. Evaluation, explanation, simulation, work claims, and administration must each have an exact authority model.
 
-“Why is this true?” is easier than “why isn’t this true?” because absence can have enormous search spaces. M35 should therefore support why-not only for rule shapes where a bounded, deterministic explanation is possible.
+Richer source-security support belongs here only if pg-react can preserve deterministic evaluation and prevent evidence leaks. Unsupported row-level security configurations should continue to fail closed.
 
-For a decision or derivation, the engine might identify the first canonical missing dependency, failed aggregate threshold, absent required shared condition, or blocked effective period. It should not claim to solve arbitrary SQL counterfactual reasoning.
+### M59: Supported-scale qualification
 
-Even a bounded why-not capability would be extremely valuable for support and policy design.
+M59 expands only the scale and PostgreSQL configurations backed by repeatable evidence. Tests cover rule count, match count, dependency fan-out, work backlog, temporal state, retained history, memory, WAL, recovery time, and upgrade time.
 
-## M36 — Decision lineage
+The project should publish useful limits instead of universal throughput claims. New configuration combinations remain unsupported until the same correctness and recovery evidence passes.
 
-M36 connects explanation across layers. A user should be able to follow a stable path from authoritative facts to shared conditions, derived facts, decision candidates, winner selection, activation, and resulting work.
+## Phase 6: Consolidate the rule engine
 
-The emphasis is on business identities, not private engine IDs. The result should feel like a causal narrative rather than a dump of internal catalogs.
+The last phase should make pg-react smaller from the user's point of view. It should unify workflows, remove accidental complexity where compatibility permits, and prove that the full engine still behaves like PostgreSQL.
 
-This is particularly compelling for financial controls, access governance, privacy policy, and regulated decisions.
+### M60: One authoring model
 
-## M37 — Evidence snapshots
+M60 gives rules, decisions, policy sets, and temporal declarations one documented authoring workflow. Typed constructors, `validate`, `preview`, `deploy`, stable names, and deterministic export remain the common vocabulary.
 
-Some decisions need explanations long after ordinary source data has changed or been pruned. M37 introduces compact evidence snapshots for explicitly configured audited decisions.
+Released compatibility calls may delegate to the same implementation. The project should not add a new DSL, SDK family, or configuration format to hide SQL.
 
-These snapshots should capture only bounded, necessary evidence: relevant business keys, policy version, decision result, effective time, aggregate/window summaries, and selected support references. They should not become full database snapshots.
+### M61: One inspection model
 
-The feature lets organizations preserve the justification for important historical decisions without retaining every transient internal row forever.
+M61 aligns public views and functions for current state, history, decisions, work, simulation, replay, and explanation. Stable business identities connect the records without private catalog joins.
 
-## M38 — Policy diff semantics
+Common investigations should use ordinary `SELECT` statements. JSON remains limited to bounded nested evidence and canonical declarations.
 
-Textual SQL diffs are useful to developers but poor descriptions of policy change. M38 should compute semantic diffs between normalized policy versions.
+### M62: One recovery model
 
-A diff might say that a threshold changed from 10,000 to 7,500, a new shared condition was added, one decision candidate moved ahead of another, the effective interval changed, or a new parameter domain became eligible.
+M62 unifies restart, rebuild, reconciliation, physical restore, logical restoration, and supported failover around explicit public barriers. Operators can determine what is authoritative, what must be rebuilt, and when work may resume.
 
-Combined with impact simulation and backtesting, this gives reviewers a much clearer picture of what a policy edit actually means.
+The contract continues to acknowledge at-least-once external delivery. No backup or recovery feature can turn an external effect into an exactly-once effect.
 
----
+### M63: Production qualification
 
-# Phase 5 — Add practical temporal intelligence
+M63 runs representative financial-control and access-policy workloads through install, upgrade, load, failure, restore, and policy change. The exact packaged artifacts and documented procedures must pass.
 
-By now pg-react has strong business-policy semantics and safe change tooling. Temporal reasoning can widen carefully without turning the product into a general complex-event processor.
+This milestone favors fewer supported combinations with strong evidence. Broader claims wait for users and repeatable tests that justify them.
 
-## M39 — Rolling and hopping windows
+### M64: PostgreSQL-native rule engine 2.0
 
-M17’s tumbling windows are excellent for fixed buckets but do not naturally express “three failures in the previous hour.” M39 adds bounded rolling or hopping windows with the same rigor around event time, watermarks, lateness, correction identity, retention, and recovery.
+M64 adds no new reasoning semantics. It freezes the smallest coherent public contract that survived the previous milestones and sets the compatibility boundary for `2.0.0`.
 
-The goal is to support ordinary frequency-based rules without introducing unbounded event history.
+A PostgreSQL developer should be able to define relational rules, inspect durable outcomes, test changes, explain decisions, recover failures, and upgrade the extension without learning a second runtime model. If the product feels like a policy platform layered beside PostgreSQL, M64 has failed.
 
-## M40 — Calendar windows
+## Scope stays narrow
 
-Many businesses reason in days, months, quarters, billing periods, and local business calendars rather than fixed UTC durations. M40 adds carefully specified calendar windows.
+Every proposed milestone must pass the same filter:
 
-The difficulty is not syntax; it is semantics around timezone, daylight-saving transitions, month length, business boundaries, and deterministic replay. A narrow, explicit contract matters more than broad calendar expressiveness.
+- PostgreSQL remains the authoritative store and execution boundary.
+- SQL and typed relations remain the rule language and fact model.
+- pg-react owns only semantics that SQL does not retain by itself.
+- Results, state, limits, and failures remain inspectable through PostgreSQL.
+- New semantics stay deterministic, bounded, recoverable, and demand-driven.
 
-## M41 — Bounded sequence rules
+The roadmap excludes hosted control planes, human workflow, visual or AI rule authoring, client-language DSLs, arbitrary optimization, unrestricted event patterns, untrusted dynamic code, distributed cross-database evaluation, and exactly-once external delivery. A separate project can pursue those products if users need them.
 
-M41 introduces simple finite sequences such as “A happened, then B happened within ten minutes” for one semantic key.
+## The destination
 
-This is the first milestone that meaningfully approaches CEP territory, so the scope should remain intentionally small: fixed sequence length, bounded partial-match state, explicit event-time semantics, deterministic expiration, and no general pattern language.
+The destination is not the broadest rule engine. It is the rule engine a PostgreSQL team reaches for when a relational condition must become durable, explainable state or work.
 
-## M42 — Temporal absence sequences
+Teams should be able to express rules with the database objects they already understand. They should be able to compare a policy before deployment, replay supplied history, inspect why a decision changed, use practical time-based rules, and recover after failure. The engine should keep those guarantees through ordinary PostgreSQL transactions, types, roles, backup, restore, and SQL inspection.
 
-The next practical extension is “A happened, but B did not happen before the deadline.” This pattern appears in payments, onboarding, SLAs, fraud, and compliance.
-
-Because absence depends on time completeness, this milestone should build directly on watermarks and deadline semantics. The engine must be able to explain not merely that B was absent, but at what complete frontier that absence became authoritative.
-
-## M43 — Temporal policy composition
-
-Rather than adding ever more temporal syntax, M43 makes temporal results reusable as ordinary named conditions and derived facts.
-
-A condition such as `payment_missing_30d` or `three_failures_1h` should become just another PostgreSQL-native truth that decision tables, derivations, and command rules can consume. This keeps the architecture compositional and avoids a separate “temporal rule language.”
-
----
-
-# Phase 6 — Mature rule-set behavior
-
-The final phase introduces some of the capabilities people associate with traditional rule engines, but only after pg-react has built strong constraints, explanation, and change safety around them.
-
-## M44 — Conflict and activation groups
-
-Some policies are intentionally mutually exclusive. Several command rules may match, but only one should create work for a business key.
-
-M44 adds explicit conflict and activation groups with deterministic winner policy and explanation. This is similar to decision tables but applies to rule consequences rather than merely derived outcomes.
-
-The engine should never rely on accidental worker timing to decide which rule wins.
-
-## M45 — Rich refraction policies
-
-The existing lifecycle model naturally supports “once per continuous truth interval.” Real systems sometimes need other firing policies: once ever, once per window, explicit reset, cooldown, or re-arm after recovery.
-
-M45 introduces those policies explicitly. The crucial design principle is that refraction remains part of durable lifecycle semantics rather than hidden worker behavior.
-
-## M46 — Bounded synchronous rule sets
-
-Only after all the previous safety and explanation work should pg-react consider a synchronous firing loop.
-
-M46 would support one serialized database-local rule set whose consequences may update facts and cause additional eligible rules to run before commit. The contract must freeze deterministic ordering, causal controls, maximum firings, cycle limits, rollback behavior, and supported rule shapes.
-
-External actions remain outside the loop. General workflow orchestration remains out of scope. This is a narrow fixed-point facility, not a return to opaque expert-system execution.
-
-## M47 — Policy modules
-
-As the feature set grows, users need a packaging boundary larger than one rule or program. M47 introduces versioned PostgreSQL-native policy modules containing shared conditions, parameter sources, decision programs, derivations, actions, and explicit dependencies.
-
-A module should expose a public contract and remain deployable, testable, simulated, backtested, and explained as a coherent unit. It should not become a proprietary package language; the underlying artifacts remain PostgreSQL objects and pg-react declarations.
-
-This milestone makes large policy estates manageable.
-
-## M48 — PostgreSQL policy platform
-
-M48 should intentionally add almost no new reasoning semantics.
-
-Like M18, it is a consolidation milestone. Its job is to prove that the accumulated system still feels simple. A PostgreSQL developer should be able to author policy, validate it, simulate changes, backtest versions, schedule effective dates, deploy modules, inspect current decisions, trace explanations, operate failures, and audit historical outcomes without understanding internal supports, frontiers, correction tables, or worker protocols.
-
-By this point the system may contain highly sophisticated machinery internally. The public experience should remain recognizably PostgreSQL.
-
----
-
-# How the phases build toward the vision
-
-The sequence matters because each phase solves a different barrier to adoption.
-
-M19 through M23 make the engine structurally complete enough to support larger real systems. They improve composability, retention, explanation, responsiveness, and practical time behavior.
-
-M24 through M29 turn rules into **business policy** and converge its public surface. Policy gains versions, effective dates, typed variation, deterministic decisions, applicability boundaries, and one ordinary workflow.
-
-M34 through M38 make that policy **safe to change**. Users no longer need to deploy first and understand impact second. Simulation, replay, and backtesting bring evidence into the change process.
-
-M34 through M38 make the system **deeply explainable**. Current truth, historical change, causal lineage, and policy differences become first-class inspection surfaces.
-
-M39 through M43 add **practical temporal intelligence** while preserving bounded state and composability. Time becomes something authors can reason about without adopting an event-pattern language.
-
-M44 through M48 mature the engine into a broader **policy platform**, adding carefully controlled rule interaction, richer firing semantics, packaging, and finally another hardening phase that forces all the complexity back behind a simple PostgreSQL-facing model.
-
-The overall path looks like this:
-
-```text
-M19–M23   complete the rule runtime
-    ↓
-M24–M29   make business policy first-class and converge its public API
-    ↓
-M34–M38   make policy safe to change
-    ↓
-M34–M38   make decisions deeply explainable
-    ↓
-M39–M43   add bounded temporal intelligence
-    ↓
-M44–M48   mature into a PostgreSQL policy platform
-```
-
-The unifying idea should remain constant throughout: **PostgreSQL defines and stores the facts; SQL remains the primary language of truth; pg-react adds durable policy semantics around that truth.**
-
-That is the guardrail that prevents the roadmap from becoming an accumulation of rule-engine features for their own sake.
-
----
-
-# The destination
-
-If these milestones were ever completed, pg-react would occupy an unusual position.
-
-A finance team could define controls, backtest a proposed policy over historical journals, schedule the new version for the next accounting period, and explain why one journal was blocked. An identity team could maintain desired entitlements from shared conditions and parameterized policy, simulate a reorganization before changing access, and trace a revoked permission back to the employment and policy facts that caused it. A compliance team could express deadline and absence rules, preserve evidence for audited decisions, and compare two policy regimes semantically before activating the new one. A product team could use decision tables and parameterized policy families without introducing a separate rules language or policy service.
-
-Internally, pg-react might contain recursion, support graphs, frontiers, logical time, event-time windows, correction histories, decision state, simulation sandboxes, and bounded synchronous loops.
-
-Externally, the experience should still sound simple:
-
-> Define truth in PostgreSQL.  
-> Declare which truth matters as policy.  
-> See what the policy means before deploying it.  
-> Understand why it reached a decision.  
-> Trust it to react correctly when the underlying facts change.
-
-That is a much more compelling destination than merely becoming a feature-rich rule engine.
-
-It would make pg-react a PostgreSQL-native system for **living business policy**: policy that can be expressed, composed, tested, changed, explained, recovered, and operated with the database remaining the single authoritative foundation.
+That product is ambitious enough. pg-react should spend the next 30 milestones making it excellent.
