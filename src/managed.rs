@@ -2,15 +2,13 @@ pub fn is_compatible_extension_version(version: &str) -> bool {
     if version == "0.31.0" || version == "1.0.0" {
         return true;
     }
-    if let Some(rest) = version.strip_prefix("1.0.0-rc.") {
-        if !rest.is_empty()
-            && rest.chars().all(|c| c.is_ascii_digit())
-            && !(rest.starts_with('0') && rest.len() > 1)
-        {
-            if let Ok(n) = rest.parse::<u32>() {
-                return n >= 1;
-            }
-        }
+    if let Some(rest) = version.strip_prefix("1.0.0-rc.")
+        && !rest.is_empty()
+        && rest.chars().all(|c| c.is_ascii_digit())
+        && !(rest.starts_with('0') && rest.len() > 1)
+        && let Ok(n) = rest.parse::<u32>()
+    {
+        return n >= 1;
     }
     false
 }

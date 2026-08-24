@@ -2,3 +2,10 @@
 /.pgrx
 /postgres-data
 .DS_Store
+
+# Test run and evidence artifacts
+tests/.*-run*
+m*-evidence/
+*.tar.gz
+*.spdx.json
+
