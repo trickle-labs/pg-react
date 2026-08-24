@@ -2,7 +2,7 @@
 
 Related documents: [The trifecta](the-trifecta.md), [Product thesis](pg-react_product_thesis.md), and [Practical rule-engine features](pg-react_practical_rule_engine_features.md).
 
-> Current state: pg-react targets `1.0.0-rc.1`, with M34 and extension `0.31.0` as the v1 feature boundary. Its qualified stack uses PostgreSQL 18.3 and pg_trickle 0.81.0 on Linux `amd64`. See the [support matrix](../docs/v1-support-matrix.md) for the complete boundary. This essay describes the cross-project architecture; each sibling project's documentation owns its current releases and APIs.
+> Current state: M34 and extension `0.31.0` are pg-react's qualified baseline. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely while development continues one milestone at a time. Its qualified stack uses PostgreSQL 18.3 and pg_trickle 0.81.0 on Linux `amd64`. See the [support matrix](../docs/v1-support-matrix.md) for the complete boundary. This essay describes the cross-project architecture; each sibling project's documentation owns its current releases and APIs.
 
 Warehouse 7 has promised 50 units of a product, holds 38, and learns that its replenishment shipment will arrive two days late. The shortage emerges from inventory, reservations, open orders, and shipment status. Someone needs to act before customers receive bad news, and procurement needs the decision.
 

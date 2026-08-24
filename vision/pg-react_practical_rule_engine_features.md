@@ -2,7 +2,7 @@
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [PostgreSQL as an operational data platform](operational-data-platform.md), and [The trifecta](the-trifecta.md).
 
-> Current state: this repository targets pg-react `1.0.0-rc.1`. The v1 feature boundary is M34, based on extension `0.31.0`. This document explains the product shape. The [v1 API reference](../docs/v1-api-reference.md), [support matrix](../docs/v1-support-matrix.md), and [known limitations](../docs/v1-known-limitations.md) define the supported contract.
+> Current state: M34 and extension `0.31.0` are the qualified baseline. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely while development continues one milestone at a time. This document explains the product shape. The [v1 API reference](../docs/v1-api-reference.md), [support matrix](../docs/v1-support-matrix.md), and [known limitations](../docs/v1-known-limitations.md) define the supported contract.
 
 pg-react uses PostgreSQL relations to express policy conditions and candidates. It adds the parts that a query does not retain by itself: semantic identity, lifecycle, deterministic decisions, durable work, versioning, bounded evidence, and safe policy change.
 

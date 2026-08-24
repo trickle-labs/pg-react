@@ -2,7 +2,7 @@
 
 Related documents: [Practical rule-engine features](pg-react_practical_rule_engine_features.md), [PostgreSQL as an operational data platform](operational-data-platform.md), and [The trifecta](the-trifecta.md).
 
-> Current state: this repository targets pg-react `1.0.0-rc.1`, with M34 and extension `0.31.0` as the v1 feature boundary. The [documentation home](../docs/index.md) and [support matrix](../docs/v1-support-matrix.md) define the current product contract.
+> Current state: M34 and extension `0.31.0` are the qualified baseline. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely while development continues one milestone at a time. The [documentation home](../docs/index.md) and [support matrix](../docs/v1-support-matrix.md) define the current product contract.
 
 Modern applications already contain rule engines. They hide in service branches, scheduled queries, triggers, retry workers, and exception tables. A customer crosses a risk threshold. An invoice becomes overdue. A role change requires new access. A legal hold suspends deletion.
 
@@ -60,7 +60,7 @@ pg-react now supports effective-dated policy, relational parameter families, det
 
 Comparison reports bounded current, proposed, delta, lifecycle, and would-be work evidence. It does not deploy the proposal or execute effects. A partial result has inexact counts and no continuation token.
 
-The current feature is narrower than general simulation. pg-react v1 does not apply hypothetical fact changes and does not provide historical replay or backtesting. Those remain post-v1 directions, not current product claims.
+The current feature is narrower than general simulation. The M34 baseline does not apply hypothetical fact changes and does not provide historical replay or backtesting. Those remain future directions, not current product claims.
 
 ## Explanation is part of correctness
 

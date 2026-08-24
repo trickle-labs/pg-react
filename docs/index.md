@@ -1,8 +1,9 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. The v1 feature
-boundary is M34 / extension `0.31.0`; the release sequence is
-`0.31.0 -> 1.0.0-rc.1 -> later RCs if required -> 1.0.0`. M35 is post-v1.
+This is the starting point for current pg-react documentation. M34 / extension
+`0.31.0` is the current qualified baseline. The repository retains the prepared
+`1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are
+postponed indefinitely. Development continues one milestone at a time from M35.
 
 ## Start
 

@@ -1,9 +1,9 @@
 # M34 final checklist
 
 > [!NOTE]
-> Historical `0.31.0` qualification checklist. Its final reference to
-> starting M35 is superseded; M34 is the v1 feature boundary and M35 is
-> post-v1.
+> Historical `0.31.0` qualification checklist. The current roadmap postpones
+> `1.0.0` and advances one milestone at a time from M35. This file remains M34
+> qualification evidence, not current release sequencing.
 
 - [x] `0.30.0 -> 0.31.0` upgrade and rollback-by-restore preserve M33 state.
 - [x] Current, proposed, and delta rows reconcile for complete evidence.

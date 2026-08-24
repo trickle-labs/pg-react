@@ -1,6 +1,6 @@
 # The M35-M64 vision for pg-react
 
-> Planning status (August 2026): M34 is complete, extension `0.31.0` is the v1 feature boundary, and the repository targets `1.0.0-rc.1`. The release-candidate cycle and `1.0.0` come before M35. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
+> Planning status (August 2026): M34 is complete and extension `0.31.0` is the current qualified baseline. `1.0.0` and its complete feature freeze are postponed indefinitely. Development continues one milestone at a time from M35 until user traction and an explicit maintainer decision justify a new v1 release-candidate cycle. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [Practical rule-engine features](pg-react_practical_rule_engine_features.md), and [PostgreSQL as an operational data platform](operational-data-platform.md).
 
@@ -16,11 +16,11 @@ This vision starts at M35 and covers another 30 possible milestones. M35 follows
 
 ### Committed horizon
 
-The only committed sequence is the release-candidate cycle, `1.0.0`, and the entry gate that precedes M35. Work beyond M35 enters the canonical roadmap only with executable acceptance criteria, an owner, and evidence that it advances the product wedge.
+The project commits only to selecting, defining, and implementing one milestone at a time. M35 is the current milestone. Later work enters the canonical roadmap only with executable acceptance criteria, an owner, evidence that it advances the product wedge, and evidence from the preceding milestone.
 
 ### Strategic horizon
 
-The first post-v1 vertical slice should combine hypothetical fact simulation (M35), semantic policy differences (M43), why-changed comparison (M38), and end-to-end causal paths (M41), then pass the simulation qualification gate (M39). This gives operators one safe-change journey from proposal to explanation.
+The next vertical slice should combine hypothetical fact simulation (M35), semantic policy differences (M43), why-changed comparison (M38), and end-to-end causal paths (M41), then pass the simulation qualification gate (M39). This gives operators one safe-change journey from proposal to explanation.
 
 The first qualified slice may restrict declaration kinds, key shapes, hypothetical change forms, and evidence depth. It must still deliver the complete proposal-to-explanation journey for its supported subset.
 

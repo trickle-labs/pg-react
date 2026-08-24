@@ -1,9 +1,9 @@
 # M34 readiness
 
 > [!NOTE]
-> Historical `0.31.0` readiness record. Its M35-before-RC sequencing is
-> superseded; this file remains qualification evidence, not current release
-> instructions. See [`history.md`](history.md).
+> Historical `0.31.0` readiness record. The current roadmap postpones `1.0.0`
+> and advances one milestone at a time from M35. This file remains qualification
+> evidence, not current release instructions. See [`history.md`](history.md).
 
 **Status: M34 implementation and packaged qualification complete.**
 

@@ -1,10 +1,12 @@
 # pg-react 1.x contract
 
-This is the normative v1 contract. The v1 feature boundary is M34 / extension
-`0.31.0`: the M33 ordinary runtime plus the M34 read-only comparison surface.
-M35 hypothetical-fact simulation is post-v1.
+This is the frozen contract for the M34 / extension `0.31.0` baseline and the
+prepared `1.0.0-rc.1` candidate: the M33 ordinary runtime plus the M34 read-only
+comparison surface. It does not set the eventual v1 feature boundary.
 
-The repository targets `1.0.0-rc.1`. Exact RC/GA package versions and upgrade
+The project has postponed `1.0.0` and its complete feature freeze indefinitely.
+Development continues one milestone at a time from M35, with separate contracts,
+release versions, and qualification gates. Exact package versions and upgrade
 paths become contractual through qualified release artifacts and migration scripts.
 
 ## Ordinary SQL surface

@@ -1,16 +1,17 @@
 # pg-react roadmap
 
 > **Status:** Living delivery plan  
-> **Last updated:** 2026-08-18\
+> **Last updated:** 2026-08-24\
 > **Contract authority:** [`docs/v1-contract.md`](docs/v1-contract.md), subject
 > to installed behavior. [`DESIGN.md`](DESIGN.md) is historical M13
 > architecture.
 
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
-> M34 / extension `0.31.0` is the v1 feature boundary, M35 is post-v1, and the
-> release sequence is
-> `0.31.0 -> 1.0.0-rc.1 -> later RCs if required -> 1.0.0`.
+> `1.0.0` and its feature freeze are postponed indefinitely. Development
+> continues one milestone at a time from M35. The project will begin a complete
+> feature freeze and define a new `1.0.0` release-candidate sequence only after
+> it has enough user traction and the maintainers explicitly decide it is ready.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -2115,35 +2116,39 @@ qualified semantic-equivalence fixtures. The next release is `1.0.0-rc.1`.
 
 ---
 
-### v1 release-candidate cycle
+### Deferred v1 release-candidate cycle
 
-After M34 publishes `0.31.0`, the project MUST publish at least one exact
-`1.0.0-rc.N` packaged artifact. Every candidate must pass the applicable
-installation, upgrade, recovery, security, role-isolation, comparison
-no-effect, documentation, usability, pilot, and performance qualification.
-Any change to extension code, SQL, packaging, compatibility behavior, or
-normative documentation requires a new numbered candidate and reruns the
-affected evidence.
+The project has not scheduled a complete feature freeze or a `1.0.0` release.
+Each milestone defines its own release version and gate. After the project has
+enough user traction, the maintainers may explicitly start a new feature-freeze
+and release-candidate cycle. That decision must identify the milestone that
+defines the v1 feature boundary and the exact upgrade path into the first
+candidate.
 
-`1.0.0` may promote only a fully qualified candidate, with no change except
-final version metadata and mechanically corresponding checksums and
-provenance.
+Once started, the cycle must publish at least one exact `1.0.0-rc.N` packaged
+artifact. Every candidate must pass the applicable installation, upgrade,
+recovery, security, role-isolation, comparison no-effect, documentation,
+usability, pilot, and performance qualification. Any change to extension code,
+SQL, packaging, compatibility behavior, or normative documentation requires a
+new numbered candidate and reruns the affected evidence. `1.0.0` may promote
+only a fully qualified candidate, with no change except final version metadata
+and mechanically corresponding checksums and provenance.
 
 ---
 
-## Stage 35 — Post-v1 hypothetical fact simulation
+## Stage 35 — Hypothetical fact simulation
 
-**Outcome:** after v1, let users evaluate typed hypothetical inserts, updates,
-and deletes against an explicit policy, applicability, current-fact, and time
-snapshot.
+**Outcome:** let users evaluate typed hypothetical inserts, updates, and deletes
+against an explicit policy, applicability, current-fact, and time snapshot.
 
-**Release boundary:** post-v1. Its version and release gate will be defined
-separately. M35 does not block `1.0.0-rc.1` or `1.0.0`.
+**Release boundary:** the next milestone release. Its exact version and release
+gate will be defined separately. Completing M35 does not start a v1 feature
+freeze or release-candidate cycle.
 
-**Entry gate:** `1.0.0` is published. Before implementation, freeze typed
-fixtures for inserts, updates, deletes, conflicting or duplicate changes,
-applicability changes, derived and temporal effects, decisions, would-be work,
-bounded evidence, and complete no-mutation behavior.
+**Entry gate:** M34 is published and its exit gates pass. Before implementation,
+freeze typed fixtures for inserts, updates, deletes, conflicting or duplicate
+changes, applicability changes, derived and temporal effects, decisions,
+would-be work, bounded evidence, and complete no-mutation behavior.
 
 ### Deliverables
 
@@ -2152,7 +2157,7 @@ bounded evidence, and complete no-mutation behavior.
 - Bounded relational results and causal evidence identifying changed facts, support, applicability, thresholds, deadlines, derived facts, decision candidates, winners, and would-be work.
 - Stable findings for missing, duplicate, conflicting, stale, unauthorized, unsupported, ambiguous, cyclic, or over-limit inputs, all with exact no-mutation guarantees.
 - Reproducible cost evidence and documented limits for hypothetical rows, affected subjects, dependency fan-out, recursion depth, temporal transitions, reevaluation, memory, storage, and runtime.
-- A separately versioned post-v1 contract, inventories, install and upgrade
+- A separately versioned milestone contract, inventories, install and upgrade
   SQL, examples, and qualification evidence.
 
 ### Supported boundary
@@ -2180,19 +2185,20 @@ bounded evidence, and complete no-mutation behavior.
 - Exact supported upgrade paths are defined and tested before an M35 release;
   no path is inferred from this plan.
 - Independent PostgreSQL users complete proposal comparison and hypothetical-change tasks through public SQL without private catalogs, internal UUIDs, undocumented help, or a parallel mental model.
-- Every inherited v1 gate passes; no P0 or P1 remains; retained limitations
-  are explicit; the exact post-v1 artifact passes its separately defined
+- Every inherited gate passes; no P0 or P1 remains; retained limitations
+  are explicit; the exact milestone artifact passes its separately defined
   release gate.
 
 ---
 
-## Proposed sequence after v1
+## Proposed sequence after M35
 
-The required v1 sequence is
-`0.31.0 -> 1.0.0-rc.1 -> later RCs as required -> 1.0.0`. M35 and the
-following successor milestones are post-v1 planning, not implementation
-commitments. They must compose the production semantics and the M34/M35
-comparison model rather than create another evaluator.
+The project considers and implements one milestone at a time. M36 and the
+following successor milestones are planning options, not implementation or
+release commitments. Selection depends on evidence from the preceding
+milestone and user traction. Each selected milestone must compose the
+production semantics and the M34/M35 comparison model rather than create
+another evaluator.
 
 1. **M36 — Historical replay.** Evaluate one frozen policy over a supplied initial snapshot and deterministically ordered historical inputs with explicit time and frontier progression, without claiming that pg-react acquires, stores, or reconstructs missing source history.
 2. **M37 — Comparative backtesting.** Run two frozen policy versions over identical historical input and return reproducible differences in activations, decisions, would-be work, resource use, and bounded changed-subject evidence by composing simulation and replay.

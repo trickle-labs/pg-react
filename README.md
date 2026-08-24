@@ -6,10 +6,11 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-The repository currently targets `1.0.0-rc.1`. Its v1 feature baseline is
-M34 / extension `0.31.0`, including read-only comparison of a proposed rule,
-decision, or policy set before deployment. Start with the
-[documentation home](docs/index.md).
+M34 / extension `0.31.0` is the current qualified baseline, including read-only
+comparison of a proposed rule, decision, or policy set before deployment. The
+repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its
+complete feature freeze are postponed indefinitely. Development continues one
+milestone at a time from M35. Start with the [documentation home](docs/index.md).
 
 ## Choose a path
 
