@@ -30,7 +30,7 @@ jobs:
           grep -qx "default_version = '0.34.0'" pg_react.control
           grep -Fq 'version == "0.34.0"' src/managed.rs
           grep -Fq 'M37 comparative backtesting' docs/m37-release-notes.md
-          grep -Fq '0.33.0 -> 0.34.0' docs/m37-migration.md
+          grep -Fq '0.33.0` to `0.34.0' docs/m37-migration.md
           test -s docs/m37-api-inventory.json
           test -s docs/m37-finding-codes.json
           test -s sql/pg_react--0.33.0--0.34.0.sql
