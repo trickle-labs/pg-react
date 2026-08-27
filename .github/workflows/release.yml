@@ -28,7 +28,7 @@ jobs:
           grep -qx 'version = "0.32.0"' Cargo.toml
           awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.32.0"'
           grep -qx "default_version = '0.32.0'" pg_react.control
-          grep -Fq "extversion = '0.32.0'" src/managed.rs
+          grep -Fq 'version == "0.32.0"' src/managed.rs
           grep -Fq 'M35 hypothetical fact simulation' docs/m35-release-notes.md
           grep -Fq '0.31.0 -> 0.32.0' docs/m35-migration.md
           test -s docs/m35-api-inventory.json
