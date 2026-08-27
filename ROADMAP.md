@@ -1,7 +1,7 @@
 # pg-react roadmap
 
 > **Status:** Living delivery plan  
-> **Last updated:** 2026-08-24\
+> **Last updated:** 2026-08-27\
 > **Contract authority:** [`docs/v1-contract.md`](docs/v1-contract.md), subject
 > to installed behavior. [`DESIGN.md`](DESIGN.md) is historical M13
 > architecture.
@@ -2138,56 +2138,178 @@ and mechanically corresponding checksums and provenance.
 
 ## Stage 35 — Hypothetical fact simulation
 
-**Outcome:** let users evaluate typed hypothetical inserts, updates, and deletes
-against an explicit policy, applicability, current-fact, and time snapshot.
+**Outcome:** let users compare current production behavior with behavior under
+one typed, ordered set of hypothetical row changes at an explicit complete
+snapshot. M35 returns exact bounded policy, lifecycle, decision, and would-be
+work differences without changing source or pg-react state.
 
-**Release boundary:** the next milestone release. Its exact version and release
-gate will be defined separately. Completing M35 does not start a v1 feature
+**Release boundary:** extension `0.32.0`. M35 adds hypothetical changes to
+the `pgreact.compare` and `pgreact.compare_results` model. It adds no top-level
+ordinary verb. It preserves the M34 evaluator, authorization, evidence,
+semantic-equivalence, authorization, evidence, resource-limit, and no-effect
+contracts. `tests/m35.sh complete` is the release gate
+for the exact packaged candidate. Completing M35 does not start a v1 feature
 freeze or release-candidate cycle.
 
-**Entry gate:** M34 is published and its exit gates pass. Before implementation,
-freeze typed fixtures for inserts, updates, deletes, conflicting or duplicate
-changes, applicability changes, derived and temporal effects, decisions,
-would-be work, bounded evidence, and complete no-mutation behavior.
+**Entry gate:** the exact `v0.31.0` artifacts are published and every M34 gate
+passes. Before the M35 contract freezes, capture exact baseline and simulated
+outputs for typed inserts, updates, and deletes. The fixture also covers
+conflicting, duplicate, stale, and unauthorized changes, plus applicability,
+derived, temporal, and decision effects. It freezes bounded evidence and the
+complete source and authoritative-state checksums.
 
 ### Deliverables
 
-- Typed relational hypothetical change sets with explicit target relation, operation, key, before/after values where required, deterministic ordering, and fail-rather-than-guess validation.
-- Simulation against an explicit declaration or deployed policy version, source frontier, applicability snapshot, and sampled database/event time, composing the M34 current/proposed/delta model.
-- Bounded relational results and causal evidence identifying changed facts, support, applicability, thresholds, deadlines, derived facts, decision candidates, winners, and would-be work.
-- Stable findings for missing, duplicate, conflicting, stale, unauthorized, unsupported, ambiguous, cyclic, or over-limit inputs, all with exact no-mutation guarantees.
-- Reproducible cost evidence and documented limits for hypothetical rows, affected subjects, dependency fan-out, recursion depth, temporal transitions, reevaluation, memory, storage, and runtime.
-- A separately versioned milestone contract, inventories, install and upgrade
-  SQL, examples, and qualification evidence.
+- Additive forms of `pgreact.compare` and `pgreact.compare_results` accept one
+  typed relational change set. The existing three-argument M34 functions remain
+  unchanged.
+- One change-set contract over a bounded set of direct source relations. Each
+  change names its relation, operation, ordinal, typed key, and typed before and
+  after row images where required. Validation rejects missing, extra, or guessed
+  identity and type data.
+- Simulation against one explicit deployed target, with an optional proposed
+  declaration, at one source frontier, applicability snapshot, and sampled
+  database and event time.
+- Bounded relational results and causal evidence that identify changed facts,
+  support, applicability, thresholds, deadlines, derived facts, decision
+  candidates, winners, lifecycle transitions, and would-be work.
+- Stable findings for missing, duplicate, conflicting, stale, unauthorized,
+  unsupported, ambiguous, cyclic, and over-limit inputs. Every rejected input
+  has the same exact no-mutation guarantee as a successful simulation.
+- Reproducible cost evidence and documented limits for hypothetical rows,
+  affected subjects, dependency fan-out, recursion depth, temporal transitions,
+  reevaluation, memory, temporary storage, and runtime.
+- Extension `0.32.0`, adjacent upgrade SQL from `0.31.0`, a versioned M35
+  contract, API reference, API and finding inventories, examples, migration
+  notes, known limitations, release notes, and executable qualification
+  evidence.
 
 ### Supported boundary
 
-- Callers supply the hypothetical changes and all required historical or external context; pg-react does not claim to reconstruct absent past facts or external state.
-- Inputs are typed PostgreSQL rows and relations. SQL remains the escape hatch; M35 adds no predicate language, scenario DSL, or alternate data model.
-- Simulation is deterministic for the same declaration, facts, applicability, frontier, ordered changes, sampled time, authorization, and limits.
-- Recursion, negation, temporal behavior, and derived facts remain within their existing explicit production bounds; simulation does not introduce more expressive semantics.
-- No hypothetical action mutates source or authoritative state, executes consequences, advances frontiers, creates durable work, or performs external delivery.
+- M35 supports the same ordinary `rule`, `decision_program`, and `policy_set`
+  targets as M34. Unsupported target or source kinds fail during validation.
+- One simulation evaluates one finite change set at one complete current
+  snapshot. The snapshot binds the declaration and target, every evaluated
+  source relation and its fingerprint, applicability, sampled database and event
+  time, source frontier, and pg-react authoritative checksum. It does not
+  advance through several frontiers or reconstruct missing history.
+- An insert requires an absent typed key. A delete requires one matching current
+  row and its exact before image. An update requires one matching current row and
+  exact before and after images. Stale or ambiguous identity fails closed.
+- Operations run in explicit ordinal order. Duplicate ordinals, conflicting
+  operations, and a final state that violates the supported relation contract
+  fail before evaluation. A change set may span the bounded direct source set.
+  Indirect dependencies are recomputed and cannot also appear as direct changes.
+- Inputs are typed PostgreSQL rows and relations. SQL remains the escape hatch.
+  M35 adds no predicate language, scenario language, or alternate fact model.
+- Applicability, recursion, negation, temporal behavior, decisions, and derived
+  facts keep their existing production semantics and published bounds.
+- M35 preserves M34 semantics and public guarantees. A read-only hypothetical
+  relation adapter may supply row images to production-equivalent evaluation,
+  but M35 does not add a second semantic evaluator.
+- The same declaration, snapshot, ordered changes, authorization, and limits
+  produce the same output. A concurrent authoritative change aborts the
+  simulation instead of returning a stale answer.
+- Callers need the M34 target authority and `SELECT` on every evaluated source.
+  Sources with row-level security fail closed. M35 returns no redacted rows and
+  adds no broader disclosure mode.
+- No simulation mutates a source, pg-react state, lifecycle, work, attempts,
+  history, frontiers, or effects. It executes no consequence or external
+  delivery.
 
 ### Explicit non-goals
 
-- Historical replay, comparative backtesting, automatic history capture, arbitrary what-if optimization, arbitrary tuple lineage, or claims about facts not supplied to the simulation.
-- Scenario management, policy promotion, approvals, human workflows, scheduling, a custom DSL, client SDKs, visual or AI authoring, or a second evaluator.
-- New recursion, negation, temporal, decision-selection, delivery, or exactly-once semantics.
+- Historical replay, comparative backtesting, automatic history capture,
+  arbitrary optimization, arbitrary tuple lineage, or claims about facts that
+  the caller did not supply.
+- Durable scenarios, policy promotion, approvals, human workflows, scheduling,
+  a custom DSL, client SDKs, visual or AI authoring, or a second evaluator.
+- Hypothetical DDL or execution of source DML, triggers, defaults, sequences,
+  cascades, volatile functions, consequences, or external calls. The caller
+  supplies final typed row images.
+- New recursion, negation, temporal, decision-selection, delivery, or
+  exactly-once semantics.
+
+### Decisions to close before the M35 contract freezes
+
+- Exact function signatures, change-set relation shape, row-image
+  representation, source identity, key types and arity, ordinal type, operation
+  names, and unknown-field behavior.
+- Exact deployed-only and proposed-versus-deployed modes, snapshot identity,
+  applicability identity, sampled database and event time, source-frontier
+  validation, and stale-snapshot behavior.
+- Exact insert, update, and delete preconditions, before-image equality,
+  duplicate and conflict rules, key-changing updates, null handling, collation,
+  generated columns, and supported constraint behavior.
+- The source and target support matrix for rules, decisions, policy sets,
+  applicability, derived facts, temporal inputs, parameters, and transitive
+  dependencies. Every excluded combination needs one stable finding.
+- Exact envelope and relational-result extensions, canonical row and evidence
+  order, counts, completeness, truncation, declaration and change-set digests,
+  causal links, cost fields, and finding codes.
+- Exact ownership, source access, role grants, fixed security-definer search
+  paths, protected-value handling, and unauthorized result contracts. M34 RLS
+  rejection and no-row behavior remain unchanged.
+- Exact serialization with concurrent production maintenance, deployment,
+  replacement, removal, reconciliation, and recovery. Define abort, retry,
+  cancellation, timeout, and no-mutation behavior for each boundary.
+- Exact change-row, affected-subject, fan-out, depth, evidence, latency, write,
+  WAL, memory, and temporary-storage limits. Freeze the benchmark profiles,
+  upgrade and rollback evidence, and `tests/m35.sh complete` inputs.
 
 ### Exit gates
 
-- Every supported insert, update, and delete produces the exact result of applying the same changes and policy in an isolated reference transaction, while simulation leaves both source and authoritative checksums unchanged.
-- Conflicting, ambiguous, unauthorized, stale, unsupported, and over-limit scenarios fail with exact actionable findings and no partial result presented as complete.
-- Causal evidence accounts for every reported delta through bounded changed facts, support, applicability, derived facts, temporal boundaries, or decision inputs; unavailable or truncated evidence is explicit.
-- Repeated simulations are byte-for-byte deterministic across query plans, restart, restore, upgrade, and supported standby promotion for the same frozen inputs.
-- Cancellation, crash, restart, recovery, and concurrent production activity cannot leak hypothetical state into authoritative facts, lifecycle, work, attempts, history, frontiers, or effects.
-- Representative and supported-limit profiles satisfy published budgets and expose dominant scans, fan-out, cascade depth, reevaluation, and generated would-be work.
-- Exact supported upgrade paths are defined and tested before an M35 release;
-  no path is inferred from this plan.
-- Independent PostgreSQL users complete proposal comparison and hypothetical-change tasks through public SQL without private catalogs, internal UUIDs, undocumented help, or a parallel mental model.
-- Every inherited gate passes; no P0 or P1 remains; retained limitations
-  are explicit; the exact milestone artifact passes its separately defined
-  release gate.
+- Every complete supported insert, update, and delete run returns the exact full
+  output of applying the same ordered final row images and policy in an isolated
+  reference transaction. A limited run returns the exact canonical bounded
+  output and explicit incomplete state. Both runs leave the exact source and
+  authoritative checksums unchanged.
+- Baseline, simulated, delta, lifecycle, and would-be work rows reconcile with
+  the envelope when complete. Partial output identifies its exact bound and never
+  presents partial counts or evidence as complete.
+- Every missing, duplicate, conflicting, stale, unauthorized, unsupported,
+  ambiguous, cyclic, and over-limit fixture returns its exact stable finding and
+  leaves the complete no-mutation checksum unchanged.
+- Bounded causal evidence accounts for every reported delta through changed
+  facts, support, applicability, derived facts, temporal boundaries, or decision
+  inputs. The result identifies unavailable or truncated evidence.
+- Repeated simulations return byte-for-byte identical public output across
+  physical input row order, query plans, restart, restore, adjacent upgrade, and
+  supported standby promotion for the same frozen inputs and ordinals.
+- Cancellation, timeout, crash, restart, recovery, and concurrent production
+  activity cannot leak hypothetical state or return an answer from incompatible
+  authoritative frontiers.
+- Every documented role and `PUBLIC` case returns the exact authorized or denied
+  result without leaking protected source, target, subject, row, result, or
+  evidence values. RLS sources fail with the exact M35 finding, and every
+  security-definer function has the frozen safe search path.
+- One versioned reference corpus contains at least three production-shaped
+  workloads. It records exact baseline, simulated, and delta outputs, successful
+  and rejected changes, declaration and change-set digests, snapshot metadata,
+  public-SQL task time, and declared latency, write, WAL, memory, storage, and
+  recovery-to-authoritative-state budgets.
+- Migration evidence moves applicable reference rules out of application
+  branches, scheduled queries, or triggers. User-evaluation records cover both
+  successful tasks and tasks blocked by installation, preload, managed-service,
+  RLS, or compatibility limits.
+- The published compatibility matrix rejects every unsupported combination
+  during validation. The release simplification review records which API or
+  capability was kept, narrowed, unified, or removed.
+- Every complete result exposes the exact declaration digest, change-set digest,
+  source frontier, sampled times, applicability identity, cost, and no-mutation
+  checksums. Partial results expose the same available metadata and their exact
+  completeness bound.
+- Representative and supported-limit profiles satisfy the published budgets and
+  expose dominant scans, fan-out, cascade depth, reevaluation, temporary storage,
+  and generated would-be work.
+- Fresh installation, populated `0.31.0 -> 0.32.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M34 qualification pass
+  in `tests/m35.sh complete` against the exact candidate artifact.
+- Independent PostgreSQL users complete proposal comparison and hypothetical
+  change tasks through public SQL without private catalogs, internal UUIDs,
+  undocumented help, or a separate usage model.
+- Every inherited M0–M34 gate passes. No P0 or P1 remains. Retained limitations
+  are explicit, and the exact `0.32.0` artifact passes its release gate.
 
 ---
 
