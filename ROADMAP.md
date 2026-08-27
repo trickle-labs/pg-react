@@ -8,8 +8,8 @@
 
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
-> `1.0.0` and its feature freeze are postponed indefinitely. M37 is complete;
-> M38 is the current milestone. The project will
+> `1.0.0` and its feature freeze are postponed indefinitely. M38 is complete;
+> M39 is the current milestone. The project will
 > begin a complete feature freeze and define a new `1.0.0` release-candidate
 > sequence only after it has enough user traction and the maintainers explicitly
 > decide it is ready.
@@ -2951,28 +2951,235 @@ unchanged source and authoritative-state checksums.
 
 ---
 
-## Proposed sequence after M38
+## Stage 39 — Simulation qualification
+
+**Outcome:** make the M34–M38 simulation and comparison functions one qualified
+contract. M39 proves that current comparison, hypothetical changes, replay,
+backtesting, and why-changed evidence agree on findings, limits, authorization,
+public result identity, and failure behavior. It adds no new kind of simulation
+or explanation.
+
+**Release boundary:** extension `0.36.0`. M39 qualifies the existing
+`compare`, `compare_results`, `replay`, `replay_results`, `backtest`, and
+`backtest_results` functions. It may add versioned, opt-in metadata or align
+validation when qualification exposes a contract gap, but it adds no top-level
+simulation verb or second evaluator. Existing overloads keep their documented
+names, defaults, and return types. Calls without a new option keep their exact
+output. The packaged candidate must pass `tests/m39.sh complete`.
+Completing M39 does not start a v1 feature freeze or release-candidate cycle.
+
+**Entry gate:** the exact `v0.35.0` artifacts are published and every M38 gate
+passes. Before the M39 contract freezes, capture exact outputs from all M34–M38
+functions for the same declarations, targets, facts, proposed changes, supplied
+history, sampled times, and frontiers. The fixtures cover successful, partial,
+rejected, unauthorized, cancelled, and interrupted calls. They also cover
+fresh installation, populated upgrade, restart, restore, and an isolated
+production run used only as a semantic oracle.
+
+### Deliverables
+
+- One versioned qualification contract for all M34–M38 functions. The contract
+  defines common findings, option and limit behavior, authorization, evidence,
+  completeness, public identities, digests, costs, and no-mutation guarantees.
+  Operation-specific fields and finding codes remain explicit.
+- One compatibility matrix that maps each overload to its accepted inputs,
+  defaults, result sets, sides, difference states, explanation states, limits,
+  findings, and behavior for missing or unknown options.
+- One cross-operation conformance corpus. It runs the same supported policy and
+  fact scenarios through current comparison, an empty and non-empty hypothetical
+  change set, replay, same-policy and two-policy backtesting, and why-changed
+  evidence wherever those operations have equivalent meaning.
+- One isolated-production oracle that executes the same declaration against the
+  same facts and logical time in a disposable database. Qualification compares
+  the semantic result, lifecycle transition, decision, and would-be work from
+  simulation with the production outcome, then discards the oracle database.
+- Canonical public result identities and digests that let a test relate the same
+  target, subject, result, replay point, side, lifecycle transition, and work
+  item across operations without private UUIDs or physical row order.
+- Stable cross-operation finding families for invalid input, incompatible
+  targets, stale facts, schema drift, unauthorized data, RLS, ambiguity, cycles,
+  incomplete evidence, resource limits, and changed authoritative state. Each
+  function keeps its documented milestone-prefixed code.
+- Reproducible semantic cost counters and separately labeled elapsed time. The
+  contract accounts for nested work, including both backtest sides and optional
+  why-changed expansion, without counting the same work twice.
+- Extension `0.36.0`, adjacent upgrade SQL from `0.35.0`, an M39 contract,
+  compatibility matrix, API and finding inventories, conformance corpus,
+  benchmark, migration evidence, known limitations, release notes, final
+  checklist, and executable qualification evidence.
+
+### Supported boundary
+
+- M39 qualifies only the public M34–M38 functions and their documented
+  overloads. It does not introduce an umbrella function, saved simulation job,
+  stored scenario, or alternate result format.
+- Each operation keeps its existing meaning. Current comparison reads one
+  current authoritative snapshot. Hypothetical comparison applies one ordered
+  typed change set. Replay evaluates one supplied snapshot and finite history.
+  Backtesting evaluates at most two policy versions against that same history.
+  Why-changed annotates only a supported difference returned by its originating
+  call.
+- Cross-operation equivalence applies only when the inputs describe the same
+  declaration, target, facts, logical time, frontier, history point, caller,
+  options, and limits. M39 does not equate operations with different inputs or
+  make current facts stand in for missing history.
+- The production oracle exists only in qualification. It uses a disposable
+  database and the public production interfaces. M39 does not expose a mode that
+  runs consequences or external effects during simulation.
+- Common finding families define shared meaning and required detail fields.
+  Existing operation-specific codes remain part of their published contracts.
+  Qualification does not hide a difference that callers can observe.
+- Common identities use public target kinds and names, typed business keys,
+  result keys, replay ordinals, side labels, and modeled evidence identities.
+  Generated UUIDs, transaction IDs, query plans, and physical row order do not
+  establish semantic equality.
+- Every result stays within the originating operation's bounds. A nested
+  operation reports both its per-part costs and the complete call cost. A
+  partial result states the exact reached bound and does not claim an exact
+  omitted count unless the evaluator can prove it.
+- The caller must be authorized for the target and every source needed by the
+  selected operation. M39 preserves the inherited fail-closed RLS boundary and
+  adds no redaction mode.
+- The same frozen inputs and caller security context produce the same semantic
+  output across repeated calls, restart, restore, adjacent upgrade, and
+  supported standby promotion. Separately labeled elapsed time may differ.
+- Every successful or rejected call remains read-only. Cancellation, timeout,
+  backend termination, crash, and recovery cannot leave source rows, pg-react
+  state, lifecycle, work, attempts, history, frontiers, evidence, or effects
+  from a simulation.
+
+### Explicit non-goals
+
+- New comparison, change-set, replay, backtest, or explanation semantics. M39
+  qualifies the existing capabilities instead of extending them.
+- General why-not answers. M40 owns bounded why-not for finite cases that
+  pg-react models.
+- A public path from an outcome through every intermediate result to
+  authoritative facts. M41 owns bounded end-to-end causal paths.
+- Retaining evidence after ordinary source data or detailed history expires.
+  M42 owns opt-in evidence snapshots.
+- Describing arbitrary SQL edits in business terms. M43 owns semantic policy
+  differences for fields that pg-react models.
+- A shared explanation contract for current outcomes, decisions, work, retained
+  evidence, and future explanation types. M44 owns explanation qualification.
+- History capture or reconstruction, point-in-time recovery, durable simulation
+  jobs, cross-database comparison, more than two evaluated sides, or another
+  evaluator.
+- Policy scoring, ranking, optimization, recommendation, promotion, approval,
+  deployment, rollback orchestration, forecasting, visual or AI authoring,
+  client SDKs, custom DSLs, human workflows, synchronous network actions, or
+  exactly-once external delivery.
+- New applicability, derivation, recursion, negation, aggregation, temporal,
+  decision-selection, lifecycle, delivery, or consequence behavior.
+
+### Decisions to close before the M39 contract freezes
+
+- Exact common finding families, required detail fields, operation-specific code
+  mappings, and compatibility behavior for missing, null, false, malformed, and
+  unknown options.
+- Exact common option names, defaults, units, minimums, maximums, nesting rules,
+  and precedence when one limit bounds several result sets or both backtest
+  sides.
+- Exact public identity and digest relationships among current, proposed,
+  previous, current-step, baseline, candidate, difference, lifecycle, work, and
+  why-changed rows.
+- Exact equivalence rules for current comparison, an empty hypothetical change
+  set, replay points, same-policy backtesting, and isolated production runs.
+  Define which generated values are excluded from semantic equality.
+- Exact canonical serialization and ordering for typed keys, JSON values,
+  result sets, replay points, sides, evidence, findings, costs, and partial
+  results.
+- Exact rules for complete, partial, unavailable, unsupported, ambiguous, and
+  cyclic evidence. Define when a count or digest is exact at a reached bound.
+- Exact authorization checks for targets, declarations, current sources,
+  supplied snapshots, change sets, history, evidence, roles, and `PUBLIC`.
+- Exact serialization with concurrent declaration, source-schema,
+  authorization, frontier, extension, restart, recovery, and cancellation
+  changes. Define abort, retry, timeout, and cleanup behavior.
+- Exact per-operation and whole-call counters for rows, changes, steps,
+  differences, causes, support nodes, fan-out, depth, memory, temporary storage,
+  elapsed time, and generated would-be work.
+- Exact corpus profiles, production-oracle procedure, performance budgets,
+  populated-upgrade and rollback evidence, and `tests/m39.sh complete` inputs.
+
+### Exit gates
+
+- Every supported cross-operation fixture produces the exact frozen semantic
+  output. Current comparison agrees with an empty hypothetical change set at the
+  same snapshot. Replay points agree with equivalent hypothetical comparisons.
+  Same-policy backtesting reports equal sides and no invented difference.
+- For each supported target kind, an isolated production run over the same
+  declaration, facts, logical time, and frontier produces the same semantic
+  results, lifecycle transitions, decisions, and work as simulation predicts.
+  Qualification compares public identities and payload digests, not generated
+  storage identifiers or elapsed time.
+- Every equivalent invalid, stale, unauthorized, RLS, ambiguous, cyclic,
+  incomplete, and over-limit fixture returns the exact operation-specific
+  finding and required shared detail fields. The compatibility matrix explains
+  every intentional difference between functions.
+- Every complete result exposes the exact target, declaration, input, snapshot,
+  change-set, replay, side, comparison, result, and explanation identities that
+  apply to that operation. Every digest reconciles with the frozen canonical
+  serialization.
+- Every partial, unavailable, or unsupported result reports the exact available
+  metadata and bound. It does not present omitted rows, causes, counts, or
+  evidence as complete.
+- Repeated calls return byte-for-byte identical semantic output across physical
+  source order, supported plans, restart, restore, adjacent upgrade, and
+  supported standby promotion. Measured elapsed time may differ.
+- Successful, rejected, cancelled, timed-out, terminated, crashed, and recovered
+  calls leave exact source and authoritative-state checksums unchanged. No
+  hypothetical row, lifecycle state, work item, attempt, frontier, or evidence
+  survives the call.
+- Every documented role and `PUBLIC` case returns the exact authorized or denied
+  result across all functions without leaking a target, source, subject, result,
+  count, or evidence value. Every security-definer function has the frozen safe
+  search path.
+- One versioned corpus contains at least three production-shaped workflows. It
+  records exact inputs, outputs, findings, identities, digests, bounds, costs,
+  checksums, and production-oracle results for all applicable operations.
+- Representative and supported-limit profiles satisfy the published budgets.
+  Evidence identifies dominant scans, row copies, replay work, side alignment,
+  difference expansion, cause expansion, memory, and temporary storage.
+- Migration evidence moves one production-shaped safe-change workflow from
+  separate scripts or ad hoc test databases to the qualified public functions.
+  Independent PostgreSQL users complete proposal, simulation, difference, and
+  explanation tasks without private catalogs, internal UUIDs, undocumented
+  joins, or a separate usage model for each function.
+- The published compatibility matrix covers every overload, option, target kind,
+  source kind, result set, side, difference state, explanation state, finding,
+  limit, role, and supported installation path. The release simplification
+  review records which contract distinction was kept, aligned, or removed.
+- Fresh installation, populated `0.35.0 -> 0.36.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M38 qualification pass
+  in `tests/m39.sh complete` against the exact candidate artifact.
+- Every inherited M0–M38 gate passes. No P0 or P1 remains. Retained limitations
+  are explicit, and the exact `0.36.0` artifact passes its release gate.
+
+---
+
+## Proposed sequence after M39
 
 The project still commits to one milestone at a time. The five items below are
 the most relevant next steps, not implementation or release commitments. Each
-must earn selection from M38 evidence and user traction.
+must earn selection from M39 evidence and user traction.
 
-1. **M39 — Simulation qualification.** Prove that current comparison,
-   hypothetical changes, replay, backtesting, and why-changed evidence share one
-   contract for findings, limits, authorization, result identity, and failure.
-2. **M40 — Bounded why-not.** Explain a missing result only for finite cases
+1. **M40 — Bounded why-not.** Explain a missing result only for finite cases
    that pg-react models, such as a missing input, failed threshold, inactive
    policy period, or decision with no eligible candidate.
-3. **M41 — End-to-end causal paths.** Connect existing bounded evidence from a
+2. **M41 — End-to-end causal paths.** Connect existing bounded evidence from a
    decision or work item through lifecycle and derived facts to authoritative
    facts, using public business identities.
-4. **M42 — Evidence snapshots.** Retain compact, opt-in evidence for selected
+3. **M42 — Evidence snapshots.** Retain compact, opt-in evidence for selected
    audited outcomes after ordinary source data or detailed history expires,
    without creating a database snapshot or second source of truth.
-5. **M43 — Semantic policy differences.** Describe changes to fields that
+4. **M43 — Semantic policy differences.** Describe changes to fields that
    pg-react models, including applicability, effective time, priority,
    parameters, results, and action bindings, without claiming to understand
    arbitrary SQL text.
+5. **M44 — Explanation qualification.** Establish one bounded explanation
+   contract for current outcomes, comparisons, decisions, and work, with shared
+   ordering, authorization, retention, identity, cost, and failure rules.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 
