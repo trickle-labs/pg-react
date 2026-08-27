@@ -6,9 +6,9 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M35 / extension `0.32.0` adds read-only comparison of typed hypothetical row
-changes before they reach production. The existing M34 comparison functions
-remain available. The repository retains the prepared `1.0.0-rc.1` candidate,
+M36 / extension `0.33.0` adds read-only replay of a typed history supplied by
+the caller. It does not read or rebuild old source data. The M34 comparison and
+M35 hypothetical-change functions remain available. The repository retains the prepared `1.0.0-rc.1` candidate,
 but `1.0.0` and its complete feature freeze are postponed indefinitely.
 Development continues one milestone at a time. Start with the
 [documentation home](docs/index.md).

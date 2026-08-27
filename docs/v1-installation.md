@@ -143,7 +143,7 @@ compatibility procedures that explicitly require it.
 ## Managed runtime compatibility
 
 The managed runtime dynamically supports installed extension versions
-`0.31.0`, `1.0.0-rc.N`, and `1.0.0`, running worker cycles without requiring
+`0.31.0`, `0.32.0`, `0.33.0`, `1.0.0-rc.N`, and `1.0.0`, running worker cycles without requiring
 version-specific manual intervention.
 
 Use the [current operations runbook](v1-operations.md) for backlog, recovery,

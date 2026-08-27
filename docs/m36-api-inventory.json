@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "milestone": "M36",
+  "extension_version": "0.33.0",
+  "predecessor": "M35 / 0.32.0",
+  "status": "additive caller-supplied historical replay",
+  "ordinary": {
+    "functions": ["pgreact.replay", "pgreact.replay_results"],
+    "overloads": [
+      "pgreact.replay(declaration, target, jsonb, jsonb, jsonb)",
+      "pgreact.replay_results(declaration, target, jsonb, jsonb, jsonb)"
+    ],
+    "snapshot_fields": ["relations", "source_frontier", "sampled_time", "event_time_watermark"],
+    "relation_fields": ["relation", "rows", "schema_fingerprint"],
+    "step_fields": ["ordinal", "source_frontier", "sampled_time", "event_time_watermark", "change_set", "final"],
+    "result_sets": ["initial", "step", "delta", "final"],
+    "operations": ["INSERT", "UPDATE", "DELETE"]
+  },
+  "inherited": {
+    "contract": "M34 and M35 / 0.31.0 and 0.32.0",
+    "policy": "Existing comparison functions and production semantics remain unchanged."
+  },
+  "no_effect_boundary": [
+    "no source reads for historical data",
+    "no source writes",
+    "no deployment",
+    "no lifecycle or durable-work mutation",
+    "no consequence or external delivery",
+    "no frontier advancement"
+  ]
+}
