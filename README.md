@@ -6,9 +6,10 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M37 / extension `0.34.0` compares two policy versions over the same typed
-history supplied by the caller. It does not read or rebuild old source data.
-The M34 comparison, M35 hypothetical-change, and M36 replay functions remain available. The repository retains the prepared `1.0.0-rc.1` candidate,
+M38 / extension `0.35.0` can explain why a bounded comparison result changed.
+Why-changed evidence is opt-in, read-only, and based only on the history and
+provenance supplied to the existing comparison, replay, or backtest call. The
+M34-M37 functions remain available. The repository retains the prepared `1.0.0-rc.1` candidate,
 but `1.0.0` and its complete feature freeze are postponed indefinitely.
 Development continues one milestone at a time. Start with the
 [documentation home](docs/index.md).
@@ -81,6 +82,9 @@ complete managed-runtime workflow.
 - **Safe changes:** `pgreact.compare()` and `pgreact.compare_results()` compare
   current and proposed declarations over current authoritative facts without
   deploying or executing effects.
+- **Why a result changed:** add `{"why_changed": true}` to a supported
+  comparison, replay, or backtest call to receive bounded causes and public
+  evidence. Leave it out to keep the earlier result unchanged.
 - **Advanced reasoning:** installed public surfaces include maintained derived
   facts and logical support, bounded positive recursion, stratified negation
   and aggregation, shared conditions, temporal and effective-dated policies,

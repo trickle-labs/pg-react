@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "milestone": "M38",
+  "extension_version": "0.35.0",
+  "finding_shape": ["code", "severity", "blocking", "target", "field", "message", "hint", "details"],
+  "severity": ["ERROR", "WARNING", "INFO"],
+  "codes": [
+    {"code": "M38_OPTIONS_INVALID", "severity": "ERROR"},
+    {"code": "M38_UNKNOWN_FIELD", "severity": "ERROR"},
+    {"code": "M38_EVIDENCE_UNAVAILABLE", "severity": "WARNING"},
+    {"code": "M38_EVIDENCE_PARTIAL", "severity": "WARNING"},
+    {"code": "M38_EVIDENCE_UNSUPPORTED", "severity": "WARNING"},
+    {"code": "M38_EVIDENCE_AMBIGUOUS", "severity": "WARNING"},
+    {"code": "M38_EVIDENCE_CYCLIC", "severity": "WARNING"},
+    {"code": "M38_EVIDENCE_LIMIT", "severity": "WARNING"},
+    {"code": "M38_NO_EFFECT", "severity": "INFO"}
+  ],
+  "inherited_rejections": "M34-M37 keep their validation, authorization, schema, RLS, stale-image, ambiguity, cycle, and resource findings."
+}

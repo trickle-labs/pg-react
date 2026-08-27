@@ -1,8 +1,9 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M37 / extension
-`0.34.0` is the current qualified release. It compares two policy versions over
-the same caller-supplied typed history. M38 is the current development
+This is the starting point for current pg-react documentation. M38 / extension
+`0.35.0` is the current M38 release candidate. It adds opt-in, bounded
+explanations to existing comparison results. M38 is complete in this tree; later milestones remain
+proposals until selected from evidence and user traction.
 milestone. The prepared `1.0.0-rc.1` candidate remains outside the current
 release sequence.
 
@@ -21,6 +22,7 @@ release sequence.
 - [Hypothetical Fact Simulation](m35-api-reference.md)
 - [Historical Replay](m36-api-reference.md)
 - [Comparative Backtesting](m37-api-reference.md)
+- [Why-changed comparison](m38-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
