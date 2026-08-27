@@ -9,5 +9,5 @@
 - Evidence is bounded. A partial result does not report exact delta counts.
 - Source relation checksums detect a changed source during the call. M35 does
   not lock the source for a long-running simulation.
-- M36 historical replay is only a roadmap option. M35 does not read or rebuild
-  historical source data.
+- M35 does not read or rebuild historical source data. M36 defines a separate
+  caller-supplied historical replay boundary.

@@ -39,5 +39,5 @@ ALTER EXTENSION pg_react UPDATE TO '0.32.0';
 ```
 
 The release gate is `tests/m35.sh complete`. Tag and push `v0.32.0` after the
-full packaged lane passes. The next logical milestone is M36, historical
-replay. The roadmap lists it as a planning option, not a committed release.
+full packaged lane passes. The next planned milestone is M36, caller-supplied
+historical replay.

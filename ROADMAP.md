@@ -9,7 +9,7 @@
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
 > `1.0.0` and its feature freeze are postponed indefinitely. Development
-> continues one milestone at a time from M35. The project will begin a complete
+> continues one milestone at a time from M36. The project will begin a complete
 > feature freeze and define a new `1.0.0` release-candidate sequence only after
 > it has enough user traction and the maintainers explicitly decide it is ready.
 
@@ -2077,7 +2077,8 @@ compatibility. The release-candidate cycle follows M34.
 **Release boundary:** extension `0.31.0`. M34 adds a read-only comparison
 capability to the M33 core and is the v1 feature boundary. It does not change
 production rule semantics; comparison-specific helpers must satisfy the
-qualified semantic-equivalence fixtures. The next release is `1.0.0-rc.1`.
+qualified semantic-equivalence fixtures. It does not start a v1
+release-candidate cycle.
 
 **Entry gate:** extension `0.30.0` is published and every M33 gate passes. Before implementation, freeze one exact fixture covering unchanged, added, removed, and changed results; decisions; applicability; would-be work; evidence truncation; authorization; and a selected-state no-effect checksum whose scope is explicit.
 
@@ -2318,18 +2319,216 @@ identity column; unsupported source and identity shapes fail closed.
 
 ---
 
-## Proposed sequence after M35
+## Stage 36 — Historical replay
 
-The project considers and implements one milestone at a time. M36 and the
-following successor milestones are planning options, not implementation or
+**Outcome:** let users replay one frozen policy over a caller-supplied typed
+initial snapshot and a finite, deterministically ordered sequence of historical
+fact changes. M36 advances explicit database time, event time, and source
+frontiers and returns exact bounded matches, decisions, lifecycle transitions,
+would-be work, evidence, and costs without changing source or pg-react state.
+
+**Release boundary:** extension `0.33.0`. M36 adds read-only `pgreact.replay`
+and `pgreact.replay_results` operations. It composes the M35 typed row-image
+simulation model and preserves its authorization, semantic-equivalence,
+evidence, resource-limit, and no-effect contracts. `tests/m36.sh complete` is
+the release gate for the exact packaged candidate. Completing M36 does not start
+a v1 feature freeze or release-candidate cycle.
+
+**Entry gate:** the exact `v0.32.0` artifacts are published and every M35 gate
+passes. Before the M36 contract freezes, capture exact replay outputs for a
+complete initial snapshot and ordered insert, update, delete, and time-only
+steps. The fixture also covers applicability, derived, temporal, decision,
+late-input, finality, duplicate, nonmonotone, incomplete, unauthorized, and
+over-limit cases. It freezes bounded evidence and the complete source-schema,
+source-data, and authoritative-state checksums.
+
+### Deliverables
+
+- `pgreact.replay` and `pgreact.replay_results` accept one frozen deployed
+  `rule`, `decision_program`, or `policy_set`, or one canonical declaration,
+  with a supplied initial snapshot, replay steps, and options. Existing M34 and
+  M35 comparison functions remain unchanged.
+- One typed initial-snapshot contract over every supported direct source
+  relation. The input names each relation and supplies every starting row.
+  Replay binds each resolved relation-schema fingerprint. Empty relations are
+  explicit rather than inferred from missing input.
+- One replay-step contract. Each step names a unique ordinal, source frontier,
+  sampled database time, event-time watermark, and an ordered M35 change set.
+  Time-only steps advance temporal evaluation without inventing a fact change.
+- Read-only evaluation of the initial snapshot and each replay step through the
+  existing applicability, derivation, temporal, decision, lifecycle, and work
+  semantics. Each change validates against the preceding replay state.
+- Bounded relational initial, step, and final results with causal evidence for
+  facts, support, applicability, thresholds, deadlines, derived facts, decision
+  candidates, winners, lifecycle transitions, and would-be work.
+- Stable findings for missing, duplicate, conflicting, nonmonotone, stale,
+  unauthorized, unsupported, ambiguous, cyclic, invalid late or finalized,
+  incomplete, and over-limit input. Every rejected replay has the same exact
+  no-mutation guarantee as a successful replay.
+- Reproducible cost evidence and documented limits for snapshot rows, replay
+  steps, changed rows, affected subjects, dependency fan-out, recursion depth,
+  temporal transitions, reevaluation, memory, temporary storage, and runtime.
+- Extension `0.33.0`, adjacent upgrade SQL from `0.32.0`, a versioned M36
+  contract, API reference, API and finding inventories, examples, migration
+  notes, known limitations, release notes, and executable qualification
+  evidence.
+
+### Supported boundary
+
+- M36 supports the same targets, direct source relations, row-image rules, and
+  single non-null `bigint` identities as M35. Unsupported target, source,
+  schema, or identity shapes fail during validation.
+- One replay evaluates one frozen declaration over one complete initial
+  snapshot and one finite sequence of steps. The snapshot binds the declaration
+  and target, every evaluated relation and schema fingerprint, applicability,
+  starting database time, event-time watermark, source frontier, and pg-react
+  authoritative checksum.
+- The caller supplies the complete initial snapshot and every later change. A
+  replay does not read, acquire, retain, infer, or reconstruct missing source
+  history. Current source rows are not substituted for missing historical rows.
+- Initial rows and changes are typed PostgreSQL rows. Each change keeps the M35
+  insert, update, delete, identity, before-image, conflict, and ordinal rules.
+  SQL remains the escape hatch. M36 adds no event language or alternate fact
+  model.
+- Steps run in explicit ordinal order. Every step records its source frontier,
+  sampled database time, and event-time watermark, and no value advances
+  implicitly. Existing idempotency, late-input, and finality semantics remain
+  authoritative. Replay reports the read-only outcome and never creates a
+  maintenance barrier.
+- The initial snapshot and replay steps use one frozen source schema. Historical
+  DDL, type changes, generated expressions, triggers, defaults, sequences,
+  cascades, and volatile functions are not replayed. The caller supplies final
+  typed row images.
+- Applicability, recursion, negation, temporal behavior, decisions, derived
+  facts, lifecycle, and work keep their production semantics and published
+  bounds. Replay-local lifecycle and work rows describe what would have happened
+  and never become production identities or durable state.
+- The same declaration, snapshot, steps, authorization, and limits produce the
+  same semantic output. A concurrent change to the target declaration or an
+  evaluated source schema aborts the replay instead of mixing revisions.
+- Callers need the M35 target authority and `SELECT` on every represented source
+  relation. Sources with row-level security fail closed. M36 returns no redacted
+  rows and adds no broader disclosure mode. M36 reads current catalogs only to
+  validate relation schemas and authorization; it never substitutes current
+  relation data for supplied history.
+- No replay mutates a source, pg-react state, lifecycle, work, attempts, history,
+  frontiers, or effects. It deploys no policy, executes no consequence, and
+  performs no external delivery.
+
+### Explicit non-goals
+
+- Comparative backtesting across policy versions, why-changed comparison,
+  automatic policy selection, or claims about history that the caller did not
+  supply. M37 owns two-version backtesting, and M38 owns why-changed comparison.
+- Change-data capture, logical decoding, audit logging, history retention,
+  history reconstruction, point-in-time recovery, a scenario store, or a second
+  source of truth.
+- Historical DDL or execution of source DML, triggers, defaults, sequences,
+  cascades, volatile functions, consequences, or external calls.
+- Durable replay jobs, scheduling, policy promotion, approvals, human workflows,
+  rollback orchestration, a custom DSL, client SDKs, visual or AI authoring, or
+  a second evaluator.
+- New applicability, recursion, negation, temporal, decision-selection,
+  lifecycle, delivery, or exactly-once semantics.
+
+### Decisions to close before the M36 contract freezes
+
+- Exact function signatures, target selection, initial-snapshot and replay-step
+  shapes, relation and schema identity, row representation, key types and arity,
+  ordinal types, and unknown-field behavior.
+- Exact snapshot completeness proof, empty-relation representation, initial
+  applicability state, declaration and source-schema pinning, canonical row
+  order, and snapshot digest.
+- Exact step ordering, batching, frontier identity and progression, database and
+  event-time progression, time-only steps, equal times, late input, finality,
+  gaps, duplicates, and backward-value behavior.
+- Exact bootstrap and transition behavior for applicability, derived facts,
+  recursion, negation, temporal corrections and finalizations, decisions,
+  lifecycle identities, refraction, coalescing, and would-be work.
+- Exact envelope and relational-result shapes, initial, step, and final rows,
+  canonical order, counts, completeness, truncation, declaration, snapshot, and
+  replay digests, causal links, cost fields, and finding codes.
+- Exact ownership, source access, role grants, fixed security-definer search
+  paths, protected-value handling, and unauthorized result contracts. M35 RLS
+  rejection and no-row behavior remain unchanged.
+- Exact serialization with concurrent deployment, replacement, removal, source
+  DDL, recovery, and extension upgrade. Define abort, retry, cancellation,
+  timeout, restart, and no-mutation behavior for each boundary.
+- Exact snapshot-row, replay-step, change-row, affected-subject, fan-out, depth,
+  evidence, latency, write, WAL, memory, and temporary-storage limits. Freeze the
+  benchmark profiles, upgrade and rollback evidence, and `tests/m36.sh complete`
+  inputs.
+
+### Exit gates
+
+- Every complete supported replay returns the exact initial, step, and final
+  output of applying the same snapshot, ordered changes, times, frontiers, and
+  frozen policy in an isolated reference database. A limited replay returns the
+  exact canonical bounded output and explicit incomplete state. Both leave the
+  exact source and authoritative checksums unchanged.
+- Match, decision, lifecycle, temporal, and would-be work rows reconcile with
+  each complete step and the final envelope. Partial output identifies its exact
+  bound and never presents partial counts or evidence as complete.
+- Every missing, duplicate, conflicting, nonmonotone, stale, unauthorized,
+  unsupported, ambiguous, cyclic, invalid late or finalized, incomplete, and
+  over-limit fixture returns its exact stable finding and leaves the complete
+  no-mutation checksum unchanged.
+- Bounded causal evidence accounts for every reported transition through input
+  facts, support, applicability, derived facts, temporal boundaries, or decision
+  inputs. The result identifies unavailable or truncated evidence.
+- Repeated replays return byte-for-byte identical semantic output across
+  physical snapshot row order, query plans, restart, restore, adjacent upgrade,
+  and supported standby promotion for the same frozen inputs and ordinals.
+  Measured elapsed time may differ.
+- Cancellation, timeout, crash, restart, recovery, and concurrent production
+  activity cannot leak replay state or return an answer that mixes declaration,
+  schema, time, or frontier revisions.
+- Every documented role and `PUBLIC` case returns the exact authorized or denied
+  result without leaking protected source, target, subject, row, result, or
+  evidence values. RLS sources fail with the exact M36 finding, and every
+  security-definer function has the frozen safe search path.
+- One versioned reference corpus contains at least three production-shaped
+  workloads. It records exact snapshots, replay steps, results, rejected inputs,
+  declaration, snapshot, and replay digests, time and frontier metadata,
+  public-SQL task time, and declared latency, write, WAL, memory, storage, and
+  recovery-to-authoritative-state budgets.
+- Migration evidence moves one production-shaped replay task from an
+  application-owned script or copied test database to M36 public SQL.
+  User-evaluation records cover both successful tasks and tasks blocked by
+  installation, preload, managed-service, RLS, compatibility, or missing-history
+  limits.
+- The published compatibility matrix rejects every unsupported combination
+  during validation. The release simplification review records which API or
+  capability was kept, narrowed, unified, or removed.
+- Every complete result exposes the exact declaration, snapshot, and replay
+  digests, starting and ending frontiers, sampled times, applicability identity,
+  cost, and no-mutation checksums. Partial results expose the same available
+  metadata and their exact completeness bound.
+- Representative and supported-limit profiles satisfy the published budgets and
+  expose dominant scans, fan-out, cascade depth, reevaluation, temporary storage,
+  and generated would-be work per replay step and for the complete run.
+- Fresh installation, populated `0.32.0 -> 0.33.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M35 qualification pass
+  in `tests/m36.sh complete` against the exact candidate artifact.
+- Independent PostgreSQL users complete historical replay tasks through public
+  SQL without private catalogs, internal UUIDs, undocumented help, copied source
+  databases, or a separate usage model.
+- Every inherited M0–M35 gate passes. No P0 or P1 remains. Retained limitations
+  are explicit, and the exact `0.33.0` artifact passes its release gate.
+
+---
+
+## Proposed sequence after M36
+
+The project considers and implements one milestone at a time. M37 and the
+following successor milestone are planning options, not implementation or
 release commitments. Selection depends on evidence from the preceding
 milestone and user traction. Each selected milestone must compose the
-production semantics and the M34/M35 comparison model rather than create
-another evaluator.
+production semantics and the M34–M36 comparison and replay model rather than
+create another evaluator.
 
-1. **M36 — Historical replay.** Evaluate one frozen policy over a supplied initial snapshot and deterministically ordered historical inputs with explicit time and frontier progression, without claiming that pg-react acquires, stores, or reconstructs missing source history.
-2. **M37 — Comparative backtesting.** Run two frozen policy versions over identical historical input and return reproducible differences in activations, decisions, would-be work, resource use, and bounded changed-subject evidence by composing simulation and replay.
-3. **M38 — Why-changed comparison.** Explain bounded causal differences between versions, frontiers, or revisions by composing existing provenance and comparison evidence, identifying changed support, facts, applicability, thresholds, deadlines, or winning candidates.
+1. **M37 — Comparative backtesting.** Run two frozen policy versions over identical historical input and return reproducible differences in activations, decisions, would-be work, resource use, and bounded changed-subject evidence by composing simulation and replay.
+2. **M38 — Why-changed comparison.** Explain bounded causal differences between versions, frontiers, or revisions by composing existing provenance and comparison evidence, identifying changed support, facts, applicability, thresholds, deadlines, or winning candidates.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 
