@@ -5,7 +5,7 @@ prepared `1.0.0-rc.1` candidate: the M33 ordinary runtime plus the M34 read-only
 comparison surface. It does not set the eventual v1 feature boundary.
 
 The project has postponed `1.0.0` and its complete feature freeze indefinitely.
-Development continues one milestone at a time from M36, with separate contracts,
+Development continues one milestone at a time from M37, with separate contracts,
 release versions, and qualification gates. Exact package versions and upgrade
 paths become contractual through qualified release artifacts and migration scripts.
 

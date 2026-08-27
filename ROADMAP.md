@@ -9,7 +9,7 @@
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
 > `1.0.0` and its feature freeze are postponed indefinitely. Development
-> continues one milestone at a time from M36. The project will begin a complete
+> continues one milestone at a time from M37. The project will begin a complete
 > feature freeze and define a new `1.0.0` release-candidate sequence only after
 > it has enough user traction and the maintainers explicitly decide it is ready.
 
@@ -2518,17 +2518,229 @@ source-data, and authoritative-state checksums.
 
 ---
 
-## Proposed sequence after M36
+## Stage 37 — Comparative backtesting
 
-The project considers and implements one milestone at a time. M37 and the
-following successor milestone are planning options, not implementation or
-release commitments. Selection depends on evidence from the preceding
-milestone and user traction. Each selected milestone must compose the
-production semantics and the M34–M36 comparison and replay model rather than
-create another evaluator.
+**Outcome:** let users run two frozen policy versions over one caller-supplied
+typed history and see their differences at every replay point. M37 returns
+exact bounded differences in matches, decisions, lifecycle transitions,
+would-be work, deterministic resource counters, and changed-subject evidence.
+It also reports measured costs and leaves source and pg-react state unchanged.
 
-1. **M37 — Comparative backtesting.** Run two frozen policy versions over identical historical input and return reproducible differences in activations, decisions, would-be work, resource use, and bounded changed-subject evidence by composing simulation and replay.
-2. **M38 — Why-changed comparison.** Explain bounded causal differences between versions, frontiers, or revisions by composing existing provenance and comparison evidence, identifying changed support, facts, applicability, thresholds, deadlines, or winning candidates.
+**Release boundary:** extension `0.34.0`. M37 adds read-only
+`pgreact.backtest` and `pgreact.backtest_results` operations. It composes the
+M34 comparison, M35 typed row-image simulation, and M36 replay models and
+preserves their authorization, semantic-equivalence, evidence, resource-limit,
+and no-effect contracts. `tests/m37.sh complete` is the release gate for the
+exact packaged candidate. Completing M37 does not start a v1 feature freeze or
+release-candidate cycle.
+
+**Entry gate:** the exact `v0.33.0` artifacts are published and every M36 gate
+passes. Before the M37 contract freezes, capture exact outputs for two policy
+versions that produce equal and different matches, decisions, lifecycle
+transitions, and would-be work over one shared replay. The fixture also covers
+incompatible declarations, partial evidence, unauthorized input, concurrent
+baseline-declaration and source-schema changes, and every inherited M36
+rejection. It freezes both declaration digests, the shared snapshot and replay
+digests, and the complete source and authoritative-state checksums.
+
+### Deliverables
+
+- `pgreact.backtest` and `pgreact.backtest_results` accept one deployed baseline
+  target, one optional canonical candidate declaration, one M36 initial
+  snapshot, replay steps, and options. M37 freezes the deployed declaration at
+  call start. A null candidate compares that declaration with itself. Existing
+  M34, M35, and M36 functions remain unchanged.
+- One shared-history contract. M37 validates the initial snapshot, ordered row
+  changes, database times, event-time watermarks, source frontiers, finality,
+  and limits once and applies those exact inputs to both policy versions.
+- Read-only evaluation of both versions through the existing applicability,
+  derivation, temporal, decision, lifecycle, and work semantics. M37 compares
+  two production-equivalent M36 results rather than adding another evaluator.
+- Bounded relational initial, step, and final results for each version, plus
+  canonical version-to-version differences in matches, decisions, lifecycle
+  transitions, would-be work, costs, and affected subjects.
+- Bounded changed-subject evidence that identifies the replay point and the
+  result rows that differ. M37 reports the evidence already available from each
+  replay side; it does not claim a complete why-changed explanation.
+- Stable findings for missing, duplicate, mismatched, incompatible, stale,
+  unauthorized, unsupported, ambiguous, cyclic, nonmonotone, incomplete, and
+  over-limit input. Every rejected backtest has the same no-mutation guarantee
+  as a successful backtest.
+- Reproducible semantic cost counters, separately labeled elapsed-time
+  measurements, and documented limits for snapshot rows, replay steps, changed
+  rows, affected subjects, result alignment, dependency fan-out, recursion
+  depth, temporal transitions, reevaluation, memory, temporary storage, and
+  runtime for each side and the comparison.
+- Extension `0.34.0`, adjacent upgrade SQL from `0.33.0`, a versioned M37
+  contract, API reference, API and finding inventories, examples, migration
+  notes, known limitations, release notes, and executable qualification
+  evidence.
+
+### Supported boundary
+
+- M37 supports the same target kinds, direct source relations, row-image rules,
+  and single non-null `bigint` identities as M36. Unsupported target, source,
+  schema, identity, or policy-pair shapes fail during validation.
+- One backtest compares the declaration frozen from one deployed baseline target
+  with one canonical candidate declaration over one complete initial snapshot
+  and one finite replay sequence. The candidate must have the same target kind
+  and name, represented source relation, source-schema fingerprint, identity,
+  and subject shape as the baseline.
+- The caller supplies the complete initial snapshot and every later change. A
+  backtest does not read, acquire, retain, infer, or reconstruct missing source
+  history. Current source rows are not substituted for missing historical rows.
+- Both versions receive the same typed starting rows, ordered changes, database
+  times, event-time watermarks, source frontiers, final marker, and limits. A
+  caller cannot advance one side differently from the other.
+- Initial rows and changes keep the M36 snapshot and replay-step contracts and
+  the M35 insert, update, delete, identity, before-image, conflict, and ordinal
+  rules. M37 adds no event language or alternate fact model.
+- Each version keeps production applicability, recursion, negation, temporal,
+  decision, derived-fact, lifecycle, and work semantics within their published
+  bounds. Backtest-local lifecycle and work rows never become production
+  identities or durable state.
+- M37 aligns results by canonical replay point and the target-specific public
+  identities frozen in the M37 contract. Results report unchanged, added,
+  removed, and changed values without treating physical row order or private
+  identifiers as policy meaning.
+- The same policy pair, snapshot, replay, caller security context, and limits
+  produce the same semantic output. A concurrent change to the deployed
+  baseline declaration or an evaluated source schema aborts the backtest instead
+  of mixing revisions.
+- One caller security context must authorize the complete policy pair and every
+  represented source relation before M37 returns either side. Sources with
+  row-level security fail closed. M37 returns no redacted rows and adds no
+  broader disclosure mode.
+- No backtest mutates a source, pg-react state, lifecycle, work, attempts,
+  history, frontiers, or effects. It deploys no policy, executes no consequence,
+  and performs no external delivery.
+
+### Explicit non-goals
+
+- Complete causal explanation of why the versions differ. M38 owns bounded
+  why-changed comparison across versions, frontiers, and revisions.
+- Policy scoring, ranking, optimization, recommendation, forecasting, automatic
+  selection, promotion, approval, deployment, rollback, or claims that past
+  results predict future behavior.
+- Change-data capture, logical decoding, audit logging, history retention,
+  history reconstruction, point-in-time recovery, a scenario store, or a second
+  source of truth.
+- Two independently deployed targets, arbitrary stored historical policy
+  revisions, more than two versions, a matrix of histories, durable backtest
+  jobs, scheduling, client SDKs, visual or AI authoring, or a second evaluator.
+- Historical DDL or execution of source DML, triggers, defaults, sequences,
+  cascades, volatile functions, consequences, or external calls.
+- New applicability, recursion, negation, temporal, decision-selection,
+  lifecycle, delivery, or exactly-once semantics.
+
+### Decisions to close before the M37 contract freezes
+
+- Exact function signatures, deployed-baseline freezing, null-candidate
+  behavior, canonical candidate representation, version identity, target
+  matching, argument order, defaults, and unknown-field behavior.
+- Exact policy-pair compatibility rules for target kind and name, direct source
+  relations, schema fingerprints, identity columns, applicability, parameters,
+  decision outputs, policy-set membership, and transitive dependencies.
+- Exact reuse of M36 snapshot and replay validation, including empty relations,
+  row representation, step ordering, time-only steps, finality, frontiers,
+  database and event time, late input, and incomplete history.
+- Exact result alignment for rule semantic keys and bindings, lifecycle
+  revisions and episodes, decision subjects and winners, policy-set members,
+  would-be work identities, costs, and affected subjects. Define added, removed,
+  changed, and unchanged rows for every supported target kind.
+- Exact envelope and relational-result shapes, canonical order, counts,
+  completeness, truncation, side labels, replay points, evidence links, cost
+  fields, and finding codes.
+- Exact baseline, candidate, snapshot, replay, and backtest digests. Define
+  null and identical-candidate results, semantic equivalence, canonical
+  serialization, and result identity without private UUIDs.
+- Exact ownership, policy and source access, role grants, fixed
+  security-definer search paths, protected-value handling, and unauthorized
+  result contracts. M36 RLS rejection and no-row behavior remain unchanged.
+- Exact serialization with concurrent deployment, replacement, removal, source
+  DDL, recovery, and extension upgrade. Define abort, retry, cancellation,
+  timeout, restart, and no-mutation behavior for each boundary.
+- Exact snapshot-row, replay-step, change-row, affected-subject, aligned-result,
+  fan-out, depth, evidence, latency, write, WAL, memory, and temporary-storage
+  limits. Freeze the benchmark profiles, upgrade and rollback evidence, and
+  `tests/m37.sh complete` inputs.
+
+### Exit gates
+
+- Every complete supported backtest matches two independent M36 replays over
+  the same snapshot, ordered changes, times, frontiers, and limits. Its reported
+  differences reconcile exactly with those two results. A limited backtest
+  returns exact canonical bounded output and explicit incomplete state. Both
+  leave source and authoritative checksums unchanged.
+- An identical policy pair returns equal per-side semantic results and an exact
+  empty difference. The frozen contract labels baseline and candidate direction
+  consistently in every envelope, relational row, digest, and finding.
+- Match, decision, lifecycle, temporal, would-be work, cost, and subject rows
+  reconcile at every complete replay point and in the final envelope. Partial
+  output identifies its exact bound and never presents partial counts or
+  evidence as complete.
+- Every missing, duplicate, mismatched, incompatible, stale, unauthorized,
+  unsupported, ambiguous, cyclic, nonmonotone, invalid late or finalized,
+  incomplete, and over-limit fixture returns its exact stable finding and
+  leaves the complete no-mutation checksum unchanged.
+- Bounded changed-subject evidence links every reported difference to both
+  version result rows and their replay point. The result identifies unavailable
+  or truncated evidence. It does not explain the causal reason for a difference
+  or make an M38 why-changed claim.
+- Repeated backtests return byte-for-byte identical semantic output across
+  physical snapshot row order, query plans, restart, restore, adjacent upgrade,
+  and supported standby promotion for the same frozen inputs. Measured elapsed
+  time may differ.
+- Cancellation, timeout, crash, restart, recovery, and concurrent production
+  activity cannot leak backtest state or return an answer that mixes policy,
+  schema, time, or frontier revisions.
+- Every documented role and `PUBLIC` case returns the exact authorized or denied
+  result without leaking protected policy, source, target, subject, row, result,
+  or evidence values. RLS sources fail with the exact M37 finding, and every
+  security-definer function has the frozen safe search path.
+- One versioned reference corpus contains at least three production-shaped
+  workloads. It records both policy versions, exact snapshots, replay steps,
+  per-side results, differences, rejected inputs, digests, time and frontier
+  metadata, public-SQL task time, and declared latency, write, WAL, memory,
+  storage, and recovery-to-authoritative-state budgets.
+- Migration evidence moves one production-shaped comparative backtest from an
+  application-owned script or paired test databases to M37 public SQL.
+  User-evaluation records cover both successful tasks and tasks blocked by
+  installation, preload, managed-service, RLS, compatibility, or missing-history
+  limits.
+- The published compatibility matrix rejects every unsupported policy pair and
+  input combination during validation. The release simplification review
+  records which API or capability was kept, narrowed, unified, or removed.
+- Every complete result exposes the exact baseline, candidate, snapshot, replay,
+  and backtest digests, starting and ending frontiers, sampled times,
+  applicability identities, deterministic per-side and comparison cost counters,
+  separately labeled elapsed-time measurements, completeness, and no-mutation
+  checksums. Partial results expose the same available metadata and their exact
+  bound.
+- Representative and supported-limit profiles satisfy the published budgets and
+  expose dominant scans, fan-out, cascade depth, reevaluation, alignment work,
+  temporary storage, and generated would-be work for each replay point and the
+  complete backtest.
+- Fresh installation, populated `0.33.0 -> 0.34.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M36 qualification pass
+  in `tests/m37.sh complete` against the exact candidate artifact.
+- Independent PostgreSQL users complete comparative backtesting through public
+  SQL without private catalogs, internal UUIDs, undocumented help, copied source
+  databases, paired database runs, or a separate usage model.
+- Every inherited M0–M36 gate passes. No P0 or P1 remains. Retained limitations
+  are explicit, and the exact `0.34.0` artifact passes its release gate.
+
+---
+
+## Proposed sequence after M37
+
+The project considers and implements one milestone at a time. M38 is a planning
+option, not an implementation or release commitment. Selection depends on
+evidence from M37 and user traction. Any selected milestone must compose the
+production semantics and the M34–M37 comparison, simulation, replay, and
+backtesting models rather than create another evaluator.
+
+1. **M38 — Why-changed comparison.** Explain bounded causal differences between versions, frontiers, or revisions by composing existing provenance and comparison evidence, identifying changed support, facts, applicability, thresholds, deadlines, or winning candidates.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 

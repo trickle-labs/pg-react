@@ -45,6 +45,6 @@ There is no in-place downgrade. Restore the verified `0.32.0` backup if you
 need to roll back.
 
 The release gate is `tests/m36.sh complete`. Tag and push `v0.33.0` only after
-that complete packaged lane passes. The logical next planning milestone is M37,
+that complete packaged lane passes. The next planned milestone is M37,
 comparative backtesting: running two frozen policy versions over the same
-caller-supplied history. M37 is a planning option, not an automatic commitment.
+caller-supplied history.

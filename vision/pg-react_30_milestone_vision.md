@@ -1,6 +1,6 @@
 # The M35-M64 vision for pg-react
 
-> Planning status (August 2026): M34 is complete and extension `0.31.0` is the current qualified baseline. `1.0.0` and its complete feature freeze are postponed indefinitely. Development continues one milestone at a time from M36 until user traction and an explicit maintainer decision justify a new v1 release-candidate cycle. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
+> Planning status (August 2026): M36 is complete and extension `0.33.0` is the current qualified baseline. `1.0.0` and its complete feature freeze are postponed indefinitely. Development continues one milestone at a time from M37 until user traction and an explicit maintainer decision justify a new v1 release-candidate cycle. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [Practical rule-engine features](pg-react_practical_rule_engine_features.md), and [PostgreSQL as an operational data platform](operational-data-platform.md).
 
@@ -10,13 +10,13 @@ That is already a substantial product. pg-react does not need to become a hosted
 
 The first market is operational control over business data that PostgreSQL already owns, with an audit trail for every important outcome. Financial exceptions and access drift are the reference markets because they need results that survive restarts, policy changes that can be tested safely, explanations, reconciliation after change, and recovery after failure. Those markets should settle close sequencing decisions, but they should not limit the engine to finance or access control.
 
-This vision begins with M35 and describes 30 possible milestones through M64. Only M35 follows a current contract in `ROADMAP.md`. M36 through M64 are possibilities, not a queue and not a promise that every item will ship. Their numbers give the team stable names for discussion. Evidence may change the order, combine milestones, replace them, or show that one should never be built.
+This vision begins with M35 and describes 30 possible milestones through M64. M35 and M36 are complete, and M37 is the current milestone in `ROADMAP.md`. M38 through M64 are possibilities, not a queue and not a promise that every item will ship. Their numbers give the team stable names for discussion. Evidence may change the order, combine milestones, replace them, or show that one should never be built.
 
 ## Decision horizons
 
 ### Committed horizon
 
-The project commits to one milestone at a time. M35 is the current milestone. Later work enters the canonical roadmap only when it has acceptance criteria that tests can execute, a named owner, evidence that it helps the initial market, and evidence from the preceding milestone. This keeps a long vision from turning into a long list of promises.
+The project commits to one milestone at a time. M37 is the current milestone. Later work enters the canonical roadmap only when it has acceptance criteria that tests can execute, a named owner, evidence that it helps the initial market, and evidence from the preceding milestone. This keeps a long vision from turning into a long list of promises.
 
 ### Strategic horizon
 
@@ -28,7 +28,7 @@ Several operational capabilities matter just as much: packaging a whole policy s
 
 ### Research horizon
 
-Historical replay and comparative backtesting in M36 and M37 remain research until representative users show what source history they can supply in practice. New forms of time-based rules and new ways for rules to interact also need evidence from real workloads before they enter the roadmap. M52, which explores whether a small group of rules can trigger one another inside one database transaction, is a separate experiment. Nothing else in this vision depends on it.
+M37 comparative backtesting must prove that representative users can supply useful source history in practice. New forms of time-based rules and new ways for rules to interact also need evidence from real workloads before they enter the roadmap. M52, which explores whether a small group of rules can trigger one another inside one database transaction, is a separate experiment. Nothing else in this vision depends on it.
 
 ## Gates shared by every capability area
 

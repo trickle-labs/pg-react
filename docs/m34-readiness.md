@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > Historical `0.31.0` readiness record. The current roadmap postpones `1.0.0`
-> and advances one milestone at a time from M36. This file remains qualification
+> and advances one milestone at a time from M37. This file remains qualification
 > evidence, not current release instructions. See [`history.md`](history.md).
 
 **Status: M34 implementation and packaged qualification complete.**
