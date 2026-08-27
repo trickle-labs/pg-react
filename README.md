@@ -7,11 +7,11 @@ relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
 M38 / extension `0.35.0` can explain why a bounded comparison result changed.
-Why-changed evidence is opt-in, read-only, and based only on the history and
-provenance supplied to the existing comparison, replay, or backtest call. The
-M34-M37 functions remain available. The repository retains the prepared `1.0.0-rc.1` candidate,
-but `1.0.0` and its complete feature freeze are postponed indefinitely.
-Development continues one milestone at a time. Start with the
+M39 qualifies that existing comparison, replay, backtesting, and explanation
+surface as one read-only contract for the next `0.36.0` release. No new
+simulation is added. The repository retains the prepared `1.0.0-rc.1`
+candidate, but `1.0.0` and its complete feature freeze are postponed
+indefinitely. Development continues one milestone at a time. Start with the
 [documentation home](docs/index.md).
 
 ## Choose a path

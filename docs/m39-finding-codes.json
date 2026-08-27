@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "milestone": "M39",
+  "extension_version": "0.36.0",
+  "finding_shape": ["code", "severity", "blocking", "target", "field", "message", "hint", "details"],
+  "severity": ["ERROR", "WARNING", "INFO"],
+  "codes": [
+    {"family": "INVALID_INPUT", "meaning": "required input or option is malformed"},
+    {"family": "INCOMPATIBLE_TARGET", "meaning": "declaration and target cannot be compared"},
+    {"family": "STALE_INPUT", "meaning": "snapshot, change set, or history is stale"},
+    {"family": "SCHEMA_DRIFT", "meaning": "source schema differs from the supplied identity"},
+    {"family": "UNAUTHORIZED", "meaning": "caller lacks required target or source access"},
+    {"family": "RLS_REJECTED", "meaning": "row-level security prevents a safe complete result"},
+    {"family": "AMBIGUOUS", "meaning": "the selected operation has no unique supported result"},
+    {"family": "CYCLIC", "meaning": "supported evidence contains a cycle"},
+    {"family": "INCOMPLETE", "meaning": "a bound or missing evidence prevents a complete result"},
+    {"family": "RESOURCE_LIMIT", "meaning": "a published resource bound was reached"},
+    {"family": "AUTHORITATIVE_STATE_CHANGED", "meaning": "frozen authoritative state changed during evaluation"},
+    {"family": "NO_EFFECT", "meaning": "the operation completed without authoritative mutation"}
+  ],
+  "operation_prefixes": ["M34", "M35", "M36", "M37", "M38"],
+  "mapping_rule": "M39 aligns meaning and required detail fields; each originating operation keeps its published prefixed code."
+}

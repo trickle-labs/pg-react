@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "milestone": "M39",
+  "extension_version": "0.36.0",
+  "predecessor": "M38 / 0.35.0",
+  "status": "qualification-only contract over existing simulation APIs",
+  "qualification_contract": 1,
+  "ordinary": {
+    "functions": [
+      "pgreact.compare",
+      "pgreact.compare_results",
+      "pgreact.replay",
+      "pgreact.replay_results",
+      "pgreact.backtest",
+      "pgreact.backtest_results"
+    ],
+    "overload_count": 8,
+    "result_sets": [
+      "current",
+      "proposed",
+      "initial",
+      "step",
+      "delta",
+      "final",
+      "lifecycle",
+      "work",
+      "difference"
+    ],
+    "sides": ["baseline", "candidate", "difference"],
+    "difference_states": ["ADDED", "REMOVED", "CHANGED", "UNCHANGED"],
+    "explanation_states": ["complete", "partial", "unavailable", "unsupported"]
+  },
+  "supported_targets": ["rule", "decision_program", "policy_set"],
+  "supported_sources": ["table", "partitioned_table", "view", "materialized_view"],
+  "no_effect_boundary": [
+    "no source writes",
+    "no deployment",
+    "no lifecycle mutation",
+    "no durable work, attempts, or evidence",
+    "no consequence or external delivery",
+    "no frontier advancement"
+  ],
+  "next_milestone": "M40 - Bounded why-not"
+}

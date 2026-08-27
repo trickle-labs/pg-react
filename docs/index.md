@@ -1,11 +1,10 @@
 # pg-react documentation
 
 This is the starting point for current pg-react documentation. M38 / extension
-`0.35.0` is the current qualified release. It adds opt-in, bounded explanations
-to existing comparison results. M39 is the current planning milestone. It
-qualifies the M34–M38 simulation functions without adding a new simulation or
-explanation type. The prepared `1.0.0-rc.1` candidate remains outside the
-current release sequence.
+`0.35.0` is the current qualified release. M39 prepares extension `0.36.0` by
+qualifying the M34–M38 simulation functions as one contract. It adds no new
+simulation or explanation type. The prepared `1.0.0-rc.1` candidate remains
+outside the current release sequence.
 
 ## Start
 

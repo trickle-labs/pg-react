@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "milestone": "M39",
+  "extension_version": "0.36.0",
+  "corpus_version": 1,
+  "status": "executable definitions; inherited M34-M38 fixtures and the M39 candidate-selection capture run in tests/m39.sh",
+  "canonical_order": ["result_set", "replay_ordinal", "side", "subject_key", "result_key"],
+  "workflows": [
+    {
+      "id": "order-risk-review",
+      "shape": "rule",
+      "purpose": "review orders whose risk facts changed",
+      "inputs": {"target": "rule:order-risk-review", "key": "order_id", "frontier": "2026-08-27T09:00:00Z"},
+      "operations": ["compare", "compare_empty_change_set", "replay", "why_changed"],
+      "expected": {"state": "ready", "delta_states": ["UNCHANGED", "CHANGED"], "read_only": true}
+    },
+    {
+      "id": "candidate-selection",
+      "shape": "decision_program",
+      "purpose": "compare a proposed candidate winner with the deployed winner",
+      "inputs": {"target": "decision_program:order-routing", "subject_key": "order_id", "frontier": "2026-08-27T09:00:00Z"},
+      "operations": ["compare", "replay", "backtest", "backtest_results", "why_changed"],
+      "expected": {"state": "ready", "same_policy_difference": "UNCHANGED", "read_only": true}
+    },
+    {
+      "id": "policy-membership-review",
+      "shape": "policy_set",
+      "purpose": "audit membership and applicability after a typed fact change",
+      "inputs": {"target": "policy_set:review-routing", "key": "subject_id", "frontier": "2026-08-27T09:00:00Z"},
+      "operations": ["compare", "compare_empty_change_set", "replay", "replay_results"],
+      "expected": {"state": "ready", "partial_bound_is_exact": true, "read_only": true}
+    }
+  ],
+  "recorded_fields": [
+    "exact_inputs",
+    "semantic_outputs",
+    "findings",
+    "public_identities",
+    "payload_digests",
+    "bounds",
+    "semantic_costs",
+    "authoritative_checksums",
+    "production_oracle"
+  ],
+  "oracle": "The M39 candidate-selection fixture runs pgreact.run through the public production interface in a disposable database, records the authoritative winners, and compares them with the simulation result before cleanup."
+}

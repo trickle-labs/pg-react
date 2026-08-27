@@ -1,0 +1,2 @@
+-- M39 is a qualification-only release. The public M34-M38 SQL surface is
+-- unchanged; this file intentionally contains no runtime objects or writes.
