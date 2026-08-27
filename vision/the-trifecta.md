@@ -4,15 +4,11 @@ Related documents: [Product thesis](pg-react_product_thesis.md), [PostgreSQL as 
 
 > Current state: M34 and extension `0.31.0` are pg-react's qualified baseline. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely while development continues one milestone at a time. The qualified stack uses PostgreSQL 18.3 and pg_trickle 0.81.0. See the [support matrix](../docs/v1-support-matrix.md). pg_trickle and pg_tide remain separate projects whose own documentation defines their releases and APIs.
 
-An order crosses EUR 10,000 while its customer is marked high risk. The business must open a manual review and notify a risk platform.
+An order crosses EUR 10,000 while its customer is marked high risk. The business must open a manual review and notify a risk platform. This is a rule: when a set of facts meets a condition, the system records the result and may start work. The condition is easy to state, but a reliable reaction must remember whether this order already opened a review, survive a crash, and avoid sending the same effect as if it were new.
 
-The facts live in PostgreSQL, but the reaction often gets scattered across a refresh job, application callbacks, a queue, retry workers, and code that remembers whether this order already opened a review. Three PostgreSQL projects divide that path by responsibility:
+The facts live in PostgreSQL, yet the reaction often gets scattered across a refresh job, application callbacks, a queue, retry workers, and code that keeps track of earlier reviews. Three PostgreSQL projects divide this path by responsibility. [pg_trickle](https://github.com/trickle-labs/pg-trickle) keeps the SQL result for risky orders current. [pg-react](https://github.com/trickle-labs/pg-react) records when an order enters, changes within, or leaves that result, then creates durable work when policy requires it. [pg_tide](https://github.com/trickle-labs/pg-tide) is the delivery project that carries committed intent to another system, with its own documentation defining the exact transport and receipt contract.
 
-- [pg_trickle](https://github.com/trickle-labs/pg-trickle) maintains the SQL result that finds risky orders.
-- [pg-react](https://github.com/trickle-labs/pg-react) records when an order enters, changes within, or leaves that result and creates durable work when policy requires it.
-- [pg_tide](https://github.com/trickle-labs/pg-tide) is the delivery project for carrying committed intent to another system. Its documentation owns the exact transport and receipt contract.
-
-pg_trickle maintains the answer. pg-react decides whether the answer changes policy state or requires work. A transactional delivery layer carries the work beyond PostgreSQL.
+In short, pg_trickle maintains the answer to the query. pg-react decides what that answer means for policy and work. A transactional delivery layer carries the committed work beyond PostgreSQL.
 
 ```text
 Order and customer facts
@@ -34,33 +30,29 @@ External risk platform
 
 ## Keep the condition current
 
-SQL can find every high-risk order over EUR 10,000. The qualified pg-react runtime uses pg_trickle with its scheduler off and coordinates explicit differential refresh itself. That creates one controlled boundary between committed source facts and policy evaluation.
+SQL can find every high-risk order over EUR 10,000. The result of that query is the condition relation: each row means that an order matches the rule now. pg_trickle keeps this relation current as order and customer facts change. In the qualified pg-react runtime, pg-react turns off the pg_trickle scheduler and asks for each differential refresh itself. A differential refresh updates only what changed, and this coordination creates one controlled boundary between committed facts and policy evaluation.
 
-The maintained condition is still a PostgreSQL relation. Each row means that the order matches now. It is not a durable event and does not record what an earlier match already caused.
-
-For a dashboard, the relation may be enough. A policy needs identity and history.
+The maintained condition is still an ordinary PostgreSQL relation. It describes the present, not the history. A row does not say when the match began, whether an earlier match already opened a review, or what work followed. That present-tense answer may be enough for a dashboard. A policy needs identity and memory.
 
 ## Remember what the match caused
 
-A pg-react rule uses a relation or view as its condition. A semantic key identifies the subject. If order 42 rises from EUR 9,000 to EUR 12,000, the order enters the condition and pg-react records an activation.
+A pg-react rule uses a relation or view as its condition and a semantic key to identify the subject. The semantic key is a stable business identity, such as the order ID. It lets pg-react follow the same order through many physical row updates. If order 42 rises from EUR 9,000 to EUR 12,000, the order enters the condition and pg-react records an activation, which means that this period of matching has begun.
 
-A constraint rule records the match without executing a consequence. A command rule may create durable work for activation, change, or deactivation. If the amount rises again while the order remains active, pg-react can update the revision or create `on_change` work according to the declaration. It does not create another activation merely because a source row changed.
+A constraint rule records the match without running a consequence. A command rule may also create durable work when the match begins, changes, or ends. If the amount rises again while order 42 remains above the threshold, pg-react can update the revision or create `on_change` work according to the declaration. It does not record another activation merely because a source row changed.
 
-If the order drops below EUR 10,000, the activation ends. A later rise starts a new generation. This separates one continuous period of truth from the next.
+If order 42 later drops below EUR 10,000, the activation ends. A later rise begins a new generation, which represents a new continuous period in which the rule is true. This distinction prevents pg-react from confusing work from the earlier period with work from the new one.
 
-The current public model exposes matches, work, attempts, decisions, and policy sets. Work can be claimed, leased, retried, completed, failed, or withdrawn. Priorities and conflict keys influence claims, but independent workers do not share one global order.
+The public model exposes matches, work, attempts, decisions, and policy sets. A worker can claim work for a limited lease, retry it, complete it, fail it, or withdraw it. Priorities and conflict keys affect which work a worker may claim, but independent workers do not share one global order.
 
-pg-react can also route the review with a decision declaration. SQL emits reviewer or queue candidates. The lowest numeric priority wins; a tied best priority becomes `AMBIGUOUS`, and losing all candidates becomes `NO_CANDIDATE`. A policy set can group the review rule and routing decision and limit them with a relational applicability source.
+pg-react can also decide where to route the review. SQL produces candidate reviewers or queues, each with a numeric priority. The lowest number wins. If the best candidates tie, pg-react reports `AMBIGUOUS` instead of choosing arbitrarily. If no candidates remain, it reports `NO_CANDIDATE`. A policy set can group the review rule with the routing decision and use a relation to limit where that policy applies.
 
 ## Deliver without a dual write
 
-Suppose one worker must create the local review and notify a remote risk platform. Calling the remote service inside the PostgreSQL transaction does not make the two systems atomic.
+Suppose one worker must create a local review and notify a remote risk platform. Calling the remote service from inside a PostgreSQL transaction cannot make the database change and the remote call succeed or fail as one atomic action. The connection may disappear after one side succeeds, leaving the worker unable to know whether it is safe to repeat the call.
 
-The safe local contract is a transactional outbox. The worker writes the review row and outgoing intent in the same transaction that completes pg-react work. A commit keeps them together; a rollback removes them together. A relay delivers the message after commit.
+A transactional outbox provides a safe local contract. An outbox is a PostgreSQL table of messages that still need delivery. In the transaction that completes the pg-react work, the worker inserts the local review into its table and the outgoing intent into the outbox. If the transaction commits, PostgreSQL keeps all three changes. If it rolls back, PostgreSQL keeps none of them. A separate relay reads the outbox and delivers the message after commit.
 
-Delivery remains at least once. If a connection fails after the receiver accepts the message, the relay may repeat it. The receiver must deduplicate by stable identity.
-
-pg_tide can fill the delivery role in this architecture, but pg-react does not bundle or qualify pg_tide's transports. Use the pg_tide project documentation to choose and operate that relay.
+Delivery remains at least once. If the connection fails after the risk platform accepts the message, the relay may send it again. The receiver must use the message's stable identity to recognize the repeat and avoid applying it twice. pg_tide can provide the delivery role in this architecture, but pg-react neither bundles nor qualifies pg_tide's transports. Use the pg_tide documentation to choose and operate that relay.
 
 ## Follow one order through the stack
 
@@ -74,30 +66,26 @@ For order 42, the policy runs as follows:
 6. The risk platform's response returns through an application or inbox path and becomes another PostgreSQL fact.
 7. A later coordinated cycle updates the condition and records the next lifecycle transition.
 
-Each handoff leaves durable PostgreSQL state before the next stage begins. The components do not claim that the whole path is one distributed transaction.
+Each handoff writes durable PostgreSQL state before the next stage begins. The components do not claim that the whole path is one distributed transaction.
 
 ## Compare a policy change before deployment
 
-The current pg-react product can compare a deployed rule, decision, or policy set with a proposed declaration over current authoritative facts. `pgreact.compare()` returns bounded current, proposed, delta, lifecycle, and would-be work evidence without deploying the proposal or executing consequences.
+The current pg-react product can compare a deployed rule, decision, or policy set with a proposed declaration against the facts that PostgreSQL holds now. `pgreact.compare()` returns a limited amount of evidence about the current result, the proposed result, their differences, the resulting lifecycle changes, and the work that the proposal would create. It does not deploy the proposal or run its consequences.
 
-For this order policy, a team can lower the threshold in a proposed rule and see which current orders would be added, removed, or changed. The [order review showcase](../showcase/order-review/README.md) runs that exact kind of comparison.
-
-Comparison does not change the order facts and does not replay history. Hypothetical fact changes and backtesting are not supported in v1.
+For the order policy, a team can propose a lower threshold and see which current orders would be added, removed, or changed. The [order review showcase](../showcase/order-review/README.md) performs that kind of comparison. The comparison does not alter order facts, replay history, apply imaginary fact changes, or backtest the policy. pg-react v1 does not support those uses.
 
 ## Know the transaction and runtime boundaries
 
-The default flow is asynchronous. The source transaction commits before refresh, evaluation, and consequence execution. Code that must accept or reject the original write synchronously belongs in the application write path.
+The default flow is asynchronous. The application first commits the source transaction. Refresh, policy evaluation, and consequence execution happen later. Any code that must accept or reject the original write before commit belongs in the application's write path.
 
-The qualified runtime uses one PostgreSQL-managed worker for each configured database, `READ COMMITTED`, pg_trickle scheduling disabled, and coordinated differential refresh. `pg-reactd` remains a compatibility path, not the normal runtime.
+The qualified runtime uses one PostgreSQL-managed worker for each configured database, `READ COMMITTED`, disabled pg_trickle scheduling, and coordinated differential refresh. `pg-reactd` remains a compatibility path rather than the normal runtime. Outside PostgreSQL, the guarantee ends at the destination. An outbox preserves committed intent and retries delivery, but exactly-once behavior across the full path requires the receiver to recognize duplicates.
 
-The external guarantee ends at the destination. An outbox preserves and retries committed intent, but end-to-end exactly-once behavior requires receiver-side deduplication.
-
-Logical restore also has a boundary. Restore the application schema and data, replay declarations, then rebuild and reconcile pg-react state. Do not treat private pg-react catalogs as a portable logical backup.
+Logical restore has a boundary too. Restore the application schema and data, replay the declarations, then rebuild and reconcile pg-react state. Private pg-react catalogs are not a portable logical backup.
 
 ## Adopt only the pieces you need
 
-Use pg_trickle alone when a maintained SQL result is the full requirement. Use pg-react when the result needs semantic identity, lifecycle, deterministic policy, bounded explanation, or durable database work. Add an outbox and relay only when an effect must leave PostgreSQL.
+Use pg_trickle alone when a maintained SQL result meets the whole requirement. Add pg-react when that result needs a stable business identity, a lifecycle, a deterministic decision, a bounded explanation, or durable database work. Add an outbox and relay only when an effect must leave PostgreSQL.
 
-The full path fits when PostgreSQL owns the facts, the condition is relational, and later execution is acceptable. It is a poor fit for synchronous write rejection, one global execution order, cross-system atomic commit, or a general human workflow.
+The complete path fits when PostgreSQL owns the facts, SQL can express the condition, and the application can accept later execution. It does not fit synchronous write rejection, one global execution order, an atomic transaction across systems, or a general human workflow.
 
-For order 42, the division stays simple: pg_trickle maintains the matching relation, pg-react remembers what the match means and what work it caused, and the delivery layer carries committed intent across the boundary PostgreSQL cannot cross alone.
+For order 42, the division remains direct. pg_trickle keeps the matching relation current. pg-react remembers what the match means and what work it caused. The delivery layer carries committed intent across the boundary that PostgreSQL cannot cross by itself.

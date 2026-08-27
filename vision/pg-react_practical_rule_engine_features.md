@@ -4,29 +4,29 @@ Related documents: [Product thesis](pg-react_product_thesis.md), [PostgreSQL as 
 
 > Current state: M34 and extension `0.31.0` are the qualified baseline. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely while development continues one milestone at a time. This document explains the product shape. The [v1 API reference](../docs/v1-api-reference.md), [support matrix](../docs/v1-support-matrix.md), and [known limitations](../docs/v1-known-limitations.md) define the supported contract.
 
-pg-react uses PostgreSQL relations to express policy conditions and candidates. It adds the parts that a query does not retain by itself: semantic identity, lifecycle, deterministic decisions, durable work, versioning, bounded evidence, and safe policy change.
+A rule engine answers questions such as "Which orders need review?" or "Where should this applicant go next?" In pg-react, ordinary PostgreSQL tables and views describe the facts, policy conditions, and possible results. pg-react then supplies the behavior that a query does not preserve on its own: stable identity, a lifecycle for each result, repeatable decisions, durable work, policy versions, limited supporting evidence, and a safe way to change policy.
 
-The feature set has moved well beyond the old M18 plan. Decisions, policy sets, shared conditions, effective-dated policies, parameter families, practical temporal rules, and provenance are installed today. M34 also adds read-only comparison of deployed and proposed declarations over current facts. Hypothetical fact changes, historical replay, and backtesting remain outside v1.
+The available features now go well beyond the old M18 plan. Decisions, policy sets, shared conditions, effective-dated policies, parameter families, practical time-based rules, and provenance are installed today. M34 also lets teams compare a deployed declaration with a proposed one, without changing either the deployed policy or the current facts. v1 does not support hypothetical fact changes, historical replay, or backtesting.
 
-## Current feature map
+## What v1 supports
 
-| Capability | v1 state | Current boundary |
+| Capability | v1 state | What it means in practice |
 |---|---|---|
-| Deterministic decisions | Shipped, ordinary API | Lowest numeric priority wins; a tied best priority is `AMBIGUOUS`; no candidates is `NO_CANDIDATE`. |
-| Policy sets and applicability | Shipped, ordinary API | A versioned set groups rules and decisions and uses a relation to define eligible subjects. |
-| Effective-dated policy | Shipped, advanced API | Versions use explicit half-open validity intervals and database-time transitions. |
-| Parameter families | Shipped, advanced API | Parameters remain typed PostgreSQL rows, not text templates or generated rule copies. |
-| Declaration comparison | Shipped, ordinary API | Compares a deployed and proposed declaration over current authoritative facts only. |
-| Hypothetical facts and backtesting | Not supported in v1 | No fact overrides, historical replay, or backtest API. |
-| Shared conditions | Shipped, advanced API | Authors declare named, versioned condition relations and explicit consumers. |
-| Practical temporal policy | Shipped, advanced API | Includes deadlines, duration, absence, cooldown, hysteresis, and fixed UTC tumbling windows at their installed contracts. |
-| Bounded provenance | Shipped, advanced API | Explains supported derivations and decisions with finite, role-checked evidence. |
+| Deterministic decisions | Shipped, ordinary API | The lowest numeric priority wins. If the best priority is tied, the result is `AMBIGUOUS`. If nothing qualifies, the result is `NO_CANDIDATE`. |
+| Policy sets and applicability | Shipped, ordinary API | A versioned set groups rules and decisions. A separate PostgreSQL relation identifies the subjects that may use the set. |
+| Effective-dated policy | Shipped, advanced API | Explicit half-open validity intervals determine when versions apply, and the database records transitions using database time. |
+| Parameter families | Shipped, advanced API | Parameters stay in typed PostgreSQL rows. pg-react does not turn them into text templates or copied rules. |
+| Declaration comparison | Shipped, ordinary API | Teams can compare a deployed declaration with a proposed declaration over the authoritative facts that exist now. |
+| Hypothetical facts and backtesting | Not supported in v1 | There is no API for fact overrides, historical replay, or backtesting. |
+| Shared conditions | Shipped, advanced API | Authors name and version reusable condition relations, then state which policies consume them. |
+| Practical temporal policy | Shipped, advanced API | The installed contracts cover deadlines, duration, absence, cooldown, hysteresis, and fixed UTC tumbling windows. |
+| Bounded provenance | Shipped, advanced API | Explanations show finite, role-checked evidence for supported decisions and derived facts. |
 
-## Deterministic decisions
+## Choosing one result predictably
 
-Many business rules select one result from several eligible candidates. A routing policy, for example, may produce several queues for one order. The business needs one winner or a visible ambiguity, not a winner chosen by row order.
+Many business policies can produce several possible results for one subject. A routing policy might send the same order to several queues, for example. The business still needs one winner, or a clear warning that the policy cannot choose. It must not depend on whichever database row happens to appear first.
 
-SQL produces the candidates:
+SQL produces the possible results, which pg-react calls candidates:
 
 ```sql
 CREATE VIEW policy.review_candidates AS
@@ -43,7 +43,7 @@ WHERE high_risk_industry
 	AND annual_revenue > 10000000;
 ```
 
-The declaration assigns the decision semantics:
+The declaration tells pg-react how to identify the applicant and each candidate, which column contains the priority, and which values form the result:
 
 ```sql
 SELECT pgreact.decision(
@@ -57,27 +57,27 @@ SELECT pgreact.decision(
 );
 ```
 
-The lowest numeric priority wins. Equal best priorities produce `AMBIGUOUS`; pg-react does not invent a tie-breaker. Losing all candidates produces `NO_CANDIDATE`. Winner state has its own generation, revision, competitors, claimability, and explanation evidence.
+The lowest numeric priority wins. If two candidates share the best priority, pg-react returns `AMBIGUOUS` instead of inventing a tie-breaker. If no candidate remains, it returns `NO_CANDIDATE`. pg-react tracks the winning state separately, including its generation, revision, competing candidates, whether a worker can claim it, and the evidence that explains it.
 
-The advanced decision-analysis family checks policy coverage and conflicts, including tied winners, forbidden overlaps, missing required defaults, and winner-distribution limits.
+The advanced decision-analysis family examines whether a policy covers the intended cases and whether its candidates conflict. Its checks include tied winners, overlaps that the policy forbids, required defaults that are missing, and limits on how winners are distributed.
 
-## Policy sets and applicability
+## Grouping policies and defining who they apply to
 
-A policy set groups typed rule and decision declarations under one immutable version. A separate applicability relation identifies which subjects are eligible for the set. Eligibility does not mean that a member condition currently matches.
+A policy set groups typed rule and decision declarations under one version that cannot change. A separate applicability relation lists the subjects that are eligible for that policy set. An eligible subject may use the set, but that does not mean a member rule currently matches the subject.
 
-This distinction matters for tenant, region, contract, or product-specific policy. Teams can change membership or applicability without hiding scope predicates inside every rule. `pgreact.policy_set()` exposes this model through the ordinary declaration workflow: `validate`, `preview`, and `deploy`.
+Keeping eligibility separate helps with policies that differ by tenant, region, contract, or product. Teams can change which declarations belong to a set, or which subjects are eligible for it, without copying a scope condition into every rule. `pgreact.policy_set()` uses the ordinary declaration workflow: `validate`, `preview`, and `deploy`.
 
-## Effective-dated policy
+## Scheduling when a policy applies
 
-Deployment time and business-effective time are different facts. pg-react supports explicit `[valid_from, valid_to)` intervals so a policy can be installed before it becomes active.
+The time when a team deploys a policy is not always the time when the business wants it to take effect. pg-react accepts explicit `[valid_from, valid_to)` intervals, which include the start and exclude the end. A team can therefore install a policy before its active period begins.
 
-The installed effective-policy family validates intervals, rejects invalid overlap, and records version transitions at a database-time boundary. Work keeps the immutable version identity under which pg-react requested it. Event-time selection is a separate contract and must not be inferred from database-time effective dates.
+The installed effective-policy family checks these intervals, rejects invalid overlap, and records version changes at a boundary measured by the database clock. Any work created under a version keeps that version's immutable identity. Choosing a version according to the time recorded in an event is a different contract. Code must not treat database-time effective dates as event-time selection.
 
-Ordinary decision and policy-set constructors also expose `valid_from` and `valid_to`. Use the specialized effective-policy APIs when the advanced version schedule and its evidence are required.
+The ordinary decision and policy-set constructors also accept `valid_from` and `valid_to`. Use the specialized effective-policy APIs when a policy needs the advanced version schedule and its supporting evidence.
 
-## Parameter families
+## Keeping policy differences in data
 
-Repeated policy usually differs by data, not logic. A fraud threshold may vary by country; an SLA may vary by plan. PostgreSQL can already express the right model with a join:
+Policies often share the same logic but use different values. A fraud threshold might vary by country, while an SLA might vary by plan. PostgreSQL already represents this pattern well: store the values as rows and join them to the business data.
 
 ```sql
 CREATE VIEW rule_def.suspicious_transfer AS
@@ -88,13 +88,13 @@ JOIN policy.risk_thresholds AS p
 WHERE t.amount > p.threshold;
 ```
 
-The advanced parameter-family APIs add typed keys, schema validation, ownership, version identity, bounded inspection, and audited changes around the parameter relation. They do not add string substitution, arbitrary JSON parameters, or one generated rule per row.
+The advanced parameter-family APIs put controls around that parameter relation. They add typed keys, schema validation, ownership, version identity, limited inspection, and an audit trail for changes. They do not substitute values into text, accept arbitrary JSON parameters, or generate one copy of a rule for every row.
 
-A parameter change remains a fact change. If a threshold changes, affected subjects pass through the same lifecycle rules as any other change to authoritative data.
+A parameter change is still a change to a fact. If someone changes a threshold, pg-react sends affected subjects through the same lifecycle rules that apply to any other change in authoritative data.
 
-## Compare a proposed declaration
+## Comparing a proposed declaration
 
-`pgreact.compare()` and `pgreact.compare_results()` compare a deployed rule, decision, or policy set with a proposed declaration over the facts that are authoritative now:
+Before deployment, `pgreact.compare()` and `pgreact.compare_results()` can show how a proposed rule, decision, or policy set differs from the deployed declaration. Both versions run against the authoritative facts that exist now:
 
 ```text
 current facts + deployed declaration
@@ -102,50 +102,44 @@ versus
 current facts + proposed declaration
 ```
 
-The result contains bounded `current`, `proposed`, `delta`, `lifecycle`, and would-be `work` evidence. Comparison does not deploy the proposal, mutate lifecycle state, create durable work, call consequences, or advance a frontier.
+The result contains limited evidence for `current`, `proposed`, `delta`, `lifecycle`, and the `work` that the proposal would create. The comparison is read-only. It does not deploy the proposal, change lifecycle state, create durable work, call consequences, or change the point through which pg-react considers the facts current.
 
-This is deployment-impact comparison, not hypothetical fact simulation. `sampled_time` must identify the current authoritative frontier. Rule comparison also requires one non-null, unique `bigint` key, even though separate advanced authoring paths support broader typed keys.
+This feature measures the effect of a declaration change. It does not simulate changes to facts. `sampled_time` must name the current authoritative frontier, which is the point through which pg-react considers the facts current. Rule comparison also requires one unique, non-null `bigint` key, although separate advanced authoring paths accept a wider range of typed keys.
 
-Evidence is bounded from 1 through 1000 rows per requested limit. A larger result is `partial`, has inexact counts, and has no continuation token. Treat the cost envelope as diagnostic evidence, not as a complete capacity model.
+Each requested limit can return from 1 through 1000 evidence rows. If the result is larger, pg-react marks it `partial`, reports inexact counts, and provides no continuation token. This cost information helps with diagnosis, but it is not a complete capacity model.
 
-## Historical replay and backtesting
+## Why v1 does not replay history
 
-Historical replay and backtesting are not supported in v1. pg-react does not retain an authoritative history of every source fact, and M34 comparison does not accept hypothetical inserts, updates, deletes, or past frontiers.
+Historical replay and backtesting are not supported in v1. pg-react does not keep an authoritative history of every source fact. M34 comparison also cannot accept hypothetical inserts, updates, deletes, or earlier frontiers.
 
-A future backtest would need an explicit historical source, deterministic time progression, isolated lifecycle state, and no consequence execution. It would also need semantic equivalence tests against the production rules. Until that contract exists, use application-owned history and purpose-built SQL analysis without presenting the result as pg-react lifecycle replay.
+A future backtest would need an explicit source of historical facts, predictable progress through time, isolated lifecycle state, and a guarantee that no consequences run. It would also need tests that prove the replayed rules mean the same thing as the production rules. Until that contract exists, use application-owned history and purpose-built SQL analysis. Do not present that analysis as a replay of the pg-react lifecycle.
 
-## Shared conditions
+## Reusing shared conditions
 
-Large policy sets often reuse a business concept such as `high_risk_customer`. PostgreSQL views already allow reuse. The advanced shared-condition family adds a named, versioned policy boundary with typed identity, ownership, source fingerprints, explicit consumers, and bounded explanation.
+Large policy sets often repeat a business idea such as `high_risk_customer`. PostgreSQL views already let teams define that condition once and reuse it. The advanced shared-condition family adds a named and versioned policy boundary around the view, with typed identity, ownership, source fingerprints, an explicit list of consumers, and limited explanation evidence.
 
-Sharing is explicit. pg-react does not discover common SQL subplans or rewrite rules around an inferred shared expression. Consumers depend on the declared condition relation, and removal is blocked while those consumers still require it.
+Authors must declare sharing. pg-react does not search for matching SQL subplans or rewrite rules around an expression that looks shared. Consumers depend on the declared condition relation, and pg-react blocks removal while any declared consumer still needs it.
 
-## Practical temporal policy
+## Handling time-based policy
 
-The current temporal features cover common operational questions:
+The current time-based features answer common operational questions. They can determine whether a condition stayed true for a required duration, whether a required fact remained absent until a deadline, whether a subject remains in a cooldown period, and whether a value recovered enough to cross a hysteresis boundary. They can also assign events to fixed windows that start from the UTC epoch and report whether a window is final.
 
-- Has a condition stayed true for a required duration?
-- Did a required fact remain absent until a deadline?
-- Is a subject still in a cooldown period?
-- Has a condition recovered enough to cross a hysteresis boundary?
-- Which events belong to a fixed UTC-epoch tumbling window, and is that window final?
+These contracts keep three kinds of time separate: the database clock, the time recorded in an event, and the delay before a worker processes it. Durable deadlines, watermarks that record progress, ordered corrections, and limited history allow recovery to converge without treating a process clock as the source of truth.
 
-These contracts distinguish database time, event time, and worker latency. Durable deadlines, watermarks, ordered corrections, and bounded history let recovery converge without treating a process clock as authoritative.
+v1 does not promise rolling or sliding frequency windows, or general sequences such as "A then B." Those features need their own rules for state, ordering, and resource use.
 
-Rolling or sliding frequency windows and general "A then B" sequence patterns are not part of the v1 promise. Those features would need separate state, ordering, and resource contracts.
+## Explaining results with bounded provenance
 
-## Bounded provenance
+Provenance is the evidence that shows where a result came from. pg-react records this evidence for supported derived facts, missing facts used as conditions, aggregates, windows, and decisions. Public explanations use stable keys and a finite amount of evidence. They do not depend on physical tuple locations or attempt to return an unlimited proof tree.
 
-pg-react records provenance for supported derived facts, negation, aggregates, windows, and decisions. Public explanations use stable keys and finite evidence rather than physical tuple locations or an unlimited proof tree.
+The advanced provenance APIs return supporting items in a standard order, along with counts and markers that say whether the evidence is grounded, cyclic, shortened, or unavailable where the installed contract permits those states. Access is limited to the configured provenance reader or advanced-reader role, the relation owner, or an operator.
 
-The advanced provenance APIs expose canonical support ordering, counts, grounded or cyclic markers, truncation, and unavailable evidence where the installed contract permits them. Access requires the configured provenance reader or advanced-reader role, the relation owner, or an operator.
+The current contract explains supported derived facts and decisions that exist or changed. pg-react does not provide general lineage for every SQL query, and it does not promise a complete answer to every question about why something did not happen.
 
-The current contract provides evidence for supported derived facts and decisions that exist or changed. pg-react does not promise general SQL lineage or an exhaustive answer to every "why not" question.
+## Keeping PostgreSQL and pg-react in distinct roles
 
-## Keep the PostgreSQL boundary
+SQL produces facts, candidates, and relationships. pg-react owns the durable meaning that SQL alone does not define, including identity, lifecycle, version selection, ambiguity, work, and limited explanations.
 
-SQL should produce facts, candidates, and relationships. pg-react should own the durable semantics that SQL alone does not define: identity, lifecycle, version selection, ambiguity, work, and bounded explanation.
-
-That boundary rules out a second expression language, parameter templates, hidden source mutation, and arbitrary policy bytecode. It also explains the remaining v1 limits. pg-react is not a synchronous write hook, a global-ordering service, a distributed transaction coordinator, or a general workflow engine. External delivery is at least once, so consumers must deduplicate.
+This division leaves several features outside the product. pg-react does not add a second expression language, parameter templates, hidden changes to source data, or arbitrary policy bytecode. It is also not a synchronous write hook, a service that imposes one global order, a distributed transaction coordinator, or a general workflow engine. Delivery to external consumers happens at least once, so consumers must remove duplicates.
 
 For executable examples, start with [Authoring rules and policies](../docs/v1-authoring.md) and the [order review showcase](../showcase/order-review/README.md).
