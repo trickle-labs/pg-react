@@ -1,9 +1,10 @@
 # pg-react documentation
 
 This is the starting point for current pg-react documentation. M37 / extension
-`0.34.0` is the current milestone. It compares two policy versions over the
-same caller-supplied typed history. The prepared `1.0.0-rc.1` candidate remains outside
-the current release sequence. Development continues one milestone at a time.
+`0.34.0` is the current qualified release. It compares two policy versions over
+the same caller-supplied typed history. M38 is the current development
+milestone. The prepared `1.0.0-rc.1` candidate remains outside the current
+release sequence.
 
 ## Start
 

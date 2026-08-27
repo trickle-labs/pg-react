@@ -9,4 +9,4 @@
 | Missing or stale row image | Rejected by M36 validation |
 | RLS source or missing `SELECT` permission | Rejected by M36 validation |
 | More than two versions, reconstructed history, or durable job | Not supported |
-| Why-changed causal explanation | Not supported; proposed for M38 |
+| Why-changed causal explanation | Not supported by M37; owned by M38 |

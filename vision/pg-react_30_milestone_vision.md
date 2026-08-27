@@ -1,6 +1,6 @@
 # The M35-M64 vision for pg-react
 
-> Planning status (August 2026): M37 is complete and extension `0.34.0` is the current qualified baseline. `1.0.0` and its complete feature freeze are postponed indefinitely. M38 is only a planning option until M37 evidence and user traction justify selecting it. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
+> Planning status (August 2026): M37 is complete, extension `0.34.0` is the current qualified baseline, and M38 is the current milestone. `1.0.0` and its complete feature freeze are postponed indefinitely. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [Practical rule-engine features](pg-react_practical_rule_engine_features.md), and [PostgreSQL as an operational data platform](operational-data-platform.md).
 
@@ -10,17 +10,17 @@ That is already a substantial product. pg-react does not need to become a hosted
 
 The first market is operational control over business data that PostgreSQL already owns, with an audit trail for every important outcome. Financial exceptions and access drift are the reference markets because they need results that survive restarts, policy changes that can be tested safely, explanations, reconciliation after change, and recovery after failure. Those markets should settle close sequencing decisions, but they should not limit the engine to finance or access control.
 
-This vision begins with M35 and describes 30 possible milestones through M64. M35 and M36 are complete, and M37 is the current milestone in `ROADMAP.md`. M38 through M64 are possibilities, not a queue and not a promise that every item will ship. Their numbers give the team stable names for discussion. Evidence may change the order, combine milestones, replace them, or show that one should never be built.
+This vision begins with M35 and describes 30 possible milestones through M64. M35 through M37 are complete, and M38 is the current milestone in `ROADMAP.md`. M39 through M64 are possibilities, not a queue and not a promise that every item will ship. Their numbers give the team stable names for discussion. Evidence may change the order, combine milestones, replace them, or show that one should never be built.
 
 ## Decision horizons
 
 ### Committed horizon
 
-The project commits to one milestone at a time. M37 is the current milestone. Later work enters the canonical roadmap only when it has acceptance criteria that tests can execute, a named owner, evidence that it helps the initial market, and evidence from the preceding milestone. This keeps a long vision from turning into a long list of promises.
+The project commits to one milestone at a time. M38 is the current milestone. Later work enters the canonical roadmap only when it has acceptance criteria that tests can execute, a named owner, evidence that it helps the initial market, and evidence from the preceding milestone. This keeps a long vision from turning into a long list of promises.
 
 ### Strategic horizon
 
-The next complete product journey should let an operator propose a policy, test it against made-up fact changes without touching production data, see the policy changes in business terms, understand why the result changed, and follow the cause back to the source facts. M35, M43, M38, and M41 provide those parts, and M39 tests them as one coherent journey.
+The next complete product journey should let an operator propose a policy, test it against current facts, hypothetical changes, or supplied history, and understand why the result changed. M34 through M38 provide those parts, and M39 tests them as one coherent journey. M41 and M43 can later add longer causal paths and a broader account of modeled policy differences.
 
 The first version of that journey may support only some declaration kinds, business-key shapes, hypothetical changes, and levels of evidence. Within that supported subset, however, the whole journey from proposal to explanation must work. A narrow complete experience is more valuable than a broad collection of disconnected features.
 
@@ -28,7 +28,7 @@ Several operational capabilities matter just as much: packaging a whole policy s
 
 ### Research horizon
 
-M37 comparative backtesting must prove that representative users can supply useful source history in practice. New forms of time-based rules and new ways for rules to interact also need evidence from real workloads before they enter the roadmap. M52, which explores whether a small group of rules can trigger one another inside one database transaction, is a separate experiment. Nothing else in this vision depends on it.
+M38 must preserve the M37 boundary. Users supply useful source history, and pg-react does not reconstruct it. New forms of time-based rules and new ways for rules to interact also need evidence from real workloads before they enter the roadmap. M52, which explores whether a small group of rules can trigger one another inside one database transaction, is a separate experiment. Nothing else in this vision depends on it.
 
 ## Gates shared by every capability area
 
@@ -80,7 +80,7 @@ The explanation must have a fixed bound and produce the same answer from the sam
 
 ### M39: Simulation qualification
 
-M39 adds no new kind of simulation. Instead, it proves that comparison with current facts, hypothetical changes, policy differences stated in business terms, explanations of changed results, and paths back to source facts work as one contract. They must share findings, limits, authorization rules, evidence, and result shapes. Replay and backtesting join that contract only if their research gates pass, and they do not block the first safe-change journey.
+M39 adds no new kind of simulation or explanation. It proves that comparison with current facts, hypothetical changes, replay, backtesting, and why-changed evidence work as one contract. They must share findings, limits, authorization rules, evidence, and result identities. Later capabilities must pass their own gates before they join this qualified contract.
 
 The milestone should prove semantic equivalence with isolated production runs, publish resource ceilings, and make cancellation or failure leave no hypothetical state behind. Representative users must complete proposal, simulation, difference, and explanation tasks without private joins or separate mental models.
 

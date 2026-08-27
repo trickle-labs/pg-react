@@ -2,7 +2,7 @@
 
 > [!NOTE]
 > Historical `0.31.0` release record. The current roadmap postpones `1.0.0`
-> and advances one milestone at a time from M37. This file remains M34 release
+> and advances one milestone at a time from M38. This file remains M34 release
 > evidence. Current users should start at [`index.md`](index.md).
 
 **In plain English:** before changing a rule, decision, or policy set, you can

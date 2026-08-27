@@ -41,6 +41,6 @@ There is no in-place downgrade. Restore a verified `0.33.0` backup if you need
 to roll back. The release gate is `tests/m37.sh complete`; tag and push
 `v0.34.0` only after the complete packaged lane passes.
 
-The logical next milestone is M38, why-changed comparison. It is a planning
-option, not a commitment: choose it only after reviewing M37 evidence and user
-traction.
+M38, why-changed comparison, is the current development milestone. It will add
+bounded causal explanations to existing comparison results without changing
+M37's read-only or caller-supplied-history boundaries.

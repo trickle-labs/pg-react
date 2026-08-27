@@ -9,8 +9,7 @@
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
 > `1.0.0` and its feature freeze are postponed indefinitely. M37 is complete;
-> development continues one milestone at a time after M37, with M38 retained as
-> a planning option rather than an implementation commitment. The project will
+> M38 is the current milestone. The project will
 > begin a complete feature freeze and define a new `1.0.0` release-candidate
 > sequence only after it has enough user traction and the maintainers explicitly
 > decide it is ready.
@@ -2734,15 +2733,246 @@ digests, and the complete source and authoritative-state checksums.
 
 ---
 
-## Proposed sequence after M37
+## Stage 38 — Why-changed comparison
 
-The project considers and implements one milestone at a time. M38 is a planning
-option, not an implementation or release commitment. Selection depends on
-evidence from M37 and user traction. Any selected milestone must compose the
-production semantics and the M34–M37 comparison, simulation, replay, and
-backtesting models rather than create another evaluator.
+**Outcome:** let users understand why an existing comparison result differs.
+M38 connects each supported `ADDED`, `REMOVED`, or `CHANGED` row to the facts,
+support, applicability,
+modeled parameters, temporal boundaries, or decision candidates that differ
+between its two evaluated sides. The explanation is bounded, deterministic,
+and explicit when evidence is unavailable or incomplete.
 
-1. **M38 — Why-changed comparison.** Explain bounded causal differences between versions, frontiers, or revisions by composing existing provenance and comparison evidence, identifying changed support, facts, applicability, thresholds, deadlines, or winning candidates.
+**Release boundary:** extension `0.35.0`. M38 adds opt-in why-changed evidence
+to the existing M34–M37 `compare`, `replay`, and `backtest` result contracts.
+It reuses their evaluators and installed provenance, and it adds bounded
+transient evidence collection where those results do not retain enough detail.
+Existing calls without the new option keep their exact output. The packaged
+candidate must pass `tests/m38.sh complete`. Completing M38 does not start a v1
+feature freeze or release-candidate cycle.
+
+**Entry gate:** the exact `v0.34.0` artifacts are published and every M37 gate
+passes. Before the M38 contract freezes, capture exact outputs for current and
+proposed comparison, hypothetical changes, replay steps, and two-version
+backtesting. The fixtures cover a changed source fact, support, applicability
+row, modeled parameter or threshold, deadline, decision candidate, and winner.
+They include exact `ADDED`, `REMOVED`, `CHANGED`, and `UNCHANGED` result rows.
+They also cover multiple causes, missing and truncated evidence, unsupported
+SQL, unauthorized input, concurrent declaration and source-schema changes, and
+unchanged source and authoritative-state checksums.
+
+### Deliverables
+
+- One opt-in `why_changed` option on the existing M34–M37 comparison, replay,
+  and backtest operations. The option adds why-changed evidence to
+  non-`UNCHANGED` JSON result rows and to the existing `evidence` JSON column in
+  relational rows. It does not change a relational return type. The default is
+  off and preserves the exact earlier output contracts.
+- One shared why-changed evidence model. Each explanation identifies the
+  originating operation, the operation-specific side pair, the public result
+  identity, the comparison point, the changed cause, and a bounded path to
+  public evidence.
+- Bounded transient evidence collection inside the existing evaluators for
+  supported causes that earlier result envelopes do not retain. The evidence
+  exists only in the returned result. M38 adds no table or retention path.
+- Canonical cause kinds for changed source facts, positive or negative support,
+  derived facts, applicability, modeled parameters and aggregate thresholds,
+  deadlines and windows, decision candidates and winners, lifecycle revisions,
+  and would-be work.
+- Explicit complete, partial, unavailable, and unsupported results. M38 never
+  turns missing provenance, arbitrary SQL, pruned history, or a reached limit
+  into a complete causal claim.
+- Stable findings for missing, mismatched, stale, unauthorized, unsupported,
+  ambiguous, cyclic, incomplete, and over-limit evidence. A rejected
+  explanation preserves the no-mutation guarantee of its originating call.
+- Reproducible semantic cost counters and separately labeled elapsed time for
+  cause discovery, evidence expansion, path depth, and returned nodes. Existing
+  operation limits remain authoritative.
+- Extension `0.35.0`, adjacent upgrade SQL from `0.34.0`, a versioned M38
+  contract, API reference, API and finding inventories, examples, migration
+  notes, known limitations, release notes, and executable qualification
+  evidence.
+
+### Supported boundary
+
+- M38 explains only an `ADDED`, `REMOVED`, or `CHANGED` row produced inside one
+  supported `compare`, `replay`, or `backtest` call. It does not compare
+  arbitrary saved envelopes, unrelated database snapshots, or results from
+  separate calls.
+- Each originating operation keeps its existing target, declaration, source,
+  identity, snapshot, change-set, history, time, frontier, finality,
+  compatibility, and resource boundaries. M38 does not widen any input shape.
+- Current and proposed comparison explains the difference between the deployed
+  result and the proposed result at one sampled frontier. Hypothetical
+  comparison explains the difference before and after the supplied typed
+  changes.
+- Replay explains a step delta between `previous` and `current` points in one
+  frozen policy run. The initial and final state rows are not differences.
+  Backtesting explains a baseline-to-candidate difference at one shared replay
+  point. M38 does not infer a missing intermediate state.
+- A cause path follows only evidence modeled or collected by the originating
+  evaluation: source bindings, support edges, negative and aggregate evidence,
+  applicability, parameters, temporal state, decision selection, lifecycle,
+  and would-be work. Arbitrary SQL remains an opaque boundary.
+- A complete explanation accounts for every supported changed cause within the
+  frozen bounds. A partial explanation reports its exact returned bound and
+  does not claim an exact omitted count when the source evidence cannot prove
+  one.
+- Canonical ordering uses public rule names, relation names, typed business
+  keys, replay ordinals, result keys, and modeled evidence identities. Physical
+  row order, query plans, and private catalog identifiers are not explanation
+  identity.
+- The same frozen inputs, caller security context, options, and limits produce
+  the same semantic explanation. A concurrent change to a declaration, source
+  schema, authorization context, or authoritative frontier aborts the call
+  instead of mixing revisions.
+- The caller must be authorized for both evaluated sides and every evidence
+  source before M38 returns an explanation. Sources with row-level security
+  keep their inherited fail-closed behavior. M38 adds no redaction mode.
+- Why-changed evaluation does not mutate sources, pg-react state, lifecycle,
+  work, attempts, history, frontiers, or effects. It deploys no policy, creates
+  no durable evidence, executes no consequence, and performs no delivery.
+
+### Explicit non-goals
+
+- General why-not answers, minimal counterfactuals, proof that one cause was
+  necessary or sufficient, arbitrary SQL lineage, arbitrary predicate
+  interpretation, or unbounded proof search. M40 owns bounded why-not answers.
+- A public path from any durable outcome through every intermediate rule and
+  fact. M41 owns bounded end-to-end causal paths.
+- Retaining evidence after ordinary source data or detailed history expires.
+  M42 owns opt-in evidence snapshots.
+- Describing arbitrary SQL edits in business terms. M43 owns semantic policy
+  differences for fields that pg-react models.
+- History capture or reconstruction, point-in-time recovery, stored comparison
+  jobs, cross-database comparison, more than two evaluated sides, or a second
+  evaluator.
+- Policy scoring, ranking, optimization, recommendation, promotion, approval,
+  deployment, rollback, forecasting, visual or AI authoring, client SDKs, or
+  workflow orchestration.
+- New applicability, derivation, recursion, negation, aggregation, temporal,
+  decision-selection, lifecycle, delivery, or exactly-once semantics.
+
+### Decisions to close before the M38 contract freezes
+
+- Exact option names, defaults, accepted values, additive JSON fields,
+  relational evidence fields, contract-version changes, and behavior for old
+  overloads and unknown options.
+- Exact difference-row identity for current comparison, hypothetical changes,
+  replay transitions, lifecycle revisions, and baseline-to-candidate backtest
+  differences. Freeze `previous` and `current` replay-point identities for each
+  step delta.
+- Exact cause kinds, direction labels, side labels, node and edge shapes,
+  public identities, typed value representation, canonical ordering, and
+  duplicate-cause behavior.
+- Exact meaning of complete, partial, unavailable, unsupported, ambiguous, and
+  cyclic explanations. Define whether counts are exact at each bound.
+- Exact provenance reuse for positive, negative, recursive, aggregate,
+  temporal, parameter, applicability, decision, lifecycle, and work evidence.
+- Exact opaque boundary for arbitrary SQL, unsupported view dependencies,
+  pruned evidence, and changes that the installed provenance model cannot
+  distinguish.
+- Exact declaration, snapshot, change-set, replay, backtest, result,
+  explanation, and evidence digests. Define canonical serialization without
+  private UUIDs.
+- Exact ownership, policy and source access, role grants, fixed
+  security-definer search paths, protected-value handling, and unauthorized
+  result contracts.
+- Exact serialization with concurrent deployment, replacement, removal, source
+  DDL, authorization changes, recovery, and extension upgrade. Define abort,
+  retry, cancellation, timeout, restart, and no-mutation behavior.
+- Exact difference-row, cause, support, node, edge, depth, fan-out, payload,
+  latency, memory, and temporary-storage limits. Freeze the benchmark profiles,
+  upgrade and rollback evidence, and `tests/m38.sh complete` inputs.
+
+### Exit gates
+
+- Every complete supported `ADDED`, `REMOVED`, or `CHANGED` row returns the
+  exact canonical explanation that reconciles with its operation-specific side
+  pair and originating M34–M37 result. Every cause path ends at public evidence
+  that differs between those sides.
+- Equal evaluated sides return no causal explanations. An `UNCHANGED` JSON row
+  omits `why_changed`, and its relational `evidence` value also omits that key.
+  M38 does not report an invented cause.
+- Exact fixtures cover `ADDED`, `REMOVED`, and `CHANGED` results caused by facts,
+  positive and negative support, derived facts, applicability, modeled
+  parameters and thresholds, deadlines and windows, decision candidates and
+  winners, lifecycle revisions, and would-be work.
+- Multiple supported causes return in canonical order. A reached bound reports
+  partial evidence and the exact available completeness metadata without
+  presenting omitted causes or counts as complete.
+- Missing, stale, pruned, ambiguous, cyclic, or arbitrary-SQL evidence returns
+  its exact unavailable or unsupported result. No fixture receives a semantic
+  label that the recorded evidence cannot prove.
+- Every mismatched, unauthorized, unsupported, incomplete, and over-limit
+  fixture returns its exact stable finding and leaves the complete source and
+  authoritative-state checksums unchanged.
+- Every M34–M37 overload accepts the exact frozen option shape. Missing options
+  preserve byte-for-byte output. Wrong types and invalid limits return the
+  exact operation-specific finding. Unknown names keep the originating
+  contract: M34 ignores them, while M35–M37 reject them. Populated upgrades
+  keep dependent SQL objects valid because relational return types do not
+  change.
+- Repeated explanations return byte-for-byte identical semantic output across
+  physical source order, query plans, restart, restore, adjacent upgrade, and
+  supported standby promotion for the same frozen inputs. Measured elapsed time
+  may differ.
+- Cancellation, timeout, crash, restart, recovery, and concurrent production
+  activity cannot leak explanation state or return evidence that mixes policy,
+  schema, authorization, time, or frontier revisions.
+- Every documented role and `PUBLIC` case returns the exact authorized or denied
+  result without leaking protected policy, source, subject, result, count, or
+  evidence values. Every security-definer function has the frozen safe search
+  path.
+- One versioned reference corpus contains at least three production-shaped
+  workloads. It records exact originating results, explanations, unavailable
+  and partial evidence, rejected inputs, digests, public-SQL task time, and
+  declared latency, write, WAL, memory, storage, and recovery budgets.
+- Migration evidence moves one production-shaped why-changed task from manual
+  joins or an application-owned explanation script to M38 public SQL.
+  Independent users explain an unexpected change without private catalogs,
+  internal UUIDs, undocumented help, or a separate usage model.
+- The published compatibility matrix rejects every unsupported origin,
+  declaration, evidence, and input combination during validation. The release
+  simplification review records which option or cause kind was kept, narrowed,
+  unified, or removed.
+- Every complete result exposes the originating result digest, both side
+  identities, comparison point, explanation digest, evidence bounds,
+  deterministic cost counters, separately labeled elapsed time, completeness,
+  and no-mutation checksums. Partial results expose the same available metadata
+  and their exact bound.
+- Representative and supported-limit profiles satisfy the published budgets
+  and expose dominant scans, cause fan-out, proof depth, returned nodes, memory,
+  and temporary storage for each originating operation.
+- Fresh installation, populated `0.34.0 -> 0.35.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M37 qualification pass
+  in `tests/m38.sh complete` against the exact candidate artifact.
+- Every inherited M0–M37 gate passes. No P0 or P1 remains. Retained limitations
+  are explicit, and the exact `0.35.0` artifact passes its release gate.
+
+---
+
+## Proposed sequence after M38
+
+The project still commits to one milestone at a time. The five items below are
+the most relevant next steps, not implementation or release commitments. Each
+must earn selection from M38 evidence and user traction.
+
+1. **M39 — Simulation qualification.** Prove that current comparison,
+   hypothetical changes, replay, backtesting, and why-changed evidence share one
+   contract for findings, limits, authorization, result identity, and failure.
+2. **M40 — Bounded why-not.** Explain a missing result only for finite cases
+   that pg-react models, such as a missing input, failed threshold, inactive
+   policy period, or decision with no eligible candidate.
+3. **M41 — End-to-end causal paths.** Connect existing bounded evidence from a
+   decision or work item through lifecycle and derived facts to authoritative
+   facts, using public business identities.
+4. **M42 — Evidence snapshots.** Retain compact, opt-in evidence for selected
+   audited outcomes after ordinary source data or detailed history expires,
+   without creating a database snapshot or second source of truth.
+5. **M43 — Semantic policy differences.** Describe changes to fields that
+   pg-react models, including applicability, effective time, priority,
+   parameters, results, and action bindings, without claiming to understand
+   arbitrary SQL text.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 
