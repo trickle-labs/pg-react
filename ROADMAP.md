@@ -8,11 +8,10 @@
 
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
-> `1.0.0` and its feature freeze are postponed indefinitely. M38 is complete;
-> M39 is the current milestone. The project will
-> begin a complete feature freeze and define a new `1.0.0` release-candidate
-> sequence only after it has enough user traction and the maintainers explicitly
-> decide it is ready.
+> `1.0.0` and its feature freeze are postponed indefinitely. M39 and extension
+> `0.36.0` complete Capability area 1. No later implementation milestone is
+> selected. The project will select one only after field evidence identifies
+> the next adoption blocker.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -3160,9 +3159,14 @@ production run used only as a semantic oracle.
 
 ## Proposed sequence after M39
 
-The project still commits to one milestone at a time. The five items below are
-the most relevant next steps, not implementation or release commitments. Each
-must earn selection from M39 evidence and user traction.
+No item below is selected. First, run the qualified M39 journey with at least
+one externally reviewed financial-exception or access-drift workload. Record
+where users stop, how long proposal-to-explanation takes, and which resource or
+operational limit blocks adoption. If an operational blocker dominates, move
+M53 or M55 through M59 ahead of explanation work.
+
+The five items below remain candidates, not implementation or release
+commitments. Each must earn selection from M39 evidence and user traction.
 
 1. **M40 — Bounded why-not.** Explain a missing result only for finite cases
    that pg-react models, such as a missing input, failed threshold, inactive

@@ -2,7 +2,7 @@
 
 Related documents: [Practical rule-engine features](pg-react_practical_rule_engine_features.md), [PostgreSQL as an operational data platform](operational-data-platform.md), and [The trifecta](the-trifecta.md).
 
-> Current state: M34 and extension `0.31.0` are the qualified baseline. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely while development continues one milestone at a time. The [documentation home](../docs/index.md) and [support matrix](../docs/v1-support-matrix.md) define the current product contract.
+> Current state: M39 and extension `0.36.0` are the qualified baseline. No later milestone is selected. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely. The [documentation home](../docs/index.md) and [support matrix](../docs/v1-support-matrix.md) define the current product contract.
 
 Modern applications already contain rule engines, even when nobody calls them that. A rule engine watches facts, checks whether they meet a condition, and decides what must happen next. In a typical application, those rules are scattered through service branches, scheduled queries, database triggers, retry workers, and exception tables. One branch notices that a customer crossed a risk threshold. Another job finds an overdue invoice. Other code updates access after a role change or stops deletion when a legal hold begins.
 
@@ -44,11 +44,9 @@ These cases have the same basic shape. Several facts in PostgreSQL combine into 
 
 Policy often changes on a different schedule from application code. Thresholds move, contracts renew, regulations take effect, and routing priorities change. Before a team deploys a new version, it needs to see how the proposed policy differs from the current one.
 
-pg-react supports policies with effective dates, groups of relational parameters, deterministic decisions, decision analysis, and versioned policy sets. M34 adds `pgreact.compare()` and `pgreact.compare_results()`. These functions compare a deployed declaration with a proposal against the facts that PostgreSQL currently holds, without changing the deployed policy.
+pg-react compares a proposal with deployed behavior over current facts or typed hypothetical changes. It can also replay caller-supplied history and backtest at most two policy versions over that history. Bounded why-changed evidence identifies modeled causes for a supported difference.
 
-The comparison reports a limited amount of evidence about the current result, the proposed result, the difference between them, the lifecycle changes, and the work that the proposal would create. It neither deploys the proposal nor executes its effects. If the result is partial, its counts are inexact and there is no continuation token.
-
-This feature is narrower than a general simulation system. The M34 baseline cannot apply imaginary changes to the underlying facts, replay history, or backtest a policy. Those capabilities remain possible future directions, not current product claims.
+These operations report current and proposed results, lifecycle changes, decisions, and would-be work without deploying the proposal or executing effects. M39 qualifies their shared identities, limits, authorization, and no-effect behavior. pg-react does not capture missing history, retain a simulation job, or answer arbitrary counterfactual questions about SQL.
 
 ## Explanation is part of correctness
 

@@ -2,11 +2,11 @@
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [PostgreSQL as an operational data platform](operational-data-platform.md), and [The trifecta](the-trifecta.md).
 
-> Current state: M34 and extension `0.31.0` are the qualified baseline. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely while development continues one milestone at a time. This document explains the product shape. The [v1 API reference](../docs/v1-api-reference.md), [support matrix](../docs/v1-support-matrix.md), and [known limitations](../docs/v1-known-limitations.md) define the supported contract.
+> Current state: M39 and extension `0.36.0` are the qualified baseline. No later milestone is selected. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely. This document explains the product shape. The [v1 API reference](../docs/v1-api-reference.md), [support matrix](../docs/v1-support-matrix.md), and [known limitations](../docs/v1-known-limitations.md) define the supported contract.
 
 A rule engine answers questions such as "Which orders need review?" or "Where should this applicant go next?" In pg-react, ordinary PostgreSQL tables and views describe the facts, policy conditions, and possible results. pg-react then supplies the behavior that a query does not preserve on its own: stable identity, a lifecycle for each result, repeatable decisions, durable work, policy versions, limited supporting evidence, and a safe way to change policy.
 
-The available features now go well beyond the old M18 plan. Decisions, policy sets, shared conditions, effective-dated policies, parameter families, practical time-based rules, and provenance are installed today. M34 also lets teams compare a deployed declaration with a proposed one, without changing either the deployed policy or the current facts. v1 does not support hypothetical fact changes, historical replay, or backtesting.
+The available features now go well beyond the old M18 plan. Decisions, policy sets, shared conditions, effective-dated policies, parameter families, practical time-based rules, and provenance are installed today. M34 through M39 let teams compare a deployed declaration with a proposal over current or typed hypothetical facts, replay caller-supplied history, backtest at most two policies, and inspect bounded why-changed evidence without changing production state.
 
 ## What v1 supports
 
@@ -17,7 +17,7 @@ The available features now go well beyond the old M18 plan. Decisions, policy se
 | Effective-dated policy | Shipped, advanced API | Explicit half-open validity intervals determine when versions apply, and the database records transitions using database time. |
 | Parameter families | Shipped, advanced API | Parameters stay in typed PostgreSQL rows. pg-react does not turn them into text templates or copied rules. |
 | Declaration comparison | Shipped, ordinary API | Teams can compare a deployed declaration with a proposed declaration over the authoritative facts that exist now. |
-| Hypothetical facts and backtesting | Not supported in v1 | There is no API for fact overrides, historical replay, or backtesting. |
+| Hypothetical facts and backtesting | Shipped, qualified API | Teams can apply typed hypothetical changes, replay caller-supplied history, and compare at most two policies over that history. |
 | Shared conditions | Shipped, advanced API | Authors name and version reusable condition relations, then state which policies consume them. |
 | Practical temporal policy | Shipped, advanced API | The installed contracts cover deadlines, duration, absence, cooldown, hysteresis, and fixed UTC tumbling windows. |
 | Bounded provenance | Shipped, advanced API | Explanations show finite, role-checked evidence for supported decisions and derived facts. |
@@ -104,15 +104,24 @@ current facts + proposed declaration
 
 The result contains limited evidence for `current`, `proposed`, `delta`, `lifecycle`, and the `work` that the proposal would create. The comparison is read-only. It does not deploy the proposal, change lifecycle state, create durable work, call consequences, or change the point through which pg-react considers the facts current.
 
-This feature measures the effect of a declaration change. It does not simulate changes to facts. `sampled_time` must name the current authoritative frontier, which is the point through which pg-react considers the facts current. Rule comparison also requires one unique, non-null `bigint` key, although separate advanced authoring paths accept a wider range of typed keys.
+This current-fact form measures the effect of a declaration change.
+`sampled_time` must name the current authoritative frontier, which is the point
+through which pg-react considers the facts current. The M35 overload accepts
+typed hypothetical changes. Rule comparison also requires one unique,
+non-null `bigint` key, although separate advanced authoring paths accept a
+wider range of typed keys.
 
 Each requested limit can return from 1 through 1000 evidence rows. If the result is larger, pg-react marks it `partial`, reports inexact counts, and provides no continuation token. This cost information helps with diagnosis, but it is not a complete capacity model.
 
-## Why v1 does not replay history
+## Why replay requires caller-supplied history
 
-Historical replay and backtesting are not supported in v1. pg-react does not keep an authoritative history of every source fact. M34 comparison also cannot accept hypothetical inserts, updates, deletes, or earlier frontiers.
+pg-react does not keep an authoritative history of every source fact. M36
+replay therefore requires an explicit snapshot and finite ordered history from
+the caller. M37 backtesting runs at most two policies over that same history.
+Both operations isolate lifecycle state and execute no consequences.
 
-A future backtest would need an explicit source of historical facts, predictable progress through time, isolated lifecycle state, and a guarantee that no consequences run. It would also need tests that prove the replayed rules mean the same thing as the production rules. Until that contract exists, use application-owned history and purpose-built SQL analysis. Do not present that analysis as a replay of the pg-react lifecycle.
+Current facts cannot reconstruct missing history. A replay claim is valid only
+for the supplied inputs, logical times, and source progress.
 
 ## Reusing shared conditions
 

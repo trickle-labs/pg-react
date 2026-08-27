@@ -29,6 +29,12 @@ instructions.
 - [M37 release notes](m37-release-notes.md), [contract](m37-contract.md), and
   [API reference](m37-api-reference.md) document the `0.34.0` comparative
   backtesting milestone.
+- [M38 release notes](m38-release-notes.md), [contract](m38-contract.md), and
+  [API reference](m38-api-reference.md) document the `0.35.0` why-changed
+  milestone.
+- [M39 release notes](m39-release-notes.md), [contract](m39-contract.md), and
+  [API reference](m39-api-reference.md) document the `0.36.0` simulation
+  qualification milestone.
 - [`DESIGN.md`](../DESIGN.md) preserves the M13 architecture record.
 - The old [`v1-release-notes.md`](history/v1-release-notes.md) and
   [`v1-upgrades.md`](history/v1-upgrades.md) preserve the historical M4 `0.1.1`
@@ -44,12 +50,18 @@ instructions.
   [final checklist](m35-final-checklist.md)
 - [M37 evidence](m37-evidence.md), [benchmark](m37-benchmark.md), and
   [final checklist](m37-final-checklist.md)
+- [M38 evidence](m38-evidence.md), [benchmark](m38-benchmark.md), and
+  [final checklist](m38-final-checklist.md)
+- [M39 evidence](m39-evidence.md), [benchmark](m39-benchmark.md), and
+  [final checklist](m39-final-checklist.md)
 - Preserved historical milestone inventories:
   - M33 / `0.30.0`: [API inventory](history/v1-api-inventory-m33-0.30.0.json), [Finding codes](history/v1-finding-codes-m33-0.30.0.json)
   - M34 / `0.31.0`: [API inventory](history/v1-api-inventory-m34-0.31.0.json), [Finding codes](history/v1-finding-codes-m34-0.31.0.json)
   - M35 / `0.32.0`: [API inventory](m35-api-inventory.json), [Finding codes](m35-finding-codes.json)
   - M36 / `0.33.0`: [API inventory](m36-api-inventory.json), [Finding codes](m36-finding-codes.json)
   - M37 / `0.34.0`: [API inventory](m37-api-inventory.json), [Finding codes](m37-finding-codes.json)
+  - M38 / `0.35.0`: [API inventory](m38-api-inventory.json), [Finding codes](m38-finding-codes.json)
+  - M39 / `0.36.0`: [API inventory](m39-api-inventory.json), [Finding codes](m39-finding-codes.json)
 
 These records show what a milestone attempted or demonstrated. They do not
 create an RC artifact, broaden support, or override installed behavior.

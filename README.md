@@ -6,13 +6,12 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M38 / extension `0.35.0` can explain why a bounded comparison result changed.
-M39 qualifies that existing comparison, replay, backtesting, and explanation
-surface as one read-only contract for the next `0.36.0` release. No new
-simulation is added. The repository retains the prepared `1.0.0-rc.1`
-candidate, but `1.0.0` and its complete feature freeze are postponed
-indefinitely. Development continues one milestone at a time. Start with the
-[documentation home](docs/index.md).
+M39 / extension `0.36.0` qualifies current and hypothetical comparison,
+supplied-history replay, two-policy backtesting, and why-changed evidence as
+one read-only contract. M39 added no new evaluator. No later milestone is
+selected. The repository retains the prepared `1.0.0-rc.1` candidate, but
+`1.0.0` and its complete feature freeze are postponed indefinitely. Start with
+the [documentation home](docs/index.md).
 
 ## Choose a path
 
@@ -109,9 +108,10 @@ current facts + proposed declaration
 
 It reports bounded `current`, `proposed`, `delta`, `lifecycle`, and would-be
 `work` evidence. M35 also accepts typed hypothetical inserts, updates, and
-deletes for direct table sources. It does not support historical replay. Rule
-comparison is limited to one `bigint` key even though separate
-advanced installed authoring surfaces support broader typed keys.
+deletes for direct table sources. M36 replays caller-supplied history, and M37
+backtests at most two policies over that history. Rule comparison is limited to
+one `bigint` key even though separate advanced installed authoring APIs support
+broader typed keys.
 
 ## Guarantees and boundaries
 

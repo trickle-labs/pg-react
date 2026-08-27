@@ -1,8 +1,7 @@
 # v1 operations
 
-This is the current production runbook for the `1.0.0-rc.1` release candidate
-(`0.31.0` v1 feature baseline). Use public SQL only. Never update
-`pgreact_internal` or `pgreact_runtime`.
+This is the current production runbook for extension `0.36.0`. Use public SQL
+only. Never update `pgreact_internal` or `pgreact_runtime`.
 
 Every procedure follows:
 
@@ -72,8 +71,8 @@ public view.
 
 2. **Diagnose** — confirm the current database is listed, the configured role
    can connect and has worker privileges, and both `pg_trickle` and `pg_react`
-   are preloaded. The runtime dynamically coordinates extension versions
-   `0.31.0`, `1.0.0-rc.N`, and `1.0.0`.
+   are preloaded. The runtime coordinates extension versions `0.31.0` through
+   `0.36.0`, `1.0.0-rc.N`, and `1.0.0`.
 3. **Repair prerequisite** — correct the postmaster settings or worker role.
    Changes to `pg_react.databases` and `pg_react.worker_role` require a
    PostgreSQL restart.
@@ -212,7 +211,7 @@ not a substitute for stopping the database worker.
 
 ## Compare and replace safely
 
-Installed `0.31.0` proves ordinary replacement preview and stale-digest
+Installed `0.36.0` retains ordinary replacement preview and stale-digest
 rejection, but not a successful names-first `pgreact.deploy()` replacement.
 For rules, the currently qualified names-first cutover is the advanced
 compatibility operation below. It drains old work; decisions do not yet have

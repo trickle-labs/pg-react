@@ -38,10 +38,9 @@ to roll back. The exact upgrade and rollback procedure is in
 
 ## Release status and next step
 
-This commit prepares `0.36.0`; it is a release only after
-`tests/m39.sh complete` passes against the packaged image and the inherited
-M0–M38 gates pass. Then tag and push `v0.36.0` to start the release workflow.
+The `v0.36.0` release was published after `tests/m39.sh complete` passed against
+the packaged image and the inherited M0 through M38 gates passed.
 
-The logical next milestone is **M40 — bounded why-not**: explain a missing
-result only for finite cases that pg-react already models. M40 is proposed, not
-automatic; select it after reviewing M39 evidence and user traction.
+No later milestone is selected. M40 bounded why-not remains a candidate. Select
+the next milestone after field use of the M39 journey identifies the next
+adoption blocker.

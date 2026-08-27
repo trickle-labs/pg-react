@@ -226,7 +226,7 @@ other advanced rule surfaces can support broader typed identities.
 | `M34_PROPOSAL_DUPLICATE` | Proposed rule source contains duplicate keys | Make the proposed comparison key unique |
 | `M34_WRONG_KEY_TYPE` | Rule comparison key is not `bigint` | Use a comparable `bigint` rule key; do not generalize this limit to every advanced rule API |
 | `M34_RESOURCE_LIMIT` | `evidence_limit` is outside the installed bound | Set `evidence_limit` from `1` through `1000` |
-| `M34_SAMPLED_TIME` | Requested time differs from the current authoritative frontier | Omit `sampled_time` or use the exact current frontier; historical/hypothetical comparison is not v1 |
+| `M34_SAMPLED_TIME` | Requested time differs from the current authoritative frontier | Omit `sampled_time` or use the exact current frontier; use the M35 hypothetical overload or M36 replay for other inputs |
 | `M34_UNSUPPORTED_KIND` | Proposal kind is outside rule, decision program, or policy set | Use a supported kind |
 | `M34_AUTHORITATIVE_CHANGED` | Production state changed during comparison | Retry after concurrent activity settles; never accept the stale result |
 | `M34_COMPARISON_INCOMPLETE` | Bounded evidence is partial | Rerun with a higher `evidence_limit` up to `1000`; `compare_results()` has the same bound and no hidden continuation |

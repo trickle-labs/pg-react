@@ -1,10 +1,10 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M38 / extension
-`0.35.0` is the current qualified release. M39 prepares extension `0.36.0` by
-qualifying the M34–M38 simulation functions as one contract. It adds no new
-simulation or explanation type. The prepared `1.0.0-rc.1` candidate remains
-outside the current release sequence.
+This is the starting point for current pg-react documentation. M39 / extension
+`0.36.0` is the current qualified release. It qualifies the M34 through M38 simulation
+functions as one read-only contract without adding a new evaluator. No later
+milestone is selected. The prepared `1.0.0-rc.1` candidate remains outside the
+current release sequence.
 
 ## Start
 
@@ -22,6 +22,7 @@ outside the current release sequence.
 - [Historical Replay](m36-api-reference.md)
 - [Comparative Backtesting](m37-api-reference.md)
 - [Why-changed comparison](m38-api-reference.md)
+- [Simulation qualification](m39-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
@@ -35,7 +36,8 @@ outside the current release sequence.
 
 ## Reference
 
-- [v1 Contract](v1-contract.md)
+- [M39 simulation contract](m39-contract.md)
+- [M34 v1 baseline contract](v1-contract.md)
 - [Limits](v1-limits.md)
 - [Support Matrix](v1-support-matrix.md)
 - [Known Limitations](v1-known-limitations.md)

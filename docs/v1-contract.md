@@ -1,13 +1,15 @@
 # pg-react 1.x contract
 
-This is the frozen contract for the M34 / extension `0.31.0` baseline and the
-prepared `1.0.0-rc.1` candidate: the M33 ordinary runtime plus the M34 read-only
-comparison surface. It does not set the eventual v1 feature boundary.
+This document preserves the M34 / extension `0.31.0` baseline and the prepared
+`1.0.0-rc.1` candidate: the M33 ordinary runtime plus M34 current comparison.
+It does not set the eventual v1 feature boundary. The current simulation
+contract is the [M39 qualification contract](m39-contract.md).
 
 The project has postponed `1.0.0` and its complete feature freeze indefinitely.
-Development continues one milestone at a time from M38, with separate contracts,
-release versions, and qualification gates. Exact package versions and upgrade
-paths become contractual through qualified release artifacts and migration scripts.
+M39 / extension `0.36.0` is the current qualified release. Development
+continues one milestone at a time, with separate contracts, release versions,
+and qualification gates. Exact package versions and upgrade paths become
+contractual through qualified release artifacts and migration scripts.
 
 ## Ordinary SQL surface
 
@@ -69,9 +71,9 @@ The installed runtime supports typed key codecs beyond bigint in advanced
 runtime paths. This contract does not collapse that general capability into
 the narrower comparison restrictions below.
 
-## Comparison contract
+## M34 current-comparison contract
 
-The v1 comparison surface is:
+The M34 current-comparison baseline is:
 
 ```text
 pgreact.compare(
@@ -103,7 +105,9 @@ may select a deployed policy-set version. Rule comparison requires one
 
 `options.evidence_limit` defaults to `100` and must be between `1` and `1000`.
 `options.sampled_time`, when supplied, must equal the current authoritative
-frontier. v1 does not compare a historical time or hypothetical facts.
+frontier. This overload does not compare a historical time or hypothetical
+facts. The M35 through M39 contracts add typed hypothetical changes, supplied-history
+replay, two-policy backtesting, and why-changed evidence.
 
 `compare()` returns:
 

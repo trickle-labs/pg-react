@@ -198,11 +198,21 @@ external systems.
 Comparison uses dedicated read-only evaluators with tested semantic results.
 That does not promise the same implementation path as production evaluation.
 
+### Hypothetical changes and supplied history
+
+The read-only comparison model also covers typed hypothetical inserts, updates,
+and deletes. `pgreact.replay()` evaluates one policy over a caller-supplied
+snapshot and finite history. `pgreact.backtest()` evaluates at most two policy
+versions over that same history. Supported changed rows can include bounded
+why-changed evidence.
+
+These operations do not capture history or retain a simulation job. The caller
+supplies the history, and every result remains bounded.
+
 ## Not supported in v1
 
-- changing, inserting, or deleting facts only for a comparison;
-- historical replay, backtesting, or “what was true then” evaluation;
-- continuation through truncated comparison evidence;
+- reconstructing or capturing history that the caller did not supply;
+- durable simulation jobs or continuation through truncated evidence;
 - exactly-once external delivery;
 - arbitrary untrusted dynamic code;
 - a synchronous application write-path hook;

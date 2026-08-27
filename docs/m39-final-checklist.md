@@ -10,7 +10,7 @@
 - [x] No M39 SQL object, table, option, evaluator, or durable simulation state
   was added.
 - [x] The release notes explain the user impact in ordinary language.
-- [ ] `tests/m39.sh complete` passes against the exact packaged candidate.
-- [ ] Inherited M0–M38 packaged qualification passes in the release workflow.
-- [ ] Tag `v0.36.0` only after the complete packaged lane and inherited gates
-  pass.
+- [x] `tests/m39.sh complete` passed against the exact packaged candidate.
+- [x] Inherited M0 through M38 packaged qualification passed in the release workflow.
+- [x] The `v0.36.0` release was published only after the complete packaged lane
+  and inherited gates passed.
