@@ -8,10 +8,12 @@
 
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
-> `1.0.0` and its feature freeze are postponed indefinitely. Development
-> continues one milestone at a time from M37. The project will begin a complete
-> feature freeze and define a new `1.0.0` release-candidate sequence only after
-> it has enough user traction and the maintainers explicitly decide it is ready.
+> `1.0.0` and its feature freeze are postponed indefinitely. M37 is complete;
+> development continues one milestone at a time after M37, with M38 retained as
+> a planning option rather than an implementation commitment. The project will
+> begin a complete feature freeze and define a new `1.0.0` release-candidate
+> sequence only after it has enough user traction and the maintainers explicitly
+> decide it is ready.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 

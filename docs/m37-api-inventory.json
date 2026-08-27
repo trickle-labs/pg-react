@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "milestone": "M37",
+  "extension_version": "0.34.0",
+  "predecessor": "M36 / 0.33.0",
+  "status": "additive comparative backtesting",
+  "ordinary": {
+    "functions": ["pgreact.backtest", "pgreact.backtest_results"],
+    "overloads": [
+      "pgreact.backtest(declaration, target, jsonb, jsonb)",
+      "pgreact.backtest(declaration, target, jsonb, jsonb, jsonb)",
+      "pgreact.backtest_results(declaration, target, jsonb, jsonb)",
+      "pgreact.backtest_results(declaration, target, jsonb, jsonb, jsonb)"
+    ],
+    "result_sets": ["initial", "step", "delta", "final", "difference"],
+    "sides": ["baseline", "candidate", "difference"],
+    "difference_states": ["ADDED", "REMOVED", "CHANGED", "UNCHANGED"]
+  },
+  "inherited": {
+    "contract": "M36 / 0.33.0",
+    "evaluator": "Both sides use the existing M36 replay evaluator."
+  },
+  "no_effect_boundary": [
+    "no source writes",
+    "no deployment",
+    "no lifecycle mutation",
+    "no durable work or attempt",
+    "no consequence or external delivery",
+    "no frontier advancement"
+  ]
+}

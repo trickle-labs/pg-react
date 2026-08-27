@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "milestone": "M37",
+  "extension_version": "0.34.0",
+  "finding_shape": ["code", "severity", "blocking", "target", "field", "message", "hint", "details"],
+  "severity": ["ERROR", "WARNING", "INFO"],
+  "codes": [
+    {"code": "M37_OPTIONS_INVALID", "severity": "ERROR"},
+    {"code": "M37_UNKNOWN_FIELD", "severity": "ERROR"},
+    {"code": "M37_INCOMPATIBLE_TARGET", "severity": "ERROR"},
+    {"code": "M37_SHARED_INPUT", "severity": "ERROR"},
+    {"code": "M37_AUTHORITATIVE_CHANGED", "severity": "ERROR"},
+    {"code": "M37_COMPARISON_INCOMPLETE", "severity": "WARNING"},
+    {"code": "M37_NO_EFFECT", "severity": "INFO"}
+  ],
+  "inherited_rejections": "M36 validates and reports snapshot, replay, authorization, schema, RLS, stale-image, ambiguity, cycle, and resource findings."
+}

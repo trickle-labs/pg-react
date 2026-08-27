@@ -1,8 +1,8 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M36 / extension
-`0.33.0` is the current milestone. It adds read-only replay of typed history
-supplied by the caller. The prepared `1.0.0-rc.1` candidate remains outside
+This is the starting point for current pg-react documentation. M37 / extension
+`0.34.0` is the current milestone. It compares two policy versions over the
+same caller-supplied typed history. The prepared `1.0.0-rc.1` candidate remains outside
 the current release sequence. Development continues one milestone at a time.
 
 ## Start
@@ -19,6 +19,7 @@ the current release sequence. Development continues one milestone at a time.
 - [Changing Policies Safely](changing-policies.md)
 - [Hypothetical Fact Simulation](m35-api-reference.md)
 - [Historical Replay](m36-api-reference.md)
+- [Comparative Backtesting](m37-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
