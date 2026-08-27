@@ -1,9 +1,9 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M34 / extension
-`0.31.0` is the current qualified baseline. The repository retains the prepared
-`1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are
-postponed indefinitely. Development continues one milestone at a time from M35.
+This is the starting point for current pg-react documentation. M35 / extension
+`0.32.0` is the current milestone. It adds read-only comparison of typed
+hypothetical row changes. The prepared `1.0.0-rc.1` candidate remains outside
+the current release sequence. Development continues one milestone at a time.
 
 ## Start
 
@@ -17,6 +17,7 @@ postponed indefinitely. Development continues one milestone at a time from M35.
 
 - [Authoring Rules and Policies](v1-authoring.md)
 - [Changing Policies Safely](changing-policies.md)
+- [Hypothetical Fact Simulation](m35-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate

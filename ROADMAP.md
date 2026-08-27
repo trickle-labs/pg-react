@@ -2230,7 +2230,12 @@ complete source and authoritative-state checksums.
 - New recursion, negation, temporal, decision-selection, delivery, or
   exactly-once semantics.
 
-### Decisions to close before the M35 contract freezes
+### M35 contract decisions
+
+The M35 contract is frozen by [`docs/m35-contract.md`](docs/m35-contract.md)
+and [`docs/m35-known-limitations.md`](docs/m35-known-limitations.md). The
+release deliberately supports direct table sources with one non-null `bigint`
+identity column; unsupported source and identity shapes fail closed.
 
 - Exact function signatures, change-set relation shape, row-image
   representation, source identity, key types and arity, ordinal type, operation

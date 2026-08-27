@@ -6,11 +6,12 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M34 / extension `0.31.0` is the current qualified baseline, including read-only
-comparison of a proposed rule, decision, or policy set before deployment. The
-repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its
-complete feature freeze are postponed indefinitely. Development continues one
-milestone at a time from M35. Start with the [documentation home](docs/index.md).
+M35 / extension `0.32.0` adds read-only comparison of typed hypothetical row
+changes before they reach production. The existing M34 comparison functions
+remain available. The repository retains the prepared `1.0.0-rc.1` candidate,
+but `1.0.0` and its complete feature freeze are postponed indefinitely.
+Development continues one milestone at a time. Start with the
+[documentation home](docs/index.md).
 
 ## Choose a path
 
@@ -103,8 +104,9 @@ current facts + proposed declaration
 ```
 
 It reports bounded `current`, `proposed`, `delta`, `lifecycle`, and would-be
-`work` evidence. It does not support hypothetical fact changes or historical
-replay. Rule comparison is limited to one `bigint` key even though separate
+`work` evidence. M35 also accepts typed hypothetical inserts, updates, and
+deletes for direct table sources. It does not support historical replay. Rule
+comparison is limited to one `bigint` key even though separate
 advanced installed authoring surfaces support broader typed keys.
 
 ## Guarantees and boundaries

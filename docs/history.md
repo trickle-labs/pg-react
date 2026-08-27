@@ -20,6 +20,9 @@ instructions.
   qualification baseline.
 - [M34 release notes](m34-release-notes.md) and
   [contract](m34-contract.md) preserve the `0.31.0` comparison milestone.
+- [M35 release notes](m35-release-notes.md), [contract](m35-contract.md), and
+  [API reference](m35-api-reference.md) document the `0.32.0` hypothetical
+  fact comparison milestone.
 - [`DESIGN.md`](../DESIGN.md) preserves the M13 architecture record.
 - The old [`v1-release-notes.md`](history/v1-release-notes.md) and
   [`v1-upgrades.md`](history/v1-upgrades.md) preserve the historical M4 `0.1.1`
@@ -31,9 +34,12 @@ instructions.
   [final checklist](history/m33-final-checklist.md)
 - [M34 evidence](m34-evidence.md), [readiness](m34-readiness.md), and
   [final checklist](m34-final-checklist.md)
+- [M35 evidence](m35-evidence.md), [benchmark](m35-benchmark.md), and
+  [final checklist](m35-final-checklist.md)
 - Preserved historical milestone inventories:
   - M33 / `0.30.0`: [API inventory](history/v1-api-inventory-m33-0.30.0.json), [Finding codes](history/v1-finding-codes-m33-0.30.0.json)
   - M34 / `0.31.0`: [API inventory](history/v1-api-inventory-m34-0.31.0.json), [Finding codes](history/v1-finding-codes-m34-0.31.0.json)
+  - M35 / `0.32.0`: [API inventory](m35-api-inventory.json), [Finding codes](m35-finding-codes.json)
 
 These records show what a milestone attempted or demonstrated. They do not
 create an RC artifact, broaden support, or override installed behavior.

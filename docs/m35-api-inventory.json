@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "milestone": "M35",
+  "extension_version": "0.32.0",
+  "predecessor": "M34 / 0.31.0",
+  "status": "additive hypothetical fact comparison",
+  "ordinary": {
+    "functions": [
+      "pgreact.compare",
+      "pgreact.compare_results"
+    ],
+    "overloads": [
+      "pgreact.compare(declaration, target, jsonb)",
+      "pgreact.compare(declaration, target, jsonb, jsonb)",
+      "pgreact.compare_results(declaration, target, jsonb)",
+      "pgreact.compare_results(declaration, target, jsonb, jsonb)"
+    ],
+    "change_fields": [
+      "relation",
+      "operation",
+      "ordinal",
+      "key",
+      "before",
+      "after"
+    ],
+    "result_sets": ["current", "proposed", "delta", "lifecycle", "work"],
+    "operations": ["INSERT", "UPDATE", "DELETE"],
+    "delta_states": ["ADDED", "REMOVED", "CHANGED", "UNCHANGED"]
+  },
+  "inherited": {
+    "contract": "M34 / 0.31.0",
+    "policy": "The existing three-argument comparison functions and runtime semantics remain unchanged."
+  },
+  "no_effect_boundary": [
+    "no source writes",
+    "no deployment",
+    "no lifecycle mutation",
+    "no durable work or attempt",
+    "no consequence or external delivery",
+    "no frontier advancement"
+  ]
+}
