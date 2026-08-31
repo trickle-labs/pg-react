@@ -1,9 +1,9 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M39 / extension
-`0.36.0` is the current qualified release. It qualifies the M34 through M38
-simulation functions as one read-only contract without adding a new evaluator.
-M40 bounded why-not is the current planning milestone. The prepared
+This is the starting point for current pg-react documentation. M40 / extension
+`0.37.0` is the current qualified release. It adds a bounded, read-only
+why-not question for one expected result while keeping the earlier explain
+output unchanged when the option is absent. The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start
@@ -23,6 +23,7 @@ M40 bounded why-not is the current planning milestone. The prepared
 - [Comparative Backtesting](m37-api-reference.md)
 - [Why-changed comparison](m38-api-reference.md)
 - [Simulation qualification](m39-api-reference.md)
+- [Bounded why-not](m40-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
@@ -36,12 +37,13 @@ M40 bounded why-not is the current planning milestone. The prepared
 
 ## Reference
 
+- [M40 bounded why-not contract](m40-contract.md)
 - [M39 simulation contract](m39-contract.md)
 - [M34 v1 baseline contract](v1-contract.md)
 - [Limits](v1-limits.md)
 - [Support Matrix](v1-support-matrix.md)
 - [Known Limitations](v1-known-limitations.md)
-- [Release Notes](1.0-release-notes.md)
+- [Release Notes](m40-release-notes.md)
 
 ## Project / History
 

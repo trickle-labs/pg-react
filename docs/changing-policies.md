@@ -15,6 +15,8 @@ It does not deploy the proposal or execute effects.
 This guide covers current-fact comparison. For hypothetical facts, supplied
 history, backtesting, and why-changed evidence, use the
 [M39 examples](m39-examples.md) and [API reference](m39-api-reference.md).
+For a bounded explanation of one missing current result, use the
+[M40 examples](m40-examples.md) and [API reference](m40-api-reference.md).
 
 ## 1. Start with a deployed target
 

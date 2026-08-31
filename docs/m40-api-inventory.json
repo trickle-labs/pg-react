@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "milestone": "M40",
+  "extension_version": "0.37.0",
+  "predecessor": "M39 / 0.36.0",
+  "status": "additive opt-in bounded why-not evidence",
+  "contract_version": 26,
+  "ordinary": {
+    "functions": ["pgreact.explain"],
+    "option": "why_not object, default absent",
+    "result_kinds": ["rule_match", "derived_fact", "decision_result", "policy_eligibility"],
+    "states": ["complete", "partial", "unavailable", "unsupported", "already_present"],
+    "cause_kinds": [
+      "missing_input", "positive_support", "applicability",
+      "inactive_policy_time", "decision_eligibility", "decision_candidate",
+      "decision_selection", "lifecycle_revision"
+    ],
+    "supported_targets": ["rule", "derived_relation", "decision_program", "policy_set"]
+  },
+  "inherited": {
+    "default_explain": "pgreact.explain output from 0.36.0",
+    "evaluator": "installed current-state adapters"
+  },
+  "no_effect_boundary": [
+    "no source writes",
+    "no deployment",
+    "no lifecycle mutation",
+    "no durable evidence",
+    "no work or external delivery",
+    "no frontier advancement"
+  ]
+}

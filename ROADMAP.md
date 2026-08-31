@@ -9,10 +9,9 @@
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
 > `1.0.0` and its feature freeze are postponed indefinitely. M39 and extension
-> `0.36.0` complete Capability area 1. M40 bounded why-not is the current
-> milestone and targets extension `0.37.0`. Before its contract freezes, field
-> evidence must confirm that a bounded missing-result explanation addresses the
-> next adoption blocker.
+> `0.37.0` completes M40 bounded why-not and Capability area 1. M41
+> end-to-end causal paths is the next logical candidate. The project still
+> requires field use and evidence before selecting it.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -3158,7 +3157,7 @@ production run used only as a semantic oracle.
 
 ---
 
-## Stage 40 — Bounded why-not
+## Stage 40 — Bounded why-not (`0.37.0` complete)
 
 **Outcome:** let an operator ask why one expected result is absent. M40 answers
 only when pg-react can evaluate a finite set of modeled causes for one public

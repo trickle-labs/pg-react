@@ -2,9 +2,9 @@
 
 - The only qualified environment is PostgreSQL 18.3 with pg_trickle 0.81.0 on
   Linux amd64. See the [support matrix](v1-support-matrix.md).
-- `0.36.0` is the current qualified release. Its documented adjacent update is
-  `0.35.0 -> 0.36.0`.
-- The managed runtime supports `0.31.0` through `0.36.0`, `1.0.0-rc.N`, and
+- `0.37.0` is the current qualified release. Its documented adjacent update is
+  `0.36.0 -> 0.37.0`.
+- The managed runtime supports `0.31.0` through `0.37.0`, `1.0.0-rc.N`, and
   `1.0.0`.
 - `configure_roles` authoritatively grants comparison execution to `author`,
   `operator`, and `reader` roles.
@@ -13,8 +13,9 @@
   fails closed; there is no proven row-redacted comparison substitute.
 - Simulation supports current and typed hypothetical comparison,
   caller-supplied replay, and at most two backtest sides. It does not capture or
-  reconstruct missing history, retain a simulation job, or answer general
-  why-not questions.
+  reconstruct missing history, retain a simulation job, or answer arbitrary
+  why-not questions. M40 only answers bounded absence questions for modeled
+  current results.
 - Comparison supports `rule`, `decision_program`, and `policy_set` targets
   with matching names and kinds. Non-policy target versions are `NULL` or
   `'1'`; comparable rules require one non-null unique `bigint` key.

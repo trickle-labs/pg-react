@@ -6,10 +6,12 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M39 / extension `0.36.0` qualifies current and hypothetical comparison,
+M40 / extension `0.37.0` adds bounded why-not answers for one missing result,
+using the current installed evidence. M39 / extension `0.36.0` qualifies current
+and hypothetical comparison,
 supplied-history replay, two-policy backtesting, and why-changed evidence as
 one read-only contract. M39 added no new evaluator. M40 bounded why-not is the
-current planning milestone. The repository retains the prepared `1.0.0-rc.1`
+current release. The repository retains the prepared `1.0.0-rc.1`
 candidate, but `1.0.0` and its complete feature freeze are postponed
 indefinitely. Start with the [documentation home](docs/index.md).
 
@@ -84,6 +86,9 @@ complete managed-runtime workflow.
 - **Why a result changed:** add `{"why_changed": true}` to a supported
   comparison, replay, or backtest call to receive bounded causes and public
   evidence. Leave it out to keep the earlier result unchanged.
+- **Why a result is absent:** add a `why_not` object to `pgreact.explain` when
+  you need a bounded answer for one expected rule match, decision result, or
+  policy eligibility result.
 - **Advanced reasoning:** installed public surfaces include maintained derived
   facts and logical support, bounded positive recursion, stratified negation
   and aggregation, shared conditions, temporal and effective-dated policies,

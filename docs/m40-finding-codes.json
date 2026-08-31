@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "milestone": "M40",
+  "extension_version": "0.37.0",
+  "finding_shape": ["code", "severity", "blocking", "target", "field", "message", "hint", "details"],
+  "severity": ["ERROR", "WARNING", "INFO"],
+  "codes": [
+    {"code": "M40_OPTIONS_INVALID", "severity": "ERROR"},
+    {"code": "M40_EXPECTED_RESULT_INVALID", "severity": "ERROR"},
+    {"code": "M40_SUBJECT_INVALID", "severity": "ERROR"},
+    {"code": "M40_TARGET_NOT_FOUND", "severity": "ERROR"},
+    {"code": "M40_TARGET_AMBIGUOUS", "severity": "ERROR"},
+    {"code": "M40_UNSUPPORTED_TARGET", "severity": "WARNING"},
+    {"code": "M40_UNSUPPORTED_RESULT", "severity": "WARNING"},
+    {"code": "M40_DERIVED_FACT_MISSING", "severity": "WARNING"},
+    {"code": "M40_UNAUTHORIZED", "severity": "WARNING"},
+    {"code": "M40_RLS_REJECTED", "severity": "WARNING"},
+    {"code": "M40_SCHEMA_DRIFT", "severity": "WARNING"},
+    {"code": "M40_STALE_FRONTIER", "severity": "WARNING"},
+    {"code": "M40_EVIDENCE_UNAVAILABLE", "severity": "WARNING"},
+    {"code": "M40_EVIDENCE_PARTIAL", "severity": "WARNING"},
+    {"code": "M40_RESOURCE_LIMIT", "severity": "WARNING"},
+    {"code": "M40_NO_EFFECT", "severity": "INFO"}
+  ],
+  "inherited": "M34-M39 preserve their validation and security findings"
+}

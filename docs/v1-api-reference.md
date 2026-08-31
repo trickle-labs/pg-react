@@ -101,7 +101,7 @@ All ordinary verbs return structured `jsonb` envelopes. Findings use `code`,
 | `pgreact.remove` | `(name text, preconditions jsonb DEFAULT '{}') RETURNS jsonb` | Remove the uniquely named deployed ordinary object. |
 | `pgreact.run` | `(sampled_time timestamptz DEFAULT clock_timestamp()) RETURNS jsonb` | Run one coordinated production cycle; this may create or execute work. |
 | `pgreact.status` | `(name text, options jsonb DEFAULT '{}') RETURNS jsonb` | Inspect one uniquely named deployed object. |
-| `pgreact.explain` | `(name text, subject jsonb DEFAULT NULL, options jsonb DEFAULT '{}') RETURNS jsonb` | Explain an object or subject through bounded public evidence. |
+| `pgreact.explain` | `(name text, subject jsonb DEFAULT NULL, options jsonb DEFAULT '{}') RETURNS jsonb` | Explain an object or subject; add `{"why_not": {...}}` for a bounded missing-result answer. See the [M40 contract](m40-contract.md). |
 | `pgreact.doctor` | `() RETURNS jsonb` | Diagnose the installation and managed runtime. |
 | `pgreact.doctor` | `(name text, options jsonb DEFAULT '{}') RETURNS jsonb` | Diagnose one deployed object. |
 

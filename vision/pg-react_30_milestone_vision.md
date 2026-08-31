@@ -1,6 +1,6 @@
 # The M35-M64 vision for pg-react
 
-> Planning status (August 2026): M39 is complete, extension `0.36.0` is the current qualified baseline, and M40 is the current milestone. `1.0.0` and its complete feature freeze are postponed indefinitely. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
+> Planning status (August 2026): M40 is complete, extension `0.37.0` is the current qualified baseline, and M41 is the next logical candidate. `1.0.0` and its complete feature freeze are postponed indefinitely. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [Practical rule-engine features](pg-react_practical_rule_engine_features.md), and [PostgreSQL as an operational data platform](operational-data-platform.md).
 
@@ -10,13 +10,13 @@ That is already a substantial product. pg-react does not need to become a hosted
 
 The first market is operational control over business data that PostgreSQL already owns, with an audit trail for every important outcome. Financial exceptions and access drift are the reference markets because they need results that survive restarts, policy changes that can be tested safely, explanations, reconciliation after change, and recovery after failure. Those markets should settle close sequencing decisions, but they should not limit the engine to finance or access control.
 
-This vision begins with M35 and describes 30 possible milestones through M64. M35 through M39 are complete, and M40 is the current milestone in `ROADMAP.md`. M41 through M64 are possibilities, not a queue and not a promise that every item will ship. Their numbers give the team stable names for discussion. Evidence may change the order, combine milestones, replace them, or show that one should never be built.
+This vision begins with M35 and describes 30 possible milestones through M64. M35 through M40 are complete, and M41 is the next candidate in `ROADMAP.md`. M42 through M64 are possibilities, not a queue and not a promise that every item will ship. Their numbers give the team stable names for discussion. Evidence may change the order, combine milestones, replace them, or show that one should never be built.
 
 ## Decision horizons
 
 ### Committed horizon
 
-The project commits to one milestone at a time. M40 is the current milestone. Later work enters the canonical roadmap only when it has acceptance criteria that tests can execute, a named owner, evidence that it helps the initial market, and evidence from the preceding milestone. This keeps a long vision from turning into a long list of promises.
+The project commits to one milestone at a time. M41 is the next candidate. Later work enters the canonical roadmap only when it has acceptance criteria that tests can execute, a named owner, evidence that it helps the initial market, and evidence from the preceding milestone. This keeps a long vision from turning into a long list of promises.
 
 ### Strategic horizon
 
