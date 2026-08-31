@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "milestone": "M41",
+  "extension_version": "0.38.0",
+  "codes": [
+    {"code":"M41_OPTIONS_INVALID","severity":"ERROR"},
+    {"code":"M41_ROOT_INVALID","severity":"ERROR"},
+    {"code":"M41_SUBJECT_INVALID","severity":"ERROR"},
+    {"code":"M41_TARGET_NOT_FOUND","severity":"ERROR"},
+    {"code":"M41_TARGET_AMBIGUOUS","severity":"ERROR"},
+    {"code":"M41_UNSUPPORTED_ROOT","severity":"WARNING"},
+    {"code":"M41_UNSUPPORTED_NODE","severity":"WARNING"},
+    {"code":"M41_ROOT_NOT_FOUND","severity":"WARNING"},
+    {"code":"M41_SCHEMA_DRIFT","severity":"WARNING"},
+    {"code":"M41_UNAUTHORIZED","severity":"WARNING"},
+    {"code":"M41_RLS_REJECTED","severity":"WARNING"},
+    {"code":"M41_EVIDENCE_MISSING","severity":"WARNING"},
+    {"code":"M41_EVIDENCE_PRUNED","severity":"WARNING"},
+    {"code":"M41_STALE_FRONTIER","severity":"WARNING"},
+    {"code":"M41_CHANGED_STATE","severity":"WARNING"},
+    {"code":"M41_CYCLE","severity":"WARNING"},
+    {"code":"M41_RESOURCE_LIMIT","severity":"WARNING"},
+    {"code":"M41_NO_EFFECT","severity":"INFO"}
+  ]
+}

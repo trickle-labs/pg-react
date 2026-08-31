@@ -36,8 +36,11 @@ instructions.
   [API reference](m39-api-reference.md) document the `0.36.0` simulation
   qualification milestone.
 - [M40 release notes](m40-release-notes.md), [contract](m40-contract.md), and
-  [API reference](m40-api-reference.md) document the `0.37.0` bounded why-not
-  milestone.
+[API reference](m40-api-reference.md) document the `0.37.0` bounded why-not
+milestone.
+- [M41 release notes](m41-release-notes.md), [contract](m41-contract.md), and
+[API reference](m41-api-reference.md) document the `0.38.0` end-to-end causal
+path milestone.
 - [`DESIGN.md`](../DESIGN.md) preserves the M13 architecture record.
 - The old [`v1-release-notes.md`](history/v1-release-notes.md) and
   [`v1-upgrades.md`](history/v1-upgrades.md) preserve the historical M4 `0.1.1`
@@ -58,7 +61,9 @@ instructions.
 - [M39 evidence](m39-evidence.md), [benchmark](m39-benchmark.md), and
   [final checklist](m39-final-checklist.md)
 - [M40 evidence](m40-evidence.md), [benchmark](m40-benchmark.md), and
-  [final checklist](m40-final-checklist.md)
+[final checklist](m40-final-checklist.md)
+- [M41 evidence](m41-evidence.md), [benchmark](m41-benchmark.md), and
+[final checklist](m41-final-checklist.md)
 - Preserved historical milestone inventories:
   - M33 / `0.30.0`: [API inventory](history/v1-api-inventory-m33-0.30.0.json), [Finding codes](history/v1-finding-codes-m33-0.30.0.json)
   - M34 / `0.31.0`: [API inventory](history/v1-api-inventory-m34-0.31.0.json), [Finding codes](history/v1-finding-codes-m34-0.31.0.json)

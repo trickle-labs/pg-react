@@ -6,13 +6,14 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M40 / extension `0.37.0` adds bounded why-not answers for one missing result,
-using the current installed evidence. M39 / extension `0.36.0` qualifies current
+M41 / extension `0.38.0` adds bounded end-to-end causal paths from one decision
+or work item back to accessible authoritative facts. M40 / extension `0.37.0`
+adds bounded why-not answers for one missing result, using current installed
+evidence. M39 / extension `0.36.0` qualifies current
 and hypothetical comparison,
 supplied-history replay, two-policy backtesting, and why-changed evidence as
-one read-only contract. M39 added no new evaluator. M40 bounded why-not is the
-current release. M41 end-to-end causal paths is the current planning milestone
-and targets extension `0.38.0`. The repository retains the prepared
+one read-only contract. M39 added no new evaluator. M41 causal paths are the
+current release. The repository retains the prepared
 `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are
 postponed indefinitely. Start with the [documentation home](docs/index.md).
 

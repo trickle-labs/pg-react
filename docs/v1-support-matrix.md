@@ -10,7 +10,7 @@ not produced support evidence; it does not mean best-effort compatibility.
 | PostgreSQL | 18.3 | Other PostgreSQL versions |
 | pg_trickle | 0.81.0 from the pinned release image | Other pg_trickle versions |
 | OS / CPU | Linux amd64 | Other operating systems and architectures |
-| pg-react artifact | `v0.37.0` release image and extension files; documented adjacent update `0.36.0 -> 0.37.0` | Releases before `0.31.0`; unreleased or untracked candidate versions |
+| pg-react artifact | `v0.38.0` release image and extension files; documented adjacent update `0.37.0 -> 0.38.0` | Releases before `0.31.0`; unreleased or untracked candidate versions |
 | Preload | `shared_preload_libraries = 'pg_trickle,pg_react'` | Loading only pg_trickle |
 | Isolation | `READ COMMITTED` | Other isolation modes are unqualified |
 | pg_trickle settings | `user_triggers=auto`, scheduler off, differential ratio `1.0` | pg_trickle automatic scheduling or uncoordinated refresh |
@@ -25,13 +25,13 @@ not produced support evidence; it does not mean best-effort compatibility.
 
 ## Build facts
 
-The `v0.37.0` extension is built with pgrx 0.18.0 and Rust 1.89.0. These identify
+The `v0.38.0` extension is built with pgrx 0.18.0 and Rust 1.89.0. These identify
 the release build toolchain; they are not promises that arbitrary pgrx or Rust
 versions are user-supported configurations.
 
 ## Current release boundaries
 
-- The managed runtime accepts extension versions `0.31.0` through `0.37.0`,
+- The managed runtime accepts extension versions `0.31.0` through `0.38.0`,
   `1.0.0-rc.N`, and `1.0.0`.
 - `pgreact_api.configure_roles(...)` authoritatively configures
   comparison execution permissions (`pgreact.compare`, `pgreact.compare_results`)

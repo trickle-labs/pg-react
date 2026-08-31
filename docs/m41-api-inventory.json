@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "milestone": "M41",
+  "extension_version": "0.38.0",
+  "ordinary": {
+    "functions": ["pgreact.explain"],
+    "root_kinds": ["decision_result", "rule_work", "decision_work"],
+    "states": ["complete", "partial", "unavailable", "unsupported"],
+    "node_kinds": ["decision_result", "decision_work", "decision_selection", "decision_candidate", "rule_work", "lifecycle_event", "rule_match", "policy_set", "policy_applicability", "derived_fact", "derived_support", "authoritative_fact"],
+    "boundary_kinds": ["missing", "inaccessible", "unsupported", "cyclic", "schema_drift", "inactive_time", "over_limit", "ineligible"]
+  },
+  "compatibility": {
+    "legacy_explain_unchanged": true,
+    "why_not_unchanged": true,
+    "read_only": true,
+    "top_level_verb_added": false
+  },
+  "next_milestone": "M42 - Evidence snapshots (candidate only)"
+}

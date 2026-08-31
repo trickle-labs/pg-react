@@ -1,6 +1,6 @@
 # v1 operations
 
-This is the current production runbook for extension `0.37.0`. Use public SQL
+This is the current production runbook for extension `0.38.0`. Use public SQL
 only. Never update `pgreact_internal` or `pgreact_runtime`.
 
 Every procedure follows:
@@ -20,7 +20,7 @@ after a crash. `pg-reactd` is a compatibility path, not the normal runtime.
 | Ordinary | `pgreact.doctor()`, `pgreact.doctor(name)` | Environment-wide or target diagnostics |
 | Ordinary | `pgreact.health` | Relational blocking and warning findings |
 | Ordinary | `pgreact.status(name)` | Target state, including policy applicability state |
-| Ordinary | `pgreact.explain(name, subject)` | Explain target or subject state; add `why_not` for a bounded missing-result answer |
+| Ordinary | `pgreact.explain(name, subject)` | Explain target or subject state; add `why_not` or `causal_path` for a bounded answer |
 | Ordinary | `pgreact.run()` | Explicitly perform a coordination/execution cycle |
 | Ordinary | `pgreact.rules`, `matches`, `decisions`, `policy_sets`, `work`, `attempts` | Current public state |
 | Administrative | `pgreact_api.managed_status()` | Managed-worker configuration, heartbeat, state, and detail |
@@ -72,7 +72,7 @@ public view.
 2. **Diagnose** — confirm the current database is listed, the configured role
    can connect and has worker privileges, and both `pg_trickle` and `pg_react`
    are preloaded. The runtime coordinates extension versions `0.31.0` through
-   `0.37.0`, `1.0.0-rc.N`, and `1.0.0`.
+   `0.38.0`, `1.0.0-rc.N`, and `1.0.0`.
 3. **Repair prerequisite** — correct the postmaster settings or worker role.
    Changes to `pg_react.databases` and `pg_react.worker_role` require a
    PostgreSQL restart.

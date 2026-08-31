@@ -1,10 +1,9 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M40 / extension
-`0.37.0` is the current qualified release. It adds a bounded, read-only
-why-not question for one expected result while keeping the earlier explain
-output unchanged when the option is absent. M41 end-to-end causal paths is the
-current planning milestone and targets extension `0.38.0`. The prepared
+This is the starting point for current pg-react documentation. M41 / extension
+`0.38.0` is the current qualified release. It adds bounded, read-only causal
+paths from one decision or work item back to accessible authoritative facts.
+The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start
@@ -25,6 +24,7 @@ current planning milestone and targets extension `0.38.0`. The prepared
 - [Why-changed comparison](m38-api-reference.md)
 - [Simulation qualification](m39-api-reference.md)
 - [Bounded why-not](m40-api-reference.md)
+- [End-to-end causal paths](m41-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
@@ -39,12 +39,13 @@ current planning milestone and targets extension `0.38.0`. The prepared
 ## Reference
 
 - [M40 bounded why-not contract](m40-contract.md)
+- [M41 causal-path contract](m41-contract.md)
 - [M39 simulation contract](m39-contract.md)
 - [M34 v1 baseline contract](v1-contract.md)
 - [Limits](v1-limits.md)
 - [Support Matrix](v1-support-matrix.md)
 - [Known Limitations](v1-known-limitations.md)
-- [Release Notes](m40-release-notes.md)
+- [Release Notes](m41-release-notes.md)
 
 ## Project / History
 
