@@ -2,7 +2,7 @@
 SELECT pgreact_api.author_decision_program(
     'm26-upgrade', 'm26_upgrade.candidates'::regclass,
     'subject', 'candidate', 'priority', ARRAY['result']::name[],
-    (SELECT frontier FROM pgreact_internal.clock_frontier), NULL, 10) AS version_id \gset
+    clock_timestamp(), NULL, 10) AS version_id \gset
 DO $$
 DECLARE actual jsonb;
 BEGIN
