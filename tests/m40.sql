@@ -129,7 +129,7 @@ BEGIN
        <> 'deployed' THEN
         RAISE EXCEPTION 'M40 policy fixture deployment failed';
     END IF;
-    PERFORM pgreact.run('2026-08-31 09:00:00+00');
+    PERFORM pgreact.run(clock_timestamp() + interval '1 minute');
     result := pgreact.explain(
         'm40-customers', '{"customer_id":200}'::jsonb,
         '{"why_not":{"result_kind":"policy_eligibility","result_key":"{\"customer_id\": 200}"}}'::jsonb);
