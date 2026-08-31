@@ -2,7 +2,7 @@
 
 Related documents: [Practical rule-engine features](pg-react_practical_rule_engine_features.md), [PostgreSQL as an operational data platform](operational-data-platform.md), and [The trifecta](the-trifecta.md).
 
-> Current state: M40 and extension `0.37.0` are the qualified baseline. M41 end-to-end causal paths is the next logical candidate. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely. The [documentation home](../docs/index.md) and [support matrix](../docs/v1-support-matrix.md) define the current product contract.
+> Current state: M40 and extension `0.37.0` are the qualified baseline. M41 end-to-end causal paths is the current planning milestone and targets extension `0.38.0`. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely. The [documentation home](../docs/index.md) and [support matrix](../docs/v1-support-matrix.md) define the current product contract.
 
 Modern applications already contain rule engines, even when nobody calls them that. A rule engine watches facts, checks whether they meet a condition, and decides what must happen next. In a typical application, those rules are scattered through service branches, scheduled queries, database triggers, retry workers, and exception tables. One branch notices that a customer crossed a risk threshold. Another job finds an overdue invoice. Other code updates access after a role change or stops deletion when a legal hold begins.
 

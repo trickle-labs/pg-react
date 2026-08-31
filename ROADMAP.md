@@ -8,10 +8,11 @@
 
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
-> `1.0.0` and its feature freeze are postponed indefinitely. M39 and extension
-> `0.37.0` completes M40 bounded why-not and Capability area 1. M41
-> end-to-end causal paths is the next logical candidate. The project still
-> requires field use and evidence before selecting it.
+> `1.0.0` and its feature freeze are postponed indefinitely. M39 completed
+> Capability area 1. M40 and extension `0.37.0` complete bounded why-not. M41
+> end-to-end causal paths is the current milestone and targets extension
+> `0.38.0`. Before its contract freezes, field evidence must confirm that
+> cross-step causal paths address the next adoption blocker.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -3366,27 +3367,277 @@ select the milestone that addresses that evidence.
 
 ---
 
-## Proposed sequence after M40
+## Stage 41 — End-to-end causal paths
+
+**Outcome:** let an operator start with one current decision result or durable
+work item and follow why it exists back to accessible authoritative facts. M41
+connects evidence that pg-react already models across decision selection,
+rule-match lifecycle, derived facts, policy inputs, and work. A path that
+reaches a cycle, limit, missing record, unsupported dependency, or inaccessible
+source reports that boundary instead of inventing a complete explanation.
+
+**Release boundary:** extension `0.38.0`. M41 adds an opt-in `causal_path`
+request to the existing `pgreact.explain(name, subject, options)` signature. It
+reuses installed modeled evidence that M40 reads where that evidence proves a
+link. It adds bounded adapters over installed lifecycle, decision, derived-fact,
+policy, and work state for the remaining links. Calls that omit `causal_path`
+keep the exact `pgreact.explain` output from extension `0.37.0`, including M40
+`why_not` output. M41 adds no top-level verb, retained evidence store, graph
+query language, or second evaluator. The packaged candidate must pass
+`tests/m41.sh complete`. Completing M41 does not start a v1 feature freeze or
+release-candidate cycle.
+
+**Owner:** pg-react maintainers.
+
+**Entry gate:** the exact `v0.37.0` artifacts are published and every M40 gate
+passes. Before the M41 contract freezes, use M40 with at least one externally
+reviewed financial-exception or access-drift workload. Start from a decision or
+work item that matters to the operator. Record the manual public-SQL joins used
+to relate it to lifecycle state, derived facts, and authoritative facts. Record
+every missing, ambiguous, inaccessible, or private link. If those links do not
+block the user's task, stop M41 and select the milestone supported by the field
+evidence.
+
+### Deliverables
+
+- One opt-in `causal_path` request on
+  `pgreact.explain(name, subject, options)`. The stable name identifies the
+  deployed target, `subject` carries its typed business identity, and the option
+  selects one `decision_result`, `rule_work`, or `decision_work` root. A result
+  key selects a decision result. Generation, revision, consequence identity,
+  and event kind disambiguate work where the root kind requires them. The
+  default stays off and preserves the `0.37.0` result byte for byte.
+- One canonical public root identity for each accepted decision and work form.
+  It uses target names and versions, typed subject and result keys, lifecycle
+  generation or revision, consequence identity, and event kind where they
+  apply. Private UUIDs, transaction IDs, physical row order, and catalog
+  identifiers do not establish root identity. M41 introduces this identity.
+  The existing `pgreact.work.work_id` alone does not select an M41 root.
+- One bounded directed evidence model. Each answer identifies the root,
+  sampled time, authoritative frontier, nodes, edges, returned paths, reached
+  boundaries, limits, findings, stable digests, and cost counters.
+- Adapters for the finite links that the qualified milestone accepts. They
+  cover work to lifecycle state, lifecycle state to a rule match, a decision
+  result to selection and candidates, policy applicability and active time,
+  derived facts to modeled support, and modeled support to authoritative facts.
+- Canonical node, edge, and boundary kinds. Each edge names one relationship
+  that installed evidence proves. Each terminal node is an accessible
+  authoritative fact or an explicit modeled, missing, inaccessible,
+  unsupported, cyclic, or over-limit boundary.
+- Explicit `complete`, `partial`, `unavailable`, and `unsupported` results. A
+  missing root, pruned evidence, hidden source, unsupported SQL dependency,
+  cycle, or reached limit never becomes a complete path.
+- Stable findings for invalid requests, unknown or ambiguous targets and
+  roots, malformed subjects, unsupported root and node kinds, stale facts,
+  schema drift, missing or pruned evidence, authorization and RLS boundaries,
+  cycles, resource limits, and changed authoritative state.
+- Reproducible semantic cost counters and separately labeled elapsed time for
+  roots, nodes, edges, paths, support expansion, depth, fan-out, and boundary
+  checks.
+- Extension `0.38.0`, adjacent upgrade SQL from `0.37.0`, an M41 contract, API
+  reference, API and finding inventories, examples, compatibility matrix,
+  benchmark, migration evidence, known limitations, release notes, final
+  checklist, and executable qualification evidence.
+
+### Supported boundary
+
+- M41 starts from one current decision result or durable work item for one
+  deployed target and subject at one frozen evaluation point. It does not
+  enumerate roots, explain a batch of outcomes, or search forward for effects.
+- The accepted root forms are limited to identities whose path can be proved
+  from installed modeled evidence. The contract must list the exact decision,
+  rule-work, and decision-work forms that qualify. Other forms return
+  `unsupported` before path expansion begins.
+- Path traversal moves backward from the root. Every edge must correspond to a
+  recorded lifecycle, selection, applicability, support, derivation, or source
+  relationship. Temporal sequence or dependency alone does not prove a causal
+  edge.
+- A complete answer accounts for every supported predecessor edge within the
+  frozen model and declared bounds until each path reaches an accessible
+  authoritative fact. It does not claim to account for application code,
+  arbitrary SQL, deleted history, external delivery, or data the caller cannot
+  access.
+- Derived-fact traversal uses installed support and dependency metadata. A
+  maintained relation or view without enough modeled evidence ends at an
+  explicit opaque or unsupported boundary. M41 does not infer tuple lineage
+  from SQL text or query plans.
+- One public node identity represents the same modeled fact, result, lifecycle
+  state, decision, or work item wherever paths converge. Nodes, edges, paths,
+  and boundaries use canonical ordering and stable digests.
+- A cycle names only the accessible public nodes that establish the cycle. A
+  cycle that blocks predecessor expansion returns `partial`, even if every
+  other returned path reaches an authoritative fact. A reached depth, fan-out,
+  node, edge, path, or payload limit also returns `partial` with the exact
+  reached bound. It does not claim an omitted count unless the evaluator can
+  prove it.
+- M41 reads one PostgreSQL statement snapshot and records the exact declaration
+  and source-definition digests, lifecycle and decision revisions, work state,
+  sampled time, and authoritative frontier used by each link. If a supported
+  link cannot be tied to that snapshot and those tokens, the request returns
+  `unavailable` with a changed-state finding instead of mixing revisions.
+- The caller must be authorized for the root and every source needed for the
+  answer. Sources with row-level security keep their inherited fail-closed
+  behavior. An absent or hidden root returns the same `unavailable` result with
+  empty graph fields and no root identity. An inaccessible predecessor ends at
+  one boundary attached to the last accessible node. The boundary exposes no
+  hidden node, degree, count, key, value, digest, or path shape. M41 adds no
+  redaction mode.
+- Every successful or rejected request remains read-only. It does not change
+  sources, pg-react state, lifecycle, work, attempts, history, frontiers,
+  evidence, or effects.
+
+### Explicit non-goals
+
+- Arbitrary SQL lineage, query-plan lineage, application tracing, causal
+  inference, necessity or sufficiency proofs, minimal causes, repair synthesis,
+  recommendation, optimization, or unbounded graph search.
+- Extending why-not questions, simulations, replay, backtesting, or
+  why-changed comparisons with multi-step paths. M41 preserves the M39 and M40
+  contracts. A later qualification milestone must define any shared behavior.
+- Forward impact analysis, root discovery, batch explanation, shortest-path
+  search, path ranking, interactive graph traversal, or a visualization API.
+- Retaining evidence after ordinary source data or detailed history expires.
+  M42 owns opt-in evidence snapshots.
+- Describing arbitrary SQL edits in business terms. M43 owns semantic policy
+  differences for fields that pg-react models.
+- A shared explanation contract for current outcomes, comparisons, decisions,
+  work, retained evidence, and later explanation types. M44 owns explanation
+  qualification.
+- Source-history capture, database snapshots, durable analysis jobs,
+  background search, cross-database traversal, a graph database, or a second
+  source of truth.
+- Explaining delivery after pg-react work crosses into application code or an
+  external system. M41 may identify the public work boundary but does not claim
+  what an external consumer did.
+- A new rule language, new derivation behavior, new decision semantics, new
+  lifecycle transitions, new work execution, or new consequence behavior.
+- Policy promotion, approval, deployment, rollback orchestration, forecasting,
+  visual or AI authoring, client SDKs, workflow orchestration, synchronous
+  network actions, human tasks, or exactly-once external delivery.
+
+### Decisions to close before the M41 contract freezes
+
+- Exact `causal_path` request shape, defaults, accepted values, version fields,
+  and behavior for missing, null, false, malformed, duplicate, conflicting, and
+  unknown options.
+- Exact accepted root kinds and public identities for decision results,
+  rule-generated work, and decision-generated work. Define how target version,
+  subject key, result key, generation, revision, consequence, and event kind
+  select one root without private identifiers.
+- Exact node, edge, path, direction, endpoint, and boundary shapes. Define the
+  public fields, canonical serialization, ordering, deduplication, and digest
+  for each kind.
+- Exact evidence reuse for work, lifecycle, rules, decisions, candidates,
+  policy applicability, active time, derived facts, recursive support,
+  aggregates, parameters, and authoritative source rows.
+- Exact meaning of `complete`, `partial`, `unavailable`, `unsupported`, missing,
+  ambiguous, opaque, inaccessible, pruned, cyclic, and changed results. A cycle
+  that blocks predecessor expansion is `partial`. An absent or hidden root is
+  the same `unavailable` result. Define when path and boundary counts are exact
+  at a reached limit.
+- Exact rules for converging paths, repeated nodes, parallel edges, cycles,
+  self-support, recursive facts, duplicate support, and a path that reaches
+  both authoritative and incomplete boundaries.
+- Exact sampled-time, frontier, declaration, schema, lifecycle, decision, work,
+  and evidence revision rules. List the public views or internal authoritative
+  relations and exact revision, digest, or frontier column used for every link.
+  Define which historical roots can be explained from ordinary retained state.
+- Exact ownership and source-access checks, role grants, fixed
+  security-definer search paths, protected-value handling, and unauthorized
+  result contracts.
+- Exact serialization with concurrent deployment, replacement, removal, source
+  DDL, refresh, lifecycle change, decision change, work execution,
+  authorization change, pruning, restart, recovery, and extension upgrade.
+  Define abort, retry, cancellation, timeout, and cleanup behavior.
+- Exact deterministic root, node, edge, path, support, depth, fan-out, and
+  payload limits. Freeze latency, memory, and temporary-storage benchmark
+  budgets separately. Runtime measurements do not change semantic ordering,
+  digests, or completeness for the same inputs and semantic limits. Freeze the
+  upgrade and rollback evidence and `tests/m41.sh complete` inputs.
+
+### Exit gates
+
+- Exact fixtures return the complete JSON output for a decision result whose
+  path crosses candidate selection, policy applicability, a rule result, a
+  derived fact, and an authoritative fact. The fixture asserts every public
+  identity, node, edge, path, boundary, finding, limit, digest, and semantic
+  cost field.
+- Exact fixtures return the complete JSON output for rule-generated and
+  decision-generated work. Each path crosses the supported lifecycle and
+  consequence links and ends at the exact accessible authoritative facts.
+- A direct authoritative input, one derived layer, and multiple derived layers
+  produce the exact canonical paths accepted by the frozen contract. Shared
+  support appears once as one public node identity when paths converge.
+- Multiple paths and parallel support return in canonical order and reconcile
+  with the exact public evidence at the frozen sampled time and frontier.
+  Repeating the request against unchanged inputs returns byte-for-byte
+  identical semantic output.
+- Missing, stale, pruned, ambiguous, opaque, cyclic, over-limit,
+  unauthorized, RLS, or arbitrary-SQL evidence returns the exact complete
+  output for its `partial`, `unavailable`, or `unsupported` state. No fixture
+  receives an edge or terminal fact that the recorded evidence cannot prove.
+- Every invalid, conflicting, unknown, mismatched, and unsupported root request
+  returns its exact stable finding and leaves source and authoritative state
+  checksums unchanged.
+- Existing `pgreact.explain` calls without the M41 option preserve their exact
+  output across fresh installation and populated upgrade. Existing M40
+  `why_not` requests preserve their exact output. Invalid M41 options do not
+  change unrelated explanation requests.
+- Repeated causal-path calls return byte-for-byte identical semantic output
+  across physical source order, supported plans, restart, restore, adjacent
+  upgrade, and supported standby promotion. Measured elapsed time may differ.
+- Cancellation, timeout, backend termination, crash, restart, recovery, and
+  concurrent production activity cannot leak explanation state or return a
+  path that mixes declaration, schema, authorization, time, lifecycle,
+  decision, work, evidence, or frontier revisions.
+- Every documented role and `PUBLIC` case returns the exact authorized or
+  denied output without leaking a target, root, source, subject, result, node,
+  edge, degree, count, value, or path shape. Every security-definer function
+  has the frozen safe search path.
+- One versioned reference corpus contains at least three production-shaped
+  workloads. It records exact requests, answers, findings, identities, paths,
+  digests, bounds, costs, checksums, and unsupported questions.
+- Migration evidence replaces the manual joins from the field-reviewed
+  workload with one `pgreact.explain` call. Independent PostgreSQL users trace
+  a decision and a work item to authoritative facts without private catalogs,
+  internal UUIDs, undocumented joins, application code, or operator help.
+- The compatibility matrix covers every accepted root, node, edge, endpoint,
+  boundary, state, finding, limit, role, retention condition, and supported
+  installation path. The release simplification review records which proposed
+  distinction was kept, narrowed, unified, or removed.
+- Representative and supported-limit profiles satisfy the published budgets.
+  Evidence identifies dominant scans, support fan-out, path expansion, depth,
+  returned nodes and edges, memory, and temporary storage.
+- Fresh installation, populated `0.37.0 -> 0.38.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M40 qualification pass
+  in `tests/m41.sh complete` against the exact candidate artifact.
+- Every inherited M0 through M40 gate passes. No P0 or P1 remains. Retained
+  limitations are explicit, and the exact `0.38.0` artifact passes its release
+  gate.
+
+---
+
+## Proposed sequence after M41
 
 The project still commits to one milestone at a time. The five items below are
 candidates, not implementation or release commitments. Each must earn selection
-from M40 evidence and user traction.
+from M41 evidence and user traction.
 
-1. **M41 — End-to-end causal paths.** Connect existing bounded evidence from a
-   decision or work item through lifecycle and derived facts to authoritative
-   facts, using public business identities.
-2. **M42 — Evidence snapshots.** Retain compact, opt-in evidence for selected
+1. **M42 — Evidence snapshots.** Retain compact, opt-in evidence for selected
    audited outcomes after ordinary source data or detailed history expires,
    without creating a database snapshot or second source of truth.
-3. **M43 — Semantic policy differences.** Describe changes to fields that
+2. **M43 — Semantic policy differences.** Describe changes to fields that
    pg-react models, including applicability, effective time, priority,
    parameters, results, and action bindings, without claiming to understand
    arbitrary SQL text.
-4. **M44 — Explanation qualification.** Establish one bounded explanation
+3. **M44 — Explanation qualification.** Establish one bounded explanation
    contract for current outcomes, comparisons, decisions, and work, with shared
    ordering, authorization, retention, identity, cost, and failure rules.
-5. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
+4. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
    explicit progress, lateness, correction, retention, and resource limits.
+5. **M46 — Business calendar windows.** Add calendar days, months, billing
+   periods, and named business calendars with explicit time-zone,
+   daylight-saving, month-boundary, and late-input behavior.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 

@@ -3,7 +3,8 @@
 This is the starting point for current pg-react documentation. M40 / extension
 `0.37.0` is the current qualified release. It adds a bounded, read-only
 why-not question for one expected result while keeping the earlier explain
-output unchanged when the option is absent. The prepared
+output unchanged when the option is absent. M41 end-to-end causal paths is the
+current planning milestone and targets extension `0.38.0`. The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start

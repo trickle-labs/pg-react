@@ -11,9 +11,10 @@ using the current installed evidence. M39 / extension `0.36.0` qualifies current
 and hypothetical comparison,
 supplied-history replay, two-policy backtesting, and why-changed evidence as
 one read-only contract. M39 added no new evaluator. M40 bounded why-not is the
-current release. The repository retains the prepared `1.0.0-rc.1`
-candidate, but `1.0.0` and its complete feature freeze are postponed
-indefinitely. Start with the [documentation home](docs/index.md).
+current release. M41 end-to-end causal paths is the current planning milestone
+and targets extension `0.38.0`. The repository retains the prepared
+`1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are
+postponed indefinitely. Start with the [documentation home](docs/index.md).
 
 ## Choose a path
 
