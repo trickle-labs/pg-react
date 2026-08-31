@@ -55,7 +55,7 @@ static_audit() {
   jq -e '.schema_version == 1 and .milestone == "M40" and .extension_version == "0.37.0" and (.ordinary.functions | index("pgreact.explain")) and (.ordinary.states | index("already_present"))' docs/m40-api-inventory.json >/dev/null
   jq -e '.schema_version == 1 and .milestone == "M40" and (.codes | length == 16)' docs/m40-finding-codes.json >/dev/null
   cmp sql/pg_react--0.36.0--0.37.0.sql sql/m40.sql
-  cmp sql/pg_react--0.37.0.sql <(rtk run "cat sql/pg_react--0.36.0.sql; cat sql/m40.sql")
+  cmp sql/pg_react--0.37.0.sql <(cat sql/pg_react--0.36.0.sql sql/m40.sql)
   test "$(tail -c 1 sql/pg_react--0.37.0.sql | od -An -t x1 | tr -d ' \\n')" = 0a
   ! grep -Eq '(^|[[:space:]])(ALTER|CREATE)[[:space:]]+EXTENSION' sql/m40.sql
   ! grep -Eq '(^|[[:space:]])(CREATE|ALTER)[[:space:]]+(SCHEMA|TABLE|TYPE|VIEW)[[:space:]]+pgreact\\.' sql/m40.sql
