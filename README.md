@@ -13,7 +13,8 @@ evidence. M39 / extension `0.36.0` qualifies current
 and hypothetical comparison,
 supplied-history replay, two-policy backtesting, and why-changed evidence as
 one read-only contract. M39 added no new evaluator. M41 causal paths are the
-current release. The repository retains the prepared
+current release. M42 is the current planning milestone. It defines evidence
+snapshots for extension `0.39.0`. The repository retains the prepared
 `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are
 postponed indefinitely. Start with the [documentation home](docs/index.md).
 

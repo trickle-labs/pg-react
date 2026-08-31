@@ -10,9 +10,10 @@
 > The current release decision supersedes older sequencing retained below:
 > `1.0.0` and its feature freeze are postponed indefinitely. M39 completed
 > Capability area 1. M40 and extension `0.37.0` complete bounded why-not. M41
-> end-to-end causal paths is the current milestone and targets extension
-> `0.38.0`. Before its contract freezes, field evidence must confirm that
-> cross-step causal paths address the next adoption blocker.
+> and extension `0.38.0` complete end-to-end causal paths. M42 is the current
+> milestone. It defines evidence snapshots for extension `0.39.0`. Before its
+> contract freezes, field evidence must confirm that ordinary evidence expires
+> before the required audit period.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -3617,25 +3618,308 @@ evidence.
 
 ---
 
-## Proposed sequence after M41
+## Stage 42 — Evidence snapshots
 
-The project still commits to one milestone at a time. The five items below are
+**Outcome:** preserve compact evidence for an explicitly selected decision
+result after ordinary source rows or detailed history expire. An author opts in
+for a named decision program. An authorized caller then captures one complete
+M41 causal-path answer while its evidence is current. A later read returns the
+exact retained answer with its original policy version, business identity,
+result, time, and bounded supporting facts. It never presents the snapshot as
+current database truth.
+
+**Release boundary:** extension `0.39.0`. M42 adds an opt-in
+`evidence_snapshot` policy to canonical `decision_program` declarations and
+bounded capture, read, and delete operations under the names-first
+`pgreact_api` façade. Capture persists one exact, complete M41 answer plus M42
+ownership and retention metadata. It does not create a second evidence format.
+Existing declarations that omit the policy keep their exact M41 behavior and
+normalized form. Existing `pgreact.explain` calls remain read-only and
+byte-for-byte compatible. M42 adds no automatic capture, source-history
+collector, database snapshot, or second evaluator. The packaged candidate must
+pass `tests/m42.sh complete`. Completing M42 does not start a v1 feature freeze
+or release-candidate cycle.
+
+**Owner:** pg-react maintainers.
+
+**Entry gate:** the exact `v0.38.0` artifacts are published and every M41 gate
+passes. Before the M42 contract freezes, use M41 with at least one externally
+reviewed financial-exception or access-drift workload whose audit period is
+longer than its ordinary source or explanation retention. Record the exact
+outcome, current causal path, data that expires, required retention period,
+authorized readers, and minimum facts needed for the later audit. If expiration
+does not block the audit, stop M42 and select the milestone supported by the
+field evidence.
+
+### Deliverables
+
+- One canonical opt-in `evidence_snapshot` policy for deployed
+  `decision_program` declarations. The policy enables `decision_result`
+  capture and declares a finite deletion-eligibility horizon. Omission is the
+  default and stores nothing.
+- One explicit, atomic capture operation for one current `decision_result`
+  root. The operation accepts the M41 public target, subject, and root identity.
+  It also requires one bounded caller-supplied `capture_key` for retry safety.
+  It writes only when the same statement snapshot returns a complete,
+  authorized causal-path answer.
+- One immutable public snapshot identity. It includes the target kind, stable
+  target name and version, canonical M41 root identity, and `capture_key`.
+  Private UUIDs, transaction IDs, physical row order, and catalog identifiers
+  do not establish identity.
+- One compact snapshot envelope. It records the snapshot contract version, the
+  exact complete M41 answer, capture time, deletion-eligibility time, and owner.
+  The nested M41 answer retains its original target, root, typed business keys,
+  result, sampled time, authoritative frontier, policy versions, graph, limits,
+  findings, digests, and semantic cost counters.
+- Names-first read and delete operations. Read returns the exact retained M41
+  answer and M42 metadata. It returns explicit, fail-closed results for an
+  `available`, `deletion_eligible`, `missing`, `deleted`, malformed, or
+  inaccessible snapshot.
+- An owner or operator delete operation and integration with the M21 retention
+  preview and apply dispatch, status, metrics, detail, tombstone, and audit
+  contracts. The snapshot family has one stable `historical_identity`.
+  Snapshot removal is bounded, idempotent, attributable, and unavailable before
+  the deletion-eligibility time.
+- Stable findings for invalid policies and requests, unsupported roots, an
+  incomplete or changed M41 path, stale declaration or policy versions,
+  authorization and RLS boundaries, duplicate capture, reached limits, storage
+  failure, deletion eligibility, deletion, and unavailable retained evidence.
+- Reproducible cost counters for source evidence read, payload bytes, and
+  storage writes. Elapsed time remains separately labeled and does not affect
+  identity.
+- Extension `0.39.0`, adjacent upgrade SQL from `0.38.0`, an M42 contract, API
+  reference, API and finding inventories, examples, compatibility matrix,
+  benchmark, migration and retention evidence, known limitations, release
+  notes, final checklist, and executable qualification evidence.
+
+### Supported boundary
+
+- M42 captures one root at a time for one deployed `decision_program`
+  declaration and one typed business subject. The only accepted root is the
+  M41 `decision_result` form.
+- Capture starts from the current M41 causal-path answer. Only `complete`
+  answers qualify. A `partial`, `unavailable`, or `unsupported` answer returns
+  an exact finding and creates no snapshot, tombstone, audit row, or other
+  durable state.
+- The snapshot stores the exact public M41 answer that capture received. It does
+  not query a second lineage model, reduce the graph into another format, or
+  add an edge, value, count, or hidden shape that M41 did not return.
+- A snapshot is a historical record of the captured outcome. It does not prove
+  that the outcome remains current, that the source row still exists, or that
+  the policy would return the same result now. Read results label sampled time,
+  capture time, frontier, versions, and deletion eligibility without
+  reclassifying retained values as authoritative facts.
+- Capture freezes the values visible to its PostgreSQL statement snapshot. The
+  retained answer makes no claim about commits after that snapshot. The M42
+  write stores the exact target version, declaration digest, policy versions,
+  root identity, result, sampled time, authoritative frontier, graph, limits,
+  and semantic digests that M41 returned.
+- Successful capture is atomic. Cancellation, timeout, backend termination,
+  crash, or storage error leaves either the complete snapshot and its audit row
+  or neither. Capture does not change sources, evaluation, lifecycle, work,
+  attempts, frontiers, or existing evidence.
+- A target replacement or removal never rewrites an existing snapshot. The
+  snapshot remains attributable to the captured declaration and policy
+  versions until an authorized delete removes it.
+- The public identity combines the canonical target kind, name, and version,
+  the root identity, and `capture_key`. Retrying that identity before deletion
+  returns its retained snapshot without replacing it with a later M41 answer. A
+  new `capture_key` captures a new statement snapshot. After deletion, the
+  identity resolves to its tombstone and cannot be recreated. Concurrent
+  attempts follow the same rule and create one audit row.
+- Snapshot ownership comes from the deployed declaration at capture. Capture,
+  read, and delete require membership in that owner role; the configured
+  operator role may perform the same operations. A later source grant or
+  revocation does not change access to the retained snapshot. Adding a member
+  to the owner role grants access by ordinary PostgreSQL role semantics.
+  `PUBLIC` and configured reader roles receive no snapshot access.
+- M41's RLS boundary remains fail-closed. M42 does not retain a source value
+  from a path that M41 marks inaccessible. Later reads use snapshot ownership
+  without re-reading an expired source.
+- An absent or inaccessible snapshot returns one fail-closed result with no
+  target, subject, root, value, graph shape, count, digest, ownership,
+  deletion-eligibility, tombstone, or existence leak.
+- Every snapshot has a finite deletion-eligibility time and inherits M41's hard
+  payload limits. After that time, the snapshot remains stored and reads as
+  `deletion_eligible` until an owner, operator, or enabled M21 apply removes it.
+  M21 remains disabled by default and never removes a snapshot automatically.
+- M21 preview and apply extend their explicit family dispatch for snapshots and
+  report exact eligible rows, bytes, protected state, deletions, tombstones, and
+  loss of detail to operators. Reader-role status, metrics, and detail omit the
+  snapshot family so aggregate diagnostics cannot reveal retained evidence.
+- Snapshot rows use ordinary PostgreSQL durability, transactions, backup,
+  restore, replication, and disk accounting. M42 adds no external archive,
+  background worker, or separate persistence service.
+
+### Explicit non-goals
+
+- A PostgreSQL database snapshot, source-row history, change-data capture,
+  event sourcing, a complete audit log, arbitrary SQL lineage, query-plan
+  lineage, application tracing, or a second source of truth.
+- Automatic capture for every evaluation, match, decision, lifecycle change,
+  or work item. M42 requires both a declaration opt-in and an explicit capture
+  request for one root.
+- `rule_work` or `decision_work` snapshots, root discovery, batch capture,
+  snapshot enumeration, pagination, or search. Add them only after field
+  evidence shows that one decision-result capture is insufficient.
+- A second reduced evidence representation or a configurable field-projection
+  language. M42 reuses the complete bounded M41 answer.
+- Mutable snapshots, appended evidence, repaired values, or recomputation under
+  a later declaration. Deletion and its tombstone do not alter the retained
+  evidence before removal.
+- Using retained evidence as input to current evaluation, replay, simulation,
+  backtesting, comparison, reconciliation, work execution, or policy selection.
+- Extending M41 path traversal, batch explanation, forward impact analysis,
+  arbitrary root kinds, path ranking, or visualization.
+- Describing policy edits in business terms. M43 owns semantic policy
+  differences for fields that pg-react models.
+- A shared explanation contract for current outcomes, comparisons, decisions,
+  work, and retained evidence. M44 owns explanation qualification.
+- Legal-hold workflows, records-management policy, WORM storage,
+  non-repudiation, external notarization, encryption-key management, export to
+  object storage, or cross-database retention.
+- Unbounded payloads, binary attachment storage, or a general historical query
+  language.
+- A new rule language, derivation behavior, decision semantics, lifecycle
+  transition, work execution path, consequence behavior, or scheduler.
+- Policy promotion, approval, deployment, rollback orchestration, visual or AI
+  authoring, client SDKs, workflow orchestration, synchronous network actions,
+  human tasks, or exactly-once external delivery.
+
+### Decisions to close before the M42 contract freezes
+
+- Exact `evidence_snapshot` declaration shape, defaults, deletion-eligibility
+  units and limits, normalized form, digest behavior, and errors for missing,
+  null, false, malformed, duplicate, conflicting, and unknown values.
+- Exact capture, read, and delete function names, signatures, result envelopes,
+  options, volatility, grants, ownership checks, and ordinary or advanced API
+  classification.
+- Exact public snapshot identity and envelope metadata serialization. Define
+  the target kind, name, version, root, and `capture_key` identity inputs and
+  their stable hash and text encoding. Define the subject, declaration digest,
+  semantic digest, capture time, deletion-eligibility time, and owner as stored
+  metadata that does not alter identity.
+- Exact wrapper around the complete M41 response. M42 must preserve every M41
+  field and value without a second node, edge, path, finding, value, or digest
+  serializer. Define whether elapsed time is retained or separated as capture
+  metadata.
+- Exact duplicate and retry result around the frozen idempotency identity,
+  concurrent capture behavior, storage uniqueness rule, and single audit row.
+- Exact `available`, `deletion_eligible`, `missing`, `deleted`, and
+  `unavailable` result shapes. Define which tombstone fields are safe for an
+  authorized owner or operator to read.
+- Exact ownership and authorization implementation across role membership
+  changes, declaration ownership changes, target replacement or removal,
+  source grant changes, RLS changes, security labels, extension ownership
+  changes, and security-definer calls. Preserve the frozen owner-or-operator
+  rule and every safe search path.
+- Exact interaction with M21 retention configuration, preview, apply, batch
+  sizing, hard-coded family dispatch, stable `historical_identity`, audit,
+  tombstones, protected-state checks, operator-only diagnostics, and existing
+  reader-visible metrics. Define explicit deletion, deletion eligibility,
+  backup, restore, rollback, and point-in-time recovery.
+- Exact serialization with concurrent source writes, refresh, policy change,
+  deployment, replacement, removal, work execution, retention, authorization
+  change, cancellation, timeout, crash, restart, recovery, extension upgrade,
+  and standby promotion. State which commits fall outside the capture statement
+  snapshot and make no later-commit claim.
+- Exact payload, capture, and deletion-eligibility limits. Freeze latency,
+  write amplification, WAL, memory, temporary-storage, and disk-growth budgets
+  separately.
+- Exact upgrade and rollback evidence and `tests/m42.sh complete` inputs.
+  Define how `0.38.0` declarations remain unchanged, how new policies enter
+  declaration digests, and how rollback handles snapshots without silent loss.
+
+### Exit gates
+
+- One exact fixture captures a complete decision result whose M41 path crosses
+  candidate selection, policy applicability, a rule result, a derived fact,
+  and an authoritative fact. The fixture asserts the complete snapshot JSON,
+  unchanged nested M41 answer, stored row, audit row, `capture_key`, public
+  identity, versions, times, graph, limits, findings, digests, costs, owner, and
+  deletion-eligibility time.
+- After capture, exact fixtures change or delete the authoritative source and
+  prune ordinary detailed history through M21. The current M41 request returns
+  its exact changed or unavailable result. The M42 read still returns the exact
+  captured M41 answer and labels it historical.
+- Captures across target replacement and policy-version change remain distinct
+  and attributable to the exact captured versions. A later read never joins a
+  snapshot to the current declaration to fill a missing field.
+- Missing opt-in, invalid policy, invalid root, ambiguous target, incomplete
+  path, stale version, changed frontier, reached limit, unauthorized source,
+  RLS source, or storage failure returns the exact full result and leaves
+  snapshot, audit, tombstone, source, lifecycle, work, and frontier checksums
+  unchanged.
+- Repeated and concurrent capture with the same `capture_key` returns the exact
+  existing snapshot. A different key captures the later exact M41 answer. No
+  case creates a conflicting row, partial row, duplicate audit entry, or
+  orphaned retained value.
+- Read and delete return exact canonical output for `available`,
+  `deletion_eligible`, `missing`, `deleted`, malformed, and unauthorized
+  snapshots.
+- M21 retention preview and apply return the exact snapshot identities, bytes,
+  deletion-eligibility times, protected rows, removed rows, tombstones,
+  findings, and operator-only metrics through the explicit snapshot-family
+  dispatch. Apply cannot remove a protected snapshot. Retrying a completed
+  batch is byte-for-byte idempotent apart from documented elapsed time.
+- Every documented owner, operator, changed owner-role member, reader,
+  advanced-reader, source-grant change, and `PUBLIC` case returns the exact
+  authorized or denied output. No denied case or reader-visible M21 diagnostic
+  leaks target existence, subject, root, result, value, graph shape, count,
+  digest, owner, deletion eligibility, or tombstone state.
+- Existing declarations that omit `evidence_snapshot` keep their exact
+  normalized form and digest across fresh installation and populated upgrade.
+  Existing M41 `pgreact.explain` and `causal_path` output remains byte-for-byte
+  unchanged. No existing evaluation or retention path creates a snapshot.
+- Cancellation, timeout, backend termination, crash, restart, recovery, and
+  concurrent production activity cannot leave partial snapshot state. The
+  captured values come from one M41 statement snapshot and make no claim about
+  later commits.
+- Repeated reads return byte-for-byte identical semantic output across physical
+  row order, supported plans, restart, restore, adjacent upgrade, and supported
+  standby promotion. Measured elapsed time may differ.
+- One versioned reference corpus contains at least three production-shaped
+  workloads. It records exact declaration policies, capture requests,
+  snapshots, findings, identities, versions, times, digests, retention actions,
+  costs, checksums, and rejected questions.
+- Migration evidence replaces an application's ad hoc audit copy from the
+  field-reviewed workload with one explicit capture and one names-first read.
+  Independent PostgreSQL users retrieve the required historical evidence after
+  ordinary data expires without private catalogs, internal UUIDs, undocumented
+  joins, application storage, or operator help.
+- The compatibility matrix covers every accepted declaration, root, snapshot
+  state, finding, role, source-grant change, retention condition, concurrency
+  case, and supported installation path. The release simplification review
+  records which proposed distinction was kept, narrowed, unified, or removed.
+- Representative and supported-limit profiles satisfy the published budgets.
+  Evidence identifies dominant source reads, serialization cost, payload size,
+  index access, WAL, retained bytes, write amplification, memory, temporary
+  storage, read cost, and retention cost.
+- Fresh installation, populated `0.38.0 -> 0.39.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M41 qualification pass
+  in `tests/m42.sh complete` against the exact candidate artifact.
+- Every inherited M0 through M41 gate passes. No P0 or P1 remains. Retained
+  limitations are explicit, and the exact `0.39.0` artifact passes its release
+  gate.
+
+---
+
+## Proposed sequence after M42
+
+The project still commits to one milestone at a time. The four items below are
 candidates, not implementation or release commitments. Each must earn selection
-from M41 evidence and user traction.
+from M42 evidence and user traction.
 
-1. **M42 — Evidence snapshots.** Retain compact, opt-in evidence for selected
-   audited outcomes after ordinary source data or detailed history expires,
-   without creating a database snapshot or second source of truth.
-2. **M43 — Semantic policy differences.** Describe changes to fields that
+1. **M43 — Semantic policy differences.** Describe changes to fields that
    pg-react models, including applicability, effective time, priority,
    parameters, results, and action bindings, without claiming to understand
    arbitrary SQL text.
-3. **M44 — Explanation qualification.** Establish one bounded explanation
+2. **M44 — Explanation qualification.** Establish one bounded explanation
    contract for current outcomes, comparisons, decisions, and work, with shared
    ordering, authorization, retention, identity, cost, and failure rules.
-4. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
+3. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
    explicit progress, lateness, correction, retention, and resource limits.
-5. **M46 — Business calendar windows.** Add calendar days, months, billing
+4. **M46 — Business calendar windows.** Add calendar days, months, billing
    periods, and named business calendars with explicit time-zone,
    daylight-saving, month-boundary, and late-input behavior.
 

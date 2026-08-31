@@ -3,8 +3,9 @@
 This is the starting point for current pg-react documentation. M41 / extension
 `0.38.0` is the current qualified release. It adds bounded, read-only causal
 paths from one decision or work item back to accessible authoritative facts.
-The prepared
-`1.0.0-rc.1` candidate remains outside the current release sequence.
+M42 is the current planning milestone. It defines evidence snapshots for
+extension `0.39.0`. The prepared `1.0.0-rc.1` candidate remains outside the
+current release sequence.
 
 ## Start
 
