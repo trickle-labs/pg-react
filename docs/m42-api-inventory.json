@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "milestone": "M42",
+  "extension_version": "0.39.0",
+  "ordinary": {
+    "functions": [
+      "pgreact_api.capture_evidence_snapshot",
+      "pgreact_api.read_evidence_snapshot",
+      "pgreact_api.delete_evidence_snapshot"
+    ],
+    "root_kinds": ["decision_result"],
+    "states": ["available", "deletion_eligible", "missing", "deleted"]
+  },
+  "retention_family": "evidence_snapshots",
+  "identity_inputs": ["target kind", "target name", "target version", "root identity", "capture_key"],
+  "m41_answer": "exact complete pgreact.explain causal-path result"
+}

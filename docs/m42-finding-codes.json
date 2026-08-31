@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "milestone": "M42",
+  "codes": [
+    {"code":"M42_OPTIONS_INVALID","severity":"ERROR"},
+    {"code":"M42_POLICY_INVALID","severity":"ERROR"},
+    {"code":"M42_POLICY_MISSING","severity":"WARNING"},
+    {"code":"M42_POLICY_DISABLED","severity":"WARNING"},
+    {"code":"M42_TARGET_NOT_FOUND","severity":"WARNING"},
+    {"code":"M42_TARGET_UNAUTHORIZED","severity":"WARNING"},
+    {"code":"M42_ROOT_INVALID","severity":"ERROR"},
+    {"code":"M42_ROOT_INCOMPLETE","severity":"WARNING"},
+    {"code":"M42_VERSION_STALE","severity":"WARNING"},
+    {"code":"M42_CAPTURE_KEY_INVALID","severity":"ERROR"},
+    {"code":"M42_CAPTURE_DUPLICATE","severity":"INFO"},
+    {"code":"M42_STORAGE_FAILURE","severity":"ERROR"},
+    {"code":"M42_LIMIT","severity":"WARNING"},
+    {"code":"M42_SNAPSHOT_MISSING","severity":"WARNING"},
+    {"code":"M42_SNAPSHOT_DELETED","severity":"INFO"},
+    {"code":"M42_DELETE_NOT_ELIGIBLE","severity":"WARNING"},
+    {"code":"M42_UNAVAILABLE","severity":"WARNING"}
+  ]
+}

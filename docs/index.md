@@ -1,11 +1,9 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M41 / extension
-`0.38.0` is the current qualified release. It adds bounded, read-only causal
-paths from one decision or work item back to accessible authoritative facts.
-M42 is the current planning milestone. It defines evidence snapshots for
-extension `0.39.0`. The prepared `1.0.0-rc.1` candidate remains outside the
-current release sequence.
+This is the starting point for current pg-react documentation. M42 / extension
+`0.39.0` is the current release. It adds opt-in evidence snapshots that preserve
+one complete M41 decision answer for later inspection. The prepared
+`1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start
 
@@ -26,6 +24,7 @@ current release sequence.
 - [Simulation qualification](m39-api-reference.md)
 - [Bounded why-not](m40-api-reference.md)
 - [End-to-end causal paths](m41-api-reference.md)
+- [Evidence snapshots](m42-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
@@ -41,12 +40,13 @@ current release sequence.
 
 - [M40 bounded why-not contract](m40-contract.md)
 - [M41 causal-path contract](m41-contract.md)
+- [M42 evidence-snapshot contract](m42-contract.md)
 - [M39 simulation contract](m39-contract.md)
 - [M34 v1 baseline contract](v1-contract.md)
 - [Limits](v1-limits.md)
 - [Support Matrix](v1-support-matrix.md)
 - [Known Limitations](v1-known-limitations.md)
-- [Release Notes](m41-release-notes.md)
+- [Release Notes](m42-release-notes.md)
 
 ## Project / History
 
