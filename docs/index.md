@@ -1,10 +1,10 @@
 # pg-react documentation
 
 This is the starting point for current pg-react documentation. M39 / extension
-`0.36.0` is the current qualified release. It qualifies the M34 through M38 simulation
-functions as one read-only contract without adding a new evaluator. No later
-milestone is selected. The prepared `1.0.0-rc.1` candidate remains outside the
-current release sequence.
+`0.36.0` is the current qualified release. It qualifies the M34 through M38
+simulation functions as one read-only contract without adding a new evaluator.
+M40 bounded why-not is the current planning milestone. The prepared
+`1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start
 

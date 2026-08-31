@@ -1,7 +1,7 @@
 # pg-react roadmap
 
 > **Status:** Living delivery plan  
-> **Last updated:** 2026-08-27\
+> **Last updated:** 2026-08-31\
 > **Contract authority:** [`docs/v1-contract.md`](docs/v1-contract.md), subject
 > to installed behavior. [`DESIGN.md`](DESIGN.md) is historical M13
 > architecture.
@@ -9,9 +9,10 @@
 > [!IMPORTANT]
 > The current release decision supersedes older sequencing retained below:
 > `1.0.0` and its feature freeze are postponed indefinitely. M39 and extension
-> `0.36.0` complete Capability area 1. No later implementation milestone is
-> selected. The project will select one only after field evidence identifies
-> the next adoption blocker.
+> `0.36.0` complete Capability area 1. M40 bounded why-not is the current
+> milestone and targets extension `0.37.0`. Before its contract freezes, field
+> evidence must confirm that a bounded missing-result explanation addresses the
+> next adoption blocker.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -3157,33 +3158,236 @@ production run used only as a semantic oracle.
 
 ---
 
-## Proposed sequence after M39
+## Stage 40 — Bounded why-not
 
-No item below is selected. First, run the qualified M39 journey with at least
-one externally reviewed financial-exception or access-drift workload. Record
-where users stop, how long proposal-to-explanation takes, and which resource or
-operational limit blocks adoption. If an operational blocker dominates, move
-M53 or M55 through M59 ahead of explanation work.
+**Outcome:** let an operator ask why one expected result is absent. M40 answers
+only when pg-react can evaluate a finite set of modeled causes for one public
+target and subject. Supported answers identify missing input, failed support or
+threshold, inapplicable policy, inactive policy time, or no eligible decision
+candidate. Unsupported questions return an explicit result instead of a
+plausible explanation.
 
-The five items below remain candidates, not implementation or release
-commitments. Each must earn selection from M39 evidence and user traction.
+**Release boundary:** extension `0.37.0`. M40 adds an opt-in `why_not` question
+to the existing `pgreact.explain(name, subject, options)` signature. It reuses
+the installed target adapters and bounded evidence model. Calls that omit
+`why_not` keep the exact `pgreact.explain` output from extension `0.36.0`. M40
+adds no top-level verb, predicate language, durable evidence store, or second
+evaluator. The packaged candidate must pass `tests/m40.sh complete`. Completing
+M40 does not start a v1 feature freeze or release-candidate cycle.
 
-1. **M40 — Bounded why-not.** Explain a missing result only for finite cases
-   that pg-react models, such as a missing input, failed threshold, inactive
-   policy period, or decision with no eligible candidate.
-2. **M41 — End-to-end causal paths.** Connect existing bounded evidence from a
+**Entry gate:** the exact `v0.36.0` artifacts are published and every M39 gate
+passes. Before the M40 contract freezes, run the qualified M39 journey with at
+least one externally reviewed financial-exception or access-drift workload.
+Record an expected-but-absent result that blocks the user's task, the manual
+steps used to diagnose it, and the exact public evidence available to the
+caller. If the review identifies an operational blocker instead, stop M40 and
+select the milestone that addresses that evidence.
+
+### Deliverables
+
+- One opt-in `why_not` request on `pgreact.explain(name, subject, options)`. The
+  stable name identifies the deployed target, `subject` carries its typed
+  business identity, and the option identifies one expected public result.
+  The default stays off and preserves the `0.36.0` result byte for byte.
+- One bounded absence-explanation model. Each answer identifies the target,
+  subject, expected result, sampled time, authoritative frontier, observed
+  state, supported causes, completeness, limits, and public evidence.
+- Adapters for the finite absence cases that the qualified milestone accepts.
+  They cover required positive support, disqualifying negative support,
+  derived inputs, modeled aggregate thresholds, policy-set applicability,
+  effective time, decision eligibility, and selection among eligible
+  candidates.
+- Canonical cause kinds and public paths. Each path ends at an accessible fact,
+  support, parameter, applicability row, time boundary, candidate, or modeled
+  opaque boundary that justifies the returned state.
+- Explicit `complete`, `partial`, `unavailable`, `unsupported`, and
+  `already_present` results. A reached limit, missing evidence, unsupported
+  SQL, or present result never becomes a complete explanation of absence.
+- Stable findings for invalid requests, unknown or ambiguous targets, malformed
+  subjects, unsupported target kinds, stale facts, schema drift, unauthorized
+  evidence, RLS, cycles, incomplete evidence, resource limits, and changed
+  authoritative state.
+- Reproducible semantic cost counters and separately labeled elapsed time for
+  candidate discovery, support checks, evidence expansion, path depth, and
+  returned causes.
+- Extension `0.37.0`, adjacent upgrade SQL from `0.36.0`, an M40 contract, API
+  reference, API and finding inventories, examples, compatibility matrix,
+  benchmark, migration evidence, known limitations, release notes, final
+  checklist, and executable qualification evidence.
+
+### Supported boundary
+
+- M40 asks about one expected result for one deployed target and one subject at
+  one frozen current evaluation point. It does not ask why an arbitrary query
+  returned no rows or search for every result that might have existed.
+- The accepted target kinds are limited to adapters that can prove absence from
+  installed modeled evidence. The contract must list the exact rule, derived
+  fact, policy-set, and decision forms that qualify. Other kinds return
+  `unsupported` before cause search begins.
+- The expected-result request uses public result kinds, names, typed subject
+  keys, result keys, and modeled values. Private UUIDs, physical row order,
+  query plans, and hidden catalog identifiers are not part of its identity.
+- A complete answer accounts for every supported cause within the frozen model
+  and declared bounds. It does not claim to account for arbitrary SQL
+  predicates, application code, deleted source history, or evidence that the
+  caller cannot access.
+- A cause states why the requested result is absent at the sampled evaluation
+  point. It does not prove that one cause was necessary or sufficient, compute
+  the smallest data change that would produce the result, or recommend a policy
+  change.
+- If the requested result is present, M40 returns the exact `already_present`
+  state and its public identity. It returns no why-not cause.
+- Multiple supported causes use canonical ordering and stable digests. A
+  reached bound returns `partial` with the exact available metadata. The answer
+  does not claim an omitted count unless the evaluator can prove it.
+- M40 reads one frozen declaration, source schema, authorization context,
+  sampled time, and authoritative frontier. A concurrent change aborts the
+  call instead of mixing revisions.
+- The caller must be authorized for the target and every source needed for the
+  answer. Sources with row-level security keep their inherited fail-closed
+  behavior. M40 adds no redaction mode and does not use hidden values to reveal
+  a cause.
+- Every successful or rejected request remains read-only. It does not change
+  sources, pg-react state, lifecycle, work, attempts, history, frontiers,
+  evidence, or effects.
+
+### Explicit non-goals
+
+- General SQL counterfactuals, predicate synthesis, arbitrary SQL lineage,
+  unrestricted why-not questions, minimal repairs, necessity or sufficiency
+  proofs, optimization, recommendation, or unbounded search.
+- Why-not questions over proposed declarations, hypothetical fact changes,
+  supplied history, replay, or backtesting. A later qualification milestone
+  must define how absence questions join the M39 simulation contract.
+- A public path from an outcome through every intermediate result to
+  authoritative facts. M41 owns bounded end-to-end causal paths.
+- Retaining evidence after ordinary source data or detailed history expires.
+  M42 owns opt-in evidence snapshots.
+- Describing arbitrary SQL edits in business terms. M43 owns semantic policy
+  differences for fields that pg-react models.
+- A shared explanation contract for current outcomes, comparisons, decisions,
+  work, retained evidence, and later explanation types. M44 owns explanation
+  qualification.
+- A new rule language, stored question, durable analysis job, background search,
+  database snapshot, source-history capture, cross-database query, or second
+  source of truth.
+- Policy promotion, approval, deployment, rollback orchestration, forecasting,
+  visual or AI authoring, client SDKs, workflow orchestration, synchronous
+  network actions, or exactly-once external delivery.
+- New applicability, derivation, recursion, negation, aggregation, temporal,
+  decision-selection, lifecycle, delivery, or consequence behavior.
+
+### Decisions to close before the M40 contract freezes
+
+- Exact `why_not` request shape, defaults, accepted values, version fields, and
+  behavior for missing, null, false, malformed, duplicate, and unknown options.
+- Exact expected-result identity for a rule match, derived fact, policy-set
+  eligibility result, decision candidate, decision result, lifecycle state, and
+  work request. Decide which identities qualify in M40.
+- Exact subject representation for scalar and composite typed keys. Define
+  whether one request can name only one result or a bounded result set.
+- Exact sampled-time and frontier rules. Define how the call relates current
+  source rows, installed match state, policy validity, decision state, and
+  refresh progress.
+- Exact cause kinds, direction labels, node and edge shapes, public evidence,
+  canonical ordering, duplicate-cause behavior, and modeled opaque boundaries.
+- Exact meaning of `complete`, `partial`, `unavailable`, `unsupported`,
+  `already_present`, ambiguous, and cyclic results. Define when counts and
+  digests are exact at a reached bound.
+- Exact evidence reuse for positive and negative support, derived facts,
+  aggregates, applicability, effective time, parameters, candidates, winners,
+  lifecycle, and work.
+- Exact boundary for arbitrary predicates, unsupported view dependencies,
+  pruned evidence, changed source definitions, and absence that installed
+  evidence cannot distinguish.
+- Exact ownership and source-access checks, role grants, fixed
+  security-definer search paths, protected-value handling, and unauthorized
+  result contracts.
+- Exact serialization with concurrent deployment, replacement, removal, source
+  DDL, authorization changes, refresh, restart, recovery, and extension upgrade.
+  Define abort, retry, cancellation, timeout, and cleanup behavior.
+- Exact candidate, cause, support, node, edge, depth, fan-out, payload, latency,
+  memory, and temporary-storage limits. Freeze the benchmark profiles, upgrade
+  and rollback evidence, and `tests/m40.sh complete` inputs.
+
+### Exit gates
+
+- Exact fixtures explain a missing rule result, derived fact, applicability
+  result, active-period result, aggregate-threshold result, and eligible
+  decision result for every target kind accepted by the frozen contract.
+- A decision with no eligible candidate identifies each supported rejection
+  reason within the bound. A decision with eligible candidates but a different
+  winner distinguishes ineligibility from selection without inventing a missing
+  candidate.
+- Multiple supported causes return in canonical order and reconcile with the
+  exact public evidence at the frozen sampled time and frontier.
+- A present result returns the exact `already_present` state and public identity
+  without a why-not cause. Repeating the request against unchanged inputs
+  returns byte-for-byte identical semantic output.
+- Missing, stale, pruned, ambiguous, cyclic, over-limit, or arbitrary-SQL
+  evidence returns the exact unavailable, partial, or unsupported result. No
+  fixture receives a causal label that the recorded evidence cannot prove.
+- Every invalid, mismatched, unauthorized, RLS, incomplete, and over-limit
+  fixture returns its exact stable finding and leaves source and authoritative
+  state checksums unchanged.
+- Existing `pgreact.explain` calls without the M40 option preserve their exact
+  output across fresh installation and populated upgrade. Invalid M40 options
+  do not change the behavior of unrelated explanation requests.
+- Repeated why-not calls return byte-for-byte identical semantic output across
+  physical source order, supported plans, restart, restore, adjacent upgrade,
+  and supported standby promotion. Measured elapsed time may differ.
+- Cancellation, timeout, backend termination, crash, restart, recovery, and
+  concurrent production activity cannot leak explanation state or return
+  evidence that mixes policy, schema, authorization, time, or frontier
+  revisions.
+- Every documented role and `PUBLIC` case returns the exact authorized or
+  denied result without leaking a target, source, subject, candidate, result,
+  count, threshold, or evidence value. Every security-definer function has the
+  frozen safe search path.
+- One versioned reference corpus contains at least three production-shaped
+  workloads. It records exact requests, answers, findings, identities, digests,
+  bounds, costs, checksums, and unsupported questions.
+- Migration evidence replaces one manual missing-result diagnosis from the
+  field-reviewed workload with `pgreact.explain`. Independent PostgreSQL users
+  answer the bounded question without private catalogs, internal UUIDs,
+  undocumented joins, application code, or operator help.
+- The compatibility matrix covers every accepted target kind, subject shape,
+  expected-result kind, cause, state, finding, limit, role, and supported
+  installation path. The release simplification review records which proposed
+  distinction was kept, narrowed, unified, or removed.
+- Representative and supported-limit profiles satisfy the published budgets.
+  Evidence identifies dominant scans, candidate checks, support fan-out, proof
+  depth, returned causes, memory, and temporary storage.
+- Fresh installation, populated `0.36.0 -> 0.37.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M39 qualification pass
+  in `tests/m40.sh complete` against the exact candidate artifact.
+- Every inherited M0 through M39 gate passes. No P0 or P1 remains. Retained
+  limitations are explicit, and the exact `0.37.0` artifact passes its release
+  gate.
+
+---
+
+## Proposed sequence after M40
+
+The project still commits to one milestone at a time. The five items below are
+candidates, not implementation or release commitments. Each must earn selection
+from M40 evidence and user traction.
+
+1. **M41 — End-to-end causal paths.** Connect existing bounded evidence from a
    decision or work item through lifecycle and derived facts to authoritative
    facts, using public business identities.
-3. **M42 — Evidence snapshots.** Retain compact, opt-in evidence for selected
+2. **M42 — Evidence snapshots.** Retain compact, opt-in evidence for selected
    audited outcomes after ordinary source data or detailed history expires,
    without creating a database snapshot or second source of truth.
-4. **M43 — Semantic policy differences.** Describe changes to fields that
+3. **M43 — Semantic policy differences.** Describe changes to fields that
    pg-react models, including applicability, effective time, priority,
    parameters, results, and action bindings, without claiming to understand
    arbitrary SQL text.
-5. **M44 — Explanation qualification.** Establish one bounded explanation
+4. **M44 — Explanation qualification.** Establish one bounded explanation
    contract for current outcomes, comparisons, decisions, and work, with shared
    ordering, authorization, retention, identity, cost, and failure rules.
+5. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
+   explicit progress, lateness, correction, retention, and resource limits.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 
