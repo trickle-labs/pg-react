@@ -2,8 +2,10 @@
 
 This is the starting point for current pg-react documentation. M42 / extension
 `0.39.0` is the current release. It adds opt-in evidence snapshots that preserve
-one complete M41 decision answer for later inspection. The prepared
-`1.0.0-rc.1` candidate remains outside the current release sequence.
+one complete M41 decision answer for later inspection. M43 is the current
+planning milestone and defines semantic policy differences for extension
+`0.40.0`. The prepared `1.0.0-rc.1` candidate remains outside the current
+release sequence.
 
 ## Start
 

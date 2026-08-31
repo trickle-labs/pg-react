@@ -10,10 +10,11 @@
 > The current release decision supersedes older sequencing retained below:
 > `1.0.0` and its feature freeze are postponed indefinitely. M39 completed
 > Capability area 1. M40 and extension `0.37.0` complete bounded why-not. M41
-> and extension `0.38.0` complete end-to-end causal paths. M42 is the current
-> milestone. It defines evidence snapshots for extension `0.39.0`. Before its
-> contract freezes, field evidence must confirm that ordinary evidence expires
-> before the required audit period.
+> and extension `0.38.0` complete end-to-end causal paths. M42 and extension
+> `0.39.0` complete evidence snapshots. M43 is the current milestone. It defines
+> semantic policy differences for extension `0.40.0`. Before its contract
+> freezes, field evidence must show that existing declaration and outcome
+> comparisons cannot answer a real policy-review question.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -3904,24 +3905,266 @@ field evidence.
 
 ---
 
-## Proposed sequence after M42
+## Stage 43 — Semantic policy differences
 
-The project still commits to one milestone at a time. The four items below are
+**Outcome:** let a policy reviewer see how one proposed declaration differs
+from its deployed declaration in the policy fields that pg-react models. The
+answer names changed applicability, effective time, priority, parameters,
+results, and action bindings with typed before and after values. It marks SQL
+expressions, relation definitions, and function bodies as opaque instead of
+assigning them a business meaning.
+
+**Release boundary:** extension `0.40.0`. M43 adds one bounded, read-only
+semantic-difference operation for the declaration kinds already supported by
+M34 comparison: `rule`, `decision_program`, and `policy_set`. The operation
+normalizes one proposed declaration and compares it with one deployed target of
+the same kind and name. It does not evaluate either declaration, inspect source
+rows, or create a second declaration model. Existing declaration, comparison,
+simulation, explanation, snapshot, deployment, and execution calls remain
+byte-for-byte compatible. The packaged candidate must pass
+`tests/m43.sh complete`. Completing M43 does not start a v1 feature freeze or
+release-candidate cycle.
+
+**Owner:** pg-react maintainers.
+
+**Entry gate:** the exact `v0.39.0` artifacts are published and every M42 gate
+passes. Before the M43 contract freezes, review at least one externally supplied
+financial-exception or access-drift policy change that alters two or more
+modeled fields. Record the proposed and deployed declarations, the review
+question, the existing normalized and M34 through M39 outputs, the manual joins
+or comparisons still required, and the minimum semantic differences needed to
+approve or reject the change. If the existing outputs answer the review
+question without private catalogs or manual interpretation, stop M43 and select
+the milestone supported by the field evidence.
+
+### Deliverables
+
+- One names-first semantic-difference operation that accepts one normal
+  `pgreact_api.declaration`, one deployed `pgreact_api.target`, and bounded
+  options. The kind and name must match. A target version selects exactly one
+  deployed declaration.
+- One canonical field inventory for each supported declaration kind. Each entry
+  states whether the field is a scalar, typed value, ordered list, keyed set,
+  time bound, relation identity, function identity, result binding, or opaque
+  SQL boundary.
+- One ordered difference record with a stable field path, field kind, change
+  kind, and typed `before` and `after` values. The change kinds are bounded to
+  added, removed, and changed. An unchanged field produces no record.
+- Exact comparison rules for missing values, explicit nulls, defaults, aliases,
+  typed JSON values, PostgreSQL identifiers, relation identities, function
+  signatures, list order, and set order. Declaration normalization remains the
+  authority for equivalent input forms.
+- One explicit opaque record when stored declaration evidence proves that a SQL
+  expression, relation definition, or function binding changed but pg-react
+  cannot describe its meaning. The record exposes only the public identity and
+  digest evidence that the caller may inspect.
+- One result envelope with contract version, target identity, both declaration
+  digests, ordered differences, completeness, reached limits, findings,
+  semantic digest, reproducible cost counters, and separately labeled elapsed
+  time.
+- Stable findings for malformed declarations and targets, kind or name
+  mismatch, unsupported kinds or fields, absent or replaced targets, stale
+  versions, opaque changes, reached limits, changed state, and authorization
+  failure.
+- Extension `0.40.0`, adjacent upgrade SQL from `0.39.0`, an M43 contract, API
+  reference, field and finding inventories, examples, compatibility matrix,
+  benchmark, migration evidence, known limitations, release notes, final
+  checklist, and executable qualification evidence.
+
+### Supported boundary
+
+- M43 compares one proposed declaration with one deployed target. It does not
+  compare two arbitrary JSON documents, two databases, a chain of versions, or
+  a batch of targets.
+- The supported kinds are the same `rule`, `decision_program`, and `policy_set`
+  forms accepted by M34. A field enters the M43 inventory only when pg-react
+  already validates, normalizes, stores, and gives that field a defined runtime
+  meaning.
+- M43 compares declaration semantics, not outcome behavior. M34 through M39
+  remain authoritative for current impact, hypothetical facts, replay,
+  backtesting, and why-changed evidence.
+- The operation compares canonical values after applying the frozen declaration
+  defaults and aliases. Two accepted inputs with the same normalized
+  declaration and digest return no semantic difference.
+- Scalar and typed values retain their PostgreSQL type identity. A numeric,
+  text, time, interval, identifier, array, object, or null value is not coerced
+  into another type to make two declarations appear equal.
+- Each field declares whether order is semantic. Reordering an ordered list is
+  a change. Physical order does not change a keyed set, whose members return in
+  canonical key order.
+- For effective time, M43 reports the exact normalized lower and upper bounds
+  and inclusivity that pg-react models. It does not predict which subjects or
+  results a time change will affect.
+- For applicability, source relations, SQL expressions, and action functions,
+  M43 reports only modeled public identities, signatures, options, and stored
+  digests. A changed definition behind the same public name is an opaque change
+  when the stored evidence can prove it. M43 does not parse SQL text, query
+  plans, or function bodies.
+- The operation reads one PostgreSQL statement snapshot. It ties the deployed
+  target version and declaration digest to that snapshot. A concurrent deploy,
+  replacement, removal, or definition change returns the exact frozen answer or
+  a changed-state finding. It never mixes versions.
+- The caller must be authorized to inspect the deployed target and every public
+  object identity included in the answer. An absent and an inaccessible target
+  return the same fail-closed result. No denied result reveals a target, field,
+  value, object, count, digest, or difference shape.
+- Every successful or rejected call is read-only. It does not deploy a
+  declaration, evaluate a condition, read application rows, advance time or a
+  frontier, capture a snapshot, change lifecycle or work, invoke an action, or
+  send an external effect.
+- Stable semantic output is independent of JSON object order, physical catalog
+  order, query plan, elapsed time, restart, restore, adjacent upgrade, and
+  supported standby promotion.
+- Deterministic limits bound proposed declaration bytes, field count,
+  collection members, differences, opaque records, nesting depth, and returned
+  payload. A reached limit returns `partial` with the exact reached bound and
+  never claims that omitted differences do not exist.
+
+### Explicit non-goals
+
+- Understanding, rewriting, or assigning business meaning to arbitrary SQL,
+  view definitions, predicates, expressions, generated queries, query plans,
+  procedural code, or function bodies.
+- Evaluating current or hypothetical facts, predicting changed subjects or
+  work, replaying history, backtesting policies, or explaining why an outcome
+  changed. M34 through M39 own those operations.
+- Comparing source rows, schemas, migrations, indexes, constraints, grants,
+  database settings, query performance, or the forward impact of schema
+  changes. M55 remains the vision candidate for schema-change planning.
+- Comparing two undeployed proposals, two historical versions, more than two
+  sides, cross-database declarations, or an unbounded policy-set tree.
+- Treating an opaque change as equivalent, safe, unsafe, breaking, or
+  non-breaking. The result states only what its stored evidence proves.
+- Recommendations, risk scores, automatic approvals, policy promotion,
+  deployment, rollback, reconciliation, or change orchestration.
+- A shared explanation contract for current outcomes, comparisons, decisions,
+  work, retained evidence, and later explanation types. M44 owns explanation
+  qualification.
+- A new rule language, schema language, policy DSL, expression parser,
+  evaluator, declaration store, permission system, scheduler, or source of
+  truth.
+- Visual or AI authoring, client SDKs, synchronous network actions, human
+  workflows, or exactly-once external delivery.
+
+### Decisions to close before the M43 contract freezes
+
+- Exact function names, signatures, options, overloads, volatility, grants,
+  result envelope, relational projection, and ordinary or advanced API
+  classification.
+- Exact supported field inventory for `rule`, `decision_program`, and
+  `policy_set`. For every field, define its public path, field kind, normalized
+  type, default, null behavior, equality rule, order rule, and opaque boundary.
+- Exact added, removed, changed, opaque, complete, partial, unavailable, and
+  unsupported result meanings. Define whether an opaque record is also a
+  changed record and how it affects completeness.
+- Exact typed serialization for identifiers, regtypes, relations, functions,
+  times, intervals, arrays, keyed sets, JSON values, defaults, and absent
+  values. Define canonical ordering and stable digests for the envelope and
+  each difference.
+- Exact treatment of aliases, deprecated fields, extension-added defaults,
+  stored normalized declarations, declaration schema versions, and candidate
+  declarations from an older or newer supported client.
+- Exact public evidence for SQL expressions, relation definitions, and function
+  bindings. Define which public identities, signatures, definition digests, and
+  declaration digests can prove an opaque change without exposing source text
+  or private catalog identifiers.
+- Exact target lookup, version selection, declaration digest, object lookup,
+  and changed-state behavior during concurrent deploy, replacement, removal,
+  rename, DDL, authorization change, extension upgrade, and standby promotion.
+- Exact ownership and object-access checks, role grants, fixed
+  security-definer search paths, protected-value handling, and indistinguishable
+  absent or unauthorized results.
+- Exact deterministic declaration, field, collection, difference, opaque,
+  depth, and payload limits. Freeze latency, memory, and temporary-storage
+  budgets separately. Runtime measurements do not affect semantic identity.
+- Exact upgrade and rollback evidence and `tests/m43.sh complete` inputs.
+  Define how `0.39.0` declarations, digests, comparison output, snapshots, and
+  APIs remain unchanged when M43 is unused.
+
+### Exit gates
+
+- Exact fixtures return the complete semantic-difference JSON for every
+  supported field of each declaration kind. Each fixture asserts the full
+  target identity, declaration digests, field paths, field kinds, change kinds,
+  typed before and after values, ordering, limits, findings, costs, and semantic
+  digest.
+- Exact fixtures cover added, removed, and changed scalar values, typed values,
+  ordered lists, keyed sets, effective-time bounds, applicability identities,
+  result bindings, action bindings, defaults, explicit nulls, and absent values.
+- Equivalent declarations that differ only in accepted aliases, omitted
+  defaults, JSON object order, keyed-set order, quoted identifier spelling, or
+  other frozen non-semantic forms return the exact no-difference result.
+- A changed SQL expression, relation definition, or function body returns the
+  exact opaque record when public stored evidence proves the change. Unchanged
+  evidence returns no invented difference. No fixture assigns an opaque change
+  a business meaning or safety judgment.
+- Kind mismatch, name mismatch, malformed input, unsupported kind, unsupported
+  field, stale version, absent target, replaced target, changed object,
+  unauthorized target, inaccessible object, and every reached limit return
+  their exact full result.
+- Every invalid, unsupported, changed, partial, unavailable, and unauthorized
+  call leaves source, declaration, lifecycle, decision, work, attempt, evidence,
+  snapshot, audit, retention, and frontier checksums unchanged.
+- Existing declaration normalization and digests remain byte-for-byte unchanged
+  across fresh installation and populated upgrade. Existing M34 through M42
+  calls preserve their exact output when the M43 operation is not requested.
+- Repeated calls return byte-for-byte identical semantic output across input
+  object order, physical catalog order, supported plans, restart, restore,
+  adjacent upgrade, and supported standby promotion. Measured elapsed time may
+  differ.
+- Concurrent deployment, replacement, removal, DDL, authorization change,
+  cancellation, timeout, backend termination, crash, restart, and recovery
+  return one frozen declaration pair or the exact fail-closed finding. No result
+  mixes target versions, declaration digests, object definitions, or grants.
+- Every documented author, operator, reader, changed role member, object-owner,
+  object-grant, RLS, and `PUBLIC` case returns the exact authorized or denied
+  output without leaking a target, field, value, object, count, digest, or
+  difference shape.
+- One versioned reference corpus contains at least three production-shaped
+  policy reviews. It records the complete proposed and deployed declarations,
+  review questions, semantic differences, opaque boundaries, findings, digests,
+  costs, checksums, and unsupported questions.
+- Migration evidence replaces the manual declaration or SQL-object comparison
+  from the field-reviewed workload with one public semantic-difference call.
+  Independent PostgreSQL users identify every supported modeled change without
+  private catalogs, internal UUIDs, application code, or operator help.
+- The compatibility matrix covers every supported declaration kind, field kind,
+  change kind, opaque boundary, finding, limit, role, concurrent change, and
+  installation path. The release simplification review records which proposed
+  distinction was kept, narrowed, unified, or removed.
+- Representative and supported-limit profiles satisfy the published budgets.
+  Evidence identifies declaration normalization, field traversal, collection
+  comparison, object lookup, serialization, hashing, memory, temporary storage,
+  and returned payload as separate costs.
+- Fresh installation, populated `0.39.0 -> 0.40.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M42 qualification pass
+  in `tests/m43.sh complete` against the exact candidate artifact.
+- Every inherited M0 through M42 gate passes. No P0 or P1 remains. Retained
+  limitations are explicit, and the exact `0.40.0` artifact passes its release
+  gate.
+
+---
+
+## Proposed sequence after M43
+
+The project still commits to one milestone at a time. The five items below are
 candidates, not implementation or release commitments. Each must earn selection
-from M42 evidence and user traction.
+from M43 evidence and user traction.
 
-1. **M43 — Semantic policy differences.** Describe changes to fields that
-   pg-react models, including applicability, effective time, priority,
-   parameters, results, and action bindings, without claiming to understand
-   arbitrary SQL text.
-2. **M44 — Explanation qualification.** Establish one bounded explanation
+1. **M44 — Explanation qualification.** Establish one bounded explanation
    contract for current outcomes, comparisons, decisions, and work, with shared
    ordering, authorization, retention, identity, cost, and failure rules.
-3. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
+2. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
    explicit progress, lateness, correction, retention, and resource limits.
-4. **M46 — Business calendar windows.** Add calendar days, months, billing
+3. **M46 — Business calendar windows.** Add calendar days, months, billing
    periods, and named business calendars with explicit time-zone,
    daylight-saving, month-boundary, and late-input behavior.
+4. **M47 — Finite event sequences.** Support short, ordered event patterns with
+   hard limits on sequence length, incomplete matches, ordering, expiry, and
+   retained evidence, without adding a general event-processing language.
+5. **M48 — Absence after an event.** Recognize a missing follow-up only after
+   source progress passes its deadline, and retain the start event, proof of
+   absence, and bounded late-correction evidence.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 

@@ -2,7 +2,7 @@
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [PostgreSQL as an operational data platform](operational-data-platform.md), and [The trifecta](the-trifecta.md).
 
-> Current state: M41 and extension `0.38.0` are the qualified baseline. M42 is the current planning milestone and defines evidence snapshots for extension `0.39.0`. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely. This document explains the product shape. The [v1 API reference](../docs/v1-api-reference.md), [support matrix](../docs/v1-support-matrix.md), and [known limitations](../docs/v1-known-limitations.md) define the supported contract.
+> Current state: M42 and extension `0.39.0` are the qualified baseline. M43 is the current planning milestone and defines semantic policy differences for extension `0.40.0`. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely. This document explains the product shape. The [v1 API reference](../docs/v1-api-reference.md), [support matrix](../docs/v1-support-matrix.md), and [known limitations](../docs/v1-known-limitations.md) define the supported contract.
 
 A rule engine answers questions such as "Which orders need review?" or "Where should this applicant go next?" In pg-react, ordinary PostgreSQL tables and views describe the facts, policy conditions, and possible results. pg-react then supplies the behavior that a query does not preserve on its own: stable identity, a lifecycle for each result, repeatable decisions, durable work, policy versions, limited supporting evidence, and a safe way to change policy.
 
