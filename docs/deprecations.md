@@ -1,6 +1,6 @@
 # Deprecations
 
-The current release is pg-react `0.43.0`. No ordinary public function is
+The current release is pg-react `0.43.1`. No ordinary public function is
 removed in M54. Existing UUID-oriented replacement and recovery functions are
 compatibility or administrative paths; ordinary application code should use
 stable names, `preview`, `review_token`, and `deploy`.

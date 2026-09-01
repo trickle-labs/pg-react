@@ -1,7 +1,7 @@
-# pg-react 0.43.0: one ordinary path from first rule to safe replacement
+# pg-react 0.43.1: qualified M54 correctness closure
 
 pg-react now makes the current PostgreSQL-native product easier to use. The
-current release is `0.43.0`; `1.0.0` remains postponed indefinitely.
+current release is `0.43.1`; `1.0.0` remains postponed indefinitely.
 
 ## What users can do
 

@@ -1,6 +1,6 @@
 # Changing Policies Safely
 
-This guide describes the current pg-react `0.43.0` replacement workflow.
+This guide describes the current pg-react `0.43.1` replacement workflow.
 
 Use comparison before replacing a deployed rule, decision, or policy set.
 Comparison varies the declaration while holding authoritative facts at the

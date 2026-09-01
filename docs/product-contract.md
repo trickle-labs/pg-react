@@ -1,6 +1,6 @@
 # Product Contract
 
-pg-react `0.43.0` keeps PostgreSQL authoritative for application facts,
+pg-react `0.43.1` keeps PostgreSQL authoritative for application facts,
 declarations, lifecycle, work, retries, and explanations. The PostgreSQL-managed
 runtime is the normal production runtime; `pg-reactd` remains a compatibility
 path.

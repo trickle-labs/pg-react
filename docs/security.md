@@ -1,6 +1,6 @@
 # Security
 
-The current release is pg-react `0.43.0`. PostgreSQL permissions and ownership
+The current release is pg-react `0.43.1`. PostgreSQL permissions and ownership
 remain authoritative. Configure separate author, operator, worker, reader, and
 advanced-reader roles, and grant only the surfaces each role needs.
 

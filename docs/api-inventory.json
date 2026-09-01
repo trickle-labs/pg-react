@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "extension_version": "0.43.0",
+  "extension_version": "0.43.1",
   "contract_version": 54,
   "classification_order": ["ordinary", "compatibility", "advanced", "administrative"],
   "surfaces": {
@@ -8,6 +8,7 @@
       "functions": [
         "pgreact.rule(name text, condition regclass, semantic_key name, kind text, on_activate regprocedure, on_deactivate regprocedure, on_change regprocedure, bootstrap_policy text, change_columns name[], salience integer, agenda_group text, conflict_key_columns name[], max_attempts integer, initial_backoff_seconds integer, backoff_multiplier numeric, max_backoff_seconds integer)",
         "pgreact.decision(name text, candidate_relation regclass, subject_key name, candidate_key name, priority name, results name[], valid_from timestamp with time zone, valid_to timestamp with time zone, max_candidates integer)",
+        "pgreact.policy_set(name text, version text, members pgreact_api.declaration[], applicability regclass, subject_keys name[], support pgreact_api.declaration[], dependencies jsonb, valid_from timestamp with time zone, valid_to timestamp with time zone, evidence_limit integer)",
         "pgreact.validate(declaration pgreact_api.declaration)",
         "pgreact.preview(declaration pgreact_api.declaration, options jsonb)",
         "pgreact.deploy(declaration pgreact_api.declaration, preconditions jsonb)",
@@ -30,7 +31,7 @@
     "advanced": {
       "function_prefixes": [
         "pgreact.backtest", "pgreact.replay", "pgreact.shared_condition",
-        "pgreact.parameter_family", "pgreact.policy_set", "pgreact.capture_evidence",
+        "pgreact.parameter_family", "pgreact.capture_evidence",
         "pgreact.read_evidence", "pgreact.trace", "pgreact.why_not",
         "pgreact_api.author_", "pgreact_api.validate_", "pgreact_api.preview_",
         "pgreact_api.semantic_diff", "pgreact_api.explain_",

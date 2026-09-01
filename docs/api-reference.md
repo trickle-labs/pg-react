@@ -1,11 +1,12 @@
 # API Reference
 
-This is the current pg-react `0.43.0` reference. Choose a surface by the job
+This is the current pg-react `0.43.1` reference. Choose a surface by the job
 it performs, not by a milestone number.
 
 ## Ordinary
 
 `pgreact.rule(...)`, `pgreact.decision(...)`, `pgreact.validate(declaration)`,
+`pgreact.policy_set(...)`,
 `pgreact.preview(declaration, options)`, `pgreact.deploy(declaration,
 preconditions)`, `pgreact.deploy(declaration, review_token, preconditions)`,
 `pgreact.review_token(preview_result)`, `pgreact.status(name)`,
