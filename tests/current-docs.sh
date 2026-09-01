@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-expected=0.43.0
+expected=0.43.1
 test -s docs/current-release.json
-jq -e --arg version "$expected" --arg previous 0.42.0 \
+jq -e --arg version "$expected" --arg previous 0.43.0 \
   '.schema_version == 1 and .milestone == "M54" and .extension_version == $version and
-   .previous_extension_version == $previous and .adjacent_upgrade == "0.42.0 -> 0.43.0" and
+   .previous_extension_version == $previous and .adjacent_upgrade == "0.43.0 -> 0.43.1" and
    .v1_status == "postponed_indefinitely"' docs/current-release.json >/dev/null
 grep -qx "version = \"$expected\"" Cargo.toml
 awk '/name = "pg_react"/{found=1; next} found && /^version =/{print; exit}' Cargo.lock |
@@ -20,7 +20,8 @@ current_files=(
   docs/authoring.md docs/operations.md docs/api-reference.md docs/security.md
   docs/backup-restore.md docs/upgrade.md docs/troubleshooting.md
   docs/support-matrix.md docs/known-limitations.md docs/changing-policies.md
-  docs/concepts.md docs/order-review-tutorial.md showcase/order-review/README.md
+  docs/limits.md docs/compatibility.md docs/versioning.md docs/concepts.md
+  docs/order-review-tutorial.md showcase/order-review/README.md
   docs/m54-release-notes.md docs/m54-migration.md
 )
 for file in "${current_files[@]}"; do
