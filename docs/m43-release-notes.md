@@ -42,6 +42,5 @@ restore a verified `0.39.0` backup if you need to go back. See
 
 Use M43 on real financial-exception and access-drift reviews. Check whether the
 field-level answer is enough to approve a change, and record questions that
-still need outcome or causal evidence. The logical next candidate is M44,
-“Explanation qualification.” It is not a release promise until M43 evidence
-and user demand support it.
+still need outcome or causal evidence. That work selected M44, explanation
+qualification, as the current planning milestone for extension `0.41.0`.

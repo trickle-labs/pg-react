@@ -2,9 +2,9 @@
 
 This is the starting point for current pg-react documentation. M43 / extension
 `0.40.0` is the current release. It shows which modeled policy fields changed
-before a reviewer deploys an update. M43 is read-only: it does not evaluate,
-deploy, or create work. The prepared `1.0.0-rc.1` candidate remains outside
-the current release sequence.
+before a reviewer deploys an update. M44 is the current planning milestone. It
+defines explanation qualification for extension `0.41.0`. The prepared
+`1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start
 

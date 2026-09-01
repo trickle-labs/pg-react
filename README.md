@@ -8,12 +8,12 @@ work, attempts, and explanations remain queryable in PostgreSQL.
 
 M43 / extension `0.40.0` is the current release. It lets a reviewer compare
 one proposed rule, decision, or policy set with the deployed version and see
-which modeled fields changed. It also reports when a SQL object changed
-without pretending to understand that SQL. The operation is read-only and
-does not deploy or run anything. Earlier M42 evidence snapshots, M41 causal
-paths, and M40 why-not answers remain available. The prepared `1.0.0-rc.1`
-candidate remains outside the current release sequence, and `1.0.0` is
-postponed indefinitely. Start with the [documentation home](docs/index.md).
+which modeled fields changed. M44 is the current planning milestone. It
+qualifies one bounded explanation contract for current outcomes, comparisons,
+decisions, work, and retained evidence in extension `0.41.0`. The prepared
+`1.0.0-rc.1` candidate remains outside the current release sequence, and
+`1.0.0` is postponed indefinitely. Start with the
+[documentation home](docs/index.md).
 
 ## Choose a path
 

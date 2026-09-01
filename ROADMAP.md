@@ -1,7 +1,7 @@
 # pg-react roadmap
 
 > **Status:** Living delivery plan  
-> **Last updated:** 2026-08-31\
+> **Last updated:** 2026-09-01\
 > **Contract authority:** [`docs/v1-contract.md`](docs/v1-contract.md), subject
 > to installed behavior. [`DESIGN.md`](DESIGN.md) is historical M13
 > architecture.
@@ -12,8 +12,10 @@
 > Capability area 1. M40 and extension `0.37.0` complete bounded why-not. M41
 > and extension `0.38.0` complete end-to-end causal paths. M42 and extension
 > `0.39.0` complete evidence snapshots. M43 and extension `0.40.0` complete
-> semantic policy differences. M44, explanation qualification, is the next
-> candidate and remains subject to M43 evidence and user traction.
+> semantic policy differences. M44 is the current milestone. It defines
+> explanation qualification for extension `0.41.0`. Before its contract
+> freezes, field evidence must show that inconsistent explanation contracts
+> block a real review or operating task.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -4144,26 +4146,320 @@ the milestone supported by the field evidence.
 
 ---
 
-## Proposed sequence after M43
+## Stage 44 — Explanation qualification
+
+**Outcome:** let a reviewer use one bounded contract to interpret explanations
+for current outcomes, current comparisons, decisions, work, and retained
+evidence. Every qualified explanation follows shared rules for public identity,
+ordering, authorization, retention, completeness, limits, findings, semantic
+cost, and failure. An origin that lacks evidence reports that boundary instead
+of making a stronger claim.
+
+**Release boundary:** extension `0.41.0`. M44 is a qualification release over
+the installed explanation operations. It covers ordinary current-state
+explanation, M40 why-not, M41 causal paths, M38 why-changed evidence from a
+current `pgreact.compare` call, and the complete M41 answer retained by M42.
+Each operation keeps its existing function, options, result shape, evaluator,
+and operation-specific contract. M44 adds no explanation verb, common wrapper
+envelope, evaluator, evidence store, or default option. Existing explanation,
+comparison, replay, backtest, snapshot, semantic-difference, deployment, and
+execution calls remain byte-for-byte compatible. The packaged candidate must
+pass `tests/m44.sh complete`. Completing M44 does not start a v1 feature freeze
+or release-candidate cycle.
+
+**Owner:** pg-react maintainers.
+
+**Entry gate:** the exact `v0.40.0` artifacts are published and every M43 gate
+passes. Before the M44 contract freezes, use at least one externally supplied
+financial-exception or access-drift workload that requires two or more
+qualified explanation origins. Record each review or operating question,
+public request, full answer, manual identity mapping, state interpretation,
+authorization and retention check, and client-side reshaping step. Record where
+two origins use different terms for the same guarantee or make incompatible
+claims about the same evidence. If those differences do not block the user's
+task, stop M44 and select the milestone supported by the field evidence.
+
+### Deliverables
+
+- One versioned M44 qualification contract over the frozen explanation-origin
+  inventory. The contract maps each origin to its public function, option,
+  result version, supported question, authoritative operation-specific
+  contract, and exclusion boundary.
+- One shared explanation vocabulary for origin, question identity, subject,
+  root, comparison point, evidence point, completeness, boundary, finding,
+  limit, semantic digest, semantic cost, measured elapsed time, and retained
+  evidence. The vocabulary maps existing fields without renaming them.
+- One public-identity model that relates target kind, stable target name and
+  version, typed subject and result keys, decision and work roots, comparison
+  points and sides, and snapshot identities. Private UUIDs, transaction IDs,
+  physical row order, and private catalog identifiers never establish shared
+  identity.
+- Exact shared meanings for complete, partial, unavailable, and unsupported
+  evidence. The contract maps origin-specific states such as `ready`,
+  `already_present`, `available`, and `deletion_eligible` without changing the
+  installed outputs or treating availability as explanation completeness.
+- Canonical ordering and digest rules for every qualified origin, plus exact
+  cross-origin equivalence rules when two requests refer to the same target,
+  subject, root or result, declaration, evidence point, and authorization
+  context.
+- One authorization matrix for live current evidence and retained M42
+  evidence. It freezes target, source, owner, operator, role-membership, RLS,
+  object-grant, absent-object, and changed-authorization behavior without
+  weakening an origin's existing fail-closed boundary.
+- One retention matrix that states which current evidence can expire, when a
+  live answer becomes partial or unavailable, how a complete M42 answer
+  remains historical, and when deletion or a tombstone ends retained
+  explanation access.
+- Shared limit, finding-family, and cost rules. Each origin retains its exact
+  codes and counters. The qualification contract states which differences are
+  intentional and keeps elapsed time outside semantic identity.
+- Extension `0.41.0`, adjacent upgrade SQL from `0.40.0`, an M44 contract,
+  origin and finding inventories, API reference, examples, compatibility and
+  retention matrices, cross-origin corpus, benchmark, migration evidence,
+  known limitations, release notes, final checklist, and executable
+  qualification evidence.
+
+### Supported boundary
+
+- M44 qualifies only explanation behavior that the installed release already
+  supports. It adds no target kind, subject shape, root kind, cause kind, edge,
+  comparison mode, retained record, or evidence source.
+- The qualified origins are the ordinary current target or subject explanation
+  from `pgreact.explain`; the M40 `why_not` request; the M41 `causal_path`
+  request for `decision_result`, `rule_work`, and `decision_work`; M38
+  `why_changed` evidence returned by one current `pgreact.compare` call; and
+  the exact complete M41 answer nested in an M42 snapshot.
+- Identifier-first advanced explanation functions keep their existing
+  contracts but are outside M44. The qualified current explanation starts from
+  the names-first `pgreact.explain` function.
+- The M38 behavior already exposed by replay and backtesting keeps its existing
+  contract but is outside M44 qualification. Historical changes, replay, and
+  backtesting enter the shared contract only after their research gates prove
+  that users need the same explanation guarantees for those operations.
+- M43 semantic differences remain policy-review evidence under the M43
+  contract. M44 does not relabel a declaration-field difference or opaque SQL
+  change as a causal explanation of an outcome.
+- One qualification contract does not require one JSON shape. Each origin keeps
+  its installed envelope, fields, nesting, finding codes, and result version.
+  The M44 matrix states the exact common meaning and every intentional
+  difference.
+- Shared question identity uses only modeled public identity. It includes the
+  target, typed subject or result, root or comparison point, side pair where
+  applicable, declaration or policy version, and snapshot identity where
+  applicable. Missing identity inputs never come from storage identifiers.
+- A shared evidence point binds the declaration and source-definition digests,
+  sampled time, authoritative frontier, lifecycle or decision revision,
+  comparison sides, or capture metadata that the originating operation
+  exposes. Two answers are equivalent only when every evidence-point input
+  required by both origins is equal.
+- `complete` means that the origin accounted for every supported cause,
+  predecessor, or returned difference within its frozen model and limits.
+  `partial` names the reached limit or incomplete evidence. `unavailable`
+  means that the origin cannot return a safe answer. `unsupported` means that
+  the question is outside the origin's adapter. No mapping upgrades a weaker
+  state.
+- M40 `already_present` is a complete observation that the requested current
+  result exists, with no why-not cause. M42 `available` and
+  `deletion_eligible` describe snapshot availability. The nested M41 state
+  remains the authority for explanation completeness.
+- Live explanations apply the originating operation's current target, source,
+  grant, and RLS checks. M42 snapshots retain their frozen owner-or-operator
+  access rule; a later source grant or revocation does not change snapshot
+  access. Both origins fail closed, but the qualification matrix preserves
+  this deliberate difference.
+- A live explanation reads only evidence available at its statement snapshot.
+  Missing or pruned evidence returns the exact incomplete state. An M42 read
+  returns the exact captured M41 answer without rereading sources, joining the
+  current declaration, filling a missing field, or presenting the answer as
+  current truth.
+- Arrays and graph elements use each origin's frozen canonical order. Stable
+  semantic output is independent of JSON object order, physical row or catalog
+  order, query plan, elapsed time, restart, restore, adjacent upgrade, and
+  supported standby promotion.
+- Deterministic limits bound every explanation before unbounded work or output.
+  A reached bound reports the exact limit and does not claim that omitted
+  evidence, causes, predecessors, or differences do not exist. Semantic cost
+  counters remain reproducible; measured elapsed time stays separate.
+- Current explanation and comparison requests remain read-only. M42 capture
+  and delete keep only their existing explicit snapshot, audit, and tombstone
+  writes. M44 adds no durable state or write path.
+- Existing calls remain byte-for-byte unchanged. M44 does not require clients
+  to opt into metadata, rewrite a request, or translate an existing response
+  through a new runtime API.
+
+### Explicit non-goals
+
+- A new top-level explanation function, common response envelope, normalized
+  graph, universal cause record, adapter service, client-side schema, or
+  explanation query language.
+- Qualification of why-changed evidence for replay, backtesting, or arbitrary
+  historical comparisons before the existing research gates support it.
+- Treating an M43 policy-field difference as proof of why a current or
+  historical result, decision, lifecycle transition, or work item changed.
+- Arbitrary SQL, query-plan, tuple, application, or cross-database lineage.
+  M44 also excludes causal inference, necessity or sufficiency proofs, minimal
+  causes, repair synthesis, and unbounded graph search.
+- New why-not questions, forward impact analysis, root discovery, batch
+  explanation, path ranking, evidence search, recommendation, risk scoring,
+  automatic approval, or policy promotion.
+- Automatic snapshot capture, new snapshot root kinds, mutable retained
+  evidence, source-history collection, a database snapshot, external archive,
+  legal hold, or another retention system.
+- Combining several live or retained answers into one authoritative answer,
+  filling one origin's evidence gap from another origin, or making a current
+  claim from historical evidence.
+- A new rule language, policy DSL, evaluator, declaration store, permission
+  system, scheduler, source of truth, workflow engine, or graph database.
+- Deployment, rollback, reconciliation, work execution, consequence delivery,
+  synchronous network actions, human workflows, or exactly-once external
+  delivery.
+- Visual or AI authoring, client SDKs, dashboards, or a visualization API.
+- Rolling, hopping, calendar, sequence, absence-after-event, or other temporal
+  behavior. M45 and later candidates own those questions.
+
+### Decisions to close before the M44 contract freezes
+
+- Exact qualified origin inventory, function overloads, options, envelope and
+  nested result versions, ordinary or advanced API classification, and
+  authoritative operation-specific contract for every origin.
+- Exact shared vocabulary and origin mappings. Define which existing field
+  carries origin, question identity, evidence point, state, completeness,
+  boundary, finding, limit, digest, semantic cost, and elapsed time.
+- Exact public identity for current target and subject explanations, expected
+  results, decision and work roots, comparison rows and side pairs, and
+  snapshots. Define which identities can be compared across origins.
+- Exact evidence-point equality for declarations, targets, subjects, results,
+  source definitions, sampled time, frontiers, revisions, comparison sides,
+  capture time, and retained policy versions. Define when cross-origin
+  equivalence is unsupported rather than false.
+- Exact mapping among `ready`, `complete`, `already_present`, `partial`,
+  `unavailable`, `unsupported`, `available`, `deletion_eligible`, `missing`,
+  and `deleted`. Define which state is explanation completeness, operation
+  availability, or both.
+- Exact canonical ordering, typed serialization, null and missing behavior,
+  deduplication, and digest coverage for each origin. Define which generated
+  measurements are excluded and how nested M41 and M42 digests reconcile.
+- Exact live target and source authorization, snapshot owner-or-operator
+  authorization, role-membership changes, source and object grant changes,
+  RLS changes, target replacement or removal, absent-object behavior, and
+  details that a denied response must hide.
+- Exact current-evidence, ordinary-history, M21 retention, M42 snapshot,
+  deletion-eligibility, tombstone, backup, restore, rollback, and promoted
+  standby behavior. Define when evidence is partial, unavailable, historical,
+  or deleted.
+- Exact serialization during concurrent source change, refresh, deploy,
+  replacement, removal, lifecycle or decision change, work execution,
+  snapshot capture or deletion, authorization change, pruning, cancellation,
+  timeout, crash, restart, recovery, extension upgrade, and standby promotion.
+- Exact shared finding families and origin-specific codes for invalid, stale,
+  changed, ambiguous, cyclic, incomplete, pruned, unauthorized, RLS,
+  unsupported, and over-limit evidence.
+- Exact deterministic cause, node, edge, path, difference, depth, fan-out,
+  payload, and whole-call limits. Freeze latency, memory, temporary-storage,
+  snapshot read, and retained-byte budgets separately. Freeze the corpus,
+  upgrade and rollback evidence, and `tests/m44.sh complete` inputs.
+
+### Exit gates
+
+- Exact fixtures return the full installed output for every qualified origin.
+  Each fixture asserts the target, question identity, evidence point, state,
+  evidence or graph, boundaries, limits, findings, digests, semantic costs,
+  and separately labeled elapsed time that its origin exposes.
+- Exact current-outcome fixtures prove the frozen mapping for a present result,
+  an expected but absent result, one decision result, rule work, decision work,
+  and one changed comparison row. Every fixture uses public business identity
+  and names its exact supported explanation boundary.
+- M40 fixtures return the full `complete`, `already_present`, `partial`,
+  `unavailable`, and `unsupported` outputs. The qualification mapping never
+  invents a cause or upgrades incomplete evidence.
+- M41 fixtures return the full output for all three root kinds, multiple and
+  converging paths, an accessible authoritative fact, an opaque dependency, a
+  cycle, pruned evidence, and every reached graph limit.
+- One M42 fixture captures a complete M41 answer, changes or removes the live
+  source evidence, and reads the snapshot. The nested answer remains
+  byte-for-byte equal to the captured M41 answer and historical. The live
+  request returns its exact current, partial, or unavailable answer.
+- One current `pgreact.compare` fixture returns the exact M38 why-changed
+  explanation for every qualified change and cause kind. Replay and backtest
+  keep their exact existing output but receive no M44 qualification claim.
+- Exact cross-origin fixtures prove every published identity and
+  evidence-point equivalence. Inputs that differ by time, frontier,
+  declaration, source definition, revision, comparison side, authorization,
+  or snapshot capture return the exact non-equivalence reason instead of a
+  guessed match.
+- Large support sets, cycles, missing and pruned history, opaque SQL, changed
+  authorization, target replacement, reached limits, restored databases, and
+  promoted standbys return the exact full output and mapped state for every
+  applicable origin.
+- Every documented author, owner, operator, reader, advanced reader, changed
+  role member, source-grant change, object-grant change, RLS, and `PUBLIC` case
+  returns the exact authorized or denied output. No denied case leaks a target,
+  subject, root, result, source, graph shape, count, value, digest, snapshot,
+  owner, retention time, or tombstone.
+- Existing current explanation, why-not, causal-path, why-changed, snapshot,
+  semantic-difference, replay, and backtest calls remain byte-for-byte
+  unchanged across fresh installation and populated upgrade. M44 introduces
+  no new default option or response field.
+- Repeated calls return byte-for-byte identical semantic output across JSON
+  object order, physical row and catalog order, supported plans, restart,
+  restore, adjacent upgrade, and supported standby promotion. Measured elapsed
+  time may differ only where the originating contract already permits it.
+- Concurrent source, declaration, lifecycle, decision, work, authorization,
+  retention, capture, and deletion changes return one frozen evidence point or
+  the exact fail-closed finding. No result combines revisions, frontiers,
+  grants, live evidence, or snapshot evidence.
+- Successful, rejected, canceled, timed-out, terminated, crashed, and recovered
+  explanation and comparison calls leave exact source, declaration, lifecycle,
+  decision, work, attempt, evidence, snapshot, audit, retention, and frontier
+  checksums unchanged. Existing M42 capture and delete change exactly their
+  documented rows and no others.
+- One versioned reference corpus contains at least three production-shaped
+  explanation workflows. It records every full request and answer, origin,
+  question identity, evidence point, mapping, finding, limit, digest, cost,
+  checksum, retention state, and unsupported question.
+- Migration evidence replaces the field-reviewed workload's manual identity
+  mapping, state interpretation, and authorization or retention checks with the
+  published qualification contract. Independent PostgreSQL users interpret
+  each supported explanation without private catalogs, internal UUIDs,
+  undocumented joins, or origin-specific help.
+- The compatibility matrix covers every qualified origin, target and root kind,
+  state mapping, identity, evidence point, finding, limit, role, retention
+  condition, concurrent change, and supported installation path. The release
+  simplification review records which proposed common rule was kept, narrowed,
+  mapped, or removed.
+- Representative and supported-limit profiles satisfy the published budgets.
+  Evidence identifies target lookup, source reads, cause discovery, graph
+  expansion, serialization, hashing, snapshot access, memory, temporary
+  storage, and returned payload as separate costs.
+- Fresh installation, populated `0.40.0 -> 0.41.0` upgrade,
+  rollback-by-restore, packaged execution, and inherited M43 qualification pass
+  in `tests/m44.sh complete` against the exact candidate artifact.
+- Every inherited M0 through M43 gate passes. No P0 or P1 remains. Retained
+  limitations are explicit, and the exact `0.41.0` artifact passes its release
+  gate.
+
+---
+
+## Proposed sequence after M44
 
 The project still commits to one milestone at a time. The five items below are
 candidates, not implementation or release commitments. Each must earn selection
-from M43 evidence and user traction.
+from M44 evidence and user traction.
 
-1. **M44 — Explanation qualification.** Establish one bounded explanation
-   contract for current outcomes, comparisons, decisions, and work, with shared
-   ordering, authorization, retention, identity, cost, and failure rules.
-2. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
+1. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
    explicit progress, lateness, correction, retention, and resource limits.
-3. **M46 — Business calendar windows.** Add calendar days, months, billing
+2. **M46 — Business calendar windows.** Add calendar days, months, billing
    periods, and named business calendars with explicit time-zone,
    daylight-saving, month-boundary, and late-input behavior.
-4. **M47 — Finite event sequences.** Support short, ordered event patterns with
+3. **M47 — Finite event sequences.** Support short, ordered event patterns with
    hard limits on sequence length, incomplete matches, ordering, expiry, and
    retained evidence, without adding a general event-processing language.
-5. **M48 — Absence after an event.** Recognize a missing follow-up only after
+4. **M48 — Absence after an event.** Recognize a missing follow-up only after
    source progress passes its deadline, and retain the start event, proof of
    absence, and bounded late-correction evidence.
+5. **M49 — Temporal rule qualification.** Qualify every supported time-based
+   result as an ordinary named condition or derived fact, with shared recovery,
+   retention, correction, determinism, and scale evidence.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 
