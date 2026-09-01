@@ -9,8 +9,13 @@ case "$profile" in fast|complete) ;; *) echo 'usage: tests/m54.sh fast|complete 
 run_dir="tests/.m54-run-${GITHUB_RUN_ID:-$$}"
 project=${COMPOSE_PROJECT_NAME:-pgreact-m54-${GITHUB_RUN_ID:-$$}}
 rollback_project=${project}-rollback
+managed_pid=
 mkdir -p -- "$run_dir"
 cleanup() {
+  if [[ -n ${managed_pid:-} ]]; then
+    COMPOSE_PROJECT_NAME=$project docker compose exec -T postgres \
+      bash -c 'kill -CONT "$1"' bash "$managed_pid" >/dev/null 2>&1 || true
+  fi
   COMPOSE_PROJECT_NAME=$project docker compose down --volumes --remove-orphans >/dev/null 2>&1 || true
   COMPOSE_PROJECT_NAME=$rollback_project docker compose down --volumes --remove-orphans >/dev/null 2>&1 || true
   if [[ -n ${M54_ARTIFACT_DIR:-} ]]; then
@@ -93,7 +98,17 @@ wait_for_version "$expected_version"
 for inherited in tests/m38.sql tests/m39.sql tests/m40.sql tests/m41.sql tests/m42.sql tests/m43.sql tests/m44.sql tests/m53-ergonomics.sql tests/m53.sql; do
   run_test "M54 inherited $(basename "$inherited" .sql)" docker compose exec -T postgres psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < "$inherited"
 done
+for _ in {1..120}; do
+  managed_pid=$(docker compose exec -T postgres psql -XAtq -U postgres -d postgres -c \
+    "SELECT pgreact_api.managed_status() #>> '{process,pid}'" 2>/dev/null || true)
+  [[ -n $managed_pid ]] && break
+  sleep 1
+done
+test -n "$managed_pid"
+docker compose exec -T postgres bash -c 'kill -STOP "$1"' bash "$managed_pid"
 run_test 'M54 fresh install and SQL corpus' docker compose exec -T postgres psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m54.sql
+docker compose exec -T postgres bash -c 'kill -CONT "$1"' bash "$managed_pid"
+managed_pid=
 run_test 'M54 concurrency and failure corpus' bash tests/m54-concurrency.sh "$image" "$COMPOSE_PROJECT_NAME"
 
 if [[ $profile = complete ]]; then
