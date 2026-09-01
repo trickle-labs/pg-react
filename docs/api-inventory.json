@@ -3,6 +3,13 @@
   "extension_version": "0.43.1",
   "contract_version": 54,
   "classification_order": ["ordinary", "compatibility", "advanced", "administrative"],
+  "catalog": {
+    "mode": "explicit",
+    "unknown_public_objects": "error",
+    "classification_source": "surfaces.<classification>.functions and surfaces.<classification>.views",
+    "allowlist_rule": "Every public function and relation must have one exact catalog entry. Prefix matching is not permitted.",
+    "ordinary_policy_set": "pgreact.policy_set and its complete package constructor are ordinary."
+  },
   "surfaces": {
     "ordinary": {
       "functions": [
@@ -29,7 +36,7 @@
       ]
     },
     "advanced": {
-      "function_prefixes": [
+      "functions": [
         "pgreact.backtest", "pgreact.replay", "pgreact.shared_condition",
         "pgreact.parameter_family", "pgreact.capture_evidence",
         "pgreact.read_evidence", "pgreact.trace", "pgreact.why_not",
@@ -61,7 +68,7 @@
       ]
     },
     "administrative": {
-      "function_prefixes": [
+      "functions": [
         "pgreact_api.configure_", "pgreact_api.managed_", "pgreact_api.claim",
         "pgreact_api.execute", "pgreact_api.pause_", "pgreact_api.resume_",
         "pgreact_api.reconcile_", "pgreact_api.remove_", "pgreact_api.retention_",
@@ -80,7 +87,7 @@
       ]
     },
     "compatibility": {
-      "function_prefixes": [
+      "functions": [
         "pgreact.validate_m53", "pgreact.preview_m53", "pgreact.deploy_m53",
         "pgreact.export_m32", "pgreact.import_m32", "pgreact_api.*_m28",
         "pgreact_api.*_m29", "pgreact_api.*_m30", "pgreact_api.*_m31",
