@@ -15,6 +15,8 @@ instructions.
   [migration guide](m53-migration.md) document the `0.42.0` package release.
 - [M54 release notes](m54-release-notes.md), [contract](m54-contract.md), and
   [migration guide](m54-migration.md) document the current `0.43.0` package.
+- [v0.43.1 implementation plan](m54-0.43.1-implementation-plan.md) records
+  the M54 correctness and qualification closure.
 - [Roadmap through M53](history/roadmap-through-m53.md) preserves completed
   roadmap detail behind the short current [Roadmap](../ROADMAP.md).
 
