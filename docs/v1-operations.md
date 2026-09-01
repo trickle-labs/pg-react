@@ -1,5 +1,8 @@
 # v1 operations
 
+> Historical record for the prepared v1 candidate. Use current
+> [Operations](operations.md) for pg-react `0.43.0`.
+
 This is the current production runbook for extension `0.42.0`. Use public SQL
 only. Never update `pgreact_internal` or `pgreact_runtime`.
 

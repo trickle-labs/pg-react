@@ -1,5 +1,8 @@
 # v1 support matrix
 
+> Historical record for the prepared v1 candidate. Use current
+> [Support Matrix](support-matrix.md) for pg-react `0.43.0`.
+
 This matrix is intentionally narrow. “Unqualified” means the repository has
 not produced support evidence; it does not mean best-effort compatibility.
 

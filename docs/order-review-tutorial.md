@@ -46,12 +46,12 @@ docker compose exec -T postgres psql -XAt -U postgres -d "$DB" \
 ```
 
 ```text
-pg_react=1.0.0-rc.1
+pg_react=0.43.0
 pg_trickle=0.81.0
 t
 ```
 
-Stop if the extension versions or worker protocol differ. The supported server is PostgreSQL 18.3 with pg-react `1.0.0-rc.1` and pg_trickle 0.81.0. Installation and preload details live in [Installation](v1-installation.md), while runtime diagnosis belongs in [Operations](v1-operations.md).
+Stop if the extension versions or worker protocol differ. The supported server is PostgreSQL 18.3 with pg-react `0.43.0` and pg_trickle 0.81.0. Installation and preload details live in [Installation](installation.md), while runtime diagnosis belongs in [Operations](operations.md).
 
 ## 3. Create the application facts
 
@@ -91,7 +91,7 @@ docker compose exec -T -e 'PGOPTIONS=-c client_min_messages=error' postgres \
 {"step": "deploy constraint", "state": "deployed"}
 ```
 
-The script constructs declarations by stable name, validates them, previews the create, and supplies the preview digest to deployment. It never authors with generated UUIDs. The exact constructor fields and typed function signatures are in [Authoring Rules and Policies](v1-authoring.md).
+The script constructs declarations by stable name, validates them, previews the create, and supplies an opaque review token to deployment. It never authors with generated UUIDs. The exact constructor fields and typed function signatures are in [Authoring Rules and Policies](authoring.md).
 
 ## 5. Deploy and inspect a constraint rule
 
@@ -193,7 +193,7 @@ grep 'policy applicability' /tmp/order-review-scenarios.txt
 {"step":"policy applicability","eligible":[1001,1002,1003],"current_constraint_matches":[1001,1003]}
 ```
 
-Order `1002` is the useful odd one out: it belongs to the policy but does not satisfy v1. Membership, applicability, and current match state answer different questions, and combining them into one boolean would make policy review much harder to reason about.
+Order `1002` is the useful odd one out: it belongs to the policy but does not satisfy the current amount threshold. Membership, applicability, and current match state answer different questions, and combining them into one boolean would make policy review much harder to reason about.
 
 ## 10. Compare a lower threshold without executing it
 
@@ -209,7 +209,7 @@ added_orders=[1002], current_count=2, proposed_count=3, complete=true
 work_unchanged=true, attempts_unchanged=true, proposed_task_count=0
 ```
 
-Every `compare_results()` call performs a fresh comparison rather than reading the prior JSON envelope. Evidence is bounded at 100 and complete in this four-order fixture. This is current-state proposal review, not historical replay and not a way to mutate source facts hypothetically. Use [Changing Policies Safely](changing-policies.md) to review proposals, then follow the qualified `pgreact.replace_rule()` cutover in [Operations](v1-operations.md) if a deployed stable rule must actually change.
+Every `compare_results()` call performs a fresh comparison rather than reading the prior JSON envelope. Evidence is bounded at 100 and complete in this four-order fixture. This is current-state proposal review, not historical replay and not a way to mutate source facts hypothetically. Use [Changing Policies Safely](changing-policies.md) to review proposals, then use the ordinary reviewed `pgreact.deploy()` replacement path if a deployed stable rule must actually change.
 
 ## 11. Recover a failed consequence
 
@@ -249,7 +249,7 @@ All order-review declarations are removed; app, rule_def, and rule_action are ab
 
 ## 13. Optional: add deadline escalation
 
-The advanced script currently reports deadline escalation as omitted. The repository has specialized deadline machinery, but this package does not publish a call until that exact public API, its direct deadline-column contract, boundary behavior, resource limit, and transcript all pass against `1.0.0-rc.1`. A deadline is database-time crossing work, not a general wall-clock scheduler, and it deserves a real fixture rather than hopeful prose.
+The advanced script currently reports deadline escalation as omitted. The repository has specialized deadline machinery, but this package does not publish a call until that exact public API, its direct deadline-column contract, boundary behavior, resource limit, and transcript all pass against the current `0.43.0` boundary. A deadline is database-time crossing work, not a general wall-clock scheduler, and it deserves a real fixture rather than hopeful prose.
 
 ```bash
 docker compose up -d --wait --no-build
@@ -277,7 +277,7 @@ The chapter is listed in the explicit omission report.
 
 The example proves one bigint semantic key, relational current truth, typed database-local consequences, activation and change lifecycle, retries, decision winner states, applicability, bounded explanation, side-effect-free comparison, and cleanup. It does not prove synchronous source-write rejection, machine-learning classification, exactly-once remote delivery, a total firing order across workers, human case management, historical replay, effective-dated business policy, or advanced provenance.
 
-Run the acceptance test once more after experimenting, then continue with [Authoring Rules and Policies](v1-authoring.md), [Changing Policies Safely](changing-policies.md), or [Operations](v1-operations.md), depending on whether the next job is writing, reviewing, or running a policy. The pleasant part is that all three guides begin from the same stable names and public projections used here.
+Run the acceptance test once more after experimenting, then continue with [Authoring Rules and Policies](authoring.md), [Changing Policies Safely](changing-policies.md), or [Operations](operations.md), depending on whether the next job is writing, reviewing, or running a policy. The pleasant part is that all three guides begin from the same stable names and public projections used here.
 
 ```bash
 ./tests/order-review-showcase.sh

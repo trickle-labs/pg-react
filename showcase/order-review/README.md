@@ -6,7 +6,7 @@ This package asks one practical question: does the current order require manual 
 
 ```text
 1001  already risky       proves bootstrap and clear routing
-1002  eligible, below v1   proves ambiguity and threshold comparison
+1002  eligible, below current threshold   proves ambiguity and threshold comparison
 1003  changes over time    proves activation, revisions, deactivation, and retry
 1004  high risk, suspended proves that applicability limits participation
 ```
@@ -28,7 +28,7 @@ scenario without first understanding every internal table.
 
 ## Prerequisites
 
-Run from the repository root with Docker available and the `pg-react:1.0.0-rc.1` image already built. The qualified environment is pg-react `1.0.0-rc.1`, PostgreSQL 18.3, pg_trickle 0.81.0, and Linux `amd64`, which is the platform pinned by `docker-compose.yml`. The runner creates a disposable Compose project and an isolated database, then removes both on exit.
+Run from the repository root with Docker available and the `pg-react:0.43.0` image already built. The qualified environment is pg-react `0.43.0`, PostgreSQL 18.3, pg_trickle 0.81.0, and Linux `amd64`, which is the platform pinned by `docker-compose.yml`. The runner creates a disposable Compose project and an isolated database, then removes both on exit.
 
 ```bash
 ./tests/order-review-showcase.sh
@@ -72,13 +72,13 @@ flowchart LR
 
 ## Expected behavior and limits
 
-Order `1001` starts as a current match and routes to `chargeback-review`. Order `1002` is eligible but below the v1 amount threshold, has tied routing candidates, and becomes the single `ADDED` order under the proposed `500.00` threshold. Order `1003` moves through generation 1, closes, then enters generation 2; its first reactivation attempt returns `P6001`, its second attempt completes, and candidate removal leaves the retained decision state at `NO_CANDIDATE`. Order `1004` remains ineligible because its customer is suspended.
+Order `1001` starts as a current match and routes to `chargeback-review`. Order `1002` is eligible but below the current amount threshold, has tied routing candidates, and becomes the single `ADDED` order under the proposed `500.00` threshold. Order `1003` moves through generation 1, closes, then enters generation 2; its first reactivation attempt returns `P6001`, its second attempt completes, and candidate removal leaves the retained decision state at `NO_CANDIDATE`. Order `1004` remains ineligible because its customer is suspended.
 
 The exact fixture omits generated UUIDs, worker identifiers, deployment timestamps, attempt timestamps, and elapsed milliseconds. It preserves semantic keys, generations, revisions, event kinds, work states, error details, application rows, decision results, eligibility, declaration state, comparison completeness, and the before and after authoritative checksums. The comparison is a current-state proposal review, not historical replay or hypothetical source mutation, and it creates no application task or attempt for order `1002`.
 
 `06-advanced.sql` reports advanced chapters as omitted. Deadline escalation, derived facts, provenance, and effective-dated policy versions remain out until this package names each specialized public call, states its resource bounds, and freezes exact output against the qualified image. External delivery is also absent. If a database-local consequence is replaced with an outbox or remote consumer later, delivery is at least once and the consumer must remain idempotent.
 
-Read [the tutorial](../../docs/order-review-tutorial.md) for the guided path, [Authoring Rules and Policies](../../docs/v1-authoring.md) for constructor details, and [Operations](../../docs/v1-operations.md) before changing or removing deployed work.
+Read [the tutorial](../../docs/order-review-tutorial.md) for the guided path, [Authoring Rules and Policies](../../docs/authoring.md) for constructor details, and [Operations](../../docs/operations.md) before changing or removing deployed work.
 
 ## Inspect the result
 

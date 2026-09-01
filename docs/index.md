@@ -1,65 +1,45 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M53 / extension
-`0.42.0` is the current release. It packages related policy declarations into
-one validated and atomic deployment unit. The prepared
-`1.0.0-rc.1` candidate remains outside the current release sequence.
+This is the current documentation for pg-react `0.43.0` (M54). It explains
+the ordinary path first: define a rule or decision, validate it, preview it,
+review the result, deploy it, and inspect the durable PostgreSQL state.
 
 ## Start
 
-- [Glossary](../GLOSSARY.md)
 - [Getting Started](getting-started.md)
+- [Installation](installation.md)
+- [Authoring Rules and Policies](authoring.md)
+- [Changing Policies Safely](changing-policies.md)
 - [Order Review Tutorial](order-review-tutorial.md)
 - [Runnable Order Review Package](../showcase/order-review/README.md)
 - [Concepts](concepts.md)
-- [Explain an Outcome](explaining-outcomes.md)
-
-## Build
-
-- [Authoring Rules and Policies](v1-authoring.md)
-- [Changing Policies Safely](changing-policies.md)
-- [Hypothetical Fact Simulation](m35-api-reference.md)
-- [Historical Replay](m36-api-reference.md)
-- [Comparative Backtesting](m37-api-reference.md)
-- [Why-changed comparison](m38-api-reference.md)
-- [Simulation qualification](m39-api-reference.md)
-- [Bounded why-not](m40-api-reference.md)
-- [End-to-end causal paths](m41-api-reference.md)
-- [Evidence snapshots](m42-api-reference.md)
-- [Semantic policy differences](m43-api-reference.md)
-- [Explanation API reference](m44-api-reference.md)
-- [M53 package API reference](m53-api-reference.md)
-- [API Reference](v1-api-reference.md)
 
 ## Operate
 
-- [Installation](v1-installation.md)
-- [Operations](v1-operations.md)
-- [Security](v1-security.md)
-- [Backup and Restore](v1-backup-restore.md)
-- [Upgrade](v1-upgrade.md)
-- [Troubleshooting](v1-troubleshooting.md)
+- [Operations](operations.md)
+- [Security](security.md)
+- [Backup and Restore](backup-restore.md)
+- [Upgrade](upgrade.md)
+- [Troubleshooting](troubleshooting.md)
 
 ## Reference
 
-- [M40 bounded why-not contract](m40-contract.md)
-- [M41 causal-path contract](m41-contract.md)
-- [M42 evidence-snapshot contract](m42-contract.md)
-- [M43 semantic-difference contract](m43-contract.md)
-- [M44 explanation-qualification contract](m44-contract.md)
-- [M39 simulation contract](m39-contract.md)
-- [M34 v1 baseline contract](v1-contract.md)
-- [Limits](v1-limits.md)
-- [Support Matrix](v1-support-matrix.md)
-- [Known Limitations](v1-known-limitations.md)
-- [Release Notes](m44-release-notes.md)
-- [M53 release notes](m53-release-notes.md)
+- [API Reference](api-reference.md)
+- [Support Matrix](support-matrix.md)
+- [Known Limitations](known-limitations.md)
+- [Limits](limits.md)
+- [Compatibility](compatibility.md)
+- [Deprecations](deprecations.md)
+- [Versioning](versioning.md)
+- [Product Contract](product-contract.md)
+- [Current release manifest](current-release.json)
+- [Current API inventory](api-inventory.json)
 
-## Project / History
+## History
 
+- [Release history and qualification evidence](history.md)
 - [Roadmap](../ROADMAP.md)
-- [Historical milestone documentation](history.md#milestone-documentation)
-- [Qualification evidence](history.md#qualification-evidence)
 
-Milestone records are retained for maintainers and auditors. They are not the
-normal installation, authoring, or operations path.
+Historical milestone and release-candidate documents remain available from
+[History](history.md). They are reference records, not current installation or
+authoring instructions.

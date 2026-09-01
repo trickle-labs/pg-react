@@ -1,15 +1,15 @@
 {"step": "validate constraint", "state": "ready", "findings": 0}
-{"step": "preview constraint", "deployment": "create", "current_state": null}
+{"step": "preview constraint", "deployment": "create", "current_state": "absent"}
 {"step": "deploy constraint", "state": "deployed"}
 {"step": "validate command", "state": "ready", "findings": 0}
-{"step": "preview command", "deployment": "create", "current_state": null}
+{"step": "preview command", "deployment": "create", "current_state": "absent"}
 {"step": "deploy command", "state": "deployed"}
 {"step": "bootstrap", "work_items": 0, "review_tasks": 0, "current_matches": 1}
 {"step": "validate decision", "state": "ready", "findings": 0}
-{"step": "preview decision", "deployment": "create", "current_state": null}
+{"step": "preview decision", "deployment": "create", "current_state": "absent"}
 {"step": "deploy decision", "state": "deployed"}
 {"step": "validate policy set", "state": "ready", "findings": 0}
-{"step": "preview policy set", "deployment": "create", "current_state": null}
+{"step": "preview policy set", "deployment": "create", "current_state": "absent"}
 {"step": "routing matrix", "subjects": [{"state": "WINNER", "order_id": 1001, "queue_name": "chargeback-review", "reviewer_id": 201}, {"state": "AMBIGUOUS", "order_id": 1002, "queue_name": null, "reviewer_id": null}, {"state": "WINNER", "order_id": 1003, "queue_name": "general-review", "reviewer_id": 205}]}
 {"step": "initial truth", "work_items": 0, "review_tasks": 0, "active_orders": [1001]}
 {"step": "activate order 1003", "task": {"state": "OPEN", "amount": 1200.00, "generation": 1, "reason_code": "HIGH_RISK_VALUE", "last_revision": 0}, "match": {"active": true, "revision": 0, "generation": 1}, "attempt": {"status": "COMPLETED", "attempt_no": 1, "event_kind": "ACTIVATE"}}

@@ -1,9 +1,9 @@
 # Getting Started
 
 This walkthrough creates one command rule, lets the PostgreSQL-managed runtime
-process a source change, and inspects the result. It assumes the qualified
-`1.0.0-rc.1` environment (feature baseline `0.31.0`) from
-[Installation](v1-installation.md): PostgreSQL 18.3, pg_trickle 0.81.0, Linux
+process a source change, and inspects the result. It assumes the current
+pg-react `0.43.0` environment from [Installation](installation.md):
+PostgreSQL 18.3, pg_trickle 0.81.0, Linux
 `amd64`, both libraries preloaded, the database listed in `pg_react.databases`,
 roles configured, and PostgreSQL restarted.
 
@@ -22,9 +22,9 @@ SELECT pgreact.doctor();
 SELECT pgreact_api.managed_status();
 ```
 
-Expect pg-react `1.0.0-rc.1` (or `0.31.0`), pg_trickle `0.81.0`, a doctor state of `ready`, and a
+Expect pg-react `0.43.0`, pg_trickle `0.81.0`, a doctor state of `ready`, and a
 managed process state of `ready`. If not, stop here and use
-[Installation](v1-installation.md) and [Troubleshooting](v1-troubleshooting.md).
+[Installation](installation.md) and [Troubleshooting](troubleshooting.md).
 
 ## 2. Create authoritative application facts
 
@@ -133,7 +133,7 @@ SELECT pgreact.preview(pgreact.rule(
 ));
 ```
 
-Deploy using the preview digest:
+Deploy using the opaque review token returned from the exact preview:
 
 ```sql
 WITH declaration AS (
@@ -152,9 +152,7 @@ preview AS (
 )
 SELECT pgreact.deploy(
     value,
-    jsonb_build_object(
-        'preview_digest', result #>> '{summary,preview_digest}'
-    )
+    pgreact.review_token(result)
 )
 FROM preview;
 ```
@@ -170,14 +168,14 @@ UPDATE app.orders
 SET amount = 12000.00
 WHERE order_id = 42;
 
-SELECT pg_sleep(2);
+SELECT pgreact.run();
 ```
 
-With the supported default `pg_react.poll_interval_ms = 1000`, the
-per-database managed worker calls the managed cycle, coordinates the current
-source frontier, creates eligible work, claims it, and executes the typed
-consequence. If your configured poll interval is longer, wait at least that
-long. Do not enable uncoordinated pg_trickle automatic refresh.
+The deliberate cycle makes tutorial progress deterministic. In production,
+the PostgreSQL-managed worker normally polls asynchronously at
+`pg_react.poll_interval_ms`, coordinates the current source frontier, creates
+eligible work, claims it, and executes the typed consequence. Do not enable
+uncoordinated pg_trickle automatic refresh.
 
 ## 8. Inspect current state and work
 
@@ -217,13 +215,13 @@ UUID or private catalog lookup is required.
 ## Next steps
 
 - Add change and deactivation behavior in
-  [Authoring Rules and Policies](v1-authoring.md).
+  [Authoring Rules and Policies](authoring.md).
 - Compare a replacement before deployment in
   [Changing Policies Safely](changing-policies.md).
 - Learn health, retry, recovery, and backlog procedures in
-  [Operations](v1-operations.md).
+  [Operations](operations.md).
 - Review roles and external-effect requirements in
-  [Security](v1-security.md) and [Known Limitations](v1-known-limitations.md).
+  [Security](security.md) and [Known Limitations](known-limitations.md).
 
 External delivery is at least once. Keep network delivery outside typed
 database consequences and deduplicate by a stable idempotency key.

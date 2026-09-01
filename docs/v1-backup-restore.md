@@ -1,5 +1,8 @@
 # v1 backup and restore
 
+> Historical record for the prepared v1 candidate. Use current
+> [Backup and Restore](backup-restore.md) for pg-react `0.43.0`.
+
 The qualified recovery model covers crash restart, supported standby
 promotion, physical restore, and reconciliation. Logical restore means
 restoring application/reference data and rebuilding declarations from durable

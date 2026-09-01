@@ -5,7 +5,7 @@ evidence. Older records may describe superseded APIs, runtime models, support
 claims, or release sequencing.
 
 Current users should start at [Documentation Home](index.md) and follow the
-canonical v1 guides. Immutable historical records must not be interpreted as
+canonical current guides. Immutable historical records must not be interpreted as
 current installation, authoring, upgrade, recovery, or operations
 instructions.
 
@@ -13,6 +13,10 @@ instructions.
 
 - [M53 release notes](m53-release-notes.md), [contract](m53-contract.md), and
   [migration guide](m53-migration.md) document the `0.42.0` package release.
+- [M54 release notes](m54-release-notes.md), [contract](m54-contract.md), and
+  [migration guide](m54-migration.md) document the current `0.43.0` package.
+- [Roadmap through M53](history/roadmap-through-m53.md) preserves completed
+  roadmap detail behind the short current [Roadmap](../ROADMAP.md).
 
 - M0-M30 records preserve the incremental delivery history under `docs/history/m*-*`.
 - [M31 release notes](history/m31-release-notes.md) preserve the authoritative-runtime
@@ -78,6 +82,7 @@ path milestone.
   [final checklist](m41-final-checklist.md)
 - [M44 evidence](m44-evidence.md), [benchmark](m44-benchmark.md), and
   [final checklist](m44-final-checklist.md)
+- [M54 evidence](m54-evidence.md) and [final checklist](m54-final-checklist.md)
 - Preserved historical milestone inventories:
   - M33 / `0.30.0`: [API inventory](history/v1-api-inventory-m33-0.30.0.json), [Finding codes](history/v1-finding-codes-m33-0.30.0.json)
   - M34 / `0.31.0`: [API inventory](history/v1-api-inventory-m34-0.31.0.json), [Finding codes](history/v1-finding-codes-m34-0.31.0.json)

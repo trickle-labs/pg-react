@@ -1,5 +1,8 @@
 # Concepts
 
+These are the current pg-react `0.43.0` concepts. The ordinary path is
+described by task; milestone names belong in [History](history.md).
+
 pg-react adds policy lifecycle and durable work to PostgreSQL without creating
 a second fact store.
 
@@ -158,8 +161,8 @@ APIs rather than the ordinary first-rule workflow:
 - **Provenance and decision analysis:** bounded support/explanation evidence and
   decision coverage/conflict analysis.
 
-See the [API Reference](v1-api-reference.md) and
-[Compatibility](v1-compatibility.md) before choosing an advanced surface.
+See the [API Reference](api-reference.md) and
+[Compatibility](compatibility.md) before choosing an advanced surface.
 
 ## Comparison concepts
 
@@ -209,7 +212,7 @@ why-changed evidence.
 These operations do not capture history or retain a simulation job. The caller
 supplies the history, and every result remains bounded.
 
-## Not supported in v1
+## Not supported in the current release
 
 - reconstructing or capturing history that the caller did not supply;
 - durable simulation jobs or continuation through truncated evidence;
@@ -219,5 +222,5 @@ supplies the history, and every result remains bounded.
 - global ordering, cross-system atomic commit, or general workflow/BPM
   semantics.
 
-See [Known Limitations](v1-known-limitations.md) for the qualified boundary and
-[Authoring Rules and Policies](v1-authoring.md) for executable SQL.
+See [Known Limitations](known-limitations.md) for the qualified boundary and
+[Authoring Rules and Policies](authoring.md) for executable SQL.

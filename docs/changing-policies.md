@@ -1,5 +1,7 @@
 # Changing Policies Safely
 
+This guide describes the current pg-react `0.43.0` replacement workflow.
+
 Use comparison before replacing a deployed rule, decision, or policy set.
 Comparison varies the declaration while holding authoritative facts at the
 current source frontier.
@@ -14,7 +16,7 @@ It does not deploy the proposal or execute effects.
 
 This guide covers current-fact comparison. For hypothetical facts, supplied
 history, backtesting, and why-changed evidence, use the simulation references
-under [Build](index.md#build). For a bounded explanation of one missing current
+listed in the [API Reference](api-reference.md). For a bounded explanation of one missing current
 result, use [Explain an Outcome](explaining-outcomes.md).
 
 ## 1. Start with a deployed target
@@ -98,7 +100,7 @@ INSERT INTO app.orders
 VALUES
     (43, 8, 8000.00, 'HIGH');
 
-SELECT pg_sleep(2);
+SELECT pgreact.run();
 ```
 
 The deployed rule still excludes order 43; the proposal includes it.
@@ -254,7 +256,7 @@ SELECT pgreact.compare(
 );
 ```
 
-If the full evidence still exceeds 1000 rows, v1 provides no continuation
+If the full evidence still exceeds 1000 rows, the current release provides no continuation
 mechanism.
 
 ## 8. Source frontier and sampled time
@@ -366,7 +368,11 @@ After review, choose one:
 For a changed policy set, deploy a new immutable policy-set version after a
 fresh preview.
 
-For a new rule or re-deploying a removed declaration, use `pgreact.deploy(declaration)`. For updating an already active deployed rule in place, use the qualified target-specific cutover `pgreact.replace_rule(...)` in [Operations](v1-operations.md), including its explicit old-work policy.
+Use the same ordinary workflow for an active replacement: preview the
+proposal, pass `pgreact.review_token(preview)`, and provide
+`jsonb_build_object('old_work', 'DRAIN_OLD')` or `CANCEL_OLD` when executable
+old work exists. The UUID-oriented `pgreact.replace_rule(...)` remains a
+compatibility path documented in [Operations](operations.md).
 
 After any qualified deployment, allow the managed runtime to process current
 facts and verify `pgreact.status`, `pgreact.matches` or

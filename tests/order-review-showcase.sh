@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-image=${1:-pg-react:1.0.0-rc.1}
+image=${1:-pg-react:0.43.0}
 project=${COMPOSE_PROJECT_NAME:-pgreact-order-review-${GITHUB_RUN_ID:-$$}}
 database=order_review_showcase
 log_dir=$(mktemp -d)

@@ -1,5 +1,8 @@
 # v1 troubleshooting
 
+> Historical record for the prepared v1 candidate. Use current
+> [Troubleshooting](troubleshooting.md) for pg-react `0.43.0`.
+
 For package deployment issues in `0.42.0`, start with the returned finding code
 and re-run `pgreact.preview()` before retrying a stale plan.
 

@@ -1,9 +1,9 @@
-name: Release v0.42.0
+name: Release v0.43.0
 
 on:
   push:
     tags:
-      - v0.42.0
+      - v0.43.0
 
 permissions:
   contents: write
@@ -13,214 +13,53 @@ permissions:
   artifact-metadata: write
 
 jobs:
-  release:
+  qualification:
+    uses: ./.github/workflows/qualification.yml
+    with:
+      image: pg-react:m54-unreleased
+    secrets: inherit
+
+  publish:
+    needs: qualification
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Fetch inherited release tags
-        run: git fetch --no-tags origin refs/tags/v0.21.0:refs/tags/v0.21.0 refs/tags/v0.22.0:refs/tags/v0.22.0 refs/tags/v0.23.0:refs/tags/v0.23.0 refs/tags/v0.24.0:refs/tags/v0.24.0 refs/tags/v0.25.0:refs/tags/v0.25.0 refs/tags/v0.26.0:refs/tags/v0.26.0 refs/tags/v0.27.0:refs/tags/v0.27.0 refs/tags/v0.28.0:refs/tags/v0.28.0 refs/tags/v0.29.0:refs/tags/v0.29.0 refs/tags/v0.31.0:refs/tags/v0.31.0 refs/tags/v0.32.0:refs/tags/v0.32.0 refs/tags/v0.33.0:refs/tags/v0.33.0 refs/tags/v0.34.0:refs/tags/v0.34.0 refs/tags/v0.35.0:refs/tags/v0.35.0 refs/tags/v0.36.0:refs/tags/v0.36.0 refs/tags/v0.37.0:refs/tags/v0.37.0 refs/tags/v0.38.0:refs/tags/v0.38.0 refs/tags/v0.39.0:refs/tags/v0.39.0 refs/tags/v0.40.0:refs/tags/v0.40.0 refs/tags/v0.41.0:refs/tags/v0.41.0
-      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
-        with:
-          toolchain: 1.89.0
-          components: rustfmt
       - name: Verify release identity
         run: |
-          grep -qx 'version = "0.42.0"' Cargo.toml
-          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.42.0"'
-          grep -qx "default_version = '0.42.0'" pg_react.control
-          grep -Fq 'version == "0.42.0"' src/managed.rs
-          grep -Fq '# pg-react 0.42.0: put a policy change in one safe package' docs/m53-release-notes.md
-          grep -Fq '0.41.0` to `0.42.0' docs/m53-migration.md
-          test -s docs/m53-api-reference.md
-          test -s docs/m53-api-inventory.json
-          test -s docs/m53-finding-codes.json
-          test -s sql/pg_react--0.41.0--0.42.0.sql
-          test -s sql/pg_react--0.42.0.sql
-          test -s tests/m53.sh
-          test -s tests/m53.sql
+          grep -qx 'version = "0.43.0"' Cargo.toml
+          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.43.0"'
+          grep -qx "default_version = '0.43.0'" pg_react.control
+          grep -Fq 'version == "0.43.0"' src/managed.rs
+          test -s sql/pg_react--0.42.0--0.43.0.sql
+          test -s sql/pg_react--0.43.0.sql
+          bash tests/current-docs.sh
       - name: Require unpublished release
-        run: "! gh release view v0.42.0 >/dev/null 2>&1"
+        run: '! gh release view v0.43.0 >/dev/null 2>&1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - run: cargo fmt --check
-      - run: cargo test --no-default-features
-      - name: Audit dependencies
-        run: cargo install cargo-audit --version 0.22.2 --locked && cargo audit
-      - name: Check pgrx PostgreSQL 18 skeleton
-        run: >-
-          docker run --rm
-          -v "$PWD:/work:ro"
-          -v /work/target
-          -w /work
-          ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95
-          cargo check --features pg18
+      - name: Download qualified candidate and evidence
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+        with:
+          name: m54-qualified-candidate
+          path: m54-evidence
+      - name: Load exact qualified image
+        run: |
+          sha256sum --check m54-evidence/m54-candidate-image.SHA256SUMS
+          docker load --input m54-evidence/m54-candidate-image.tar.gz
       - name: Name image
         run: |
           echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.42.0" >> "$GITHUB_ENV"
-      - name: Fetch inherited release image
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.43.0" >> "$GITHUB_ENV"
+      - name: Publish exact qualified image
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.25.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.25.0" pg-react:v0.25.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.24.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.24.0" pg-react:v0.24.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.23.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.23.0" pg-react:v0.23.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.26.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.26.0" pg-react:v0.26.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0" pg-react:v0.27.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" pg-react:v0.28.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0" pg-react:v0.29.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.31.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.31.0" pg-react:v0.31.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.32.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.32.0" pg-react:v0.32.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.33.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.33.0" pg-react:v0.33.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.34.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.34.0" pg-react:v0.34.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.35.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.35.0" pg-react:v0.35.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.36.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.36.0" pg-react:v0.36.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.37.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.37.0" pg-react:v0.37.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.38.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.38.0" pg-react:v0.38.0
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.39.0"
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.39.0" pg-react:v0.39.0
-      - name: Run inherited M30, M31, M32, and M33 qualification
-        run: |
-          git worktree add --detach .m30-qualification v0.27.0
-          git worktree add --detach .m31-qualification v0.28.0
-          git worktree add --detach .m32-qualification v0.29.0
-          if [ -f .git/shallow ]; then
-            git fetch --no-tags --unshallow origin
-          fi
-          m33_commit=$(git log --all --format=%H --grep='^Implement M33 v1 qualification baseline$' -1)
-          test -n "$m33_commit"
-          git worktree add --detach .m33-source "$m33_commit"
-          docker build --tag pg-react:v0.30.0 .m33-source
-          trap 'git worktree remove --force .m30-qualification; git worktree remove --force .m31-qualification; git worktree remove --force .m32-qualification; git worktree remove --force .m33-source' EXIT
-          (
-            cd .m30-qualification
-            M30_INHERITED_IMAGE=pg-react:v0.26.0 \
-              M30_ARTIFACT_DIR="$GITHUB_WORKSPACE/m30-evidence" \
-              bash tests/m30.sh complete pg-react:v0.27.0
-          )
-          (
-            cd .m31-qualification
-            M31_ARTIFACT_DIR="$GITHUB_WORKSPACE/m31-evidence" \
-              bash tests/m31.sh complete pg-react:v0.28.0
-          )
-          (
-            cd .m32-qualification
-            M32_ARTIFACT_DIR="$GITHUB_WORKSPACE/m32-evidence" \
-              bash tests/m32.sh complete pg-react:v0.29.0
-          )
-          M33_ARTIFACT_DIR="$GITHUB_WORKSPACE/m33-evidence" \
-            bash tests/m33.sh complete pg-react:v0.30.0
-      - name: Run inherited M34 qualification
-        run: |
-          git worktree add --detach .m34-qualification v0.31.0
-          if [ -f .git/shallow ]; then
-            git fetch --no-tags --unshallow origin
-          fi
-          trap 'git worktree remove --force .m34-qualification' EXIT
-          (
-            cd .m34-qualification
-            M34_ARTIFACT_DIR="$GITHUB_WORKSPACE/m34-evidence" \
-              bash tests/m34.sh complete pg-react:v0.31.0
-          )
-      - name: Run inherited M35 qualification
-        run: |
-          git worktree add --detach .m35-qualification v0.32.0
-          trap 'git worktree remove --force .m35-qualification' EXIT
-          (
-            cd .m35-qualification
-            M35_ARTIFACT_DIR="$GITHUB_WORKSPACE/m35-evidence" \
-              bash tests/m35.sh complete pg-react:v0.32.0
-          )
-      - name: Run inherited M36 qualification
-        run: |
-          git worktree add --detach .m36-qualification v0.33.0
-          trap 'git worktree remove --force .m36-qualification' EXIT
-          (
-            cd .m36-qualification
-            M36_ARTIFACT_DIR="$GITHUB_WORKSPACE/m36-evidence" \
-              bash tests/m36.sh complete pg-react:v0.33.0
-          )
-      - name: Run inherited M37 qualification
-        run: |
-          git worktree add --detach .m37-qualification v0.34.0
-          trap 'git worktree remove --force .m37-qualification' EXIT
-          (
-            cd .m37-qualification
-            M37_ARTIFACT_DIR="$GITHUB_WORKSPACE/m37-evidence" \
-              bash tests/m37.sh complete pg-react:v0.34.0
-          )
-      - name: Run inherited M38 qualification
-        run: |
-          git worktree add --detach .m38-qualification v0.35.0
-          trap 'git worktree remove --force .m38-qualification' EXIT
-          (
-            cd .m38-qualification
-            M38_ARTIFACT_DIR="$GITHUB_WORKSPACE/m38-evidence" \
-              bash tests/m38.sh complete pg-react:v0.35.0
-          )
-      - name: Run inherited M39 qualification
-        run: |
-          git worktree add --detach .m39-qualification v0.36.0
-          trap 'git worktree remove --force .m39-qualification' EXIT
-          (
-            cd .m39-qualification
-            M39_ARTIFACT_DIR="$GITHUB_WORKSPACE/m39-evidence" \
-              bash tests/m39.sh complete pg-react:v0.36.0
-          )
-      - name: Run inherited M40 qualification
-        run: |
-          git worktree add --detach .m40-qualification v0.37.0
-          trap 'git worktree remove --force .m40-qualification' EXIT
-          (
-            cd .m40-qualification
-            M40_ARTIFACT_DIR="$GITHUB_WORKSPACE/m40-evidence" \
-              bash tests/m40.sh complete pg-react:v0.37.0
-          )
-      - name: Run inherited M41 qualification
-        run: |
-          git worktree add --detach .m41-qualification v0.38.0
-          trap 'git worktree remove --force .m41-qualification' EXIT
-          (
-            cd .m41-qualification
-            M41_ARTIFACT_DIR="$GITHUB_WORKSPACE/m41-evidence" \
-              bash tests/m41.sh complete pg-react:v0.38.0
-          )
-      - name: Run inherited M42 qualification
-        run: |
-          git worktree add --detach .m42-qualification v0.39.0
-          trap 'git worktree remove --force .m42-qualification' EXIT
-          (
-            cd .m42-qualification
-            M42_ARTIFACT_DIR="$GITHUB_WORKSPACE/m42-evidence" \
-              bash tests/m42.sh complete pg-react:v0.39.0
-          )
-      - name: Build and test M53 release lane
-        run: |
-          docker build --tag "$IMAGE" .
-          M53_ARTIFACT_DIR="$GITHUB_WORKSPACE/m53-evidence" bash tests/m53.sh complete "$IMAGE"
-      - name: Publish image
-        run: |
+          docker tag pg-react:m54-unreleased "$IMAGE"
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           push_output=$(docker push "$IMAGE" 2>&1)
-          printf '%s\n' "$push_output"
           image_digest=$(printf '%s\n' "$push_output" | sed -n 's/.*digest: \(sha256:[0-9a-f]\{64\}\).*/\1/p' | tail -n 1)
           test -n "$image_digest"
           echo "IMAGE_DIGEST=$image_digest" >> "$GITHUB_ENV"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Attest published image
         id: attest_image
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
@@ -228,44 +67,44 @@ jobs:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ env.IMAGE_DIGEST }}
           push-to-registry: true
-      - name: Package image, evidence, SBOM, and checksums
+      - name: Package release artifacts
         run: |
-          artifact=pg-react-v0.42.0-linux-amd64.tar.gz
+          artifact=pg-react-v0.43.0-linux-amd64.tar.gz
           docker save "$IMAGE" | gzip -n -9 > "$artifact"
-          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.42.0.spdx.json
-          for evidence_dir in m30-evidence m31-evidence m32-evidence m33-evidence m34-evidence m35-evidence m36-evidence m37-evidence m38-evidence m39-evidence m40-evidence m41-evidence m42-evidence m43-evidence m44-evidence m53-evidence; do
-            if [ ! -d "$evidence_dir" ]; then
-              mkdir -p "$evidence_dir"
-              printf 'inherited qualification completed before packaging\n' > "$evidence_dir/qualification.txt"
-            fi
-          done
+          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.43.0.spdx.json
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-            -cf - m30-evidence m31-evidence m32-evidence m33-evidence m34-evidence m35-evidence m36-evidence m37-evidence m38-evidence m39-evidence m40-evidence m41-evidence m42-evidence m43-evidence m44-evidence m53-evidence | gzip -n -9 > pg-react-v0.42.0-evidence.tar.gz
-          sha256sum "$artifact" pg-react-v0.42.0-evidence.tar.gz pg-react-v0.42.0.spdx.json > pg-react-v0.42.0.SHA256SUMS
-          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.42.0.SHA256SUMS
-          sha256sum --check pg-react-v0.42.0.SHA256SUMS
+            --exclude='m54-candidate-image.tar.gz' -C m54-evidence -cf - . | gzip -n -9 > pg-react-v0.43.0-evidence.tar.gz
+          sha256sum "$artifact" pg-react-v0.43.0-evidence.tar.gz pg-react-v0.43.0.spdx.json > pg-react-v0.43.0.SHA256SUMS
+          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.43.0.SHA256SUMS
+          sha256sum --check pg-react-v0.43.0.SHA256SUMS
       - name: Attest release artifacts
         id: attest_artifacts
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
-          subject-path: pg-react-v0.42.0-linux-amd64.tar.gz, pg-react-v0.42.0-evidence.tar.gz
+          subject-path: pg-react-v0.43.0-linux-amd64.tar.gz, pg-react-v0.43.0-evidence.tar.gz
       - name: Attest release SBOM
         id: attest_sbom
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ env.IMAGE_DIGEST }}
-          sbom-path: pg-react-v0.42.0.spdx.json
+          sbom-path: pg-react-v0.43.0.spdx.json
           push-to-registry: true
-      - name: Collect signed attestation bundles
+      - name: Collect attestation bundles
         run: |
-          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.42.0-image.provenance.json
-          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.42.0-artifacts.provenance.json
-          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.42.0-sbom.attestation.json
-      - name: Publish release artifacts
-        run: |
-          artifact=pg-react-v0.42.0-linux-amd64.tar.gz
-          gh release create v0.42.0 "$artifact" pg-react-v0.42.0-evidence.tar.gz pg-react-v0.42.0.SHA256SUMS pg-react-v0.42.0.spdx.json pg-react-v0.42.0-image.provenance.json pg-react-v0.42.0-artifacts.provenance.json pg-react-v0.42.0-sbom.attestation.json --verify-tag \
-            --notes-file docs/m53-release-notes.md --title v0.42.0
+          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.43.0-image.provenance.json
+          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.43.0-artifacts.provenance.json
+          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.43.0-sbom.attestation.json
+      - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v0.43.0 \
+            pg-react-v0.43.0-linux-amd64.tar.gz \
+            pg-react-v0.43.0-evidence.tar.gz \
+            pg-react-v0.43.0.SHA256SUMS \
+            pg-react-v0.43.0.spdx.json \
+            pg-react-v0.43.0-image.provenance.json \
+            pg-react-v0.43.0-artifacts.provenance.json \
+            pg-react-v0.43.0-sbom.attestation.json \
+            --verify-tag --notes-file docs/m54-release-notes.md --title 'pg-react 0.43.0'

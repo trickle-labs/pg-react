@@ -19,63 +19,13 @@ jobs:
       - run: cargo fmt --check
       - run: cargo test --no-default-features
       - name: Check pgrx PostgreSQL 18 skeleton
-        run: >-
-          docker run --rm
-          -v "$PWD:/work:ro"
-          -v /work/target
-          -w /work
-          ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95
-          cargo check --features pg18
+        run: |
+          docker run --rm \
+            -v "$PWD:/work:ro" \
+            -v /work/target \
+            -w /work \
+            ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95 \
+            cargo check --features pg18
 
-  environment:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - run: docker compose config --quiet
-      - run: >-
-          git fetch --no-tags origin
-          refs/tags/v0.21.0:refs/tags/v0.21.0
-          refs/tags/v0.22.0:refs/tags/v0.22.0
-          refs/tags/v0.23.0:refs/tags/v0.23.0
-          refs/tags/v0.24.0:refs/tags/v0.24.0
-          refs/tags/v0.25.0:refs/tags/v0.25.0
-          refs/tags/v0.26.0:refs/tags/v0.26.0
-          refs/tags/v0.27.0:refs/tags/v0.27.0
-          refs/tags/v0.28.0:refs/tags/v0.28.0
-          refs/tags/v0.29.0:refs/tags/v0.29.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.21.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.21.0" pg-react:v0.21.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.22.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.22.0" pg-react:v0.22.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.23.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.23.0" pg-react:v0.23.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.24.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.24.0" pg-react:v0.24.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.25.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.25.0" pg-react:v0.25.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.26.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.26.0" pg-react:v0.26.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.27.0" pg-react:v0.27.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.28.0" pg-react:v0.28.0 &&
-          docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0" &&
-          docker tag "ghcr.io/${GITHUB_REPOSITORY,,}:v0.29.0" pg-react:v0.29.0 &&
-          test ! -f .git/shallow || git fetch --no-tags --unshallow origin &&
-          m33_commit=$(git log --all --format=%H --grep='^Implement M33 v1 qualification baseline$' -1) &&
-          test -n "$m33_commit" &&
-          git worktree add --detach .m33-source "$m33_commit" &&
-          docker build --tag pg-react:v0.30.0 .m33-source &&
-          git worktree add --detach .m30-qualification v0.27.0 &&
-          git worktree add --detach .m31-qualification v0.28.0 &&
-          git worktree add --detach .m32-qualification v0.29.0 &&
-          trap 'git worktree remove --force .m30-qualification; git worktree remove --force .m31-qualification; git worktree remove --force .m32-qualification; git worktree remove --force .m33-source' EXIT &&
-          (cd .m30-qualification && M30_INHERITED_IMAGE=pg-react:v0.26.0 bash tests/m30.sh complete pg-react:v0.27.0) &&
-          (cd .m31-qualification && bash tests/m31.sh complete pg-react:v0.28.0) &&
-          (cd .m32-qualification && bash tests/m32.sh complete pg-react:v0.29.0) &&
-          docker build --tag pg-react:m33-unreleased . &&
-          bash tests/m33.sh complete pg-react:m33-unreleased &&
-          docker build --tag pg-react:m44-unreleased . &&
-          bash tests/m44.sh complete pg-react:m44-unreleased &&
-          docker build --tag pg-react:m53-unreleased .
-          bash tests/m53.sh complete pg-react:m53-unreleased
+  qualification:
+    uses: ./.github/workflows/qualification.yml

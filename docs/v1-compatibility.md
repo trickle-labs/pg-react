@@ -1,5 +1,8 @@
 # v1 compatibility
 
+> Historical record for the prepared v1 candidate. Use current
+> [Compatibility](compatibility.md) for pg-react `0.43.0`.
+
 The v1 feature baseline is M34 / installed extension `0.31.0`. The `1.x`
 compatibility promise starts when a qualified `1.0.0` artifact exists; this
 page does not claim that an RC or GA artifact already exists.

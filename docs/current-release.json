@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "milestone": "M54",
+  "extension_version": "0.43.0",
+  "previous_extension_version": "0.42.0",
+  "adjacent_upgrade": "0.42.0 -> 0.43.0",
+  "postgresql": "18.3",
+  "pg_trickle": "0.81.0",
+  "pgrx": "0.18.0",
+  "rust": "1.89.0",
+  "os": "Linux",
+  "arch": "amd64",
+  "isolation": "READ COMMITTED",
+  "runtime": "PostgreSQL-managed",
+  "v1_status": "postponed_indefinitely"
+}

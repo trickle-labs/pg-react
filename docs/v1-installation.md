@@ -1,5 +1,8 @@
 # v1 installation
 
+> Historical record for the prepared v1 candidate. Use current
+> [Installation](installation.md) for pg-react `0.43.0`.
+
 The release candidate `1.0.0-rc.1` contains the v1 feature set (feature baseline
 `0.31.0`). The qualified support tuple is PostgreSQL 18.3, pg_trickle 0.81.0, and
 Linux amd64. Other versions, operating systems, and architectures are not qualified.

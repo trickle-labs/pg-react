@@ -1,5 +1,8 @@
 # v1 deprecations
 
+> Historical record for the prepared v1 candidate. Use current
+> [Deprecations](deprecations.md) for pg-react `0.43.0`.
+
 No installed public routine is scheduled for removal in `1.0.0` merely to
 reduce the API surface. The exact routine-by-routine classification is not yet
 complete, so this page does not invent deprecation status from naming alone.

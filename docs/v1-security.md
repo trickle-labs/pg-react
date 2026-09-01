@@ -1,5 +1,8 @@
 # v1 security
 
+> Historical record for the prepared v1 candidate. Use current
+> [Security](security.md) for pg-react `0.43.0`.
+
 pg-react uses PostgreSQL ownership, role membership, schema privileges, and
 fixed-identity function calls. `PUBLIC` is not an application role, private
 schemas are not an API, and protected sources fail closed.

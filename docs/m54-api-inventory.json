@@ -1,0 +1,105 @@
+{
+  "schema_version": 1,
+  "extension_version": "0.43.0",
+  "contract_version": 54,
+  "classification_order": ["ordinary", "compatibility", "advanced", "administrative"],
+  "surfaces": {
+    "ordinary": {
+      "functions": [
+        "pgreact.rule(name text, condition regclass, semantic_key name, kind text, on_activate regprocedure, on_deactivate regprocedure, on_change regprocedure, bootstrap_policy text, change_columns name[], salience integer, agenda_group text, conflict_key_columns name[], max_attempts integer, initial_backoff_seconds integer, backoff_multiplier numeric, max_backoff_seconds integer)",
+        "pgreact.decision(name text, candidate_relation regclass, subject_key name, candidate_key name, priority name, results name[], valid_from timestamp with time zone, valid_to timestamp with time zone, max_candidates integer)",
+        "pgreact.validate(declaration pgreact_api.declaration)",
+        "pgreact.preview(declaration pgreact_api.declaration, options jsonb)",
+        "pgreact.deploy(declaration pgreact_api.declaration, preconditions jsonb)",
+        "pgreact.deploy(declaration pgreact_api.declaration, review_token text, preconditions jsonb)",
+        "pgreact.review_token(preview_result jsonb)",
+        "pgreact.status(name text, options jsonb)",
+        "pgreact.explain(name text, subject jsonb, options jsonb)",
+        "pgreact.run(sampled_time timestamp with time zone)",
+        "pgreact.export(name text, kind text, version text)",
+        "pgreact.import(document jsonb, preconditions jsonb)",
+        "pgreact.compare(proposed pgreact_api.declaration, deployed pgreact_api.target, options jsonb)",
+        "pgreact.compare_results(proposed pgreact_api.declaration, deployed pgreact_api.target, options jsonb)"
+      ],
+      "views": [
+        "pgreact.rules", "pgreact.matches", "pgreact.work", "pgreact.decisions",
+        "pgreact.decision_winners", "pgreact.policy_sets", "pgreact.policy_set_members",
+        "pgreact.policy_set_eligible_subjects"
+      ]
+    },
+    "advanced": {
+      "function_prefixes": [
+        "pgreact.backtest", "pgreact.replay", "pgreact.shared_condition",
+        "pgreact.parameter_family", "pgreact.policy_set", "pgreact.capture_evidence",
+        "pgreact.read_evidence", "pgreact.trace", "pgreact.why_not",
+        "pgreact_api.author_", "pgreact_api.validate_", "pgreact_api.preview_",
+        "pgreact_api.semantic_diff", "pgreact_api.explain_",
+        "pgreact_api.provenance_", "pgreact_api.effective_policy_",
+        "pgreact_api.temporal_", "pgreact_api.parameter_family_",
+        "pgreact_api.decision_", "pgreact_api.window_", "pgreact_api.deploy",
+        "pgreact_api.remove", "pgreact_api.explain", "pgreact_api.status",
+        "pgreact_api.validate", "pgreact_api.preview", "pgreact_api.target"
+      ],
+      "views": [
+        "pgreact.activations", "pgreact.aggregate_dependency_evidence",
+        "pgreact.decision_analyses", "pgreact.decision_analysis_findings",
+        "pgreact.decision_history", "pgreact.decision_programs",
+        "pgreact.derivation_components",
+        "pgreact.derivation_dependency_graph", "pgreact.derivation_iterations",
+        "pgreact.derivation_program_repair_diagnostics", "pgreact.derivation_program_runs",
+        "pgreact.derivation_programs", "pgreact.derivation_strata", "pgreact.derived_facts",
+        "pgreact.derived_relations", "pgreact.derived_repair_diagnostics",
+        "pgreact.effective_policies", "pgreact.effective_policy_versions",
+        "pgreact.match_scope_supports", "pgreact.negative_dependency_evidence",
+        "pgreact.parameter_families", "pgreact.parameter_family_consumers",
+        "pgreact.policy_set_contents", "pgreact.policy_set_dependencies",
+        "pgreact.policy_set_runtime_barriers", "pgreact.policy_set_scope_supports",
+        "pgreact.policy_set_versions",
+        "pgreact.recursive_support_inputs", "pgreact.support_history",
+        "pgreact.window_diagnostics", "pgreact.window_evidence"
+      ]
+    },
+    "administrative": {
+      "function_prefixes": [
+        "pgreact_api.configure_", "pgreact_api.managed_", "pgreact_api.claim",
+        "pgreact_api.execute", "pgreact_api.pause_", "pgreact_api.resume_",
+        "pgreact_api.reconcile_", "pgreact_api.remove_", "pgreact_api.retention_",
+        "pgreact_api.health", "pgreact_api.doctor", "pgreact_api.status",
+        "pgreact_api.jobs", "pgreact_api.attempts", "pgreact_api.matches",
+        "pgreact_api.run", "pgreact_api.worker_", "pgreact.pause_rule",
+        "pgreact.resume_rule", "pgreact.reconcile_rule", "pgreact.sweep_expired_leases",
+        "pgreact.requeue_episode", "pgreact.doctor", "pgreact.health_check",
+        "pgreact.metrics", "pgreact.agenda_status", "pgreact.rule_status",
+        "pgreact_api.", "pgreact."
+      ],
+      "views": [
+        "pgreact.api_declarations", "pgreact.api_inventory", "pgreact.attempts",
+        "pgreact.declaration_migrations", "pgreact.episodes", "pgreact.health",
+        "pgreact.operational_status", "pgreact."
+      ]
+    },
+    "compatibility": {
+      "function_prefixes": [
+        "pgreact.validate_m53", "pgreact.preview_m53", "pgreact.deploy_m53",
+        "pgreact.export_m32", "pgreact.import_m32", "pgreact_api.*_m28",
+        "pgreact_api.*_m29", "pgreact_api.*_m30", "pgreact_api.*_m31",
+        "pgreact_api.configure_roles_m", "pgreact_api.deploy_m",
+        "pgreact_api.preview_m", "pgreact_api.status_m"
+      ],
+      "views": []
+    },
+    "internal_not_public": {
+      "schemas": ["pgreact_internal", "pgreact_meta", "pgreact_migrations"],
+      "views": []
+    }
+  },
+  "actions": ["ADD", "KEEP", "REPLACE", "ADOPT", "REMOVE"],
+  "limits": {
+    "review_token_bytes": 4096,
+    "ordinary_columns": 32,
+    "package_members": 64,
+    "package_support": 64,
+    "package_dependencies": 256,
+    "canonical_bytes": 1048576
+  }
+}

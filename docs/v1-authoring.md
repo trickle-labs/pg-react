@@ -1,5 +1,8 @@
 # Authoring Rules and Policies
 
+> Historical record for the prepared v1 candidate. Use current
+> [Authoring](authoring.md) for pg-react `0.43.0`.
+
 The ordinary v1 workflow is:
 
 ```text

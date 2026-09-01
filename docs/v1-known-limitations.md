@@ -1,5 +1,8 @@
 # v1 known limitations
 
+> Historical record for the prepared v1 candidate. Use current
+> [Known Limitations](known-limitations.md) for pg-react `0.43.0`.
+
 - The only qualified environment is PostgreSQL 18.3 with pg_trickle 0.81.0 on
   Linux amd64. See the [support matrix](v1-support-matrix.md).
 - `0.42.0` is the current qualified release. Its documented adjacent update is

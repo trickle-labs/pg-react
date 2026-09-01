@@ -206,7 +206,7 @@ WITH declaration AS (
 ), deployment AS (
     SELECT pgreact.deploy(
         value,
-        jsonb_build_object('preview_digest', result #>> '{summary,preview_digest}')
+        pgreact.review_token(result)
     ) AS result
     FROM preview
 )
@@ -275,7 +275,7 @@ WITH declaration AS (
 ), deployment AS (
     SELECT pgreact.deploy(
         value,
-        jsonb_build_object('preview_digest', result #>> '{summary,preview_digest}')
+        pgreact.review_token(result)
     ) AS result
     FROM preview
 )

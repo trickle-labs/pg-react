@@ -1,5 +1,8 @@
 # v1 upgrade runbook
 
+> Historical record for the prepared v1 candidate. Use current
+> [Upgrade](upgrade.md) for pg-react `0.43.0`.
+
 `0.41.0` is the current qualified release. Its documented adjacent update is
 `0.40.0 -> 0.41.0`. Use only source and target pairs that have a versioned
 migration script and automated qualification.

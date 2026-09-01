@@ -218,9 +218,12 @@ WHERE order_id = 1003;
 DO $$
 DECLARE
     latest_state text;
+    retry_deadline timestamptz := clock_timestamp() + interval '1.1 seconds';
 BEGIN
     PERFORM pgreact.run('2035-01-01 12:15:02+00');
-    PERFORM pg_sleep(1.1);
+    WHILE clock_timestamp() < retry_deadline LOOP
+        PERFORM pgreact.run('2035-01-01 12:15:02+00');
+    END LOOP;
     FOR cycle_no IN 1..100 LOOP
         PERFORM pgreact_api.managed_cycle();
         SELECT state INTO latest_state
@@ -429,7 +432,7 @@ WITH members AS (
 ), deployment AS (
     SELECT pgreact.deploy(
         value,
-        jsonb_build_object('preview_digest', result #>> '{summary,preview_digest}')
+        pgreact.review_token(result)
     ) AS result
     FROM preview
 )

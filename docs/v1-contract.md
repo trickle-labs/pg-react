@@ -1,5 +1,8 @@
 # pg-react 1.x contract
 
+> Historical record for the prepared v1 candidate. Use the current
+> [Product Contract](product-contract.md) for pg-react `0.43.0`.
+
 This document preserves the M34 / extension `0.31.0` baseline and the prepared
 `1.0.0-rc.1` candidate: the M33 ordinary runtime plus M34 current comparison.
 It does not set the eventual v1 feature boundary. The current simulation

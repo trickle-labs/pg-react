@@ -6,12 +6,9 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M53 / extension `0.42.0` is the current release. It puts rules, decisions,
-shared conditions, parameter definitions, applicability, and dependencies into
-one named package that can be validated, previewed, exported, deployed,
-inspected, and removed as one unit. The prepared
-`1.0.0-rc.1` candidate remains outside the current release sequence, and
-`1.0.0` is postponed indefinitely. Start with the
+M54 / extension `0.43.0` is the current release. It keeps the package workflow
+and adds one ordinary path for creating, reviewing, replacing, exporting, and
+recovering rules and decisions. `1.0.0` is postponed indefinitely. Start with the
 [documentation home](docs/index.md).
 
 ## Choose a path
@@ -20,7 +17,7 @@ inspected, and removed as one unit. The prepared
 |---|---|---|
 | Application developer | [Getting Started](docs/getting-started.md) | How do I define and deploy a first rule? |
 | PostgreSQL developer | [Order review showcase](showcase/order-review/README.md) | How do facts, views, consequences, and durable work fit together? |
-| Operator | [Operations](docs/v1-operations.md) | How do I inspect, retry, pause, replace, and remove work? |
+| Operator | [Operations](docs/operations.md) | How do I inspect, retry, pause, replace, and remove work? |
 | Reviewer or architect | [Explain an Outcome](docs/explaining-outcomes.md), [Concepts](docs/concepts.md), and [Changing Policies Safely](docs/changing-policies.md) | What happened, what changed, and where are the boundaries? |
 
 ```text
@@ -60,11 +57,16 @@ SELECT pgreact.preview(pgreact.rule(
     semantic_key => 'order_id'::name
 ));
 
-SELECT pgreact.deploy(pgreact.rule(
-    name         => 'manual-review-required',
-    condition    => 'rule_def.high_value_risky_order'::regclass,
-    semantic_key => 'order_id'::name
-));
+WITH proposal AS (
+    SELECT pgreact.rule(
+        name         => 'manual-review-required',
+        condition    => 'rule_def.high_value_risky_order'::regclass,
+        semantic_key => 'order_id'::name
+    ) AS value
+), review AS (
+    SELECT value, pgreact.preview(value) AS result FROM proposal
+)
+SELECT pgreact.deploy(value, pgreact.review_token(result)) FROM review;
 ```
 
 `pgreact.rule()` defaults to `kind => 'CONSTRAINT'`. A rule with
@@ -132,9 +134,9 @@ broader typed keys.
 - pg-react is not a synchronous write-path hook, a global-ordering service, a
   distributed transaction coordinator, or a general workflow/BPM engine.
 
-The qualified `1.0.0-rc.1` environment is PostgreSQL 18.3, pg_trickle 0.81.0,
+The qualified `0.43.0` environment is PostgreSQL 18.3, pg_trickle 0.81.0,
 pgrx 0.18.0, Linux `amd64`, `READ COMMITTED`, and the PostgreSQL-managed
-runtime. See the [Support Matrix](docs/v1-support-matrix.md) before adopting it.
+runtime. See the [Support Matrix](docs/support-matrix.md) before adopting it.
 
 ## Documentation
 
@@ -142,11 +144,11 @@ runtime. See the [Support Matrix](docs/v1-support-matrix.md) before adopting it.
 - [Getting Started](docs/getting-started.md)
 - [Order review showcase](showcase/order-review/README.md): a runnable PostgreSQL example covering rules, durable review work, routing decisions, retries, policy applicability, and side-effect-free comparison.
 - [Concepts](docs/concepts.md)
-- [Authoring Rules and Policies](docs/v1-authoring.md)
+- [Authoring Rules and Policies](docs/authoring.md)
 - [Changing Policies Safely](docs/changing-policies.md)
-- [Operations](docs/v1-operations.md)
-- [API Reference](docs/v1-api-reference.md)
-- [Known Limitations](docs/v1-known-limitations.md)
+- [Operations](docs/operations.md)
+- [API Reference](docs/api-reference.md)
+- [Known Limitations](docs/known-limitations.md)
 
 Release and milestone evidence is available through
 [History](docs/history.md), not required for normal use.

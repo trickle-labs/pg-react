@@ -1,5 +1,8 @@
 # v1 API reference
 
+> Historical record for the prepared v1 candidate. Use the current
+> [API Reference](api-reference.md) for pg-react `0.43.0`.
+
 This is the canonical human reference for public surfaces classified from the
 installed `1.0.0-rc.1` (and baseline `0.31.0`) SQL. It is intentionally non-exhaustive: exact
 classification of every installed public function, including `export`,

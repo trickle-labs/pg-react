@@ -1,0 +1,70 @@
+name: Canonical qualification
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        required: false
+        type: string
+        default: pg-react:m54-unreleased
+
+permissions:
+  contents: read
+
+jobs:
+  qualification:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
+        with:
+          toolchain: 1.89.0
+          components: rustfmt
+      - name: Rust format
+        run: cargo fmt --check
+      - name: Rust tests
+        run: cargo test --no-default-features
+      - name: PostgreSQL 18 skeleton
+        run: |
+          docker run --rm \
+            -v "$PWD:/work:ro" \
+            -v /work/target \
+            -w /work \
+            ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95 \
+            cargo check --features pg18
+      - name: Current documentation audit
+        run: bash tests/current-docs.sh
+      - name: API inventory audit
+        run: bash tests/api-inventory.sh
+      - name: Workflow syntax audit
+        run: bash tests/workflow-syntax.sh
+      - name: Build candidate
+        run: docker build --tag "${{ inputs.image }}" .
+      - name: Run complete candidate qualification
+        env:
+          M54_ARTIFACT_DIR: ${{ github.workspace }}/m54-evidence
+        run: bash tests/m54.sh complete "${{ inputs.image }}"
+      - name: Write evidence manifest
+        run: |
+          jq -n \
+            --arg commit "$GITHUB_SHA" \
+            --arg run "$GITHUB_RUN_ID" \
+            '{schema_version: 1, milestone: "M54", commit: $commit, workflow_run: $run,
+              entries: [
+                {milestone: "M38", mode: "executed", artifact: "m54-evidence/M54-inherited-m38.log"},
+                {milestone: "M39", mode: "executed", artifact: "m54-evidence/M54-inherited-m39.log"},
+                {milestone: "M40", mode: "executed", artifact: "m54-evidence/M54-inherited-m40.log"},
+                {milestone: "M41", mode: "executed", artifact: "m54-evidence/M54-inherited-m41.log"},
+                {milestone: "M42", mode: "executed", artifact: "m54-evidence/M54-inherited-m42.log"},
+                {milestone: "M43", mode: "executed", artifact: "m54-evidence/M54-inherited-m43.log"},
+                {milestone: "M44", mode: "executed", artifact: "m54-evidence/M54-inherited-m44.log"},
+                {milestone: "M53", mode: "executed", artifact: "m54-evidence/M54-inherited-m53.log"},
+                {milestone: "M54", mode: "executed", artifact: "m54-evidence/M54-fresh-install-and-SQL-corpus.log"}
+              ]}' > m54-evidence/evidence-manifest.json
+          docker save "${{ inputs.image }}" | gzip -n -9 > m54-evidence/m54-candidate-image.tar.gz
+          sha256sum m54-evidence/m54-candidate-image.tar.gz > m54-evidence/m54-candidate-image.SHA256SUMS
+      - name: Upload qualified candidate and evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: m54-qualified-candidate
+          path: m54-evidence/

@@ -1,5 +1,8 @@
 # v1 limits
 
+> Historical record for the prepared v1 candidate. Use current
+> [Limits](limits.md) for pg-react `0.43.0`.
+
 Limits fail closed or mark evidence incomplete. Do not bypass them by editing
 private tables.
 
