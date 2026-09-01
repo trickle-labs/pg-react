@@ -1,9 +1,9 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M43 / extension
-`0.40.0` is the current release. It shows which modeled policy fields changed
-before a reviewer deploys an update. M44 is the current qualification candidate.
-It defines explanation qualification for extension `0.41.0`. The prepared
+This is the starting point for current pg-react documentation. M44 / extension
+`0.41.0` is the current release. It qualifies bounded explanations for current
+outcomes, comparisons, decisions, work, and retained evidence. M53 complete
+policy-set packaging is the current planning milestone. The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start
@@ -13,6 +13,7 @@ It defines explanation qualification for extension `0.41.0`. The prepared
 - [Order Review Tutorial](order-review-tutorial.md)
 - [Runnable Order Review Package](../showcase/order-review/README.md)
 - [Concepts](concepts.md)
+- [Explain an Outcome](explaining-outcomes.md)
 
 ## Build
 
@@ -27,7 +28,7 @@ It defines explanation qualification for extension `0.41.0`. The prepared
 - [End-to-end causal paths](m41-api-reference.md)
 - [Evidence snapshots](m42-api-reference.md)
 - [Semantic policy differences](m43-api-reference.md)
-- [Explanation qualification](m44-api-reference.md)
+- [Explanation API reference](m44-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate

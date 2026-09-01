@@ -2,9 +2,9 @@
 
 - The only qualified environment is PostgreSQL 18.3 with pg_trickle 0.81.0 on
   Linux amd64. See the [support matrix](v1-support-matrix.md).
-- `0.40.0` is the current qualified release. Its documented adjacent update is
-  `0.39.0 -> 0.40.0`.
-- The managed runtime supports `0.31.0` through `0.40.0`, `1.0.0-rc.N`, and
+- `0.41.0` is the current qualified release. Its documented adjacent update is
+  `0.40.0 -> 0.41.0`.
+- The managed runtime supports `0.31.0` through `0.41.0`, `1.0.0-rc.N`, and
   `1.0.0`.
 - `configure_roles` authoritatively grants comparison execution to `author`,
   `operator`, and `reader` roles.
@@ -26,8 +26,8 @@
   memory, and temporary storage are placeholders or unavailable where the
   operation reports them,
   not measured capacity evidence.
-- M43 semantic differences report modeled declaration fields only; arbitrary SQL
-  and business impact remain opaque. See [M43 limitations](m43-known-limitations.md).
+- Semantic differences report modeled declaration fields only. Arbitrary SQL
+  and business impact remain opaque. See [Explain an Outcome](explaining-outcomes.md).
 - The advanced/compatibility runtime has qualified codec-v2 bigint, UUID,
   text, and composite keys, but this does not broaden the comparable-rule key
   restriction or settle every entry point's long-term v1 classification.

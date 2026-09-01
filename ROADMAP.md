@@ -12,10 +12,10 @@
 > Capability area 1. M40 and extension `0.37.0` complete bounded why-not. M41
 > and extension `0.38.0` complete end-to-end causal paths. M42 and extension
 > `0.39.0` complete evidence snapshots. M43 and extension `0.40.0` complete
-> semantic policy differences. M44 is the current milestone. It defines
-> explanation qualification for extension `0.41.0`. Before its contract
-> freezes, field evidence must show that inconsistent explanation contracts
-> block a real review or operating task.
+> semantic policy differences. M44 and extension `0.41.0` complete explanation
+> qualification. M53 complete policy-set packaging is the current milestone
+> for extension `0.42.0`. M45 through M52 remain named candidates, not the
+> implementation sequence.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -4440,26 +4440,232 @@ task, stop M44 and select the milestone supported by the field evidence.
 
 ---
 
-## Proposed sequence after M44
+## Stage 53 — Complete policy-set packaging
 
-The project still commits to one milestone at a time. The five items below are
-candidates, not implementation or release commitments. Each must earn selection
-from M44 evidence and user traction.
+**Outcome:** make one immutable policy-set version the complete deployment unit
+for its rules, decisions, shared conditions, parameter-family definitions,
+applicability, and explicit package dependencies. An operator can validate,
+compare, export, deploy, inspect, explain, and remove that unit through the
+ordinary policy-set workflow.
 
-1. **M45 — Rolling and hopping windows.** Add bounded event-time windows with
-   explicit progress, lateness, correction, retention, and resource limits.
-2. **M46 — Business calendar windows.** Add calendar days, months, billing
-   periods, and named business calendars with explicit time-zone,
-   daylight-saving, month-boundary, and late-input behavior.
-3. **M47 — Finite event sequences.** Support short, ordered event patterns with
-   hard limits on sequence length, incomplete matches, ordering, expiry, and
-   retained evidence, without adding a general event-processing language.
-4. **M48 — Absence after an event.** Recognize a missing follow-up only after
-   source progress passes its deadline, and retain the start event, proof of
-   absence, and bounded late-correction evidence.
-5. **M49 — Temporal rule qualification.** Qualify every supported time-based
-   result as an ordinary named condition or derived fact, with shared recovery,
-   retention, correction, determinism, and scale evidence.
+**Release boundary:** extension `0.42.0`, directly after M44 / `0.41.0`. M53
+extends the installed atomic rule-pack planner and policy-set catalogs. It does
+not add a third package engine, another top-level verb family, or a package
+language. Existing reference-only policy sets and legacy rule-pack calls keep
+their installed behavior. The packaged candidate must pass `tests/m53.sh
+complete`.
+
+**Owner:** pg-react maintainers.
+
+**Entry gate:** the exact `v0.41.0` artifacts are published and every automated
+M44 release gate passes.
+
+### Contract to implement
+
+- The stable package identity is the existing policy-set name plus one
+  immutable policy-set version. No separate package name, UUID, revision, or
+  namespace is public identity.
+- The existing `pgreact.policy_set(...)` constructor remains the reference-set
+  form. M53 adds one overload whose sixth argument is
+  `support pgreact_api.declaration[]`. The overload also accepts
+  `dependencies jsonb DEFAULT '[]'`, followed by the existing effective-time
+  and evidence-limit arguments. Calls to the installed signature remain
+  unchanged and unambiguous.
+
+  ```sql
+  pgreact.policy_set(
+      name text,
+      version text,
+      members pgreact_api.declaration[],
+      applicability regclass,
+      subject_keys name[],
+      support pgreact_api.declaration[],
+      dependencies jsonb DEFAULT '[]',
+      valid_from timestamptz DEFAULT clock_timestamp(),
+      valid_to timestamptz DEFAULT NULL,
+      evidence_limit integer DEFAULT 100
+  ) RETURNS pgreact_api.declaration
+  ```
+
+- `members` contains complete `rule` or `decision_program` declarations.
+  `support` contains complete `shared_condition` or `parameter_family`
+  declarations. M53 adds ordinary typed constructors for the two support
+  kinds. Raw JSON remains an advanced compatibility path.
+- A parameter-family declaration packages its relation identity, key column,
+  value columns, and definition fingerprint. Parameter rows stay
+  authoritative PostgreSQL data. Export, comparison, deployment, and removal
+  never copy, replace, or delete those rows.
+- A shared-condition declaration packages the installed M20 source, row type,
+  keys, maintenance mode, and immutable version contract. Its generated
+  pg-react objects are package-owned. Its PostgreSQL source relation is not.
+- Each dependency is an object with `from` and `on` typed public identities.
+  Both endpoints must occur in the same complete policy-set version. Duplicate
+  edges, self-edges, missing endpoints, undeclared modeled references, and
+  cycles fail validation. Canonical topological order breaks ties by kind,
+  name, and version.
+- Package dependencies control validation, deployment, and reverse removal
+  order. They do not invent runtime causality, rule firing order, or an
+  explanation edge. PostgreSQL dependencies and the installed rule, decision,
+  shared-condition, and parameter-family runtimes remain authoritative.
+- One complete version contains at most 64 members, 64 support declarations,
+  256 dependency edges, and 1 MiB of canonical declaration JSON. Existing
+  per-object, applicability, comparison, and explanation limits still apply.
+- The canonical declaration sorts members and support declarations by typed
+  public identity and sorts dependency edges by their canonical endpoints. Its
+  definition digest covers the complete declarations, applicability,
+  effective period, dependency graph, and format version. It excludes OIDs,
+  private UUIDs, physical order, elapsed time, parameter rows, source rows, and
+  generated object names.
+- Preview resolves PostgreSQL objects and adds their fingerprints, the active
+  package version, child state, work state, and proposed action to a separate
+  plan digest. Concurrent DDL, deployment, removal, work change, or source
+  definition change makes that digest stale.
+
+### Ordinary operations
+
+- `pgreact.validate(declaration)` validates every declaration, ownership and
+  access rule, dependency, applicability source, compatibility boundary, and
+  limit without writing.
+- `pgreact.preview(declaration)` returns the exact canonical `ADD`, `KEEP`,
+  `REPLACE`, `ADOPT`, and `REMOVE` action for every packaged object in
+  topological order, followed by the policy-set activation. It returns the
+  complete plan digest and all removal or old-work blockers.
+- `pgreact.compare(declaration, target, options)` compares applicability,
+  contents, dependency edges, and every supported member result. It reuses the
+  installed child comparison and why-changed results. Unsupported child
+  comparisons return their exact boundary instead of weakening the rest of the
+  package result.
+- `pgreact_api.semantic_diff(declaration, target, options)` reports added,
+  removed, changed, and unchanged packaged objects and edges. It delegates each
+  supported child declaration to M43. Arbitrary SQL remains opaque.
+- `pgreact.deploy(declaration, preconditions)` requires the reviewed preview
+  digest. It deploys child objects in canonical topological order and activates
+  the new policy-set version last. One PostgreSQL transaction covers catalog
+  rows, generated objects, child cutovers, applicability, runtime barriers,
+  history, and the active package version. Any error preserves the complete old
+  version.
+- Replacing or removing a command member requires an explicit inherited
+  `DRAIN_OLD` or `CANCEL_OLD` policy in deployment preconditions. The preview
+  lists every target that needs the choice. M53 does not guess from pending or
+  leased work.
+- `pgreact.export(name, 'policy_set', version)` returns the complete canonical
+  declaration and definition digest. It does not export parameter rows, source
+  rows, evidence snapshots, work, attempts, history, grants, or private
+  catalogs. The exported declaration can be validated and previewed through
+  the ordinary calls. `pgreact.import(document, preconditions)` verifies the
+  digest and delegates to the same atomic deployment path.
+- `pgreact.status`, `pgreact.explain`, and `pgreact.doctor` keep their ordinary
+  calls. For a complete policy set they identify the active immutable version,
+  definition and plan digests, package health, blocked objects, and exact
+  public child identities. M40 policy-eligibility, M41 causal paths, M42
+  snapshots, M43 differences, and the M44 state meanings remain authoritative.
+- `pgreact.remove(name, preconditions)` removes package-owned objects in
+  reverse topological order and removes the policy set last. One blocker rolls
+  back the whole call. The operation never drops a PostgreSQL source, function,
+  parameter relation, or parameter row.
+- `pgreact.policy_set_contents` and `pgreact.policy_set_dependencies` are the
+  only new ordinary inspection views. The first exposes one row per packaged
+  object and its role, state, version, and digest. The second exposes canonical
+  typed dependency edges. Existing views do not change columns.
+
+### Ownership, adoption, and compatibility
+
+- One deployed child object can belong to at most one active complete policy
+  set. Package-owned shared conditions cannot acquire consumers outside that
+  set. These rules make complete removal deterministic.
+- A deployer can adopt an existing standalone object or member of the prior
+  reference-only version only through an explicit `adopt` precondition. The
+  caller must own both identities, the deployed and proposed normalized
+  declaration digests must match, and no outside consumer may exist. Adoption
+  changes ownership metadata only. A mismatch returns one blocker and changes
+  nothing.
+- A complete replacement may keep or replace objects owned by the prior
+  complete version of the same stable policy-set name. It cannot take an object
+  from another active policy set, even when the definitions match.
+- Existing reference-only policy-set versions remain readable, runnable,
+  comparable, exportable, and removable. They become complete only through an
+  explicit new immutable version and any required adoption preconditions.
+- `pgreact.validate_pack`, `pgreact.preview_pack`, `pgreact.deploy_pack`,
+  `pgreact.pack_history`, and `pgreact.explain_pack` remain compatibility APIs.
+  Their SQL signatures and results do not change. M53 reuses their atomic
+  planner and lock ordering internally but does not automatically merge a rule
+  pack with a same-named policy set.
+- The extension update does not adopt, redeploy, remove, or relabel any policy
+  set, rule pack, child declaration, work item, or source object. It adds only
+  the M53 catalogs, views, constructors, and dispatch needed for later explicit
+  deployment.
+
+### Explicit non-goals
+
+- Nested policy sets, packages that depend on other packages, conditional or
+  ordered dependency expressions, dependency inference from arbitrary SQL, or
+  a second rule language.
+- Packaging parameter values, source rows, PostgreSQL DDL, function bodies,
+  grants, RLS policies, evidence snapshots, work, attempts, or history.
+- Cross-database deployment, remote promotion, approval routing, rollback
+  orchestration, mutable package versions, partial deployment, or background
+  package repair.
+- New rule, decision, temporal, reasoning, explanation, authorization, or
+  execution semantics. M53 packages installed behavior and rejects unsupported
+  combinations.
+- Removal that silently leaves package-owned pg-react objects behind. If a
+  child cannot be removed safely, the complete removal fails unchanged.
+
+### Exit gates
+
+- Exact fixtures assert the full normalized declaration, findings, action
+  plan, plan digest, deployment result, export document, status, explanation,
+  doctor result, inspection rows, history, and removal result for one complete
+  policy set containing rules, a decision, a shared condition, a parameter
+  family, applicability, and dependencies.
+- Added, kept, replaced, adopted, and removed objects return their exact full
+  outputs. Member reorder and JSON object order do not change semantic output;
+  a declaration, dependency, applicability, source definition, child state,
+  work state, or authorization change produces the exact documented change.
+- Missing endpoints, duplicate edges, self-edges, cycles, nested sets,
+  unsupported kinds, name collisions, object-limit, edge-limit, payload-limit,
+  RLS, ownership, grant, drift, stale-preview, outside-consumer, cross-package,
+  and adoption-digest cases fail with exact findings and no writes.
+- Injected failure after every catalog, child deployment, generated-object,
+  adoption, replacement, applicability, activation, removal, and history phase
+  leaves either the complete old version or the complete new version. No test
+  observes a partial package.
+- Concurrent deployment, removal, source DDL, child replacement, parameter
+  edit, refresh, work claim, and extension update follow one documented lock
+  order, return one complete result or an exact retry finding, and do not
+  deadlock in the qualified fixture.
+- Existing reference-only policy sets and legacy rule packs return byte-for-byte
+  unchanged outputs across fresh installation and populated `0.41.0 -> 0.42.0`
+  upgrade. The upgrade itself changes no active deployment or authoritative
+  result.
+- Backup, restore, rollback-by-restore, restart, recovery, and supported standby
+  promotion preserve package identity, ownership, dependency order, child
+  bindings, applicability, public inspection, and explanation.
+- Representative and maximum-limit fixtures publish latency, memory, temporary
+  storage, catalog growth, WAL, export size, and removal time separately. A
+  reached limit fails before unbounded work or output.
+- Fresh installation, populated adjacent upgrade, rollback-by-restore,
+  packaged execution, and every inherited M0 through M44 gate pass in
+  `tests/m53.sh complete` against the exact `0.42.0` candidate artifact. No P0
+  or P1 remains.
+
+---
+
+## Proposed sequence after M53
+
+The project still commits to one milestone at a time. After M53, select one
+candidate whose existing limitation blocks adoption:
+
+1. **M45 — Rolling and hopping windows** when missing event-time windows block
+   otherwise supported policies.
+2. **M58 — Authorization alignment qualification** when grants, security
+   context, or RLS boundaries block supported workloads.
+3. **M59 — Supported-scale qualification** when capacity, WAL, storage,
+   recovery time, or retention limits block an operating decision.
+
+M55 schema-change planning or M56 rebuild and reconciliation may take priority
+when ordinary DDL or recovery makes a complete policy set unsafe to operate.
+M46 through M52 remain named strategic candidates, not an implementation queue.
 
 Policy promotion, approval routing, rollback orchestration, custom DSLs, visual or AI authoring, client SDKs, nested policy sets, weighted optimization, synchronous network actions, human workflows, exactly-once external delivery, arbitrary SQL lineage, untrusted dynamic code, unstratified negation, recursive aggregation, and distributed cross-database evaluation remain excluded unless separately proposed and proven.
 

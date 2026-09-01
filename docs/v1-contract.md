@@ -6,10 +6,11 @@ It does not set the eventual v1 feature boundary. The current simulation
 contract is the [M39 qualification contract](m39-contract.md). The bounded
 current-result absence contract is [M40](m40-contract.md). The current
 causal-path contract is [M41](m41-contract.md). The current
-semantic-difference contract is [M43](m43-contract.md).
+semantic-difference contract is [M43](m43-contract.md). The shared explanation
+contract is [M44](m44-contract.md).
 
 The project has postponed `1.0.0` and its complete feature freeze indefinitely.
-M43 / extension `0.40.0` is the current qualified release. Development
+M44 / extension `0.41.0` is the current qualified release. Development
 continues one milestone at a time, with separate contracts, release versions,
 and qualification gates. Exact package versions and upgrade paths become
 contractual through qualified release artifacts and migration scripts.

@@ -1,10 +1,10 @@
 # v1 upgrade runbook
 
-`0.38.0` is the current qualified release. Its documented adjacent update is
-`0.37.0 -> 0.38.0`. Use only source and target pairs that have a versioned
+`0.41.0` is the current qualified release. Its documented adjacent update is
+`0.40.0 -> 0.41.0`. Use only source and target pairs that have a versioned
 migration script and automated qualification.
 
-The managed worker coordinates extension versions `0.31.0` through `0.38.0`,
+The managed worker coordinates extension versions `0.31.0` through `0.41.0`,
 `1.0.0-rc.N`, and `1.0.0`.
 
 Every procedure follows:

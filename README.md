@@ -6,11 +6,11 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M43 / extension `0.40.0` is the current release. It lets a reviewer compare
-one proposed rule, decision, or policy set with the deployed version and see
-which modeled fields changed. M44 is the current qualification candidate. It
-qualifies one bounded explanation contract for current outcomes, comparisons,
-decisions, work, and retained evidence in extension `0.41.0`. The prepared
+M44 / extension `0.41.0` is the current release. It gives current outcomes,
+comparisons, decisions, work, and retained evidence one bounded explanation
+contract. M53 complete policy-set packaging is the current planning milestone.
+It will make a policy set one unit to validate, compare, export, deploy,
+inspect, and remove. The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence, and
 `1.0.0` is postponed indefinitely. Start with the
 [documentation home](docs/index.md).
@@ -22,7 +22,7 @@ decisions, work, and retained evidence in extension `0.41.0`. The prepared
 | Application developer | [Getting Started](docs/getting-started.md) | How do I define and deploy a first rule? |
 | PostgreSQL developer | [Order review showcase](showcase/order-review/README.md) | How do facts, views, consequences, and durable work fit together? |
 | Operator | [Operations](docs/v1-operations.md) | How do I inspect, retry, pause, replace, and remove work? |
-| Reviewer or architect | [Concepts](docs/concepts.md) and [Changing Policies Safely](docs/changing-policies.md) | What does pg-react guarantee, and where are the boundaries? |
+| Reviewer or architect | [Explain an Outcome](docs/explaining-outcomes.md), [Concepts](docs/concepts.md), and [Changing Policies Safely](docs/changing-policies.md) | What happened, what changed, and where are the boundaries? |
 
 ```text
 authoritative PostgreSQL facts
@@ -89,6 +89,10 @@ complete managed-runtime workflow.
 - **Why a result is absent:** add a `why_not` object to `pgreact.explain` when
   you need a bounded answer for one expected rule match, decision result, or
   policy eligibility result.
+- **Why a result exists:** add `causal_path` to follow a bounded path from a
+  decision or work item to public facts. Retain a complete path as an evidence
+  snapshot when the answer must outlive current source evidence. See
+  [Explain an Outcome](docs/explaining-outcomes.md).
 - **Advanced reasoning:** installed public surfaces include maintained derived
   facts and logical support, bounded positive recursion, stratified negation
   and aggregation, shared conditions, temporal and effective-dated policies,

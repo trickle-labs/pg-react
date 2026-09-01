@@ -45,6 +45,7 @@ Publish `v0.41.0` only after that record and the complete release workflow pass.
 
 ## What comes next
 
-The roadmap names M45, rolling and hopping windows, as the next candidate. It
-is not a commitment. Select it only after M44 evidence and user demand support
-the time-window problem.
+M53 complete policy-set packaging is the next milestone. It will put rules,
+decisions, shared conditions, parameter-family definitions, applicability, and
+explicit dependencies under one immutable policy-set version and one atomic
+deployment boundary. M45 through M52 remain named candidates.

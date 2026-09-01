@@ -2,6 +2,16 @@
 
 M44 documents existing calls. No M44-specific call exists.
 
+Choose the operation from the question:
+
+| Question | Call |
+|---|---|
+| Current state | `pgreact.explain(name, subject)` |
+| Missing expected result | `pgreact.explain` with `why_not` |
+| Facts behind a result or work item | `pgreact.explain` with `causal_path` |
+| Cause of a current comparison difference | `pgreact.compare` with `why_changed` |
+| Earlier retained causal answer | `pgreact_api.read_evidence_snapshot` |
+
 ## Explain a current target
 
 ```sql
@@ -65,6 +75,14 @@ semantic digest, and semantic cost together. Treat elapsed time as a separate
 measurement. Do not compare answers across origins unless their public
 question and evidence identities are equal.
 
+Before comparing two answers, match the target kind, stable name, version,
+typed subject or result, root or comparison point, declaration and source
+digests, sampled time, frontier, revision, comparison sides, and authorization
+context where both origins expose them. A missing or different input means the
+answers are different observations, not contradictory answers.
+
 The previous operation-specific references remain authoritative:
 [M40 why-not](m40-api-reference.md), [M41 causal paths](m41-api-reference.md),
 [M42 snapshots](m42-api-reference.md), and [M38 why-changed comparison](m38-api-reference.md).
+The task-oriented [Explain an Outcome](explaining-outcomes.md) guide combines
+these operations without changing their result shapes.
