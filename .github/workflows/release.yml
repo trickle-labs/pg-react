@@ -39,7 +39,7 @@ jobs:
           test -s tests/m53.sh
           test -s tests/m53.sql
       - name: Require unpublished release
-          run: "! gh release view v0.42.0 >/dev/null 2>&1"
+        run: "! gh release view v0.42.0 >/dev/null 2>&1"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo fmt --check
