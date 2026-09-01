@@ -1,6 +1,6 @@
 # Troubleshooting
 
-The current release is pg-react `0.43.0`. Start with the exact finding code,
+The current release is pg-react `0.43.1`. Start with the exact finding code,
 then inspect the named target:
 
 ```sql

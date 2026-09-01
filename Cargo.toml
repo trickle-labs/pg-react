@@ -4,7 +4,7 @@ resolver = "3"
 
 [package]
 name = "pg_react"
-version = "0.43.0"
+version = "0.43.1"
 edition = "2024"
 
 [lib]

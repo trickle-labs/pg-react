@@ -1,6 +1,6 @@
 # Compatibility
 
-The current release is pg-react `0.43.0`. Valid ordinary calls are
+The current release is pg-react `0.43.1`. Valid ordinary calls are
 compatibility-preserving across adjacent 0.x releases by project policy.
 Existing JSON-preconditions deployment calls, specialized authoring APIs,
 compatibility replacement functions, and historical documents remain

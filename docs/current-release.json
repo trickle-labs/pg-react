@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "milestone": "M54",
-  "extension_version": "0.43.0",
-  "previous_extension_version": "0.42.0",
-  "adjacent_upgrade": "0.42.0 -> 0.43.0",
+  "extension_version": "0.43.1",
+  "previous_extension_version": "0.43.0",
+  "adjacent_upgrade": "0.43.0 -> 0.43.1",
   "postgresql": "18.3",
   "pg_trickle": "0.81.0",
   "pgrx": "0.18.0",

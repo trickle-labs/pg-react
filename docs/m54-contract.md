@@ -1,6 +1,6 @@
 # M54 contract — adoption hardening
 
-M54 is pg-react `0.43.0`, adjacent to `0.42.0`. It makes the existing
+M54 is pg-react `0.43.1`, adjacent to `0.43.0`. It makes the existing
 PostgreSQL-native product easier to adopt without adding rule, decision,
 temporal, reasoning, workflow, or distributed-system semantics.
 

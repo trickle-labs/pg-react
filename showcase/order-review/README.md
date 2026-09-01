@@ -28,7 +28,7 @@ scenario without first understanding every internal table.
 
 ## Prerequisites
 
-Run from the repository root with Docker available and the `pg-react:0.43.0` image already built. The qualified environment is pg-react `0.43.0`, PostgreSQL 18.3, pg_trickle 0.81.0, and Linux `amd64`, which is the platform pinned by `docker-compose.yml`. The runner creates a disposable Compose project and an isolated database, then removes both on exit.
+Run from the repository root with Docker available and the `pg-react:0.43.1` image already built. The qualified environment is pg-react `0.43.1`, PostgreSQL 18.3, pg_trickle 0.81.0, and Linux `amd64`, which is the platform pinned by `docker-compose.yml`. The runner creates a disposable Compose project and an isolated database, then removes both on exit.
 
 ```bash
 ./tests/order-review-showcase.sh

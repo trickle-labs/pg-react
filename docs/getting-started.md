@@ -2,7 +2,7 @@
 
 This walkthrough creates one command rule, lets the PostgreSQL-managed runtime
 process a source change, and inspects the result. It assumes the current
-pg-react `0.43.0` environment from [Installation](installation.md):
+pg-react `0.43.1` environment from [Installation](installation.md):
 PostgreSQL 18.3, pg_trickle 0.81.0, Linux
 `amd64`, both libraries preloaded, the database listed in `pg_react.databases`,
 roles configured, and PostgreSQL restarted.
@@ -22,7 +22,7 @@ SELECT pgreact.doctor();
 SELECT pgreact_api.managed_status();
 ```
 
-Expect pg-react `0.43.0`, pg_trickle `0.81.0`, a doctor state of `ready`, and a
+Expect pg-react `0.43.1`, pg_trickle `0.81.0`, a doctor state of `ready`, and a
 managed process state of `ready`. If not, stop here and use
 [Installation](installation.md) and [Troubleshooting](troubleshooting.md).
 

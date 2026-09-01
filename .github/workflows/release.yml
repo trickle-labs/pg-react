@@ -1,9 +1,9 @@
-name: Release v0.43.0
+name: Release v0.43.1
 
 on:
   push:
     tags:
-      - v0.43.0
+      - v0.43.1
 
 permissions:
   contents: write
@@ -26,15 +26,17 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Verify release identity
         run: |
-          grep -qx 'version = "0.43.0"' Cargo.toml
-          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.43.0"'
-          grep -qx "default_version = '0.43.0'" pg_react.control
-          grep -Fq 'version == "0.43.0"' src/managed.rs
-          test -s sql/pg_react--0.42.0--0.43.0.sql
-          test -s sql/pg_react--0.43.0.sql
+          grep -qx 'version = "0.43.1"' Cargo.toml
+          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.43.1"'
+          grep -qx "default_version = '0.43.1'" pg_react.control
+          grep -Fq 'version == "0.43.1"' src/managed.rs
+          test -s sql/pg_react--0.43.0--0.43.1.sql
+          test -s sql/pg_react--0.43.1.sql
           bash tests/current-docs.sh
+      - name: Require completed M54 checklist
+        run: '! grep -Eq "^- \\[ \\]" docs/m54-final-checklist.md'
       - name: Require unpublished release
-        run: '! gh release view v0.43.0 >/dev/null 2>&1'
+        run: '! gh release view v0.43.1 >/dev/null 2>&1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Download qualified candidate and evidence
@@ -46,10 +48,13 @@ jobs:
         run: |
           sha256sum --check m54-evidence/m54-candidate-image.SHA256SUMS
           docker load --input m54-evidence/m54-candidate-image.tar.gz
+          jq -e --arg commit "$GITHUB_SHA" '.commit == $commit' m54-evidence/evidence-manifest.json
+          qualified_image_id=$(docker image inspect --format '{{.Id}}' pg-react:m54-unreleased)
+          test "$qualified_image_id" = "$(tr -d '\n' < m54-evidence/candidate-image.txt)"
       - name: Name image
         run: |
           echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.43.0" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.43.1" >> "$GITHUB_ENV"
       - name: Publish exact qualified image
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -69,42 +74,42 @@ jobs:
           push-to-registry: true
       - name: Package release artifacts
         run: |
-          artifact=pg-react-v0.43.0-linux-amd64.tar.gz
+          artifact=pg-react-v0.43.1-linux-amd64.tar.gz
           docker save "$IMAGE" | gzip -n -9 > "$artifact"
-          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.43.0.spdx.json
+          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.43.1.spdx.json
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-            --exclude='m54-candidate-image.tar.gz' -C m54-evidence -cf - . | gzip -n -9 > pg-react-v0.43.0-evidence.tar.gz
-          sha256sum "$artifact" pg-react-v0.43.0-evidence.tar.gz pg-react-v0.43.0.spdx.json > pg-react-v0.43.0.SHA256SUMS
-          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.43.0.SHA256SUMS
-          sha256sum --check pg-react-v0.43.0.SHA256SUMS
+            --exclude='m54-candidate-image.tar.gz' -C m54-evidence -cf - . | gzip -n -9 > pg-react-v0.43.1-evidence.tar.gz
+          sha256sum "$artifact" pg-react-v0.43.1-evidence.tar.gz pg-react-v0.43.1.spdx.json > pg-react-v0.43.1.SHA256SUMS
+          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.43.1.SHA256SUMS
+          sha256sum --check pg-react-v0.43.1.SHA256SUMS
       - name: Attest release artifacts
         id: attest_artifacts
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
-          subject-path: pg-react-v0.43.0-linux-amd64.tar.gz, pg-react-v0.43.0-evidence.tar.gz
+          subject-path: pg-react-v0.43.1-linux-amd64.tar.gz, pg-react-v0.43.1-evidence.tar.gz
       - name: Attest release SBOM
         id: attest_sbom
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ env.IMAGE_DIGEST }}
-          sbom-path: pg-react-v0.43.0.spdx.json
+          sbom-path: pg-react-v0.43.1.spdx.json
           push-to-registry: true
       - name: Collect attestation bundles
         run: |
-          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.43.0-image.provenance.json
-          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.43.0-artifacts.provenance.json
-          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.43.0-sbom.attestation.json
+          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.43.1-image.provenance.json
+          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.43.1-artifacts.provenance.json
+          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.43.1-sbom.attestation.json
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.43.0 \
-            pg-react-v0.43.0-linux-amd64.tar.gz \
-            pg-react-v0.43.0-evidence.tar.gz \
-            pg-react-v0.43.0.SHA256SUMS \
-            pg-react-v0.43.0.spdx.json \
-            pg-react-v0.43.0-image.provenance.json \
-            pg-react-v0.43.0-artifacts.provenance.json \
-            pg-react-v0.43.0-sbom.attestation.json \
-            --verify-tag --notes-file docs/m54-release-notes.md --title 'pg-react 0.43.0'
+          gh release create v0.43.1 \
+            pg-react-v0.43.1-linux-amd64.tar.gz \
+            pg-react-v0.43.1-evidence.tar.gz \
+            pg-react-v0.43.1.SHA256SUMS \
+            pg-react-v0.43.1.spdx.json \
+            pg-react-v0.43.1-image.provenance.json \
+            pg-react-v0.43.1-artifacts.provenance.json \
+            pg-react-v0.43.1-sbom.attestation.json \
+            --verify-tag --notes-file docs/m54-release-notes.md --title 'pg-react 0.43.1'

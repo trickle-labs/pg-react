@@ -46,12 +46,12 @@ docker compose exec -T postgres psql -XAt -U postgres -d "$DB" \
 ```
 
 ```text
-pg_react=0.43.0
+pg_react=0.43.1
 pg_trickle=0.81.0
 t
 ```
 
-Stop if the extension versions or worker protocol differ. The supported server is PostgreSQL 18.3 with pg-react `0.43.0` and pg_trickle 0.81.0. Installation and preload details live in [Installation](installation.md), while runtime diagnosis belongs in [Operations](operations.md).
+Stop if the extension versions or worker protocol differ. The supported server is PostgreSQL 18.3 with pg-react `0.43.1` and pg_trickle 0.81.0. Installation and preload details live in [Installation](installation.md), while runtime diagnosis belongs in [Operations](operations.md).
 
 ## 3. Create the application facts
 
@@ -249,7 +249,7 @@ All order-review declarations are removed; app, rule_def, and rule_action are ab
 
 ## 13. Optional: add deadline escalation
 
-The advanced script currently reports deadline escalation as omitted. The repository has specialized deadline machinery, but this package does not publish a call until that exact public API, its direct deadline-column contract, boundary behavior, resource limit, and transcript all pass against the current `0.43.0` boundary. A deadline is database-time crossing work, not a general wall-clock scheduler, and it deserves a real fixture rather than hopeful prose.
+The advanced script currently reports deadline escalation as omitted. The repository has specialized deadline machinery, but this package does not publish a call until that exact public API, its direct deadline-column contract, boundary behavior, resource limit, and transcript all pass against the current `0.43.1` boundary. A deadline is database-time crossing work, not a general wall-clock scheduler, and it deserves a real fixture rather than hopeful prose.
 
 ```bash
 docker compose up -d --wait --no-build
