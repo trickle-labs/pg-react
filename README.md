@@ -8,7 +8,7 @@ work, attempts, and explanations remain queryable in PostgreSQL.
 
 M43 / extension `0.40.0` is the current release. It lets a reviewer compare
 one proposed rule, decision, or policy set with the deployed version and see
-which modeled fields changed. M44 is the current planning milestone. It
+which modeled fields changed. M44 is the current qualification candidate. It
 qualifies one bounded explanation contract for current outcomes, comparisons,
 decisions, work, and retained evidence in extension `0.41.0`. The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence, and

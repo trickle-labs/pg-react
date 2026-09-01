@@ -2,8 +2,8 @@
 
 This is the starting point for current pg-react documentation. M43 / extension
 `0.40.0` is the current release. It shows which modeled policy fields changed
-before a reviewer deploys an update. M44 is the current planning milestone. It
-defines explanation qualification for extension `0.41.0`. The prepared
+before a reviewer deploys an update. M44 is the current qualification candidate.
+It defines explanation qualification for extension `0.41.0`. The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start
@@ -27,6 +27,7 @@ defines explanation qualification for extension `0.41.0`. The prepared
 - [End-to-end causal paths](m41-api-reference.md)
 - [Evidence snapshots](m42-api-reference.md)
 - [Semantic policy differences](m43-api-reference.md)
+- [Explanation qualification](m44-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
@@ -44,12 +45,13 @@ defines explanation qualification for extension `0.41.0`. The prepared
 - [M41 causal-path contract](m41-contract.md)
 - [M42 evidence-snapshot contract](m42-contract.md)
 - [M43 semantic-difference contract](m43-contract.md)
+- [M44 explanation-qualification contract](m44-contract.md)
 - [M39 simulation contract](m39-contract.md)
 - [M34 v1 baseline contract](v1-contract.md)
 - [Limits](v1-limits.md)
 - [Support Matrix](v1-support-matrix.md)
 - [Known Limitations](v1-known-limitations.md)
-- [Release Notes](m43-release-notes.md)
+- [Release Notes](m44-release-notes.md)
 
 ## Project / History
 

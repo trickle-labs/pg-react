@@ -47,6 +47,9 @@ path milestone.
 - [M43 release notes](m43-release-notes.md), [contract](m43-contract.md), and
   [API reference](m43-api-reference.md) document the `0.40.0` semantic-difference
   milestone.
+- [M44 release notes](m44-release-notes.md), [contract](m44-contract.md), and
+  [API reference](m44-api-reference.md) qualify the `0.41.0` explanation
+  contract.
 - [`DESIGN.md`](../DESIGN.md) preserves the M13 architecture record.
 - The old [`v1-release-notes.md`](history/v1-release-notes.md) and
   [`v1-upgrades.md`](history/v1-upgrades.md) preserve the historical M4 `0.1.1`
@@ -69,7 +72,9 @@ path milestone.
 - [M40 evidence](m40-evidence.md), [benchmark](m40-benchmark.md), and
 [final checklist](m40-final-checklist.md)
 - [M41 evidence](m41-evidence.md), [benchmark](m41-benchmark.md), and
-[final checklist](m41-final-checklist.md)
+  [final checklist](m41-final-checklist.md)
+- [M44 evidence](m44-evidence.md), [benchmark](m44-benchmark.md), and
+  [final checklist](m44-final-checklist.md)
 - Preserved historical milestone inventories:
   - M33 / `0.30.0`: [API inventory](history/v1-api-inventory-m33-0.30.0.json), [Finding codes](history/v1-finding-codes-m33-0.30.0.json)
   - M34 / `0.31.0`: [API inventory](history/v1-api-inventory-m34-0.31.0.json), [Finding codes](history/v1-finding-codes-m34-0.31.0.json)

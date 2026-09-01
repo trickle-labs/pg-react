@@ -75,5 +75,5 @@ jobs:
           (cd .m32-qualification && bash tests/m32.sh complete pg-react:v0.29.0) &&
           docker build --tag pg-react:m33-unreleased . &&
           bash tests/m33.sh complete pg-react:m33-unreleased &&
-          docker build --tag pg-react:m43-unreleased . &&
-          bash tests/m43.sh complete pg-react:m43-unreleased
+          docker build --tag pg-react:m44-unreleased . &&
+          bash tests/m44.sh complete pg-react:m44-unreleased

@@ -1,9 +1,9 @@
-name: Release v0.40.0
+name: Release v0.41.0
 
 on:
   push:
     tags:
-      - v0.40.0
+      - v0.41.0
 
 permissions:
   contents: write
@@ -25,21 +25,21 @@ jobs:
           components: rustfmt
       - name: Verify release identity
         run: |
-          grep -qx 'version = "0.40.0"' Cargo.toml
-          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.40.0"'
-          grep -qx "default_version = '0.40.0'" pg_react.control
-          grep -Fq 'version == "0.40.0"' src/managed.rs
-          grep -Fq '# pg-react 0.40.0: see what changed in a policy' docs/m43-release-notes.md
-          grep -Fq '0.39.0` to `0.40.0' docs/m43-migration.md
-          test -s docs/m43-api-reference.md
-          test -s docs/m43-api-inventory.json
-          test -s docs/m43-finding-codes.json
-          test -s sql/pg_react--0.39.0--0.40.0.sql
-          test -s sql/pg_react--0.40.0.sql
-          test -s tests/m43.sh
-          test -s tests/m43.sql
+          grep -qx 'version = "0.41.0"' Cargo.toml
+          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.41.0"'
+          grep -qx "default_version = '0.41.0'" pg_react.control
+          grep -Fq 'version == "0.41.0"' src/managed.rs
+          grep -Fq '# pg-react 0.41.0: read explanations with the same expectations' docs/m44-release-notes.md
+          grep -Fq '0.40.0` to `0.41.0' docs/m44-migration.md
+          test -s docs/m44-api-reference.md
+          test -s docs/m44-api-inventory.json
+          test -s docs/m44-finding-codes.json
+          test -s sql/pg_react--0.40.0--0.41.0.sql
+          test -s sql/pg_react--0.41.0.sql
+          test -s tests/m44.sh
+          test -s tests/m44.sql
       - name: Require unpublished release
-        run: "! gh release view v0.40.0 >/dev/null 2>&1"
+        run: "! gh release view v0.41.0 >/dev/null 2>&1"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: cargo fmt --check
@@ -57,7 +57,7 @@ jobs:
       - name: Name image
         run: |
           echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.40.0" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.41.0" >> "$GITHUB_ENV"
       - name: Fetch inherited release image
         run: |
           docker pull "ghcr.io/${GITHUB_REPOSITORY,,}:v0.25.0"
@@ -207,10 +207,10 @@ jobs:
             M42_ARTIFACT_DIR="$GITHUB_WORKSPACE/m42-evidence" \
               bash tests/m42.sh complete pg-react:v0.39.0
           )
-      - name: Build and test M43 release lane
+      - name: Build and test M44 release lane
         run: |
           docker build --tag "$IMAGE" .
-          M43_ARTIFACT_DIR="$GITHUB_WORKSPACE/m43-evidence" bash tests/m43.sh complete "$IMAGE"
+          M44_ARTIFACT_DIR="$GITHUB_WORKSPACE/m44-evidence" bash tests/m44.sh complete "$IMAGE"
       - name: Publish image
         run: |
           echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
@@ -230,42 +230,42 @@ jobs:
           push-to-registry: true
       - name: Package image, evidence, SBOM, and checksums
         run: |
-          artifact=pg-react-v0.40.0-linux-amd64.tar.gz
+          artifact=pg-react-v0.41.0-linux-amd64.tar.gz
           docker save "$IMAGE" | gzip -n -9 > "$artifact"
-          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.40.0.spdx.json
-          for evidence_dir in m30-evidence m31-evidence m32-evidence m33-evidence m34-evidence m35-evidence m36-evidence m37-evidence m38-evidence m39-evidence m40-evidence m41-evidence m42-evidence m43-evidence; do
+          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.41.0.spdx.json
+          for evidence_dir in m30-evidence m31-evidence m32-evidence m33-evidence m34-evidence m35-evidence m36-evidence m37-evidence m38-evidence m39-evidence m40-evidence m41-evidence m42-evidence m43-evidence m44-evidence; do
             if [ ! -d "$evidence_dir" ]; then
               mkdir -p "$evidence_dir"
               printf 'inherited qualification completed before packaging\n' > "$evidence_dir/qualification.txt"
             fi
           done
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-            -cf - m30-evidence m31-evidence m32-evidence m33-evidence m34-evidence m35-evidence m36-evidence m37-evidence m38-evidence m39-evidence m40-evidence m41-evidence m42-evidence m43-evidence | gzip -n -9 > pg-react-v0.40.0-evidence.tar.gz
-          sha256sum "$artifact" pg-react-v0.40.0-evidence.tar.gz pg-react-v0.40.0.spdx.json > pg-react-v0.40.0.SHA256SUMS
-          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.40.0.SHA256SUMS
-          sha256sum --check pg-react-v0.40.0.SHA256SUMS
+            -cf - m30-evidence m31-evidence m32-evidence m33-evidence m34-evidence m35-evidence m36-evidence m37-evidence m38-evidence m39-evidence m40-evidence m41-evidence m42-evidence m43-evidence m44-evidence | gzip -n -9 > pg-react-v0.41.0-evidence.tar.gz
+          sha256sum "$artifact" pg-react-v0.41.0-evidence.tar.gz pg-react-v0.41.0.spdx.json > pg-react-v0.41.0.SHA256SUMS
+          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.41.0.SHA256SUMS
+          sha256sum --check pg-react-v0.41.0.SHA256SUMS
       - name: Attest release artifacts
         id: attest_artifacts
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
-          subject-path: pg-react-v0.40.0-linux-amd64.tar.gz, pg-react-v0.40.0-evidence.tar.gz
+          subject-path: pg-react-v0.41.0-linux-amd64.tar.gz, pg-react-v0.41.0-evidence.tar.gz
       - name: Attest release SBOM
         id: attest_sbom
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ env.IMAGE_DIGEST }}
-          sbom-path: pg-react-v0.40.0.spdx.json
+          sbom-path: pg-react-v0.41.0.spdx.json
           push-to-registry: true
       - name: Collect signed attestation bundles
         run: |
-          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.40.0-image.provenance.json
-          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.40.0-artifacts.provenance.json
-          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.40.0-sbom.attestation.json
+          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.41.0-image.provenance.json
+          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.41.0-artifacts.provenance.json
+          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.41.0-sbom.attestation.json
       - name: Publish release artifacts
         run: |
-          artifact=pg-react-v0.40.0-linux-amd64.tar.gz
-          gh release create v0.40.0 "$artifact" pg-react-v0.40.0-evidence.tar.gz pg-react-v0.40.0.SHA256SUMS pg-react-v0.40.0.spdx.json pg-react-v0.40.0-image.provenance.json pg-react-v0.40.0-artifacts.provenance.json pg-react-v0.40.0-sbom.attestation.json --verify-tag \
-            --notes-file docs/m43-release-notes.md --title v0.40.0
+          artifact=pg-react-v0.41.0-linux-amd64.tar.gz
+          gh release create v0.41.0 "$artifact" pg-react-v0.41.0-evidence.tar.gz pg-react-v0.41.0.SHA256SUMS pg-react-v0.41.0.spdx.json pg-react-v0.41.0-image.provenance.json pg-react-v0.41.0-artifacts.provenance.json pg-react-v0.41.0-sbom.attestation.json --verify-tag \
+            --notes-file docs/m44-release-notes.md --title v0.41.0
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

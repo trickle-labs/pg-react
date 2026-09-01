@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "milestone": "M44",
+  "extension_version": "0.41.0",
+  "predecessor": "M43 / 0.40.0",
+  "status": "qualification-only contract over installed explanation operations",
+  "qualification_contract": 1,
+  "qualified_origins": [
+    {
+      "id": "current_outcome",
+      "function": "pgreact.explain(text,jsonb,jsonb)",
+      "option": "none",
+      "result_version": 14,
+      "states": ["complete", "partial", "unavailable", "unsupported"]
+    },
+    {
+      "id": "why_not",
+      "function": "pgreact.explain(text,jsonb,jsonb)",
+      "option": "why_not",
+      "result_version": 26,
+      "states": ["complete", "already_present", "partial", "unavailable", "unsupported"]
+    },
+    {
+      "id": "causal_path",
+      "function": "pgreact.explain(text,jsonb,jsonb)",
+      "option": "causal_path",
+      "result_version": 27,
+      "root_kinds": ["decision_result", "rule_work", "decision_work"],
+      "states": ["complete", "partial", "unavailable", "unsupported"]
+    },
+    {
+      "id": "why_changed",
+      "function": "pgreact.compare(declaration,target,jsonb)",
+      "option": "why_changed",
+      "result_version": 25,
+      "states": ["complete", "partial", "unavailable", "unsupported"]
+    },
+    {
+      "id": "retained_causal_path",
+      "function": "pgreact_api.read_evidence_snapshot(target,text,text)",
+      "option": "none",
+      "result_version": 28,
+      "nested_result_version": 27,
+      "states": ["available", "deletion_eligible", "missing", "deleted"]
+    }
+  ],
+  "shared_terms": [
+    "origin", "question_identity", "evidence_point", "state", "boundary",
+    "finding", "limit", "semantic_digest", "semantic_cost", "elapsed_time",
+    "retained_evidence"
+  ],
+  "public_identity_inputs": [
+    "target kind", "target name", "target version", "typed subject or result",
+    "root or comparison point", "comparison side", "declaration or policy version",
+    "snapshot identity"
+  ],
+  "no_effect_boundary": [
+    "no new explanation function", "no common response envelope",
+    "no evaluator", "no durable state", "no default option",
+    "no change to existing output"
+  ]
+}

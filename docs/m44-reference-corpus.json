@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "milestone": "M44",
+  "extension_version": "0.41.0",
+  "external_review": {
+    "status": "pending",
+    "required_origins": 2,
+    "note": "The repository fixtures are deterministic test data, not external field evidence."
+  },
+  "workflows": [
+    {
+      "name": "financial-exception",
+      "question": "Why is the high-value payment review absent, and what current evidence supports that answer?",
+      "request": {
+        "origin": "why_not",
+        "function": "pgreact.explain(text,jsonb,jsonb)",
+        "target": "payment-review",
+        "subject": "42",
+        "options": {"why_not":{"result_kind":"rule_match","result_key":"42"}}
+      },
+      "answer": {
+        "state": "complete",
+        "question_identity": {"target":"rule:payment-review:1","subject":"42","result":"rule_match:42"},
+        "evidence_point": {"kind":"current_statement_snapshot","source":"review.payments"},
+        "boundary": "supported current rule evidence",
+        "findings": [],
+        "limits": {"reached": []},
+        "semantic_digest": "asserted by the executable fixture",
+        "semantic_cost": {"elapsed_time_excluded": true},
+        "retention": "live",
+        "unsupported_question": "What business risk does the threshold imply?"
+      }
+    },
+    {
+      "name": "access-drift",
+      "question": "Which supported facts explain the changed access-routing decision?",
+      "request": {
+        "origin": "current_outcome_and_why_changed",
+        "functions": ["pgreact.explain(text,jsonb,jsonb)","pgreact.compare(declaration,target,jsonb)"],
+        "target": "access-routing",
+        "subject": "10",
+        "options": {"causal_path":{"root_kind":"decision_result","result_key":"1000"},"why_changed":true}
+      },
+      "answer": {
+        "state": "complete",
+        "question_identity": {"target":"decision_program:access-routing:1","subject":"10","root":"decision_result:1000"},
+        "evidence_point": {"kind":"current_statement_snapshot","source":"review.routes","comparison_sides":["current","proposed"]},
+        "boundary": "supported decision and comparison evidence",
+        "findings": [],
+        "limits": {"reached": []},
+        "semantic_digest": "asserted by the executable fixture",
+        "semantic_cost": {"elapsed_time_excluded": true},
+        "retention": "live",
+        "unsupported_question": "Which application code changed the grant?"
+      }
+    },
+    {
+      "name": "retained-decision-review",
+      "question": "What exact decision explanation did the audit capture before source evidence changed?",
+      "request": {
+        "origin": "retained_causal_path",
+        "function": "pgreact_api.read_evidence_snapshot(target,text,text)",
+        "target": "decision_program:order-routing:1",
+        "root": "decision_result:1000",
+        "capture_key": "audit-2026-09"
+      },
+      "answer": {
+        "state": "available",
+        "nested_state": "complete",
+        "question_identity": {"target":"decision_program:order-routing:1","root":"decision_result:1000","snapshot":"audit-2026-09"},
+        "evidence_point": {"kind":"m42_capture","historical":true},
+        "boundary": "exact captured M41 answer",
+        "findings": [],
+        "limits": {"reached": []},
+        "semantic_digest": "asserted by the executable fixture",
+        "semantic_cost": {"elapsed_time_excluded": true},
+        "retention": "available",
+        "unsupported_question": "Is the retained decision still current?"
+      }
+    }
+  ]
+}

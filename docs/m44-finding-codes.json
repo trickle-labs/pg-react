@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "milestone": "M44",
+  "extension_version": "0.41.0",
+  "codes_are_inherited": true,
+  "codes": [
+    {"code":"M40_OPTIONS_INVALID","origin":"why_not","family":"invalid"},
+    {"code":"M40_EXPECTED_RESULT_INVALID","origin":"why_not","family":"invalid"},
+    {"code":"M40_TARGET_UNAVAILABLE","origin":"why_not","family":"unavailable"},
+    {"code":"M40_LIMIT","origin":"why_not","family":"limit"},
+    {"code":"M41_ROOT_NOT_FOUND","origin":"causal_path","family":"unavailable"},
+    {"code":"M41_UNSUPPORTED_ROOT","origin":"causal_path","family":"unsupported"},
+    {"code":"M41_LIMIT","origin":"causal_path","family":"limit"},
+    {"code":"M41_EVIDENCE_INCOMPLETE","origin":"causal_path","family":"incomplete"},
+    {"code":"M41_EVIDENCE_UNAVAILABLE","origin":"causal_path","family":"unavailable"},
+    {"code":"M41_EVIDENCE_UNAUTHORIZED","origin":"causal_path","family":"unauthorized"},
+    {"code":"M42_POLICY_MISSING","origin":"retained_causal_path","family":"unsupported"},
+    {"code":"M42_CAPTURE_DUPLICATE","origin":"retained_causal_path","family":"already_present"},
+    {"code":"M42_SNAPSHOT_MISSING","origin":"retained_causal_path","family":"missing"},
+    {"code":"M42_SNAPSHOT_DELETED","origin":"retained_causal_path","family":"deleted"},
+    {"code":"M42_UNAUTHORIZED","origin":"retained_causal_path","family":"unauthorized"},
+    {"code":"M38_EVIDENCE_PARTIAL","origin":"why_changed","family":"incomplete"},
+    {"code":"M38_EVIDENCE_UNAVAILABLE","origin":"why_changed","family":"unavailable"},
+    {"code":"M38_EVIDENCE_UNSUPPORTED","origin":"why_changed","family":"unsupported"},
+    {"code":"M38_EVIDENCE_AMBIGUOUS","origin":"why_changed","family":"ambiguous"},
+    {"code":"M38_EVIDENCE_CYCLIC","origin":"why_changed","family":"cyclic"},
+    {"code":"M38_EVIDENCE_LIMIT","origin":"why_changed","family":"limit"}
+  ]
+}

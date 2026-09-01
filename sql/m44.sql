@@ -1,0 +1,1 @@
+-- M44 qualifies installed explanation contracts. It adds no database objects.

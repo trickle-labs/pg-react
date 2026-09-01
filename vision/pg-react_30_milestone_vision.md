@@ -1,6 +1,6 @@
 # The M35-M64 vision for pg-react
 
-> Planning status (September 2026): M43 is complete, extension `0.40.0` is the current qualified baseline, and M44 is the current milestone. It targets extension `0.41.0`. `1.0.0` and its complete feature freeze are postponed indefinitely. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
+> Planning status (September 2026): M43 is complete, extension `0.40.0` is the current release, and M44 is the current qualification candidate for extension `0.41.0`. `1.0.0` and its complete feature freeze are postponed indefinitely. [`ROADMAP.md`](../ROADMAP.md) remains the canonical milestone schedule.
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [Practical rule-engine features](pg-react_practical_rule_engine_features.md), and [PostgreSQL as an operational data platform](operational-data-platform.md).
 
