@@ -30,6 +30,7 @@ run_test() {
   status=$?
   set -e
   if (( status == 0 )); then
+    printf '%s passed\n' "$name" >>"$log"
     echo "$name passed"
   else
     sed -n '1,$p' "$log"
