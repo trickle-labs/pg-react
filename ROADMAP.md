@@ -11,10 +11,9 @@
 > `1.0.0` and its feature freeze are postponed indefinitely. M39 completed
 > Capability area 1. M40 and extension `0.37.0` complete bounded why-not. M41
 > and extension `0.38.0` complete end-to-end causal paths. M42 and extension
-> `0.39.0` complete evidence snapshots. M43 is the current milestone. It defines
-> semantic policy differences for extension `0.40.0`. Before its contract
-> freezes, field evidence must show that existing declaration and outcome
-> comparisons cannot answer a real policy-review question.
+> `0.39.0` complete evidence snapshots. M43 and extension `0.40.0` complete
+> semantic policy differences. M44, explanation qualification, is the next
+> candidate and remains subject to M43 evidence and user traction.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 

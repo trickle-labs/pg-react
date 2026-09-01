@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "milestone": "M43",
+  "extension_version": "0.40.0",
+  "ordinary": {
+    "functions": ["pgreact_api.semantic_diff"],
+    "inputs": ["pgreact_api.declaration", "pgreact_api.target", "jsonb options"],
+    "supported_kinds": ["rule", "decision_program", "policy_set"],
+    "change_kinds": ["added", "removed", "changed"],
+    "states": ["complete", "partial", "invalid", "unsupported", "unavailable", "changed"]
+  },
+  "field_inventory": {
+    "rule": [
+      ["spec.condition", "relation_identity"], ["spec.semantic_key", "identifier"],
+      ["spec.kind", "scalar"], ["spec.on_activate", "function_identity"],
+      ["spec.on_deactivate", "function_identity"], ["spec.on_change", "function_identity"],
+      ["spec.bootstrap_policy", "scalar"], ["spec.change_columns", "ordered_list"],
+      ["spec.salience", "scalar"], ["spec.agenda_group", "scalar"],
+      ["spec.conflict_key_columns", "ordered_list"], ["spec.max_attempts", "scalar"],
+      ["spec.initial_backoff_seconds", "scalar"], ["spec.backoff_multiplier", "scalar"],
+      ["spec.max_backoff_seconds", "scalar"], ["spec.evidence_snapshot", "typed_value"]
+    ],
+    "decision_program": [
+      ["spec.candidate_relation", "relation_identity"], ["spec.subject_key", "identifier"],
+      ["spec.candidate_key", "identifier"], ["spec.priority", "identifier"],
+      ["spec.results", "result_binding"], ["spec.valid_from", "time_bound"],
+      ["spec.valid_to", "time_bound"], ["spec.max_candidates", "scalar"],
+      ["spec.delegate", "scalar"], ["spec.evidence_snapshot", "typed_value"]
+    ],
+    "policy_set": [
+      ["spec.version", "scalar"], ["spec.members", "keyed_set"],
+      ["spec.applicability.source_kind", "scalar"],
+      ["spec.applicability.relation", "relation_identity"],
+      ["spec.applicability.condition", "relation_identity"],
+      ["spec.applicability.version", "scalar"],
+      ["spec.applicability.subject_keys", "ordered_list"],
+      ["spec.valid_from", "time_bound"], ["spec.valid_to", "time_bound"],
+      ["spec.evidence_limit", "scalar"]
+    ]
+  },
+  "no_effect_boundary": ["no deployment", "no evaluation", "no source-row reads", "no work", "no frontier change"]
+}

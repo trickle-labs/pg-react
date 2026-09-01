@@ -41,6 +41,12 @@ milestone.
 - [M41 release notes](m41-release-notes.md), [contract](m41-contract.md), and
 [API reference](m41-api-reference.md) document the `0.38.0` end-to-end causal
 path milestone.
+- [M42 release notes](m42-release-notes.md), [contract](m42-contract.md), and
+  [API reference](m42-api-reference.md) document the `0.39.0` evidence-snapshot
+  milestone.
+- [M43 release notes](m43-release-notes.md), [contract](m43-contract.md), and
+  [API reference](m43-api-reference.md) document the `0.40.0` semantic-difference
+  milestone.
 - [`DESIGN.md`](../DESIGN.md) preserves the M13 architecture record.
 - The old [`v1-release-notes.md`](history/v1-release-notes.md) and
   [`v1-upgrades.md`](history/v1-upgrades.md) preserve the historical M4 `0.1.1`

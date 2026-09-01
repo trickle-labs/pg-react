@@ -2,7 +2,7 @@
 
 Related documents: [Product thesis](pg-react_product_thesis.md), [PostgreSQL as an operational data platform](operational-data-platform.md), and [Practical rule-engine features](pg-react_practical_rule_engine_features.md).
 
-> Current state: M42 and extension `0.39.0` are pg-react's qualified baseline. M43 is the current planning milestone and defines semantic policy differences for extension `0.40.0`. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely. The qualified stack uses PostgreSQL 18.3 and pg_trickle 0.81.0. See the [support matrix](../docs/v1-support-matrix.md). pg_trickle and pg_tide remain separate projects whose own documentation defines their releases and APIs.
+> Current state: M43 and extension `0.40.0` are pg-react's qualified baseline. M44, explanation qualification, is the next candidate. The repository retains the prepared `1.0.0-rc.1` candidate, but `1.0.0` and its complete feature freeze are postponed indefinitely. The qualified stack uses PostgreSQL 18.3 and pg_trickle 0.81.0. See the [support matrix](../docs/v1-support-matrix.md). pg_trickle and pg_tide remain separate projects whose own documentation defines their releases and APIs.
 
 An order crosses EUR 10,000 while its customer is marked high risk. The business must open a manual review and notify a risk platform. This is a rule: when a set of facts meets a condition, the system records the result and may start work. The condition is easy to state, but a reliable reaction must remember whether this order already opened a review, survive a crash, and avoid sending the same effect as if it were new.
 

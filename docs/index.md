@@ -1,11 +1,10 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M42 / extension
-`0.39.0` is the current release. It adds opt-in evidence snapshots that preserve
-one complete M41 decision answer for later inspection. M43 is the current
-planning milestone and defines semantic policy differences for extension
-`0.40.0`. The prepared `1.0.0-rc.1` candidate remains outside the current
-release sequence.
+This is the starting point for current pg-react documentation. M43 / extension
+`0.40.0` is the current release. It shows which modeled policy fields changed
+before a reviewer deploys an update. M43 is read-only: it does not evaluate,
+deploy, or create work. The prepared `1.0.0-rc.1` candidate remains outside
+the current release sequence.
 
 ## Start
 
@@ -27,6 +26,7 @@ release sequence.
 - [Bounded why-not](m40-api-reference.md)
 - [End-to-end causal paths](m41-api-reference.md)
 - [Evidence snapshots](m42-api-reference.md)
+- [Semantic policy differences](m43-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
@@ -43,12 +43,13 @@ release sequence.
 - [M40 bounded why-not contract](m40-contract.md)
 - [M41 causal-path contract](m41-contract.md)
 - [M42 evidence-snapshot contract](m42-contract.md)
+- [M43 semantic-difference contract](m43-contract.md)
 - [M39 simulation contract](m39-contract.md)
 - [M34 v1 baseline contract](v1-contract.md)
 - [Limits](v1-limits.md)
 - [Support Matrix](v1-support-matrix.md)
 - [Known Limitations](v1-known-limitations.md)
-- [Release Notes](m42-release-notes.md)
+- [Release Notes](m43-release-notes.md)
 
 ## Project / History
 

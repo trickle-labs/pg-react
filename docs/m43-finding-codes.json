@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "milestone": "M43",
+  "extension_version": "0.40.0",
+  "codes": [
+    {"code":"M43_OPTIONS_INVALID","severity":"ERROR"},
+    {"code":"M43_INVALID_DECLARATION","severity":"ERROR"},
+    {"code":"M43_TARGET_UNAVAILABLE","severity":"WARNING"},
+    {"code":"M43_KIND_MISMATCH","severity":"ERROR"},
+    {"code":"M43_NAME_MISMATCH","severity":"ERROR"},
+    {"code":"M43_VERSION_STALE","severity":"WARNING"},
+    {"code":"M43_UNSUPPORTED_KIND","severity":"ERROR"},
+    {"code":"M43_UNSUPPORTED_FIELD","severity":"ERROR"},
+    {"code":"M43_OBJECT_UNAVAILABLE","severity":"WARNING"},
+    {"code":"M43_OPAQUE_CHANGE","severity":"WARNING"},
+    {"code":"M43_LIMIT","severity":"WARNING"},
+    {"code":"M43_CHANGED_STATE","severity":"WARNING"},
+    {"code":"M43_NO_DIFFERENCE","severity":"INFO"}
+  ]
+}

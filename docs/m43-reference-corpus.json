@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "milestone": "M43",
+  "extension_version": "0.40.0",
+  "reviews": [
+    {
+      "name": "financial-exception",
+      "question": "Did the review threshold, priority, or result binding change?",
+      "deployed": {"kind":"rule","name":"payment-review","version":"1","spec":{"condition":"review.payments","semantic_key":"payment_id","kind":"CONSTRAINT","salience":10}},
+      "proposed": {"kind":"rule","name":"payment-review","version":"1","spec":{"condition":"review.payments","semantic_key":"payment_id","kind":"CONSTRAINT","salience":30}},
+      "differences": [{"field_path":"spec.salience","field_kind":"scalar","change_kind":"changed"}],
+      "opaque": [], "findings": [], "checksums": {"source":"review.payments"}, "unsupported_questions":["What business risk does the threshold imply?"]
+    },
+    {
+      "name": "access-drift",
+      "question": "Did the effective period or decision result columns change?",
+      "deployed": {"kind":"decision_program","name":"access-routing","version":"1","spec":{"candidate_relation":"review.routes","subject_key":"account_id","candidate_key":"route_id","priority":"priority","results":["role"],"valid_from":"2026-08-01T00:00:00Z"}},
+      "proposed": {"kind":"decision_program","name":"access-routing","version":"1","spec":{"candidate_relation":"review.routes","subject_key":"account_id","candidate_key":"route_id","priority":"priority","results":["role","reason"],"valid_from":"2026-09-01T00:00:00Z"}},
+      "differences": [{"field_path":"spec.results","field_kind":"result_binding","change_kind":"changed"},{"field_path":"spec.valid_from","field_kind":"time_bound","change_kind":"changed"}],
+      "opaque": [], "findings": [], "checksums": {"source":"review.routes"}, "unsupported_questions":["Which accounts will change outcome?"]
+    },
+    {
+      "name": "policy-set-applicability",
+      "question": "Did the governed population or member set change?",
+      "deployed": {"kind":"policy_set","name":"eu-controls","version":"2026-08","spec":{"version":"2026-08","members":[{"kind":"rule","name":"payment-review","version":"1"}],"applicability":{"source_kind":"relation","relation":"review.eu_accounts","subject_key":"account_id"}}},
+      "proposed": {"kind":"policy_set","name":"eu-controls","version":"2026-09","spec":{"version":"2026-09","members":[{"kind":"rule","name":"payment-review","version":"1"},{"kind":"rule","name":"access-review","version":"1"}],"applicability":{"source_kind":"relation","relation":"review.eu_accounts_next","subject_key":"account_id"}}},
+      "differences": [{"field_path":"spec.members","field_kind":"keyed_set","change_kind":"changed"},{"field_path":"spec.applicability.relation","field_kind":"relation_identity","change_kind":"changed"}],
+      "opaque": [{"field_path":"spec.applicability.relation","change_kind":"opaque"}], "findings": [], "checksums": {"source":"review.eu_accounts"}, "unsupported_questions":["Does the new population improve compliance?"]
+    }
+  ]
+}
