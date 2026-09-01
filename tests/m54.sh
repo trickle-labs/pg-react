@@ -67,6 +67,7 @@ fi
 
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=linux/amd64
+export PG_REACT_POLL_INTERVAL_MS=60000
 export PG_REACT_PORT_BINDING=${PG_REACT_PORT_BINDING:-127.0.0.1::5432}
 wait_for_version() {
   local version=$1
