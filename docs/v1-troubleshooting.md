@@ -1,5 +1,8 @@
 # v1 troubleshooting
 
+For package deployment issues in `0.42.0`, start with the returned finding code
+and re-run `pgreact.preview()` before retrying a stale plan.
+
 Use public SQL only. Never edit private catalogs, delete barriers directly, or
 repair an internal UUID by hand.
 

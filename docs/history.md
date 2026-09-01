@@ -11,6 +11,9 @@ instructions.
 
 ## Milestone documentation
 
+- [M53 release notes](m53-release-notes.md), [contract](m53-contract.md), and
+  [migration guide](m53-migration.md) document the `0.42.0` package release.
+
 - M0-M30 records preserve the incremental delivery history under `docs/history/m*-*`.
 - [M31 release notes](history/m31-release-notes.md) preserve the authoritative-runtime
   predecessor milestone.

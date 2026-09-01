@@ -1,0 +1,23 @@
+{
+  "extension_version": "0.42.0",
+  "contract_version": 53,
+  "functions": [
+    "pgreact.shared_condition(text,regclass,name[],text)",
+    "pgreact.parameter_family(text,regclass,name,name[])",
+    "pgreact.policy_set(text,text,pgreact_api.declaration[],regclass,name[],pgreact_api.declaration[],jsonb,timestamptz,timestamptz,integer)",
+    "pgreact.validate(pgreact_api.declaration)",
+    "pgreact.preview(pgreact_api.declaration,jsonb)",
+    "pgreact.deploy(pgreact_api.declaration,jsonb)",
+    "pgreact.compare(pgreact_api.declaration,pgreact_api.target,jsonb)",
+    "pgreact_api.semantic_diff(pgreact_api.declaration,pgreact_api.target,jsonb)",
+    "pgreact.status(text,jsonb)",
+    "pgreact.doctor(text,jsonb)",
+    "pgreact.explain(text,jsonb,jsonb)",
+    "pgreact.remove(text,jsonb)",
+    "pgreact.export(text,text,text)",
+    "pgreact.import(jsonb,jsonb)"
+  ],
+  "views": ["pgreact.policy_set_contents", "pgreact.policy_set_dependencies"],
+  "actions": ["ADD", "KEEP", "REPLACE", "ADOPT", "REMOVE"],
+  "limits": {"members": 64, "support": 64, "dependencies": 256, "canonical_bytes": 1048576}
+}

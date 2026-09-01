@@ -6,11 +6,10 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M44 / extension `0.41.0` is the current release. It gives current outcomes,
-comparisons, decisions, work, and retained evidence one bounded explanation
-contract. M53 complete policy-set packaging is the current planning milestone.
-It will make a policy set one unit to validate, compare, export, deploy,
-inspect, and remove. The prepared
+M53 / extension `0.42.0` is the current release. It puts rules, decisions,
+shared conditions, parameter definitions, applicability, and dependencies into
+one named package that can be validated, previewed, exported, deployed,
+inspected, and removed as one unit. The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence, and
 `1.0.0` is postponed indefinitely. Start with the
 [documentation home](docs/index.md).

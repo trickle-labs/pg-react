@@ -1,6 +1,6 @@
 # Capability area 2 ergonomics implementation plan
 
-> Status: ready for implementation
+> Status: implemented and qualified in the M53 release lane
 > Release target: M53 / extension `0.42.0`
 > Dependency: M44 / extension `0.41.0`
 > Scope: additive operator ergonomics over the installed Area 2 semantics

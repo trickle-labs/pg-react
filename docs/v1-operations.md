@@ -1,7 +1,10 @@
 # v1 operations
 
-This is the current production runbook for extension `0.38.0`. Use public SQL
+This is the current production runbook for extension `0.42.0`. Use public SQL
 only. Never update `pgreact_internal` or `pgreact_runtime`.
+
+For grouped policy changes, follow the validate-preview-deploy workflow in
+[the M53 package reference](m53-api-reference.md).
 
 Every procedure follows:
 
@@ -70,9 +73,9 @@ public view.
    ```
 
 2. **Diagnose** — confirm the current database is listed, the configured role
-   can connect and has worker privileges, and both `pg_trickle` and `pg_react`
-   are preloaded. The runtime coordinates extension versions `0.31.0` through
-   `0.38.0`, `1.0.0-rc.N`, and `1.0.0`.
+    can connect and has worker privileges, and both `pg_trickle` and `pg_react`
+    are preloaded. The runtime coordinates extension versions `0.31.0` through
+    `0.42.0`, `1.0.0-rc.N`, and `1.0.0`.
 3. **Repair prerequisite** — correct the postmaster settings or worker role.
    Changes to `pg_react.databases` and `pg_react.worker_role` require a
    PostgreSQL restart.

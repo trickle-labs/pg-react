@@ -13,9 +13,9 @@
 > and extension `0.38.0` complete end-to-end causal paths. M42 and extension
 > `0.39.0` complete evidence snapshots. M43 and extension `0.40.0` complete
 > semantic policy differences. M44 and extension `0.41.0` complete explanation
-> qualification. M53 complete policy-set packaging is the current milestone
-> for extension `0.42.0`. M45 through M52 remain named candidates, not the
-> implementation sequence.
+> qualification. M53 implementation and qualification are complete for extension
+> `0.42.0`; publish the version tag after the release lane passes. M45 through
+> M52 remain named candidates, not the implementation sequence.
 
 **Product goal:** make `pg-react` the obvious rule engine for PostgreSQL users: powerful enough for serious rule logic, but simple, inspectable, and recognizably PostgreSQL.
 
@@ -4456,6 +4456,9 @@ their installed behavior. The packaged candidate must pass `tests/m53.sh
 complete`.
 
 **Owner:** pg-react maintainers.
+
+**Status:** implementation complete; the `v0.42.0` release tag and publication
+remain the next release action.
 
 **Entry gate:** the exact `v0.41.0` artifacts are published and every automated
 M44 release gate passes.

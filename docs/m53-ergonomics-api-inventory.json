@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "milestone": "M53",
+  "extension_version": "0.42.0",
+  "slice": "ergonomics-phases-0-through-4",
+  "functions": [
+    {"name":"pgreact.why_not","arguments":["text","jsonb","text","jsonb"]},
+    {"name":"pgreact.trace","arguments":["text","jsonb","jsonb"]},
+    {"name":"pgreact.trace","arguments":["text","text"]},
+    {"name":"pgreact.trace","arguments":["jsonb"]},
+    {"name":"pgreact.compare","arguments":["pgreact_api.declaration","boolean"]},
+    {"name":"pgreact.semantic_diff","arguments":["pgreact_api.declaration"]},
+    {"name":"pgreact.explanation_summary","arguments":["jsonb"]},
+    {"name":"pgreact.explanation_capabilities","arguments":["text"]},
+    {"name":"pgreact.capture_evidence","arguments":["jsonb","text"]},
+    {"name":"pgreact.read_evidence","arguments":["text"]},
+    {"name":"pgreact.delete_evidence","arguments":["text"]}
+  ],
+  "limits": {
+    "reference_bytes": 65536,
+    "snapshot_identity_bytes": 4096,
+    "summary_actions": 16,
+    "summary_children": 256
+  },
+  "compatibility": {
+    "existing_explain_identity_preserved": true,
+    "existing_area_2_result_contracts_preserved": [14,25,26,27,28,43],
+    "summary_read_only": true,
+    "capabilities_read_only": true
+  }
+}

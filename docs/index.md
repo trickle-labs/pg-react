@@ -1,9 +1,8 @@
 # pg-react documentation
 
-This is the starting point for current pg-react documentation. M44 / extension
-`0.41.0` is the current release. It qualifies bounded explanations for current
-outcomes, comparisons, decisions, work, and retained evidence. M53 complete
-policy-set packaging is the current planning milestone. The prepared
+This is the starting point for current pg-react documentation. M53 / extension
+`0.42.0` is the current release. It packages related policy declarations into
+one validated and atomic deployment unit. The prepared
 `1.0.0-rc.1` candidate remains outside the current release sequence.
 
 ## Start
@@ -29,6 +28,7 @@ policy-set packaging is the current planning milestone. The prepared
 - [Evidence snapshots](m42-api-reference.md)
 - [Semantic policy differences](m43-api-reference.md)
 - [Explanation API reference](m44-api-reference.md)
+- [M53 package API reference](m53-api-reference.md)
 - [API Reference](v1-api-reference.md)
 
 ## Operate
@@ -53,6 +53,7 @@ policy-set packaging is the current planning milestone. The prepared
 - [Support Matrix](v1-support-matrix.md)
 - [Known Limitations](v1-known-limitations.md)
 - [Release Notes](m44-release-notes.md)
+- [M53 release notes](m53-release-notes.md)
 
 ## Project / History
 

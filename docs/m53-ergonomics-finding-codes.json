@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "milestone": "M53",
+  "extension_version": "0.42.0",
+  "codes": [
+    {"code":"M53_EXPLAIN_QUESTION_CONFLICT","origin":"dispatcher","family":"invalid"},
+    {"code":"M53_EXPLANATION_REF_INVALID","origin":"reference","family":"invalid"},
+    {"code":"M53_EXPLANATION_REF_STALE","origin":"reference","family":"unavailable"},
+    {"code":"M53_WORK_UNAVAILABLE","origin":"causal_path","family":"unavailable"},
+    {"code":"M53_SNAPSHOT_IDENTITY_INVALID","origin":"retained_causal_path","family":"invalid"},
+    {"code":"M53_EXPLANATION_SUMMARY_UNSUPPORTED","origin":"summary","family":"unsupported"},
+    {"code":"M53_TARGET_UNAVAILABLE","origin":"capabilities","family":"unavailable"},
+    {"code":"M53_STATE_INCOMPLETE","origin":"summary","family":"incomplete"}
+  ],
+  "mapping": "explicit SQL mapping in pgreact_internal.m53_next_actions"
+}

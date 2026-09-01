@@ -72,6 +72,9 @@ priorities produce ambiguity rather than an arbitrary winner.
 
 ### `pgreact.policy_set`
 
+For complete package declarations, use the additional `support` and
+`dependencies` parameters described in [the M53 package reference](m53-api-reference.md).
+
 ```sql
 pgreact.policy_set(
     name text,
