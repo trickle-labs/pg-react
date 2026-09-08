@@ -4,6 +4,11 @@
 > qualified baseline for this vision. `1.0.0` remains postponed indefinitely.
 > [`ROADMAP.md`](../ROADMAP.md) is the canonical delivery plan.
 
+The [September assessment](../pg-react-assessment.md) has now supplied concrete
+work for `0.43.2`, `0.43.3`, and `0.44.0`. The roadmap and its implementation
+plans take precedence over the candidate-selection discussion below. The
+assessment identifies gaps in the baseline guarantees that these releases must fix.
+
 Related documents: [Product thesis](pg-react_product_thesis.md),
 [Practical rule-engine features](pg-react_practical_rule_engine_features.md),
 and [PostgreSQL as an operational data platform](operational-data-platform.md).
@@ -44,11 +49,13 @@ The [M54 contract](../docs/m54-contract.md),
 [release notes](../docs/m54-release-notes.md), and
 [known limitations](../docs/m54-known-limitations.md) define the exact release.
 
-## How the next milestone is chosen
+## How milestones after v0.44.0 are chosen
 
-The project commits to one milestone at a time after the `0.43.1` field-evidence
-period. Five candidates remain. Their identifiers preserve continuity with the
-roadmap and release history; their numbers do not prescribe delivery order.
+The next three versions are committed in the roadmap. After `0.44.0`, select
+additional work from the evidence they produce. Five topic candidates remain.
+Their identifiers preserve continuity with release history; their numbers do
+not prescribe delivery order. The committed plans already cover the assessment's
+authorization, recovery, and scale work within these topics.
 
 Selection follows three rules:
 
@@ -56,7 +63,7 @@ Selection follows three rules:
    or reconciliation evidence exposes a safety problem.
 2. M58 or M45 starts when a real prospective installation is blocked by
    authorization or rolling and hopping windows.
-3. Otherwise, M59 is the default next milestone after the field-evidence period.
+3. Further M59 work extends measured limits only when a named workload requires it.
 
 A candidate enters the committed horizon only with a named blocking workload,
 executable acceptance criteria, and an owner. The release after it is selected
@@ -66,8 +73,8 @@ from the evidence it produces.
 
 ### M59: Qualify supported scale
 
-M59 is the default next milestone. It measures the operating boundary of the
-current product rather than adding a performance feature.
+The `0.44.0` plan commits the initial M59 measurement work. It measures the
+operating boundary of the current product rather than adding a performance feature.
 
 Qualification must publish repeatable curves for rule count, match count,
 fan-out, reevaluation, cascade depth, lifecycle churn, work throughput,
