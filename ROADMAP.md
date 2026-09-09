@@ -31,7 +31,7 @@ pg-react owns policy evaluation and delivery bookkeeping. MDM owns reviews, iden
 
 ## 2. What changes from the September 7 proposal
 
-The proposal used pg-react `0.43.1` / pg_trickle `0.81.0` as its baseline and anticipated a `0.97` upstream freeze. The new baseline is pg-react `0.45.0` / pg_trickle `0.98.0`, but that does **not** satisfy the original live-integration gate. Current release records say Graph V1 and Delta V1 are discovered, disabled, and not used; pg_trickle's `0.98` plan explicitly disables both. Upstream currently assigns final conformance to planned `0.104.0`, but a future version number is not evidence of availability. [S1–S5]
+The proposal used pg-react `0.43.1` / pg_trickle `0.81.0` as its baseline and anticipated a `0.97` upstream freeze. The new baseline is pg-react `0.45.0` / pg_trickle `0.98.0`, but that does **not** satisfy the original live-integration gate. Release records say Graph V1 and Delta V1 are discovered, disabled, and not used; pg_trickle's `0.98` plan explicitly disables both. Upstream currently assigns final conformance to planned `0.104.0`, but a future version number is not evidence of availability. [S1–S5]
 
 There is also an unresolved artifact discrepancy: the React manifest names PostgreSQL 18.4 while the pinned upstream image reports 18.3. The first implementation plan resolves the supported artifact identity and qualifies the exact resulting stack; it must not relabel an untested image. The current coordinated differential-refresh setting must remain protected until a separate test proves a replacement safe. [S1–S3]
 
