@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "release": "0.45.0",
+  "pg_trickle": "0.98.0",
+  "coordination_mode": "LEGACY_EXPLICIT",
+  "scheduler_expected": "off",
+  "cdc_expected": "trigger",
+  "capabilities": {
+    "external_graph_refresh": {
+      "major": 1,
+      "minor": 0,
+      "enabled": false,
+      "status": "experimental"
+    },
+    "output_delta_consumer": {
+      "major": 1,
+      "minor": 0,
+      "enabled": false,
+      "status": "experimental"
+    }
+  },
+  "observed_incompatibilities": []
+}

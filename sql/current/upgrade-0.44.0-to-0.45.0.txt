@@ -1,0 +1,3 @@
+# Adjacent upgrade contains only the current release definitions.
+# The qualification lane applies this file through ALTER EXTENSION.
+sql/current/comparison.sql
