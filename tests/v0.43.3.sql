@@ -135,7 +135,7 @@ BEGIN
               AND attname = 'state_changed_at'
               AND NOT attisdropped),
         'agenda_timestamp_trigger', (
-            SELECT trigger_name
+            SELECT DISTINCT trigger_name
             FROM information_schema.triggers
             WHERE event_object_schema = 'pgreact_internal'
               AND event_object_table = 'agenda'
