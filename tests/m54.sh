@@ -60,7 +60,7 @@ static_audit() {
   jq -e --arg version "$expected_version" '.extension_version == $version and .contract_version == 54' docs/m54-api-inventory.json >/dev/null
   cmp sql/pg_react--0.43.0--0.43.1.sql sql/m54.sql
   cmp sql/pg_react--0.43.1.sql <(awk 'FNR==NR {if ($0 ~ /^-- M54 adoption hardening/) {seen=1} if (!seen) print; next} {print}' sql/pg_react--0.43.0.sql sql/m54.sql)
-  ! rg -n 'pg_sleep' README.md docs/getting-started.md docs/order-review-tutorial.md showcase/order-review
+  ! grep -ERn 'pg_sleep' README.md docs/getting-started.md docs/order-review-tutorial.md showcase/order-review
   echo 'M54 static and artifact audit passed'
 }
 

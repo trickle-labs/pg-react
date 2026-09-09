@@ -14,7 +14,7 @@
     "classification_source": "surfaces.<classification>.functions and surfaces.<classification>.views",
     "allowlist_rule": "Every public function and relation must have one exact catalog entry. Prefix matching is not permitted.",
     "ordinary_policy_set": "pgreact.policy_set and its complete package constructor are ordinary.",
-    "expected_catalog_sha256": "985b523d239b52dbb0287ca705f715d5951a80d2b92219dd25364a413ce94895"
+    "expected_catalog_sha256": "d0fe2f665411c2e8ab54d4b9f2f59b3d27504fc8719ddada4f45bb7a11fd4676"
   },
   "surfaces": {
     "ordinary": {
@@ -347,6 +347,7 @@
         "pgreact.remove_m53",
         "pgreact.export_m32",
         "pgreact.import_m32",
+        "pgreact.health_check_m44",
         "pgreact.validate_pack_v1",
         "pgreact.preview_pack_v1",
         "pgreact.deploy_pack_v1",
@@ -393,6 +394,7 @@
         "pgreact_api.doctor_m29",
         "pgreact_api.doctor_m30",
         "pgreact_api.doctor_m31",
+        "pgreact_api.doctor_m44",
         "pgreact_api.run_m28",
         "pgreact_api.run_m29",
         "pgreact_api.run_m30",

@@ -58,7 +58,7 @@ static_audit() {
     .capabilities.external_graph_refresh.enabled == false and
     .capabilities.output_delta_consumer.enabled == false' \
     tests/fixtures/v0.45.0/pgtrickle-compatibility.json >/dev/null
-  if rg -n 'pgtrickle\.(set_orchestration_mode|graph_contract|refresh_graph_strict|register_output_delta_consumer)' \
+  if grep -En 'pgtrickle\.(set_orchestration_mode|graph_contract|refresh_graph_strict|register_output_delta_consumer)' \
     tests/v0.45.0.sql tests/v0.45.0-upgrade.sql tests/v0.45.0-concurrency.sql; then
     echo 'disabled Graph/Delta APIs must not be called' >&2
     return 1
