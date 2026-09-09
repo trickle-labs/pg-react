@@ -70,7 +70,7 @@ jobs:
           test -s "$evidence_dir/m55-candidate-image.SHA256SUMS"
           entries='[]'
           while IFS= read -r artifact; do
-            test -s "$artifact"
+            test -f "$artifact"
             digest=$(sha256sum "$artifact" | awk '{print $1}')
             entries=$(jq --arg artifact "$artifact" --arg digest "$digest" \
               '. + [{milestone: "M55", mode: "executed", artifact: $artifact, sha256: $digest}]' <<< "$entries")
