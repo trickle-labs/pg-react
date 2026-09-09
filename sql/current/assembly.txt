@@ -1,0 +1,3 @@
+# Ordered, explicit current installation inputs.
+sql/pg_react--0.43.3.sql
+sql/current/comparison.sql

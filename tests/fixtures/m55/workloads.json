@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "release": "0.44.0",
+  "milestone": "M55",
+  "seed": 4400,
+  "timestamps": "2026-01-01T00:00:00Z plus deterministic offsets",
+  "warmups": 1,
+  "measured_repetitions": 5,
+  "baseline": {
+    "rules": 10,
+    "matches": 10000,
+    "changed_facts_percent": 1,
+    "source_shape": "simple_filter",
+    "work": "steady_load",
+    "contention": "independent_keys",
+    "consequence": "fast_database_write",
+    "history": "fresh"
+  },
+  "required_cases": [
+    "comparison.fixed_target.unrelated_history",
+    "comparison.shared_source.validation",
+    "runtime.empty_queue",
+    "runtime.sustained_backlog_hot_conflict",
+    "recovery.worker_loss_expired_leases",
+    "review.evidence_limit_1_and_100",
+    "packages.layered_dag_61_nodes"
+  ],
+  "acceptance": {
+    "comparison_p95_ms": null,
+    "recovery_p95_ms": null,
+    "status": "pending-pinned-runner"
+  }
+}

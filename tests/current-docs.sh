@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-expected=0.43.3
+expected=0.44.0
 test -s docs/current-release.json
-jq -e --arg version "$expected" --arg previous 0.43.2 \
-   '.schema_version == 1 and .milestone == "M54" and .extension_version == $version and
-    .previous_extension_version == $previous and .adjacent_upgrade == "0.43.2 -> 0.43.3" and
+jq -e --arg version "$expected" --arg previous 0.43.3 \
+   '.schema_version == 1 and .milestone == "M55" and .extension_version == $version and
+    .previous_extension_version == $previous and .adjacent_upgrade == "0.43.3 -> 0.44.0" and
    .v1_status == "postponed_indefinitely"' docs/current-release.json >/dev/null
 grep -qx "version = \"$expected\"" Cargo.toml
 awk '/name = "pg_react"/{found=1; next} found && /^version =/{print; exit}' Cargo.lock |
@@ -23,7 +23,7 @@ current_files=(
   docs/limits.md docs/compatibility.md docs/versioning.md docs/concepts.md
   docs/deprecations.md docs/product-contract.md docs/order-review-tutorial.md
   showcase/order-review/README.md
-  docs/v0.43.3-release-notes.md docs/v0.43.3-migration.md
+  docs/benchmarks.md docs/v0.44.0-release-notes.md docs/v0.44.0-migration.md
 )
 for file in "${current_files[@]}"; do
   test -s "$file"
@@ -38,10 +38,10 @@ for file in README.md ROADMAP.md docs/index.md docs/getting-started.md docs/inst
   docs/authoring.md docs/operations.md docs/api-reference.md docs/security.md \
   docs/backup-restore.md docs/upgrade.md docs/troubleshooting.md \
   docs/support-matrix.md docs/known-limitations.md docs/deprecations.md \
-  docs/product-contract.md docs/v0.43.3-release-notes.md; do
+  docs/product-contract.md docs/benchmarks.md docs/v0.44.0-release-notes.md; do
   ! grep -Fq '1.0.0-rc.1' "$file"
 done
 
-grep -Fq 'm54-release-notes.md' docs/history.md
-grep -Fq 'm54-migration.md' docs/history.md
-echo 'M54 current-release audit passed'
+grep -Fq 'v0.44.0-release-notes.md' docs/history.md
+grep -Fq 'v0.44.0-migration.md' docs/history.md
+echo 'M55 current-release audit passed'

@@ -12,5 +12,5 @@ jobs:
   qualification:
     uses: ./.github/workflows/qualification.yml
     with:
-      image: pg-react:m54-unreleased
+      image: pg-react:m55-unreleased
     secrets: inherit

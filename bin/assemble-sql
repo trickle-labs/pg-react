@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+output=${1:-sql/pg_react--0.44.0.sql}
+manifest=${2:-sql/current/assembly.txt}
+test -s "$manifest"
+: > "$output"
+while IFS= read -r input; do
+  [[ -z "$input" || "$input" == \#* ]] && continue
+  test -s "$input"
+  cat "$input" >> "$output"
+done < "$manifest"

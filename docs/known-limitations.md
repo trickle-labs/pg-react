@@ -1,6 +1,6 @@
 # Known Limitations
 
-The current release is pg-react `0.43.3`.
+The current release is pg-react `0.44.0`.
 
 - External delivery is at least once, not exactly once.
 - Comparison and evidence are bounded; large results may be partial.

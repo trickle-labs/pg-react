@@ -11,6 +11,9 @@ instructions.
 
 ## Milestone documentation
 
+- [v0.44.0 release notes](v0.44.0-release-notes.md), [migration guide](v0.44.0-migration.md),
+  and [benchmarks](benchmarks.md) document the M55 measured-limits release.
+
 - [M53 release notes](m53-release-notes.md), [contract](m53-contract.md), and
   [migration guide](m53-migration.md) document the `0.42.0` package release.
 - [M54 release notes](m54-release-notes.md), [contract](m54-contract.md), and

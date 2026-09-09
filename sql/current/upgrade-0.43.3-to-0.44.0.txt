@@ -1,0 +1,2 @@
+# Adjacent upgrade contains only the current release definitions.
+sql/current/comparison.sql
