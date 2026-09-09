@@ -1,6 +1,6 @@
 # Support Matrix
 
-The current adoption boundary is pg-react `0.43.1` on PostgreSQL 18.3,
+The current adoption boundary is pg-react `0.43.2` on PostgreSQL 18.3,
 pg_trickle 0.81.0, pgrx 0.18.0, Rust 1.89.0, Linux `amd64`, `READ COMMITTED`,
 and the PostgreSQL-managed runtime.
 

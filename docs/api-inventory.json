@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "extension_version": "0.43.1",
+  "extension_version": "0.43.2",
   "contract_version": 54,
   "classification_order": [
     "ordinary",
@@ -14,7 +14,7 @@
     "classification_source": "surfaces.<classification>.functions and surfaces.<classification>.views",
     "allowlist_rule": "Every public function and relation must have one exact catalog entry. Prefix matching is not permitted.",
     "ordinary_policy_set": "pgreact.policy_set and its complete package constructor are ordinary.",
-    "expected_catalog_sha256": "8c52e0d3d405e82a4877f49776789f1841a2b109041e5115f3b498fb4f48e01d"
+    "expected_catalog_sha256": "c3fcfa19b2ceb4cc378029af7b1b004475931e379669ec70bd13fef6be9f18cc"
   },
   "surfaces": {
     "ordinary": {
@@ -417,6 +417,7 @@
         "pgreact_api.configure_roles_m41",
         "pgreact_api.configure_roles_m42",
         "pgreact_api.configure_roles_m43",
+        "pgreact_api.configure_roles_m53",
         "pgreact_api.m14_pack",
         "pgreact_api.run_m30_global",
         "pgreact_api.run_m31_global",

@@ -1,6 +1,6 @@
 # Operations
 
-The current release is pg-react `0.43.1`. PostgreSQL-managed workers normally
+The current release is pg-react `0.43.2`. PostgreSQL-managed workers normally
 poll each configured database. A deliberate cycle is useful in a tutorial or
 operator check:
 

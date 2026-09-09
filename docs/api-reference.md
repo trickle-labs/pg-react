@@ -1,6 +1,6 @@
 # API Reference
 
-This is the current pg-react `0.43.1` reference. Choose a surface by the job
+This is the current pg-react `0.43.2` reference. Choose a surface by the job
 it performs, not by a milestone number.
 
 ## Ordinary

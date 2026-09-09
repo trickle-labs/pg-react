@@ -2,7 +2,7 @@
 set -euo pipefail
 
 jq -e '
-  .schema_version == 1 and .extension_version == "0.43.1" and
+  .schema_version == 1 and .extension_version == "0.43.2" and
   .classification_order == ["ordinary", "compatibility", "advanced", "administrative"] and
   (.surfaces | keys | sort) == ["administrative", "advanced", "compatibility", "internal_not_public", "ordinary"] and
   (.surfaces.ordinary.functions | index("pgreact.review_token(preview_result jsonb)")) != null and
@@ -37,12 +37,12 @@ trap cleanup EXIT
 mkdir -p -- "${artifact%/*}"
 export COMPOSE_PROJECT_NAME=$project
 export PG_REACT_IMAGE=$image
-export PG_REACT_INIT_VERSION=0.43.1
+export PG_REACT_INIT_VERSION=0.43.2
 docker compose up -d --no-build >/dev/null 2>&1
 ready=
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -XAtq -U postgres -d postgres -c \
-      "SELECT extversion = '0.43.1' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
+      "SELECT extversion = '0.43.2' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
     ready=1
     break
   fi

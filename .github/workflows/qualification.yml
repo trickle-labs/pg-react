@@ -46,8 +46,8 @@ jobs:
         run: bash tests/api-inventory.sh "${{ inputs.image }}"
       - name: Run complete candidate qualification
         env:
-          M54_ARTIFACT_DIR: ${{ github.workspace }}/m54-evidence
-        run: bash tests/m54.sh complete "${{ inputs.image }}"
+          V0432_ARTIFACT_DIR: ${{ github.workspace }}/m54-evidence
+        run: bash tests/v0.43.2.sh complete "${{ inputs.image }}"
       - name: Archive candidate image
         run: |
           mkdir -p m54-evidence
