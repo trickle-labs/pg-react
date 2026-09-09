@@ -1,6 +1,6 @@
 # Concepts
 
-These are the current pg-react `0.43.2` concepts. The ordinary path is
+These are the current pg-react `0.43.3` concepts. The ordinary path is
 described by task; milestone names belong in [History](history.md).
 
 pg-react adds policy lifecycle and durable work to PostgreSQL without creating

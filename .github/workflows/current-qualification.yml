@@ -1,0 +1,16 @@
+name: Current qualification
+
+on:
+  schedule:
+    - cron: '0 3 * * 3'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  qualification:
+    uses: ./.github/workflows/qualification.yml
+    with:
+      image: pg-react:m54-unreleased
+    secrets: inherit

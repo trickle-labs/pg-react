@@ -1,6 +1,6 @@
 # Operations
 
-The current release is pg-react `0.43.2`. PostgreSQL-managed workers normally
+The current release is pg-react `0.43.3`. PostgreSQL-managed workers normally
 poll each configured database. A deliberate cycle is useful in a tutorial or
 operator check:
 
@@ -10,9 +10,8 @@ SELECT pgreact.status('review-orders');
 SELECT pgreact.explain('review-orders');
 ```
 
-Use stable names for normal recovery. Existing recovery semantics still apply;
-the names-first overloads resolve the authorized rule and delegate to the
-authoritative implementation:
+Use stable names for normal recovery. The lease sweep resolves every
+authorized `ACTIVE`, `PAUSED`, and `DRAINING` version for the rule name:
 
 ```sql
 SELECT pgreact.sweep_expired_leases('review-orders');
@@ -37,24 +36,35 @@ FROM pgreact.work
 ORDER BY updated_at DESC NULLS LAST, kind, name, work_id;
 ```
 
+`claimable` is advisory: another transaction can claim work after the read.
+For pre-0.43.3 agenda rows, `updated_at` can be NULL because the historical
+transition time was not recorded.
+
 If the worker is absent or unhealthy, check `shared_preload_libraries`,
 `pg_react.databases`, `pg_react.worker_role`, and the worker role's database
 privileges. Restart PostgreSQL after correcting a preload, database-list, or
 worker-role setting. Do not start a second coordinator for the same database.
 
 For `LEASED` work, confirm that the worker no longer runs before sweeping the
-expired lease:
+expired lease. The name sweep covers old draining versions as well as the
+current version:
 
 ```sql
 SELECT pgreact.sweep_expired_leases('<rule-name>');
 ```
 
-For terminal work, inspect `pgreact.attempts`, repair the consequence, and
-requeue only after confirming that the external consumer deduplicates delivery:
+For changed source, consequence, or dispatcher definitions, inspect the failed
+attempt, repair through the authorized replacement workflow, and requeue only
+after confirming that the external consumer deduplicates delivery:
 
 ```sql
 SELECT pgreact.requeue_episode('<work-id>');
 ```
+
+If managed status reports `state = error` with a blocked runtime detail,
+repair the reported barrier or source and run the authorized reconciliation
+path. A later successful cycle clears the managed error detail; job progress
+made during a blocked coordination result remains visible in `pgreact.work`.
 
 ## Recover after drift or restore
 

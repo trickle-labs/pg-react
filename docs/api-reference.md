@@ -1,6 +1,6 @@
 # API Reference
 
-This is the current pg-react `0.43.2` reference. Choose a surface by the job
+This is the current pg-react `0.43.3` reference. Choose a surface by the job
 it performs, not by a milestone number.
 
 ## Ordinary
@@ -26,3 +26,8 @@ administrative surfaces. Existing compatibility replacements remain installed
 but are not the preferred ordinary replacement path.
 
 The [machine-readable API inventory](api-inventory.json) is checked by CI.
+
+The existing `pgreact.sweep_expired_leases(rule_name text)` overload preserves
+its bigint return type and now sweeps authorized active, paused, and draining
+versions. `pgreact.work.claimable` is advisory, and `updated_at` exposes
+real agenda activity from 0.43.3 onward; unknown pre-upgrade history is NULL.

@@ -1,8 +1,6 @@
 name: M29 complete evidence
 
 on:
-  schedule:
-    - cron: '0 3 * * 1'
   workflow_dispatch:
 
 permissions:
@@ -13,6 +11,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: v0.26.0
       - name: Fetch inherited release images
         run: |
           for version in 0.23.0 0.24.0 0.25.0; do

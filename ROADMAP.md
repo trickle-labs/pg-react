@@ -2,7 +2,7 @@
 
 > **Status:** Living delivery plan  
 > **Last updated:** 2026-09-08
-> **Current release:** `0.43.2` (M54)
+> **Current release:** `0.43.3` (M54)
 
 ## Product goal
 

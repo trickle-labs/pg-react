@@ -20,6 +20,8 @@ jobs:
         with:
           toolchain: 1.89.0
           components: rustfmt
+      - name: Create evidence directory
+        run: mkdir -p m54-evidence
       - name: Rust format
         run: cargo fmt --check
       - name: Rust tests
@@ -35,7 +37,12 @@ jobs:
             ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95 \
             cargo check --features pg18
       - name: Build candidate
-        run: docker build --tag "${{ inputs.image }}" .
+        run: |
+          set +e
+          docker build --tag "${{ inputs.image }}" . > m54-evidence/build.log 2>&1
+          status=$?
+          set -e
+          exit "$status"
       - name: Current documentation audit
         run: bash tests/current-docs.sh
       - name: Workflow syntax audit
@@ -46,8 +53,8 @@ jobs:
         run: bash tests/api-inventory.sh "${{ inputs.image }}"
       - name: Run complete candidate qualification
         env:
-          V0432_ARTIFACT_DIR: ${{ github.workspace }}/m54-evidence
-        run: bash tests/v0.43.2.sh complete "${{ inputs.image }}"
+          V0433_ARTIFACT_DIR: ${{ github.workspace }}/m54-evidence
+        run: bash tests/v0.43.3.sh complete "${{ inputs.image }}"
       - name: Archive candidate image
         run: |
           mkdir -p m54-evidence
@@ -74,7 +81,18 @@ jobs:
             --argjson entries "$entries" \
             '{schema_version: 1, milestone: "M54", commit: $commit, workflow_run: $run, entries: $entries}' \
             > m54-evidence/evidence-manifest.json
+      - name: Write failed evidence manifest
+        if: ${{ failure() }}
+        run: |
+          jq -n \
+            --arg commit "${GITHUB_SHA}" \
+            --arg run "${GITHUB_RUN_ID}" \
+            '{schema_version: 1, milestone: "M54", status: "failed",
+              commit: $commit, workflow_run: $run,
+              missing_steps: ["candidate qualification"]}' \
+            > m54-evidence/evidence-manifest.json
       - name: Upload qualified candidate and evidence
+        if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: m54-qualified-candidate

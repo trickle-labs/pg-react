@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-expected=0.43.2
+expected=0.43.3
 test -s docs/current-release.json
-jq -e --arg version "$expected" --arg previous 0.43.1 \
-  '.schema_version == 1 and .milestone == "M54" and .extension_version == $version and
-   .previous_extension_version == $previous and .adjacent_upgrade == "0.43.1 -> 0.43.2" and
+jq -e --arg version "$expected" --arg previous 0.43.2 \
+   '.schema_version == 1 and .milestone == "M54" and .extension_version == $version and
+    .previous_extension_version == $previous and .adjacent_upgrade == "0.43.2 -> 0.43.3" and
    .v1_status == "postponed_indefinitely"' docs/current-release.json >/dev/null
 grep -qx "version = \"$expected\"" Cargo.toml
 awk '/name = "pg_react"/{found=1; next} found && /^version =/{print; exit}' Cargo.lock |
@@ -16,13 +16,14 @@ grep -Fq "PG_REACT_INIT_VERSION=$expected" Dockerfile
 grep -Fq "pg-react:$expected" docker-compose.yml
 
 current_files=(
-  README.md docs/index.md docs/getting-started.md docs/installation.md
+  README.md ROADMAP.md docs/index.md docs/getting-started.md docs/installation.md
   docs/authoring.md docs/operations.md docs/api-reference.md docs/security.md
   docs/backup-restore.md docs/upgrade.md docs/troubleshooting.md
   docs/support-matrix.md docs/known-limitations.md docs/changing-policies.md
   docs/limits.md docs/compatibility.md docs/versioning.md docs/concepts.md
-  docs/order-review-tutorial.md showcase/order-review/README.md
-  docs/v0.43.2-release-notes.md docs/v0.43.2-migration.md
+  docs/deprecations.md docs/product-contract.md docs/order-review-tutorial.md
+  showcase/order-review/README.md
+  docs/v0.43.3-release-notes.md docs/v0.43.3-migration.md
 )
 for file in "${current_files[@]}"; do
   test -s "$file"
@@ -33,10 +34,11 @@ for file in "${current_files[@]}"; do
   fi
 done
 
-for file in README.md docs/index.md docs/getting-started.md docs/installation.md \
+for file in README.md ROADMAP.md docs/index.md docs/getting-started.md docs/installation.md \
   docs/authoring.md docs/operations.md docs/api-reference.md docs/security.md \
   docs/backup-restore.md docs/upgrade.md docs/troubleshooting.md \
-  docs/support-matrix.md docs/known-limitations.md docs/v0.43.2-release-notes.md; do
+  docs/support-matrix.md docs/known-limitations.md docs/deprecations.md \
+  docs/product-contract.md docs/v0.43.3-release-notes.md; do
   ! grep -Fq '1.0.0-rc.1' "$file"
 done
 

@@ -1,6 +1,6 @@
 # Product Contract
 
-pg-react `0.43.2` keeps PostgreSQL authoritative for application facts,
+pg-react `0.43.3` keeps PostgreSQL authoritative for application facts,
 declarations, lifecycle, work, retries, and explanations. The PostgreSQL-managed
 runtime is the normal production runtime; `pg-reactd` remains a compatibility
 path.
@@ -17,4 +17,6 @@ are the public identity; private UUIDs are implementation details.
 
 M54 adds adoption hardening only: ordinary watched/conflict columns, standalone
 replacement, reviewed deployment tokens, names-first recovery overloads, and
-current documentation. It adds no new evaluator or policy semantics.
+current documentation. Version 0.43.3 adds durable retry, execution isolation,
+lease recovery, and truthful work and managed status fields. It adds no new
+evaluator or policy semantics.
