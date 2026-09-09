@@ -9,6 +9,7 @@ DECLARE
         'pg_trickle', '0.98.0',
         'scheduler', 'off',
         'cdc', 'trigger',
+        'differential_max_change_ratio', 1.0,
         'coordination', 'LEGACY_EXPLICIT');
 BEGIN
     SELECT jsonb_build_object(
@@ -16,6 +17,7 @@ BEGIN
         'pg_trickle', (SELECT extversion FROM pg_extension WHERE extname = 'pg_trickle'),
         'scheduler', current_setting('pg_trickle.enabled'),
         'cdc', current_setting('pg_trickle.cdc_mode'),
+        'differential_max_change_ratio', current_setting('pg_trickle.differential_max_change_ratio')::numeric,
         'coordination', 'LEGACY_EXPLICIT')
     INTO actual;
     IF actual IS DISTINCT FROM expected THEN

@@ -19,5 +19,13 @@
       "status": "experimental"
     }
   },
-  "observed_incompatibilities": []
+  "observed_incompatibilities": [
+    {
+      "classification": "REFRESH_SEMANTICS_CHANGED",
+      "property": "pg_trickle.differential_max_change_ratio",
+      "observed": "0.98 defaults to 0.15 and can fall back to FULL refresh, suppressing row-level CDC triggers",
+      "resolution": "Pin pg_trickle.differential_max_change_ratio=1.0 in the qualified runtime",
+      "regression": "tests/m55-benchmark-case.sql:runtime.sustained_backlog_hot_conflict"
+    }
+  ]
 }

@@ -4,7 +4,8 @@ The current adoption boundary is pg-react `0.45.0` on PostgreSQL 18.4,
 pg_trickle 0.98.0, pgrx 0.18.0, Rust 1.89.0, Linux `amd64`, `READ COMMITTED`,
 trigger CDC, scheduler off, and the PostgreSQL-managed runtime. The pinned
 upstream 0.98.0 image currently resolves to PostgreSQL 18.3; PostgreSQL 18.4
-image identity remains unresolved.
+image identity remains unresolved. Coordinated differential refresh also
+requires `pg_trickle.differential_max_change_ratio=1.0`.
 
 The managed runtime still accepts the historical adjacent 0.x versions and
 historical release-candidate identifiers where the installed code supports

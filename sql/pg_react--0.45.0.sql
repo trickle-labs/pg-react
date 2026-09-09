@@ -52052,7 +52052,8 @@ BEGIN
     package_qualified := installed_version = '0.98.0'
         AND current_setting('transaction_isolation') = 'read committed'
         AND COALESCE(current_setting('pg_trickle.enabled', true), '') = 'off'
-        AND COALESCE(current_setting('pg_trickle.cdc_mode', true), '') = 'trigger';
+        AND COALESCE(current_setting('pg_trickle.cdc_mode', true), '') = 'trigger'
+        AND COALESCE(current_setting('pg_trickle.differential_max_change_ratio', true), '0')::numeric = 1.0;
     capability_qualified := graph IS NOT NULL AND delta IS NOT NULL
         AND (graph ->> 'major')::integer = 1 AND (graph ->> 'minor')::integer = 0
         AND (delta ->> 'major')::integer = 1 AND (delta ->> 'minor')::integer = 0
@@ -52155,6 +52156,13 @@ BEGIN
             'object_identity', 'pg_trickle.cdc_mode',
             'message', 'pg_trickle is not using stable trigger capture',
             'hint', 'Set pg_trickle.cdc_mode=trigger and restart PostgreSQL.');
+    END IF;
+    IF COALESCE(current_setting('pg_trickle.differential_max_change_ratio', true), '0')::numeric <> 1.0 THEN
+        RETURN NEXT jsonb_build_object(
+            'code', 'PGT_ADAPTIVE_FULL_REFRESH', 'severity', 'ERROR',
+            'object_identity', 'pg_trickle.differential_max_change_ratio',
+            'message', 'pg_trickle may fall back to FULL refresh and suppress CDC triggers',
+            'hint', 'Set pg_trickle.differential_max_change_ratio=1.0 for coordinated differential refresh.');
     END IF;
     IF graph IS NULL OR (graph ->> 'major')::integer <> 1 THEN
         RETURN NEXT jsonb_build_object(
