@@ -1,7 +1,7 @@
 # pg-react roadmap
 
 > **Status:** Living delivery plan  
-> **Last updated:** 2026-09-08
+> **Last updated:** 2026-09-09
 > **Current release:** `0.44.0` (M55)
 
 ## Product goal
@@ -107,16 +107,15 @@ criteria after these releases. Safety evidence still takes priority.
 
 | Candidate | Choose when |
 |---|---|
-| M59 — Supported-scale qualification | Throughput, WAL, storage, retention, recovery, or bounded-cost uncertainty blocks adoption |
 | M58 — Authorization alignment | Grants, security context, or RLS blocks a real supported workload |
 | M45 — Rolling/hopping windows | Missing event-time windows block an otherwise suitable policy |
 | M55 — Schema-change safety | Ordinary DDL cannot be shown safe |
 | M56 — Rebuild/reconciliation safety | Restore, rebuild, failover, or reconciliation cannot be shown safe |
 
-The committed plans already cover the assessment's authorization, recovery,
-and scale work associated with M58, M56, and M59. Remaining work in these topics
-needs new evidence. General RLS support and rolling or hopping windows have no
-committed release.
+The committed plans cover the assessment's authorization and recovery work
+associated with M58 and M56. M59's initial supported-scale qualification is
+complete; any expansion needs new evidence. General RLS support and rolling or
+hopping windows have no committed release.
 
 ## Explicit non-goals
 
@@ -124,10 +123,10 @@ The roadmap does not promise a policy DSL, client SDK, visual or AI authoring,
 cross-database deployment, approval routing, exactly-once external delivery,
 general workflow orchestration, or a new scheduler.
 
-M59's initial supported-scale candidate is prepared with the bounded profiles
-and ceilings published in [benchmarks](docs/benchmarks.md). It becomes
-qualified after the pinned Linux/amd64 workflow passes; larger throughput,
-retention, WAL, and memory claims remain unsupported.
+M59's initial supported-scale qualification passed on the pinned Linux/amd64
+workflow with the bounded profiles and ceilings published in
+[benchmarks](docs/benchmarks.md). Larger throughput, retention, WAL, and memory
+claims remain unsupported.
 
 Completed milestone detail through M53 is preserved in
 [roadmap-through-m53.md](docs/history/roadmap-through-m53.md). Release

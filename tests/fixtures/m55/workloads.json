@@ -56,6 +56,6 @@
   "acceptance": {
     "comparison_p95_ms": 250,
     "recovery_p95_ms": 2500,
-    "status": "candidate-pinned-runner"
+    "status": "qualified-pinned-runner"
   }
 }

@@ -2,8 +2,8 @@
 
 The current adoption boundary is pg-react `0.44.0` on PostgreSQL 18.3,
 pg_trickle 0.81.0, pgrx 0.18.0, Rust 1.89.0, Linux `amd64`, `READ COMMITTED`,
-and the PostgreSQL-managed runtime. M59 narrows the measured operating
-envelope to the profiles and ceilings in [benchmarks](benchmarks.md).
+and the PostgreSQL-managed runtime. M59 qualifies only the measured operating
+envelope in the profiles and ceilings in [benchmarks](benchmarks.md).
 
 The managed runtime still accepts the historical adjacent 0.x versions and
 historical release-candidate identifiers where the installed code supports
