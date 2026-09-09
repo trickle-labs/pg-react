@@ -1,6 +1,6 @@
 # pg-react documentation
 
-This is the current documentation for pg-react `0.44.0` (M55). It explains
+This is the current documentation for pg-react `0.45.0` (M56). It explains
 the ordinary path first: define a rule or decision, validate it, preview it,
 review the result, deploy it, and inspect the durable PostgreSQL state.
 

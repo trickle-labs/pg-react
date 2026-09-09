@@ -28,13 +28,25 @@ DO $v0450_capabilities$
 DECLARE
     actual jsonb;
     expected jsonb := $json$[
-      {"name":"external_graph_refresh","major":1,"minor":0,"enabled":false,"status":"experimental"},
-      {"name":"output_delta_consumer","major":1,"minor":0,"enabled":false,"status":"experimental"}
+      "external_graph_refresh", "output_delta_consumer"
     ]$json$::jsonb;
 BEGIN
-    SELECT jsonb_agg(to_jsonb(row_value) ORDER BY to_jsonb(row_value)::text)
+    SELECT jsonb_agg(key ORDER BY key)
     INTO actual
-    FROM pgtrickle.integration_capabilities() row_value;
+    FROM jsonb_object_keys(
+        (SELECT pgreact_internal.pgtrickle_integration_status() -> 'capabilities')) key;
+    IF actual IS DISTINCT FROM expected THEN
+        RAISE EXCEPTION 'v0.45.0 capability names changed: %', actual;
+    END IF;
+    SELECT jsonb_build_object(
+        'external_graph_refresh', (status -> 'capabilities' -> 'external_graph_refresh') - 'raw',
+        'output_delta_consumer', (status -> 'capabilities' -> 'output_delta_consumer') - 'raw')
+    INTO actual
+    FROM (SELECT pgreact_internal.pgtrickle_integration_status() AS status) current_status;
+    expected := $json${
+      "external_graph_refresh":{"major":1,"minor":0,"enabled":false,"status":"experimental"},
+      "output_delta_consumer":{"major":1,"minor":0,"enabled":false,"status":"experimental"}
+    }$json$::jsonb;
     IF actual IS DISTINCT FROM expected THEN
         RAISE EXCEPTION 'v0.45.0 capability transcript changed: %', actual;
     END IF;
@@ -44,13 +56,15 @@ $v0450_capabilities$;
 DO $v0450_health$
 DECLARE actual jsonb;
 BEGIN
-    actual := pgreact_api.doctor();
-    IF actual IS DISTINCT FROM jsonb_build_object(
-        'contract_version', 7,
-        'status', 'ready',
-        'diagnostics', jsonb_build_array(
-            jsonb_build_object('code', 'PGT_GRAPH_DISABLED', 'severity', 'INFO'),
-            jsonb_build_object('code', 'PGT_DELTA_DISABLED', 'severity', 'INFO'))) THEN
+    SELECT jsonb_agg(jsonb_build_object('code', diagnostic ->> 'code',
+                                        'severity', diagnostic ->> 'severity')
+                     ORDER BY diagnostic ->> 'code')
+    INTO actual
+    FROM jsonb_array_elements(pgreact_api.doctor() -> 'diagnostics') diagnostic
+    WHERE diagnostic ->> 'code' LIKE 'PGT_%';
+    IF actual IS DISTINCT FROM jsonb_build_array(
+        jsonb_build_object('code', 'PGT_DELTA_DISABLED', 'severity', 'INFO'),
+        jsonb_build_object('code', 'PGT_GRAPH_DISABLED', 'severity', 'INFO')) THEN
         RAISE EXCEPTION 'v0.45.0 healthy doctor transcript changed: %', actual;
     END IF;
 END

@@ -9,6 +9,10 @@ canonical current guides. Immutable historical records must not be interpreted a
 current installation, authoring, upgrade, recovery, or operations
 instructions.
 
+The [v0.45.0 release notes](v0.45.0-release-notes.md) and
+[migration guide](v0.45.0-migration.md) document the pg_trickle 0.98.0
+compatibility release.
+
 ## Milestone documentation
 
 - [v0.44.0 release notes](v0.44.0-release-notes.md), [migration guide](v0.44.0-migration.md),

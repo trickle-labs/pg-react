@@ -1,14 +1,14 @@
 # Installation
 
-The current release is pg-react `0.44.0`. It runs inside PostgreSQL 18.3 with
-pg_trickle 0.81.0 and the PostgreSQL-managed runtime.
+The current release is pg-react `0.45.0`. It runs inside PostgreSQL 18.4 with
+pg_trickle 0.98.0 and the PostgreSQL-managed runtime.
 
-For the container image, use `ghcr.io/trickle-labs/pg-react:v0.44.0` or set
-`PG_REACT_IMAGE=pg-react:0.44.0` in the repository’s Compose setup. In a
+For the container image, use `ghcr.io/trickle-labs/pg-react:v0.45.0` or set
+`PG_REACT_IMAGE=pg-react:0.45.0` in the repository’s Compose setup. In a
 PostgreSQL installation with the extension files available, run:
 
 ```sql
-CREATE EXTENSION pg_react VERSION '0.44.0';
+CREATE EXTENSION pg_react VERSION '0.45.0';
 ```
 
 Set these PostgreSQL settings before starting the managed runtime:

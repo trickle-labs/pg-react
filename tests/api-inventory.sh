@@ -2,7 +2,7 @@
 set -euo pipefail
 
 jq -e '
-  .schema_version == 1 and .extension_version == "0.44.0" and
+  .schema_version == 1 and .extension_version == "0.45.0" and
   .classification_order == ["ordinary", "compatibility", "advanced", "administrative"] and
   (.surfaces | keys | sort) == ["administrative", "advanced", "compatibility", "internal_not_public", "ordinary"] and
   (.surfaces.ordinary.functions | index("pgreact.review_token(preview_result jsonb)")) != null and
@@ -22,7 +22,7 @@ grep -Fq 'M54_REVIEW_TOKEN_INVALID' docs/m54-finding-codes.json
 
 image=${1:-}
 if [[ -z "$image" ]] || ! command -v docker >/dev/null 2>&1 || ! docker image inspect "$image" >/dev/null 2>&1; then
-  echo 'M55 API inventory static audit passed; installed catalog audit not run'
+  echo 'v0.45.0 API inventory static audit passed; installed catalog audit not run'
   exit 0
 fi
 
@@ -37,12 +37,12 @@ trap cleanup EXIT
 mkdir -p -- "${artifact%/*}"
 export COMPOSE_PROJECT_NAME=$project
 export PG_REACT_IMAGE=$image
-export PG_REACT_INIT_VERSION=0.44.0
+export PG_REACT_INIT_VERSION=0.45.0
 docker compose up -d --no-build >/dev/null 2>&1
 ready=
 for _ in {1..120}; do
   if docker compose exec -T postgres psql -XAtq -U postgres -d postgres -c \
-      "SELECT extversion = '0.44.0' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
+      "SELECT extversion = '0.45.0' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
     ready=1
     break
   fi
@@ -80,4 +80,4 @@ jq -e --argjson expected_functions "$expected_functions" --argjson expected_rela
 ' "$artifact" >/dev/null
 actual_catalog_sha256=$(jq -S '{functions: .functions, relations: .relations}' "$artifact" | sha256sum | awk '{print $1}')
 test "$actual_catalog_sha256" = "$expected_catalog_sha256"
-echo "M55 installed API catalog audit passed: $artifact"
+echo "v0.45.0 installed API catalog audit passed: $artifact"

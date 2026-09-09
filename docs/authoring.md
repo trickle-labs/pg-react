@@ -1,6 +1,6 @@
 # Authoring Rules and Policies
 
-The current release is pg-react `0.44.0`. Application code normally uses the
+The current release is pg-react `0.45.0`. Application code normally uses the
 ordinary declaration path:
 
 ```sql

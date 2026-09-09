@@ -6,7 +6,7 @@ on:
       image:
         required: false
         type: string
-        default: pg-react:m55-unreleased
+        default: pg-react:v0.45.0-qualification
 
 permissions:
   contents: read
@@ -21,7 +21,7 @@ jobs:
           toolchain: 1.89.0
           components: rustfmt
       - name: Create evidence directory
-        run: mkdir -p m55-evidence
+        run: mkdir -p v0.45.0-evidence
       - name: Rust format
         run: cargo fmt --check
       - name: Rust tests
@@ -39,7 +39,7 @@ jobs:
       - name: Build candidate
         run: |
           set +e
-          docker build --tag "${{ inputs.image }}" . > m55-evidence/build.log 2>&1
+          docker build --tag "${{ inputs.image }}" . > v0.45.0-evidence/build.log 2>&1
           status=$?
           set -e
           exit "$status"
@@ -49,51 +49,51 @@ jobs:
         run: bash tests/workflow-syntax.sh
       - name: API inventory audit
         env:
-          API_INVENTORY_ARTIFACT: ${{ github.workspace }}/m55-evidence/installed-api-catalog.json
+          API_INVENTORY_ARTIFACT: ${{ github.workspace }}/v0.45.0-evidence/installed-api-catalog.json
         run: bash tests/api-inventory.sh "${{ inputs.image }}"
       - name: Run complete candidate qualification
         env:
-          M55_ARTIFACT_DIR: ${{ github.workspace }}/m55-evidence
+          V045_ARTIFACT_DIR: ${{ github.workspace }}/v0.45.0-evidence
         run: bash tests/qualification.sh complete "${{ inputs.image }}"
       - name: Archive candidate image
         run: |
-          mkdir -p m55-evidence
-          docker image inspect --format '{{.Id}}' "${{ inputs.image }}" > m55-evidence/candidate-image.txt
-          docker save "${{ inputs.image }}" | gzip -n -9 > m55-evidence/m55-candidate-image.tar.gz
-          sha256sum m55-evidence/m55-candidate-image.tar.gz > m55-evidence/m55-candidate-image.SHA256SUMS
+          mkdir -p v0.45.0-evidence
+          docker image inspect --format '{{.Id}}' "${{ inputs.image }}" > v0.45.0-evidence/candidate-image.txt
+          docker save "${{ inputs.image }}" | gzip -n -9 > v0.45.0-evidence/candidate-image.tar.gz
+          sha256sum v0.45.0-evidence/candidate-image.tar.gz > v0.45.0-evidence/candidate-image.SHA256SUMS
       - name: Write evidence manifest
         run: |
           set -eu
-          evidence_dir=m55-evidence
+          evidence_dir=v0.45.0-evidence
           test -s "$evidence_dir/candidate-image.txt"
-          test -s "$evidence_dir/m55-candidate-image.tar.gz"
-          test -s "$evidence_dir/m55-candidate-image.SHA256SUMS"
+          test -s "$evidence_dir/candidate-image.tar.gz"
+          test -s "$evidence_dir/candidate-image.SHA256SUMS"
           entries='[]'
           while IFS= read -r artifact; do
             test -f "$artifact"
             digest=$(sha256sum "$artifact" | awk '{print $1}')
             entries=$(jq --arg artifact "$artifact" --arg digest "$digest" \
-              '. + [{milestone: "M55", mode: "executed", artifact: $artifact, sha256: $digest}]' <<< "$entries")
+              '. + [{milestone: "PGTRICKLE-098", mode: "executed", artifact: $artifact, sha256: $digest}]' <<< "$entries")
           done < <(find "$evidence_dir" -type f ! -name evidence-manifest.json | sort)
           jq -n \
             --arg commit "$GITHUB_SHA" \
             --arg run "$GITHUB_RUN_ID" \
             --argjson entries "$entries" \
-            '{schema_version: 1, milestone: "M55", commit: $commit, workflow_run: $run, entries: $entries}' \
-            > m55-evidence/evidence-manifest.json
+            '{schema_version: 1, milestone: "PGTRICKLE-098", commit: $commit, workflow_run: $run, entries: $entries}' \
+            > v0.45.0-evidence/evidence-manifest.json
       - name: Write failed evidence manifest
         if: ${{ failure() }}
         run: |
           jq -n \
             --arg commit "${GITHUB_SHA}" \
             --arg run "${GITHUB_RUN_ID}" \
-            '{schema_version: 1, milestone: "M55", status: "failed",
+            '{schema_version: 1, milestone: "PGTRICKLE-098", status: "failed",
               commit: $commit, workflow_run: $run,
               missing_steps: ["candidate qualification"]}' \
-            > m55-evidence/evidence-manifest.json
+            > v0.45.0-evidence/evidence-manifest.json
       - name: Upload qualified candidate and evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: m55-qualified-candidate
-          path: m55-evidence/
+          name: v0.45.0-qualified-candidate
+          path: v0.45.0-evidence/
