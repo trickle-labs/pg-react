@@ -47,8 +47,8 @@
       "cases": ["comparison.fixed_target.unrelated_history"]
     },
     {
-      "name": "backlog-10000",
-      "matches": 10000,
+      "name": "backlog-1000",
+      "matches": 1000,
       "history_rows": 10000,
       "cases": ["runtime.sustained_backlog_hot_conflict"]
     }

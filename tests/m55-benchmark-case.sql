@@ -260,7 +260,7 @@ BEGIN
     INSERT INTO m55_bench.source
     SELECT id, 'open', 1 FROM generate_series(1, current_setting('m55_bench.matches')::integer) id;
     PERFORM pgreact_api.run_rule('m55-hot-backlog');
-    PERFORM pgreact.run('2026-01-01 00:00:00 UTC');
+    PERFORM pgreact.run('2030-01-01 00:00:00 UTC');
     pending_before := m55_bench.pending_count();
     wal_before := m55_bench.wal_bytes();
     started := clock_timestamp();

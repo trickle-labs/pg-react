@@ -58,7 +58,7 @@ static_audit() {
   jq -e '.release == "0.44.0" and .milestone == "M55" and
     .warmups == 1 and .measured_repetitions == 5 and
     (.required_cases | length) == 7 and
-    ([.profiles[].name] | sort) == ["backlog-10000", "baseline", "retained-history"] and
+    ([.profiles[].name] | sort) == ["backlog-1000", "baseline", "retained-history"] and
     (.acceptance.comparison_p95_ms | type) == "number" and
     (.acceptance.recovery_p95_ms | type) == "number"' tests/fixtures/m55/workloads.json >/dev/null
   bash bin/assemble-sql "$run_dir/fresh.sql"

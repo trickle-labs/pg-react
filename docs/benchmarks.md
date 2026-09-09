@@ -17,9 +17,10 @@ The runner builds a fresh benchmark database for each case, performs the
 manifest's warm-up and measured repetitions, and retains one JSON result per
 run. The complete qualification runs three one-factor profiles: the seven-case
 baseline (1,000 matches and 10,000 history rows), a fixed-target comparison
-with 100,000 retained-history rows, and the hot-conflict backlog with 10,000
-matches. The aggregate includes p50, p95, p99, WAL bytes, database size, full
-case results, correctness checksums, image identity, and source revision.
+with 100,000 retained-history rows, and the hot-conflict backlog with 1,000
+matches. The aggregate includes p50,
+p95, p99, WAL bytes, database size, full case results, correctness checksums,
+image identity, and source revision.
 Memory is reported as unavailable unless a trustworthy container metric is
 added. The aggregate also records Docker architecture/resources, free disk,
 and selected PostgreSQL settings.
@@ -31,8 +32,8 @@ treated as measured merely because a command was skipped or timed out.
 
 M59 qualifies only this bounded envelope on the pinned Linux/amd64 runner:
 comparison p95 no higher than 250 ms, expired-lease recovery p95 no higher
-than 2,500 ms, and a 10,000-match hot-conflict backlog that drains completely.
+than 2,500 ms, and a 1,000-match hot-conflict backlog that drains completely.
 The recovery case abandons a one-second lease; it does not claim a process-kill
 or restart-time measurement.
-Memory, WAL ceilings, retention beyond 100,000 rows, and 100,000-match
+Memory, WAL ceilings, retention beyond 100,000 rows, and 10,000-match
 throughput remain explicit unsupported limits rather than production claims.

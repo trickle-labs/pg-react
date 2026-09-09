@@ -8,7 +8,7 @@ reported by validation and preview.
 
 M59's measured adoption envelope is the pinned Linux/amd64 runner with the
 manifest's baseline profile, a 100,000-row retained-history comparison sweep,
-and a 10,000-match hot-conflict backlog. The acceptance ceilings are 250 ms
+and a 1,000-match hot-conflict backlog. The acceptance ceilings are 250 ms
 p95 for comparison and 2,500 ms p95 for expired-lease recovery; the backlog
 must drain without residual pending work.
 
