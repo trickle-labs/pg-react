@@ -42,7 +42,8 @@ static_audit() {
     docs/current-release.json docs/api-inventory.json docs/benchmarks.md \
     docs/v0.44.0-release-notes.md docs/v0.44.0-migration.md \
     tests/fixtures/m55/workloads.json tests/v0.44.0.sql tests/v0.44.0-inherited.sql \
-    tests/m55-comparison.sql tests/m55-m35.sql \
+    tests/m55-comparison.sql tests/m55-m35.sql tests/m55-benchmark.sh \
+    tests/m55-benchmark-case.sh tests/m55-benchmark-case.sql \
     sql/current/assembly.txt sql/current/README.md \
     sql/pg_react--0.43.3--0.44.0.sql sql/pg_react--0.44.0.sql \
     sql/v0.44.0.sql sql/m55.sql; do
@@ -52,10 +53,14 @@ static_audit() {
   bash tests/api-inventory.sh
   bash tests/workflow-syntax.sh
   bash -n bin/assemble-sql tests/qualification.sh tests/current-docs.sh \
-    tests/api-inventory.sh tests/workflow-syntax.sh
+    tests/api-inventory.sh tests/workflow-syntax.sh tests/m55-benchmark.sh \
+    tests/m55-benchmark-case.sh
   jq -e '.release == "0.44.0" and .milestone == "M55" and
     .warmups == 1 and .measured_repetitions == 5 and
-    (.required_cases | length) == 7' tests/fixtures/m55/workloads.json >/dev/null
+    (.required_cases | length) == 7 and
+    ([.profiles[].name] | sort) == ["backlog-10000", "baseline", "retained-history"] and
+    (.acceptance.comparison_p95_ms | type) == "number" and
+    (.acceptance.recovery_p95_ms | type) == "number"' tests/fixtures/m55/workloads.json >/dev/null
   bash bin/assemble-sql "$run_dir/fresh.sql"
   cmp "$run_dir/fresh.sql" sql/pg_react--0.44.0.sql
   bash bin/assemble-sql "$run_dir/upgrade.sql" \
@@ -104,6 +109,24 @@ run_test 'M34 scoped comparison corpus on 0.44.0' docker compose -p "$project" e
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m55-comparison.sql
 run_test 'M55 four-argument comparison on 0.44.0' docker compose -p "$project" exec -T postgres \
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m55-m35.sql
+
+if [[ $profile = complete ]]; then
+  mapfile -t benchmark_profiles < <(jq -er '.profiles[] | [.name, (.matches | tostring), (.history_rows | tostring), (.cases | join(","))] | @tsv' tests/fixtures/m55/workloads.json)
+  for profile_row in "${benchmark_profiles[@]}"; do
+    IFS=$'\t' read -r workload_profile profile_matches profile_history profile_cases <<<"$profile_row"
+    profile_matches=${M55_BENCHMARK_MATCHES:-$profile_matches}
+    profile_history=${M55_BENCHMARK_HISTORY_ROWS:-$profile_history}
+    artifact_dir="$run_dir/m55-$workload_profile"
+    run_test "M55 benchmark $workload_profile" env \
+      M55_ARTIFACT_DIR="$artifact_dir" \
+      M55_BENCHMARK_OUTPUT="$artifact_dir/m55-benchmark.json" \
+      M55_BENCHMARK_PROFILE="$workload_profile" \
+      M55_BENCHMARK_MATCHES="$profile_matches" \
+      M55_BENCHMARK_HISTORY_ROWS="$profile_history" \
+      M55_BENCHMARK_CASES="$profile_cases" \
+      bash tests/m55-benchmark.sh "$image" complete
+  done
+fi
 
 if [[ $profile = complete ]]; then
   export COMPOSE_PROJECT_NAME=$upgrade_project

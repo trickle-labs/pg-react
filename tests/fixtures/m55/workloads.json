@@ -8,7 +8,7 @@
   "measured_repetitions": 5,
   "baseline": {
     "rules": 10,
-    "matches": 10000,
+    "matches": 1000,
     "changed_facts_percent": 1,
     "source_shape": "simple_filter",
     "work": "steady_load",
@@ -25,9 +25,37 @@
     "review.evidence_limit_1_and_100",
     "packages.layered_dag_61_nodes"
   ],
+  "profiles": [
+    {
+      "name": "baseline",
+      "matches": 1000,
+      "history_rows": 10000,
+      "cases": [
+        "comparison.fixed_target.unrelated_history",
+        "comparison.shared_source.validation",
+        "runtime.empty_queue",
+        "runtime.sustained_backlog_hot_conflict",
+        "recovery.worker_loss_expired_leases",
+        "review.evidence_limit_1_and_100",
+        "packages.layered_dag_61_nodes"
+      ]
+    },
+    {
+      "name": "retained-history",
+      "matches": 1000,
+      "history_rows": 100000,
+      "cases": ["comparison.fixed_target.unrelated_history"]
+    },
+    {
+      "name": "backlog-10000",
+      "matches": 10000,
+      "history_rows": 10000,
+      "cases": ["runtime.sustained_backlog_hot_conflict"]
+    }
+  ],
   "acceptance": {
-    "comparison_p95_ms": null,
-    "recovery_p95_ms": null,
-    "status": "pending-pinned-runner"
+    "comparison_p95_ms": 250,
+    "recovery_p95_ms": 2500,
+    "status": "candidate-pinned-runner"
   }
 }

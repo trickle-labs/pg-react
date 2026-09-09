@@ -69,7 +69,8 @@ jobs:
           test -s "$evidence_dir/m55-candidate-image.tar.gz"
           test -s "$evidence_dir/m55-candidate-image.SHA256SUMS"
           entries='[]'
-          for artifact in "$evidence_dir"/*.log "$evidence_dir"/installed-api-catalog.json "$evidence_dir"/candidate-image.txt "$evidence_dir"/m55-candidate-image.tar.gz "$evidence_dir"/m55-candidate-image.SHA256SUMS; do
+          for artifact in "$evidence_dir"/*.log "$evidence_dir"/*.json "$evidence_dir"/candidate-image.txt "$evidence_dir"/m55-candidate-image.tar.gz "$evidence_dir"/m55-candidate-image.SHA256SUMS; do
+            test "$(basename "$artifact")" != evidence-manifest.json
             test -s "$artifact"
             digest=$(sha256sum "$artifact" | awk '{print $1}')
             entries=$(jq --arg artifact "$artifact" --arg digest "$digest" \

@@ -124,6 +124,11 @@ The roadmap does not promise a policy DSL, client SDK, visual or AI authoring,
 cross-database deployment, approval routing, exactly-once external delivery,
 general workflow orchestration, or a new scheduler.
 
+M59's initial supported-scale candidate is prepared with the bounded profiles
+and ceilings published in [benchmarks](docs/benchmarks.md). It becomes
+qualified after the pinned Linux/amd64 workflow passes; larger throughput,
+retention, WAL, and memory claims remain unsupported.
+
 Completed milestone detail through M53 is preserved in
 [roadmap-through-m53.md](docs/history/roadmap-through-m53.md). Release
 contracts and qualification evidence are indexed by [History](docs/history.md).
