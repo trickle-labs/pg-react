@@ -1,9 +1,9 @@
-name: Release v0.44.0
+name: Release v0.45.0
 
 on:
   push:
     tags:
-      - v0.44.0
+      - v0.45.0
 
 permissions:
   contents: write
@@ -26,18 +26,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Verify release identity
         run: |
-          grep -qx 'version = "0.44.0"' Cargo.toml
-          awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.44.0"'
-          grep -qx "default_version = '0.44.0'" pg_react.control
-          grep -Fq 'version == "0.44.0"' src/managed.rs
-          test -s sql/pg_react--0.43.3--0.44.0.sql
-          test -s sql/pg_react--0.44.0.sql
-          test -s tests/qualification.sh
-          bash tests/current-docs.sh
-      - name: Require completed 0.44.0 checklist
-        run: '! grep -Eq "^- \\[ \\]" docs/v0.44.0-final-checklist.md'
+          grep -qx 'version = "0.45.0"' Cargo.toml
+          grep -qx "default_version = '0.45.0'" pg_react.control
+          jq -e '.extension_version == "0.45.0" and .postgresql == "18.4" and .pg_trickle == "0.98.0" and .cdc == "trigger" and .scheduler == "off"' docs/current-release.json
+          grep -Fq 'PG_REACT_INIT_VERSION=0.45.0' Dockerfile
+          grep -Fq 'pg_trickle.cdc_mode=trigger' docker-compose.yml
       - name: Require unpublished release
-        run: '! gh release view v0.44.0 >/dev/null 2>&1'
+        run: '! gh release view v0.45.0 >/dev/null 2>&1'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Download qualified candidate and evidence
@@ -55,7 +50,7 @@ jobs:
       - name: Name image
         run: |
           echo "IMAGE_NAME=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
-          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.44.0" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:v0.45.0" >> "$GITHUB_ENV"
       - name: Publish exact qualified image
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -75,42 +70,42 @@ jobs:
           push-to-registry: true
       - name: Package release artifacts
         run: |
-          artifact=pg-react-v0.44.0-linux-amd64.tar.gz
+          artifact=pg-react-v0.45.0-linux-amd64.tar.gz
           docker save "$IMAGE" | gzip -n -9 > "$artifact"
-          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.44.0.spdx.json
+          bash tests/m18-sbom.sh "$IMAGE" pg-react-v0.45.0.spdx.json
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
-            --exclude='m55-candidate-image.tar.gz' -C m55-evidence -cf - . | gzip -n -9 > pg-react-v0.44.0-evidence.tar.gz
-          sha256sum "$artifact" pg-react-v0.44.0-evidence.tar.gz pg-react-v0.44.0.spdx.json > pg-react-v0.44.0.SHA256SUMS
-          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.44.0.SHA256SUMS
-          sha256sum --check pg-react-v0.44.0.SHA256SUMS
+            --exclude='m55-candidate-image.tar.gz' -C m55-evidence -cf - . | gzip -n -9 > pg-react-v0.45.0-evidence.tar.gz
+          sha256sum "$artifact" pg-react-v0.45.0-evidence.tar.gz pg-react-v0.45.0.spdx.json > pg-react-v0.45.0.SHA256SUMS
+          printf '# OCI image: %s@%s\n' "$IMAGE" "$IMAGE_DIGEST" >> pg-react-v0.45.0.SHA256SUMS
+          sha256sum --check pg-react-v0.45.0.SHA256SUMS
       - name: Attest release artifacts
         id: attest_artifacts
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
-          subject-path: pg-react-v0.44.0-linux-amd64.tar.gz, pg-react-v0.44.0-evidence.tar.gz
+          subject-path: pg-react-v0.45.0-linux-amd64.tar.gz, pg-react-v0.45.0-evidence.tar.gz
       - name: Attest release SBOM
         id: attest_sbom
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26
         with:
           subject-name: ${{ env.IMAGE_NAME }}
           subject-digest: ${{ env.IMAGE_DIGEST }}
-          sbom-path: pg-react-v0.44.0.spdx.json
+          sbom-path: pg-react-v0.45.0.spdx.json
           push-to-registry: true
       - name: Collect attestation bundles
         run: |
-          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.44.0-image.provenance.json
-          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.44.0-artifacts.provenance.json
-          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.44.0-sbom.attestation.json
+          cp "${{ steps.attest_image.outputs.bundle-path }}" pg-react-v0.45.0-image.provenance.json
+          cp "${{ steps.attest_artifacts.outputs.bundle-path }}" pg-react-v0.45.0-artifacts.provenance.json
+          cp "${{ steps.attest_sbom.outputs.bundle-path }}" pg-react-v0.45.0-sbom.attestation.json
       - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v0.44.0 \
-            pg-react-v0.44.0-linux-amd64.tar.gz \
-            pg-react-v0.44.0-evidence.tar.gz \
-            pg-react-v0.44.0.SHA256SUMS \
-            pg-react-v0.44.0.spdx.json \
-            pg-react-v0.44.0-image.provenance.json \
-            pg-react-v0.44.0-artifacts.provenance.json \
-            pg-react-v0.44.0-sbom.attestation.json \
-            --verify-tag --notes-file docs/v0.44.0-release-notes.md --title 'pg-react 0.44.0'
+          gh release create v0.45.0 \
+            pg-react-v0.45.0-linux-amd64.tar.gz \
+            pg-react-v0.45.0-evidence.tar.gz \
+            pg-react-v0.45.0.SHA256SUMS \
+            pg-react-v0.45.0.spdx.json \
+            pg-react-v0.45.0-image.provenance.json \
+            pg-react-v0.45.0-artifacts.provenance.json \
+            pg-react-v0.45.0-sbom.attestation.json \
+            --verify-tag --notes-file docs/v0.45.0-release-notes.md --title 'pg-react 0.45.0'

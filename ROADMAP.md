@@ -2,7 +2,7 @@
 
 > **Status:** Living delivery plan  
 > **Last updated:** 2026-09-09
-> **Current release:** `0.44.0` (M55)
+> **Current release:** `0.45.0` (M56)
 
 ## Product goal
 
@@ -22,6 +22,7 @@ affected behavior and ends with executable release gates.
 | `0.43.2` | Authorization and review correctness | Intended roles can use the API; reviewed changes bind to executable dependencies; comparison holds facts constant; valid package graphs finish within a fixed budget | [v0.43.2 plan](v0.43.2-implementation-plan.md) |
 | `0.43.3` | Durable work and recovery | A damaged job does not undo healthy work; retries and draining leases recover; status is truthful; populated restore uses the matching artifact | [v0.43.3 plan](v0.43.3-implementation-plan.md) |
 | `0.44.0` | Measured operating limits and SQL maintenance | Comparison avoids unrelated history scans; capacity and recovery limits have reproducible evidence; current SQL and qualification are independently inspectable | [v0.44.0 plan](v0.44.0-implementation-plan.md) |
+| `0.45.0` | pg_trickle 0.98 compatibility and integration foundation | PostgreSQL 18.4 boundary with trigger CDC, explicit coordination, and scheduler off | [v0.45.0 plan](PLAN_PG_REACT_0_45_0_PGTRICKLE_098.md) |
 
 These releases are ordered commitments without calendar promises. `0.43.2`
 closes authorization and review risks. `0.43.3` closes the remaining P1

@@ -1,12 +1,12 @@
 services:
   postgres:
-    image: ${PG_REACT_IMAGE:-pg-react:0.44.0}
+    image: ${PG_REACT_IMAGE:-pg-react:0.45.0}
     platform: ${PG_REACT_PLATFORM:-linux/amd64}
     build:
       context: .
     environment:
       POSTGRES_PASSWORD: pgreact
-      PG_REACT_INIT_VERSION: ${PG_REACT_INIT_VERSION:-0.44.0}
+      PG_REACT_INIT_VERSION: ${PG_REACT_INIT_VERSION:-0.45.0}
     ports:
       - "${PG_REACT_PORT_BINDING:-127.0.0.1::5432}"
     volumes:
@@ -19,6 +19,8 @@ services:
       - pg_trickle.user_triggers=auto
       - -c
       - pg_trickle.enabled=off
+      - -c
+      - pg_trickle.cdc_mode=trigger
       - -c
       - pg_trickle.differential_max_change_ratio=1.0
       - -c

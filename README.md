@@ -6,7 +6,7 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-M55 / extension `0.44.0` is the current release. It keeps the package workflow
+M56 / extension `0.45.0` is the current release. It keeps the package workflow
 and adds one ordinary path for creating, reviewing, replacing, exporting, and
 recovering rules and decisions. `1.0.0` is postponed indefinitely. Start with the
 [documentation home](docs/index.md).
@@ -134,9 +134,11 @@ broader typed keys.
 - pg-react is not a synchronous write-path hook, a global-ordering service, a
   distributed transaction coordinator, or a general workflow/BPM engine.
 
-The qualified `0.44.0` environment is PostgreSQL 18.3, pg_trickle 0.81.0,
-pgrx 0.18.0, Linux `amd64`, `READ COMMITTED`, and the PostgreSQL-managed
-runtime. See the [Support Matrix](docs/support-matrix.md) before adopting it.
+The qualified `0.45.0` environment is PostgreSQL 18.4, pg_trickle 0.98.0,
+pgrx 0.18.0, Linux `amd64`, `READ COMMITTED`, trigger CDC, scheduler off, and
+the PostgreSQL-managed runtime. The pinned upstream image currently reports
+PostgreSQL 18.3; the PostgreSQL 18.4 image identity is unresolved. See the
+[Support Matrix](docs/support-matrix.md) before adopting it.
 
 ## Documentation
 
