@@ -1,7 +1,8 @@
-# pg-react: MDM Stewardship Policy Integration Plan
+# pg-react: MDM stewardship policy integration plan
 
-**Status:** Proposal; no implementation or API compatibility promise  
-**Date:** 7 September 2026  
+**Status:** Ready for R0 compatibility work; live stewardship depends on MDM M1/M2\
+**Updated:** 12 September 2026\
+**Baseline:** pg-react `0.45.0`; qualify pg-trickle `0.105.2` and pg-mdm `0.11.0` plus the companion's new APIs\
 **Repository:** `trickle-labs/pg-react`  
 **Companion:** [pg-mdm implementation plan](PLAN_PG_MDM_STEWARDSHIP_INTEGRATION.md)  
 **Proposed shared contract:** `MDM-STEWARDSHIP/1`
@@ -26,9 +27,11 @@ Package the integration as an optional adapter and policy example maintained in 
 
 ## 2. Dependencies and implementation gate
 
-Honor the chosen start policy: keep this work at specification level until the planned pg-trickle 0.97 feature-freeze milestone, or a later equivalent released build, passes the agreed upstream gate. MDM must also have working review publication and stewardship validation before the live adapter is qualified. [4][5]
+Start R0 stack qualification now that pg-trickle `0.105.2` advertises stable, enabled Graph V1. Collect the released assurance evidence and pass the agreed conformance cases before dependent integration implementation. MDM `0.11.0` implements review publication but lacks the proposed policy projection and intent API. MDM M1 and M2 remain prerequisites for read-only and effectful joint qualification respectively. [4][5]
 
-**Compatibility is the first engineering task.** The current pg-react 0.43.1 support matrix qualifies pg-trickle 0.81.0, not 0.97. Do not simply change a version check. Test and, where necessary, adapt managed coordination, transaction boundaries, ownership, recovery, and upgrades against the selected Graph V1-capable build. Qualify the entire stack before enabling effects. [3]
+Compatibility is the first engineering task. pg-react `0.45.0` pins pg-trickle `0.98.0` and requires disabled Graph/Delta capabilities in `sql/current/pgtrickle.sql`. MDM `0.11.0` pins `0.105.1`. Update React admission, diagnostics, fixtures, and packaging for `0.105.2`, then qualify both projects on the same PostgreSQL 18 artifact. Resolve the existing PostgreSQL 18.3/18.4 image discrepancy using effective runtime identity. [3][4]
+
+Keep React's explicit coordinator, trigger CDC, scheduler-off profile, and differential-refresh safeguard. MDM owns its EXTERNAL graph members and strict refresh transaction. An enabled Graph or Delta capability does not mean React must consume it. Test committed policy-table visibility, shared-source CDC, skipped ordinary refreshes, and FULL fallback before accepting the joint profile. Never infer successful delivery from NOTIFY or freshness metrics. [5]
 
 The first integration reads ordinary local policy tables. It does not depend on Tide, a semantic event feed, output-delta consumption, or a prepared/resumable MDM execution path.
 
@@ -37,6 +40,8 @@ The first integration reads ordinary local policy tables. It does not depend on 
 Treat section 4 of the [MDM plan](PLAN_PG_MDM_STEWARDSHIP_INTEGRATION.md#4-shared-interface-mdm-stewardship1) as the proposed normative contract. React implements a client, not a competing definition.
 
 Consume the proposed `mdm_steward.policy_cases_v1` table, submit through `mdm_steward.submit_policy_intent(...)`, and read `mdm_steward.policy_receipts_v1`. Those names are proposals, not installed APIs.
+
+MDM M1 must publish this table from released `mdm_out.<entity>_review` rows, preserve UUID review occurrences, and allocate the bigint case key. M0 must map `concurrency_version`, definition versions, decision epoch, publication revision, and evidence basis to exact intent types. React must not assemble an authoritative projection by joining MDM private catalogs. `mdm_steward.decide()` is a human directive API, not a substitute for M2 request deduplication or automation authority. [4]
 
 Use the MDM-provided `case_key bigint` as the policy subject. Preserve the original review identity and concurrency tokens in the work snapshot. This avoids relying on broader key support than the current ordinary comparison interface provides: that interface requires one unique, non-null bigint key. [3]
 
@@ -66,6 +71,8 @@ For deadlines, use the supported managed deadline/temporal facilities, with a te
 | **R5 — Joint rollout** | Run the shared failure suite, shadow comparison, narrowly scoped enablement, dashboards, and recovery exercises. | First-release routing/escalation scope is qualified; approval support remains independently opt-in. |
 
 Suggested new locations: `integrations/pg-mdm/` for adapter contracts and SQL, `showcase/mdm-stewardship/` for a runnable example, and `tests/integrations/pg-mdm/` for cross-project tests. Keep MDM-specific logic out of the generic rule evaluator.
+
+Execute R0 → R1 → R2 → R3 → R5 for the first release, corresponding to pg-react `0.46.0`–`0.50.0`. Run MDM M0 alongside R0, require M1 to close R0/R1, and require M2 to qualify R2/R3. Run MDM M4 with R5. R4 remains independently gated on MDM M3 and maps to `0.51.0`. The [roadmap handoff table](../ROADMAP.md#3-approach-qualify-first-deliver-a-narrow-vertical-slice) assigns owners; each version plan retains its acceptance cases and effort budget.
 
 ## 6. Execution and retry semantics
 
@@ -103,6 +110,8 @@ A pause prevents new intents. It does not reverse accepted MDM directives or pub
 
 Test duplicate execution, concurrent human edits, source/evidence changes, recurring reviews, ambiguous routing, time-only expiry, stale policy work, MDM publication failure, disabled bindings, missing capabilities, privileges, restore, and clone isolation.
 
+First add one runnable end-to-end example: publish an ambiguous case, propose and apply its queue and due date, advance managed time without business writes, escalate once, accept a human decision, then independently refresh MDM to close the review. Assert exact policy rows, request bytes, receipts, React work outcomes, and final published review state. Reuse the same fixtures in both projects' release checks; a count-only assertion cannot prove that the intended case or action was processed.
+
 Start with side-effect-free comparisons and representative cases. A bounded or `partial` comparison is not proof of complete population safety; partition a fixed test population into supported bounded comparisons or use an isolated qualification database. Preserve pg-react's documented comparison limits. [1][2]
 
 Enable only routing and escalation for a small named cohort after tests pass. Monitor stale-intent rate, denied requests, overdue-case age, work backlog, repeated escalation attempts, and accepted-but-unpublished decisions. Retain public policy/work references needed to join MDM receipts throughout the shared audit horizon.
@@ -111,14 +120,14 @@ Enable only routing and escalation for a small named cohort after tests pass. Mo
 
 ## Sources reviewed
 
-[1] [pg-react README: public surfaces, guarantees, and exclusions](https://github.com/trickle-labs/pg-react/blob/main/README.md).
+[1] [pg-react README](../README.md).
 
-[2] [pg-react concepts: lifecycle, decisions, transactions, temporal rules, and comparison](https://github.com/trickle-labs/pg-react/blob/main/docs/concepts.md).
+[2] [pg-react concepts](../docs/concepts.md).
 
-[3] [pg-react support matrix: qualified upstream version, RLS, and key limits](https://github.com/trickle-labs/pg-react/blob/main/docs/support-matrix.md).
+[3] [pg-react support matrix](../docs/support-matrix.md) and [R0 implementation plan](v0.46.0.md).
 
-[4] [MDM roadmap: implementation gate and sequential core development](https://github.com/grove/pg-mdm/blob/main/ROADMAP.md).
+[4] [MDM companion plan](PLAN_PG_MDM_STEWARDSHIP_INTEGRATION.md) and [pg-mdm 0.11.0 source evidence](../docs/planning/EVIDENCE.md#s9-pg-mdm-0110-foundation-and-missing-contract).
 
-[5] [pg-trickle 0.97 plan: assurance and feature freeze](https://github.com/trickle-labs/pg-trickle/blob/main/roadmap/v0.97.0.md).
+[5] [pg-trickle 0.105.2 source evidence](../docs/planning/EVIDENCE.md#s8-pg-trickle-01052-release).
 
-[6] [MDM V2 design: stewardship ownership and published semantic state](https://github.com/grove/pg-mdm/blob/main/DESIGN_V2.md).
+[6] [MDM ownership and approval safeguards](PLAN_PG_MDM_STEWARDSHIP_INTEGRATION.md#6-approval-and-automation-safeguards).

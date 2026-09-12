@@ -6,7 +6,7 @@
 
 Every version has a 30-person-day budget, including integration coding, review, tests, documentation and two days of contingency. A person-day is an effort unit, not elapsed pipeline time. External upstream/MDM implementation and waiting are dependencies, not unpriced React tasks. Required upstream behavior must already exist at the relevant entry gate.
 
-Respect the source's specification-only start policy until the agreed upstream gate passes. Do not treat fixture development as authorized production implementation without an explicit policy amendment. Fixture success never counts as a joint integration pass.
+Start R0 compatibility qualification on released pg-trickle `0.105.2` and pg-mdm `0.11.0`. Pass the released upstream conformance gate before dependent integration implementation. The older wait for a future `0.97` or `0.104` release no longer applies. MDM M0, M1, and M2 remain separate contract, projection, and intent dependencies; fixtures cannot substitute for their installed APIs. [S8, S9]
 
 Record the actual predecessor version, source commit, extension versions, PostgreSQL runtime version, image digest, platform, isolation, CDC mode, coordinator ownership and capability response. Re-run admission after upgrades or a capability change. A lost required capability prevents new adapter effects and leaves inspectable blocked state. Delta V1 stays unused in this sequence.
 

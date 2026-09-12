@@ -1,8 +1,8 @@
 # pg-react roadmap: optional MDM stewardship integration
 
-> **Status:** Proposed replacement roadmap; not an implementation or compatibility promise  
-> **Prepared:** 9 September 2026  
-> **Released baseline:** pg-react `0.45.0`  
+> **Status:** Ready to start stack qualification; stewardship APIs and joint compatibility remain to be implemented and proven\
+> **Updated:** 12 September 2026\
+> **Released baseline:** pg-react `0.45.0`; target dependencies pg-trickle `0.105.2` and pg-mdm `0.11.0`\
 > **Proposed sequence:** `0.46.0`–`0.50.0`, then independently opt-in `0.51.0`  
 > **Budget:** Approximately six person-weeks per version, including tests, review, documentation, and contingency  
 > **Version 1.0:** Remains postponed; this roadmap does not introduce a 1.0 deadline
@@ -11,7 +11,7 @@
 
 Turn MDM review facts into **routing decisions, deadline policies, and durable requests for MDM-controlled actions**, while preserving pg-react's ordinary SQL authoring, review, deployment, comparison, explanation, and recovery model.
 
-This roadmap implements the attached **MDM Stewardship Policy Integration Plan**, rather than treating it as a generic Graph V1/Delta V1 engine-replacement proposal. The source explicitly starts with ordinary local policy tables and excludes output-delta consumption, Tide, a semantic event feed, and prepared/resumable MDM execution from the initial integration. The source and current upstream facts are distinguished in the [evidence register](docs/planning/EVIDENCE.md). [S0, S1–S6]
+Implement the [React plan](plans/PLAN_PG_REACT_MDM_STEWARDSHIP.md) and the [MDM companion plan](plans/PLAN_PG_MDM_STEWARDSHIP_INTEGRATION.md) through the release sequence below. Start with ordinary local policy tables. Output-delta consumption, Tide, a semantic event feed, and prepared/resumable MDM execution remain outside the initial integration. The [evidence register](docs/planning/EVIDENCE.md) separates released capabilities, missing APIs, and joint qualification work. [S0, S8, S9]
 
 The architectural boundary is:
 
@@ -29,13 +29,13 @@ Authenticated human approvals -> MDM approval API, never a React worker
 
 pg-react owns policy evaluation and delivery bookkeeping. MDM owns reviews, identity resolution, authorization of control changes, human approvals, and final publication. The adapter is optional; neither core extension gains a mandatory dependency on the other. MDM-specific logic belongs outside the generic rule evaluator. [S0 §§1, 5–7]
 
-## 2. What changes from the September 7 proposal
+## 2. Rebase on the released dependencies
 
-The proposal used pg-react `0.43.1` / pg_trickle `0.81.0` as its baseline and anticipated a `0.97` upstream freeze. The new baseline is pg-react `0.45.0` / pg_trickle `0.98.0`, but that does **not** satisfy the original live-integration gate. Release records say Graph V1 and Delta V1 are discovered, disabled, and not used; pg_trickle's `0.98` plan explicitly disables both. Upstream currently assigns final conformance to planned `0.104.0`, but a future version number is not evidence of availability. [S1–S5]
+pg-trickle `0.105.2` advertises stable, enabled `external_graph_refresh` and `output_delta_consumer` major 1, minor 0. The earlier wait for a released Graph V1 build is obsolete. Start R0 qualification against this release now. Archive its published assurance evidence and rerun the joint cases before accepting the stack. The release's deferred soak and longevity work must remain visible in the supported operating limits. [S8]
 
-There is also an unresolved artifact discrepancy: the React manifest names PostgreSQL 18.4 while the pinned upstream image reports 18.3. The first implementation plan resolves the supported artifact identity and qualifies the exact resulting stack; it must not relabel an untested image. The current coordinated differential-refresh setting must remain protected until a separate test proves a replacement safe. [S1–S3]
+pg-react `0.45.0` still pins pg-trickle `0.98.0` and rejects enabled Graph/Delta capabilities in `sql/current/pgtrickle.sql`. R0 must update runtime admission, health diagnostics, packaging, migrations, and compatibility fixtures together. Resolve the existing PostgreSQL 18.4 manifest versus 18.3 image discrepancy against the actual selected binaries. Preserve `pg_trickle.differential_max_change_ratio=1.0` until its lifecycle regression proves a replacement safe. [S1–S3]
 
-The companion MDM stewardship contract was not supplied or retrieved at the checked repository root. Its SQL signatures, complete field types, and capability names are therefore **unresolved inputs**, not APIs this roadmap invents. The inspected MDM roadmap describes a design-only V1 and places live Graph integration behind its own upstream gate. MDM V1 release numbers are not substitutes for the source proposal's stewardship milestones or optional M3 approval gate. [S0, S6]
+pg-mdm `0.11.0` supplies review publication, human pair decisions, golden overrides, Graph V1 integration, and transactional refresh. Its qualified dependency is pg-trickle `0.105.1`; `0.105.2` needs a compatibility rerun. It does not supply `mdm_steward.policy_cases_v1`, `submit_policy_intent`, bindings, policy receipts, or approval proposals. The companion plan is now present and defines that post-0.11 work. MDM's forced FULL candidate-pair refresh remains required until an exact-output regression proves it can be removed. [S0, S9]
 
 ## 3. Approach: qualify first, deliver a narrow vertical slice
 
@@ -43,7 +43,20 @@ Implement one release at a time. Keep the base rule engine useful without the ad
 
 The new pg-trickle extension points are used as a **public capability and qualification boundary** for the selected stack. The MDM side owns any admitted Graph V1 execution. React reads committed MDM policy tables and submits local typed intents. Replacing React's own coordinator with Graph V1, or optimizing its lifecycle through Delta V1, requires a different, workload-backed design and is not silently included in these six budgets.
 
-The source's start policy is retained: specification and test design can proceed now, but implementation starts only when the agreed upstream gate passes on a released build. Allowing fixture-only implementation earlier would require an explicit maintainer decision amending that policy. This document does not assume such permission. [S0 §2]
+Start the runtime compatibility work and MDM M0 contract work together. Qualify the released upstream profile before dependent integration implementation. MDM M1 supplies the real policy projection needed to close R0 and R1; MDM M2 supplies the intent API needed to qualify R2 and R3. Fixture work supports these steps, but cannot close a live gate. [S0 §2; S8, S9]
+
+The critical path has explicit handoffs:
+
+| Order | Owner | Work and handoff |
+|---|---|---|
+| 1 | React runtime owner and MDM release owner | Build one PostgreSQL 18 stack with pg-trickle `0.105.2`; rerun both projects' compatibility suites and retain the exact artifact evidence. |
+| 2 | MDM contract owner with React adapter owner | Complete M0: freeze types, signatures, roles, request identity, freshness, binding races, and receipt outcomes in `MDM-STEWARDSHIP/1`. |
+| 3 | MDM implementation owner | Complete M1: publish the logged, authorized non-RLS policy table and stable occurrence keys atomically with MDM publication. This closes the MDM dependency for React `0.46.0` and `0.47.0`. |
+| 4 | MDM implementation owner and React adapter owner | Complete M2 and React `0.48.0`: typed controls, bindings, deduplication, receipts, immutable work, and atomic delivery. MDM work can proceed while React builds R1. |
+| 5 | React runtime owner and joint release reviewer | Complete `0.49.0`, then MDM M4 with React `0.50.0`: time-only escalation and the full end-to-end, privilege, race, upgrade, and recovery suite. |
+| 6 | MDM approval owner | Schedule M3 separately before React `0.51.0`; the initial rollout has no approval dependency. |
+
+Track M0–M4 as separate post-0.11 MDM work packages. The MDM repository has no assigned versions beyond `0.11`; agree owners and estimates before committing joint dates. The React budgets below do not fund the missing MDM implementation.
 
 ## 4. Versioned delivery sequence
 
@@ -66,11 +79,11 @@ R5 intentionally precedes optional R4. This sequencing change makes the source's
 
 | Gate | Required evidence | Blocks |
 |---|---|---|
-| **UPSTREAM** | Released artifact; public `external_graph_refresh` major 1 enabled in the selected supported profile; independent conformance evidence covering ownership, rollback, boundaries, restart and upgrades | Implementation start under the retained source policy; all live integration |
+| **UPSTREAM** | `0.105.2` release availability and stable enabled Graph V1 are established in source; archive release evidence and pass independent ownership, rollback, boundary, restart, and upgrade cases | Dependent integration implementation and live qualification; R0 compatibility work starts now |
 | **IDENTITY** | PostgreSQL, pg_trickle, pg-react and image digest agree with the effective runtime; exact binaries pass qualification | Completion of `0.46.0`; supported-stack claims |
-| **CONTRACT** | MDM-approved `MDM-STEWARDSHIP/1`, exact types/signatures, concurrency and idempotency rules, permission model, canonical examples | Completion of `0.46.0`; client implementation against a frozen interface |
-| **MDM-READ** | Working public review publication and authorized non-RLS projection in the selected MDM artifact | Read-only joint qualification; fixture results alone do not close R0/R1 |
-| **MDM-INTENT** | Working stewardship validation, atomic control/receipt behavior, binding lifecycle and deduplication | Live intent qualification in `0.48.0`; no provisional private API substitute |
+| **CONTRACT** | Companion proposal is available; MDM M0 must freeze and approve exact SQL types/signatures, concurrency, idempotency, permissions, and examples | Completion of `0.46.0`; client implementation against a frozen interface |
+| **MDM-READ** | `0.11.0` review publication exists; MDM M1 must add the authorized non-RLS policy table and occurrence mapping | Read-only joint qualification; fixture results alone do not close R0/R1 |
+| **MDM-INTENT** | Absent in `0.11.0`; MDM M2 must implement atomic control/receipt behavior, binding lifecycle, and deduplication | Live intent qualification in `0.48.0`; no provisional private API substitute |
 | **TIME** | Supported managed temporal path proven to evaluate after time advancement without business-table writes | Completion of `0.49.0` |
 | **COHORT** | Named workload and owner; full shadow coverage; numeric operating/recovery thresholds; approved pause/restore procedures | Completion of `0.50.0` |
 | **APPROVAL** | MDM M3 or explicitly approved semantic equivalent is implemented and qualified, with independently advertised support | Start and enablement of `0.51.0` only |
@@ -114,4 +127,4 @@ The final first-release decision is narrow: **Can the named MDM cohort be routed
 
 ## References
 
-Source identifiers S0–S7 resolve in the [evidence register](docs/planning/EVIDENCE.md). Start implementation with the [0.46.0 plan](plans/v0.46.0.md); every later plan lists its own admission gates and predecessor.
+Source identifiers S0–S9 resolve in the [evidence register](docs/planning/EVIDENCE.md). Start implementation with the [0.46.0 plan](plans/v0.46.0.md); every later plan lists its own admission gates and predecessor.

@@ -1,16 +1,17 @@
-# pg-mdm: Policy-Assisted Stewardship Implementation Plan
+# pg-mdm: policy-assisted stewardship implementation plan
 
-**Status:** Proposal; no implementation or API compatibility promise  
-**Date:** 7 September 2026  
-**Repository:** `grove/pg-mdm`  
+**Status:** Post-0.11 implementation plan; proposed stewardship APIs remain unimplemented\
+**Updated:** 12 September 2026\
+**Dependency target:** pg-mdm `0.11.0` plus the work below, pg-trickle `0.105.2`, and the pg-react `0.46.0`–`0.50.0` sequence\
+**Repository:** `trickle-labs/pg-mdm`\
 **Companion:** [pg-react implementation plan](PLAN_PG_REACT_MDM_STEWARDSHIP.md)  
 **Proposed shared contract:** `MDM-STEWARDSHIP/1`
 
 ## 1. Goal and ownership
 
-Let pg-react recommend where an identity-review case should go, when it should be escalated, and—later—which approval policy applies. **pg-mdm remains the authority for review state, human approvals, permitted decisions, and identity changes.**
+Let pg-react recommend where an identity-review case should go, when it should be escalated, and later which approval policy applies. pg-mdm remains the authority for review state, human approvals, permitted decisions, and identity changes.
 
-The existing repository is design-stage. V1 already specifies a review queue, durable pair `MATCH` / `NOT_MATCH` decisions, and anchored golden overrides. Assignment and approval workflows are V2 proposals. This plan implements an optional integration into that V2 direction; it does not make pg-react, advanced approvals, or automatic review resolution prerequisites for MDM V1. [1][2][3]
+pg-mdm `0.11.0` implements review publication, durable pair `MATCH` and `NOT_MATCH` decisions, anchored golden overrides, and transactional graph refresh. Reuse those implementations. Assignment, deadlines, escalation controls, automation bindings, policy receipts, and approval proposals remain new work. This optional integration extends the released core without making pg-react a core dependency. [1][2][3]
 
 ```text
 MDM publishes a review case
@@ -24,11 +25,13 @@ There is no synchronous MDM -> React -> MDM refresh cycle. Human decisions remai
 
 ## 2. Entry gate
 
-Follow the selected conservative start policy: substantive implementation waits for a **released, feature-frozen pg-trickle build at the planned 0.97 milestone or later**, with its published assurance evidence. The milestone is currently planned, not a claim of availability. [5]
+Start joint stack qualification now. Released pg-trickle `0.105.2` advertises stable, enabled `external_graph_refresh` major 1, minor 0. Replace the old wait for the planned `0.97` freeze with a check of this release's artifact and assurance evidence. Pass the MDM graph, rollback, recovery, and clone-isolation cases before dependent integration implementation. [5]
 
-The selected build must advertise stable `external_graph_refresh` major 1 and pass the MDM graph, rollback, recovery, and clone-isolation conformance suite. Delta V1 can be part of the preferred upstream baseline, but neither this integration nor MDM V1 requires delta consumption or an incremental MDM resolver. The current MDM roadmap explicitly retains full-entity resolution. [4]
+MDM `0.11.0` pins pg-trickle `0.105.1`. Qualify `0.105.2` using the existing MDM E2E, upgrade, restore, security, and package checks. Keep full-entity resolution and the forced FULL candidate-pair nodes in `src/graph_spec.rs`; `0.105.2` has no engine changes that establish a fix for the multi-row pair-insert problem. Delta V1 remains unused. [4][5]
 
-Until that gate passes, limit work to contract review, specifications, and test-case design. Before joint implementation, qualify pg-react against the same upstream build; its currently documented qualified environment uses pg-trickle 0.81.0. [6]
+Qualify pg-react against the same packaged stack in R0. Its released `0.45.0` runtime accepts pg-trickle `0.98.0` with disabled Graph/Delta capabilities, so both admission logic and packaging need changes. Use trigger CDC, scheduler off, `READ COMMITTED`, and separate MDM-owned EXTERNAL graphs as the initial joint profile. These are joint restrictions, not all of pg-trickle's capabilities. [6]
+
+Keep M0–M4 as proposed post-0.11 MDM work packages. The MDM roadmap has no assigned later release numbers. Assign an MDM implementation owner and estimate these packages separately from the React release budgets before setting joint dates.
 
 ## 3. First release scope
 
@@ -40,13 +43,26 @@ Defer multi-person approvals to the next optional milestone. Defer automatic `MA
 
 This section is the proposed normative interface for both plans. Names below are **new proposed names**, not existing SQL functions. Freeze exact PostgreSQL types and signatures in the contract milestone.
 
+Build on the released public data without treating it as the finished policy contract:
+
+| Released foundation | Required addition |
+| --- | --- |
+| `mdm_out.<entity>_review` after first publication | Project `review_id uuid`, `issue_key bytea`, `occurrence integer`, status, reason, masked metadata, and `concurrency_version bigint` into an MDM-owned policy table. Add queue, due date, escalation, permissions, and basis fields. |
+| Review recurrence creates a new UUID and occurrence | Allocate a persistent bigint `case_key` for each occurrence. Retain closed mappings for replay and restore. |
+| `mdm.describe(entity_name text, format text)` | Map definition versions, decision epoch, publication revision, and `pending_stewardship` to documented contract fields. Add a policy-specific evidence digest and action-driving revision. |
+| `mdm_steward.decide(...)` and golden-override APIs | Preserve these as human stewardship operations. They have optimistic versions but no policy request-key protocol; do not use them as an automated intent adapter. |
+
+MDM's `pending_stewardship` uses the latest successful publication observation, including no-change observations. Do not infer pending state solely from an unchanged publication revision. Freeze the mapping between review `concurrency_version`, decision epoch, definition versions, and proposed intent tokens in M0. [1][2]
+
 | Proposed surface | Contract |
 | --- | --- |
-| `mdm_steward.policy_cases_v1` | Permission-controlled, logged policy-input table. MDM alone maintains it. Expose a unique, non-null `case_key bigint`, the original `review_id`, entity, reason, open/resolved state, permitted actions, queue, due date, escalation level, and concurrency/basis tokens. |
+| `mdm_steward.policy_cases_v1` | Permission-controlled, logged policy-input table. MDM alone maintains it. Expose a unique, non-null `case_key bigint`, the original `review_id`, immutable occurrence `opened_at timestamptz`, entity, reason, open/resolved state, permitted actions, queue, due date, escalation level, and concurrency/basis tokens. |
 | `mdm_steward.submit_policy_intent(...)` | Typed, allowlisted command API. Initial actions are `ASSIGN_QUEUE`, `SET_DUE_AT`, and `ESCALATE`. No arbitrary SQL, private-table writes, or identity mutations. |
 | `mdm_steward.policy_receipts_v1` | Authorized results keyed by binding and request key; record action, outcome, reason, policy provenance, actor, and any resulting publication revision. |
 
 **Identity and freshness.** Allocate `case_key` once per review occurrence, retain its mapping, and never reuse it. Do not hash an opaque review ID into a bigint. The MDM V1 design gives recurring issues new review occurrences; the integration must preserve that distinction. [2]
+
+Record `opened_at` when a new occurrence is first published. Retain it through later publications and restore; recurrence gets its own timestamp. Released review rows have revision numbers but no creation timestamp. M0 must define an auditable backfill for existing occurrences from retained publication evidence. If that evidence is unavailable, expose an unknown timestamp and withhold automatic deadline assignment until an authorized backfill supplies it. Never use adapter installation or retry time as the case opening time.
 
 Each intent carries `binding_id`, `request_key`, `case_key`, typed action arguments, expected review version, definition version, publication revision, stewardship epoch, evidence-basis digest, and policy/evaluation/work references. The basis includes relevant subject membership and evidence. Relevant changes invalidate an unexecuted proposal. The first implementation may reject conservatively when the wider boundary changes.
 
@@ -60,15 +76,19 @@ Each intent carries `binding_id`, `request_key`, `case_key`, typed action argume
 
 | Milestone | Deliverables | Exit evidence |
 | --- | --- | --- |
-| **M0 — Contract and scope** | Update the V2 stewardship section; document the shared interface, permission matrix, state transitions, error outcomes, and canonical fixtures. Pin one supported stack. | Both projects approve the same versioned contract; core V1 scope remains unchanged. |
-| **M1 — Review projection** | Build the policy-input table and occurrence-key mapping. Separate published evidence from administrative control state. Add masking and publication-consistency tests. | React can read complete review cases without private access; rollback exposes no partial publication. |
-| **M2 — Routing and escalation** | Implement bindings, the typed intent API, receipts, manual-assignment protection, bounded due-date changes, and deduplication. | Assignment and escalation work; duplicate, stale, unauthorized, and disabled-binding requests cannot alter state. |
-| **M3 — Optional approval requirements** | Add an MDM-owned proposal and approval ledger. A proposal pins the exact action, subjects, evidence basis, and requirement version. Add a human approval API and final validation. | Two required approvals mean two distinct authorized humans; self-approval, stale evidence, and requirement downgrades fail. |
-| **M4 — Joint qualification** | Run shared concurrency, restore, privilege, failure, upgrade, and end-to-end tests. Document pause, reconciliation, and retention. | The first-release scope passes on the packaged compatible stack before enablement. M3 is independently gated. |
+| **M0: contract and scope** | MDM contract owner and React adapter owner freeze the shared SQL contract, roles, tokens, state transitions, errors, and exact fixtures. Qualify the target dependencies with R0. | Both projects approve one contract revision; M1 can implement without guessing types or authority. |
+| **M1: review projection** | MDM implementation owner adds the logged policy table, retained occurrence-key mapping, masked fields, and publication-atomic updates. | Exact public rows and rollback state pass on real MDM; unlocks React R0 completion and R1 joint acceptance. |
+| **M2: routing and escalation** | MDM implementation owner adds binding administration, three typed actions, receipts, manual locks, bounded deadlines/levels, and deduplication. May proceed alongside React R1 after M0/M1. | Full receipt and control-state assertions pass for duplicate, stale, unauthorized, paused, and replaced-binding calls; unlocks React R2/R3. |
+| **M4: joint qualification** | Joint release owners run concurrency, restore, privilege, failure, upgrade, and end-to-end tests with React R5 at `0.50.0`. | The initial cohort passes all required cases before enablement; exact artifacts and recovery steps are recorded. |
+| **M3: optional approval requirements** | MDM approval owner adds an exact-action proposal ledger, authenticated human approval API, requirement versions, and final validation. Schedule independently before React R4 at `0.51.0`. | Two required approvals mean two distinct authorized humans; self-approval, stale evidence, and requirement downgrades fail. |
+
+Deliver M0 → M1 → M2 → M4 for the initial rollout. M3 retains its original identifier but follows its own approval gate. The released `mdm.preview()` validates or samples definitions; it does not implement M3 proposal approval.
 
 ## 6. Approval and automation safeguards
 
-An approval is approval of a **specific proposed action**, not blanket approval of an entity ID that may later merge or split. Capture the human identity from authenticated database access or a separately trusted identity gateway—not from an arbitrary actor string supplied by pg-react. The React worker cannot supply human votes.
+An approval covers a specific proposed action and its subjects and evidence. Capture human identity from authenticated database access or a separately trusted identity gateway. Never accept an actor string supplied by pg-react as proof of human identity. The React worker cannot supply human votes.
+
+Reuse MDM's database-role binding checks and fixed-path privileged helpers. Its released APIs verify role names and OIDs and reject superuser/BYPASSRLS application sessions. Add a distinct automation binding and role that can submit allowed controls but cannot call human decision or override APIs. Prove this through React's actual worker execution identity, including `SET ROLE` and `SECURITY DEFINER` behavior. [1]
 
 MDM checks approval requirements at acceptance and checks directive coherence again during publication. Changed evidence, membership, definitions, or requirements require a new review of the affected proposal. Rejecting a proposal is not the same as creating a durable `NOT_MATCH` constraint.
 
@@ -89,16 +109,18 @@ Retain receipts, key mappings, and approval evidence for the documented replay/a
 
 **First joint demonstration:** an ambiguous customer case is assigned, becomes overdue without further source edits, is escalated once, receives a human decision, and is closed only after a successful MDM publication.
 
+Implement this demonstration in `showcase/mdm-stewardship/` with exact expected policy rows, immutable requests, receipt rows, work outcomes, and final review state. Reuse MDM's `scripts/build_e2e_image.sh`, `scripts/run_e2e_tests.sh`, `tests/e2e.sql`, `tests/restore.sql`, and upgrade/security checks. Include multi-row candidate inserts and AUTO/FULL equivalence before changing refresh safeguards. A release tag or expected-results manifest is not a passing test log.
+
 ## Sources reviewed
 
-[1] [pg-mdm README: project status and responsibility boundary](https://github.com/grove/pg-mdm/blob/main/README.md).
+[1] pg-mdm `v0.11.0`, commit `97b78c8`: `README.md`, `sql/archive/pg_mdm--0.11.0.sql`, `src/api/steward.rs`, and `src/catalog.rs` in `../pg-mdm`. See the [release evidence register](../docs/planning/EVIDENCE.md#s9-pg-mdm-0110-foundation-and-missing-contract).
 
-[2] [MDM V1 design: sections 2, 8–12, and 14](https://github.com/grove/pg-mdm/blob/main/DESIGN_V1.md).
+[2] pg-mdm `v0.11.0`: `src/output.rs`, `src/review.rs`, `src/api/describe.rs`, and `DESIGN_V1.md` in `../pg-mdm`.
 
-[3] [MDM V2 design: sections 2, 12, and 15](https://github.com/grove/pg-mdm/blob/main/DESIGN_V2.md).
+[3] pg-mdm `v0.11.0`: `DESIGN_V2.md` section 12 describes future stewardship assignment and approval work.
 
-[4] [MDM implementation roadmap: upstream entry gate and full-resolution baseline](https://github.com/grove/pg-mdm/blob/main/ROADMAP.md).
+[4] pg-mdm `v0.11.0`: `DEPENDENCIES.md`, `ROADMAP.md`, `plans/v0.11.md`, and `src/graph_spec.rs` in `../pg-mdm`.
 
-[5] [pg-trickle 0.97 plan: assurance and feature freeze](https://github.com/trickle-labs/pg-trickle/blob/main/roadmap/v0.97.0.md).
+[5] pg-trickle `v0.105.2`, commit `33df4cc9`: `docs/capability-manifest.json`, `CHANGELOG.md`, and release qualification manifest in `../pg-trickle1`. See the [release evidence register](../docs/planning/EVIDENCE.md#s8-pg-trickle-01052-release).
 
-[6] [pg-react support matrix: qualified stack, keys, and RLS limits](https://github.com/trickle-labs/pg-react/blob/main/docs/support-matrix.md).
+[6] [pg-react support matrix](../docs/support-matrix.md) and [R0 implementation plan](v0.46.0.md).
