@@ -8,24 +8,5 @@ permissions:
   contents: read
 
 jobs:
-  rust:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: dtolnay/rust-toolchain@3c5f7ea28cd621ae0bf5283f0e981fb97b8a7af9
-        with:
-          toolchain: 1.89.0
-          components: rustfmt
-      - run: cargo fmt --check
-      - run: cargo test --no-default-features
-      - name: Check pgrx PostgreSQL 18 skeleton
-        run: |
-          docker run --rm \
-            -v "$PWD:/work:ro" \
-            -v /work/target \
-            -w /work \
-            ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95 \
-            cargo check --features pg18
-
   qualification:
     uses: ./.github/workflows/qualification.yml

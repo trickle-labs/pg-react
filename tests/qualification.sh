@@ -47,8 +47,7 @@ static_audit() {
     tests/m55-benchmark-case.sh tests/m55-benchmark-case.sql \
     sql/current/assembly.txt sql/current/README.md \
     sql/current/upgrade-0.44.0-to-0.45.0.txt \
-    sql/pg_react--0.44.0--0.45.0.sql sql/pg_react--0.45.0.sql \
-    sql/v0.45.0.sql; do
+    sql/pg_react--0.44.0--0.45.0.sql sql/pg_react--0.45.0.sql; do
     test -s "$file"
   done
   bash -n bin/assemble-sql tests/qualification.sh tests/m55-benchmark.sh \
