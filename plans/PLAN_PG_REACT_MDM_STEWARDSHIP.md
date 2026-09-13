@@ -76,6 +76,14 @@ Execute R0 → R1 → R2 → R3 → R5 for the first release, corresponding to p
 
 ## 6. Execution and retry semantics
 
+R0 contract conformance uses `contracts/MDM-STEWARDSHIP-1.json` and
+`contracts/MDM-STEWARDSHIP-1-fixture.json`. The frozen SHA-256 digests are
+`babd8510203cac5b4d0486e82a76b4d306ccec9bd539c778e444bfe3ca23764e` and
+`00d0eaad21601b0048ff7139fac435ee04f222ffc26894698bd97418ac5b8e06`.
+The fixture's request-key vector digest is
+`3ebd5539467befabbc0492e51e49fe2dc866a225cc73a36256d0a95a06b06d4e`. Run
+`python3 tests/mdm_stewardship_contract.py` in this repository before contract signoff.
+
 Execute a local MDM intent call, record its receipt reference, and finish the corresponding React database work in one PostgreSQL transaction. Do not invoke `mdm.refresh()` from a consequence; MDM refresh runs independently after committed control changes. Database consequences already use transactional execution in pg-react. [1][2]
 
 Derive a request key from a canonical, versioned encoding of:
@@ -84,6 +92,18 @@ Derive a request key from a canonical, versioned encoding of:
 binding ID + policy revision + case occurrence + lifecycle generation
 + action-driving revision + consequence identity + escalation level
 ```
+
+For `MDM-STEWARDSHIP/1`, React derives the 32-byte key by SHA-256 hashing two
+unsigned-32-bit-big-endian-length-framed parts: the UTF-8 domain tag
+`pg_react/mdm-stewardship-request-key/v1`, then the UTF-8 compact canonical
+JSON object with sorted keys and `canonical_encoding_version: 1`. Its fields
+are `binding_id` (canonical lowercase UUID text), `policy_revision`,
+`case_key`, `lifecycle_generation`, `action_revision`, `consequence_identity`,
+and `escalation_level`. The shared fixture pins the exact input bytes and
+expected digest. Retries persist and reuse the same key and request body.
+The exact vector is `request_key_vector` in the frozen shared fixture.
+MDM captures the authenticated effective database role as the receipt actor;
+React does not pass or choose that actor.
 
 Persist that key and the complete request body with the work. Every retry uses the same values. Distinct intended actions need distinct keys; audit timestamps and unrelated publication changes must not manufacture new requests.
 
