@@ -76,13 +76,14 @@ Execute R0 → R1 → R2 → R3 → R5 for the first release, corresponding to p
 
 ## 6. Execution and retry semantics
 
-R0 contract conformance uses `contracts/MDM-STEWARDSHIP-1.json` and
-`contracts/MDM-STEWARDSHIP-1-fixture.json`. The frozen SHA-256 digests are
-`babd8510203cac5b4d0486e82a76b4d306ccec9bd539c778e444bfe3ca23764e` and
-`00d0eaad21601b0048ff7139fac435ee04f222ffc26894698bd97418ac5b8e06`.
-The fixture's request-key vector digest is
-`3ebd5539467befabbc0492e51e49fe2dc866a225cc73a36256d0a95a06b06d4e`. Run
-`python3 tests/mdm_stewardship_contract.py` in this repository before contract signoff.
+R0 uses `contracts/MDM-STEWARDSHIP-1.json` and
+`contracts/MDM-STEWARDSHIP-1-fixture.json`. Their approved SHA-256 digests
+are `2161ce22b9d924ff3f3e6d8acde62fed01b6b1c1c4d7ba0fd4d5eb6e396e0fcf` and
+`900f365533bab13480fcb88ab8e8b7956beb4f14a8cfc92cd46770b2e26ef3e4`.
+The request-key and policy-digest vector hashes are
+`3ebd5539467befabbc0492e51e49fe2dc866a225cc73a36256d0a95a06b06d4e` and
+`741ea9560a69ba3185eaa34760ba38d473aa43daa8e8c530c6c6c2ce867c2614`.
+Both repositories' conformance tests passed on 2026-09-13.
 
 Execute a local MDM intent call, record its receipt reference, and finish the corresponding React database work in one PostgreSQL transaction. Do not invoke `mdm.refresh()` from a consequence; MDM refresh runs independently after committed control changes. Database consequences already use transactional execution in pg-react. [1][2]
 
@@ -102,6 +103,9 @@ are `binding_id` (canonical lowercase UUID text), `policy_revision`,
 and `escalation_level`. The shared fixture pins the exact input bytes and
 expected digest. Retries persist and reuse the same key and request body.
 The exact vector is `request_key_vector` in the frozen shared fixture.
+React computes the policy digest with `pg_react/mdm-stewardship-policy/v1`
+over canonical JSON v1 containing the policy revision and complete normalized
+policy package; MDM compares the 32-byte value with the active binding digest.
 MDM captures the authenticated effective database role as the receipt actor;
 React does not pass or choose that actor.
 

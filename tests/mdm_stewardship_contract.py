@@ -6,8 +6,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT_PATH = ROOT / "contracts/MDM-STEWARDSHIP-1.json"
 FIXTURE_PATH = ROOT / "contracts/MDM-STEWARDSHIP-1-fixture.json"
-CONTRACT_SHA256 = "babd8510203cac5b4d0486e82a76b4d306ccec9bd539c778e444bfe3ca23764e"
-FIXTURE_SHA256 = "00d0eaad21601b0048ff7139fac435ee04f222ffc26894698bd97418ac5b8e06"
+CONTRACT_SHA256 = "2161ce22b9d924ff3f3e6d8acde62fed01b6b1c1c4d7ba0fd4d5eb6e396e0fcf"
+FIXTURE_SHA256 = "900f365533bab13480fcb88ab8e8b7956beb4f14a8cfc92cd46770b2e26ef3e4"
 
 
 def canonical_json(value):
@@ -31,6 +31,11 @@ def main():
     fixture = json.loads(fixture_bytes)
     assert contract["contract"] == fixture["contract"] == "MDM-STEWARDSHIP/1"
     assert contract["revision"] == fixture["revision"] == 1
+    assert contract["status"] == "approved"
+    assert contract["approvals"]["pg_mdm_owner"]["status"] == "approved"
+    assert contract["approvals"]["pg_mdm_owner"]["role"] == "pg-mdm M0 contract owner"
+    assert contract["approvals"]["pg_react_owner"]["status"] == "approved"
+    assert contract["approvals"]["pg_react_owner"]["role"] == "pg-react R0 adapter owner"
     assert contract["conformance_fixture"] == {
         "file": FIXTURE_PATH.name,
         "sha256": FIXTURE_SHA256,
@@ -39,6 +44,7 @@ def main():
 
     encoding = contract["canonical_encoding"]
     for domain_key, vector_key in (
+        ("policy_domain_tag", "policy_vector"),
         ("basis_domain_tag", "basis_vector"),
         ("intent_domain_tag", "intent_vector"),
         ("request_key_domain_tag", "request_key_vector"),
@@ -50,8 +56,18 @@ def main():
         assert vector == encoding[vector_key]
 
     assert fixture["intent_vector"]["request_key"] == fixture["request_key_vector"]["sha256"]
+    assert fixture["intent_vector"]["body"]["expected_policy_digest"] == fixture["policy_vector"]["sha256"]
+    assert contract["intent"]["policy_digest"]["owner"].startswith("React computes")
+    assert contract["freshness"]["review_version_meaning"].startswith("The exact concurrency_version")
+    assert "PENDING_STEWARDSHIP" in contract["freshness"]["pending_stewardship_rule"]
+    assert "PENDING_STEWARDSHIP" in contract["intent"]["outcomes"]
+    bindings = contract["sql"]["bindings"]
+    assert bindings["relation"] == "mdm_steward.policy_bindings_v1"
+    assert "mdm_administrator" in bindings["administrator_surface"]["authorization"]
+    assert "At most one active binding exists per scope." in bindings["invariants"]
     receipt_columns = contract["sql"]["receipts"]["columns"]
-    assert ["actor", "name", "not null; MDM records the authenticated effective database role before privileged execution; caller cannot supply it"] in receipt_columns
+    assert ["actor", "name", "not null; captured from current_user by the invoker-facing wrapper before it calls privileged helpers; caller cannot supply it"] in receipt_columns
+    assert contract["intent"]["actor_capture"].startswith("The invoker-facing SQL wrapper captures current_user")
     assert contract["intent"]["idempotency"]["changed_body"] == {
         "receipt_id": None,
         "outcome": "IDEMPOTENCY_CONFLICT",
