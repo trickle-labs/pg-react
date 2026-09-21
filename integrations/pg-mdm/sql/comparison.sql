@@ -16,6 +16,8 @@ DECLARE
     key_max bigint;
     expected_count bigint;
     observed_count bigint;
+    selected_keys bigint[];
+    evaluated_keys bigint[];
     rows jsonb;
     population_id text := NULLIF(population ->> 'id', '');
     has_membership boolean := population ? 'membership';
@@ -64,7 +66,10 @@ BEGIN
             FROM unnest(membership) AS item(value)) THEN
             RAISE EXCEPTION 'MDM_COMPARISON_POPULATION: membership contains duplicates';
         END IF;
-        SELECT count(*) INTO observed_count
+        IF expected_count <> cardinality(membership) THEN
+            RAISE EXCEPTION 'MDM_COMPARISON_POPULATION: expected_count must match membership size';
+        END IF;
+        SELECT array_agg(c.case_key ORDER BY c.case_key) INTO selected_keys
         FROM pgreact_mdm.policy_inputs(source_relation) AS c
         WHERE c.case_key = ANY(membership);
     ELSE
@@ -77,11 +82,12 @@ BEGIN
         IF key_min <= 0 OR key_max < key_min THEN
             RAISE EXCEPTION 'MDM_COMPARISON_POPULATION: invalid key range';
         END IF;
-        SELECT count(*) INTO observed_count
+        SELECT array_agg(c.case_key ORDER BY c.case_key) INTO selected_keys
         FROM pgreact_mdm.policy_inputs(source_relation) AS c
         WHERE c.case_key BETWEEN key_min AND key_max;
         membership := NULL;
     END IF;
+    observed_count := COALESCE(cardinality(selected_keys), 0);
     EXECUTE $query$
         WITH current_routes AS (
             SELECT * FROM pgreact_mdm.route_cases($1, $2)
@@ -134,6 +140,13 @@ BEGIN
     INTO rows
     USING source_relation, current_policy_revision, proposed_policy_revision,
           captured_at, membership, key_min, key_max;
+    SELECT array_agg((item.value ->> 'case_key')::bigint
+                     ORDER BY (item.value ->> 'case_key')::bigint)
+    INTO evaluated_keys
+    FROM jsonb_array_elements(rows) AS item(value);
+    IF selected_keys IS DISTINCT FROM evaluated_keys THEN
+        RAISE EXCEPTION 'MDM_COMPARISON_INCOMPLETE: evaluated rows differ from selected cases';
+    END IF;
     RETURN jsonb_build_object(
         'state', CASE WHEN observed_count = expected_count THEN 'complete' ELSE 'partial' END,
         'read_only', true,
@@ -149,13 +162,7 @@ BEGIN
             'observed_count', observed_count,
             'partial', observed_count <> expected_count,
             'snapshot', 'one READ COMMITTED statement per read')),
-        'rows', rows,
-        'no_effect', jsonb_build_object(
-            'mdm_writes', 0,
-            'react_work_writes', 0,
-            'react_lifecycle_writes', 0,
-            'intent_submissions', 0,
-            'refresh_calls', 0));
+        'rows', rows);
 END
 $function$;
 

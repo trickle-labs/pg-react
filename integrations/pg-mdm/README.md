@@ -36,8 +36,11 @@ The public seams are:
 After the core extension is installed, load `typed-flow.sql` and pass the
 returned `pgreact_api.declaration` to `pgreact.validate`, `pgreact.preview`,
 `pgreact.review_token`, and `pgreact.compare`. The bridge adds the signed MDM
-source as a typed policy support relation. It does not deploy or run the
-declaration.
+source as a typed policy support relation. The typed version includes the
+published package digest, so route or deadline changes require a new revision
+and declaration review. It does not deploy or run the declaration.
+Run `tests/integrations/pg-mdm/v0.47-typed.sql` after the fixture test in a
+database with the core extension installed to check that identity.
 
 The package is adapter-owned and optional; the core pg-react extension remains
 usable without it.

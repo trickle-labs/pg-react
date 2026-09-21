@@ -174,10 +174,7 @@ BEGIN
            'population_id', 'fixture-all', 'key_min', 1, 'key_max', 7,
            'expected_count', 7, 'observed_count', 7, 'partial', false,
            'snapshot', 'one READ COMMITTED statement per read')
-       OR actual -> 'no_effect' IS DISTINCT FROM jsonb_build_object(
-           'mdm_writes', 0, 'react_work_writes', 0,
-           'react_lifecycle_writes', 0, 'intent_submissions', 0,
-           'refresh_calls', 0)
+       OR actual ? 'no_effect'
        OR jsonb_array_length(actual -> 'rows') <> 7 THEN
         RAISE EXCEPTION 'v0.47 comparison transcript mismatch: %', actual;
     END IF;
@@ -199,6 +196,58 @@ BEGIN
        OR actual -> 'coverage' ->> 'partial' <> 'true' THEN
         RAISE EXCEPTION 'v0.47 partial comparison transcript mismatch: %', actual;
     END IF;
+END
+$$;
+
+DO $$
+DECLARE
+    first_partition jsonb;
+    second_partition jsonb;
+    missing_partition jsonb;
+    partition_keys jsonb;
+    source_keys jsonb;
+BEGIN
+    SELECT pgreact_mdm.compare_population(
+        'mdm_fixture.policy_cases_v1'::regclass, 'policy-1', 'policy-2',
+        '2026-09-21 12:00:00+00',
+        '{"id":"first","membership":[1,2,3],"expected_count":3}'::jsonb)
+    INTO first_partition;
+    SELECT pgreact_mdm.compare_population(
+        'mdm_fixture.policy_cases_v1'::regclass, 'policy-1', 'policy-2',
+        '2026-09-21 12:00:00+00',
+        '{"id":"second","membership":[4,5,6,7],"expected_count":4}'::jsonb)
+    INTO second_partition;
+    SELECT jsonb_agg(case_key ORDER BY case_key) INTO source_keys
+    FROM mdm_fixture.policy_cases_v1;
+    SELECT jsonb_agg((row ->> 'case_key')::bigint ORDER BY (row ->> 'case_key')::bigint)
+    INTO partition_keys
+    FROM jsonb_array_elements((first_partition -> 'rows') || (second_partition -> 'rows')) AS item(row);
+    IF first_partition ->> 'state' <> 'complete'
+       OR second_partition ->> 'state' <> 'complete'
+       OR partition_keys IS DISTINCT FROM source_keys THEN
+        RAISE EXCEPTION 'v0.47 exact partition coverage mismatch: %, %, %',
+            first_partition, second_partition, partition_keys;
+    END IF;
+    SELECT pgreact_mdm.compare_population(
+        'mdm_fixture.policy_cases_v1'::regclass, 'policy-1', 'policy-2',
+        '2026-09-21 12:00:00+00',
+        '{"id":"missing","membership":[1,3,8],"expected_count":3}'::jsonb)
+    INTO missing_partition;
+    IF missing_partition ->> 'state' <> 'partial'
+       OR missing_partition -> 'coverage' ->> 'observed_count' <> '2' THEN
+        RAISE EXCEPTION 'v0.47 missing membership was not partial: %', missing_partition;
+    END IF;
+    BEGIN
+        PERFORM pgreact_mdm.compare_population(
+            'mdm_fixture.policy_cases_v1'::regclass, 'policy-1', 'policy-2',
+            '2026-09-21 12:00:00+00',
+            '{"id":"bad-size","membership":[1,2],"expected_count":1}'::jsonb);
+        RAISE EXCEPTION 'v0.47 inconsistent membership count was accepted';
+    EXCEPTION WHEN OTHERS THEN
+        IF SQLERRM <> 'MDM_COMPARISON_POPULATION: expected_count must match membership size' THEN
+            RAISE;
+        END IF;
+    END;
 END
 $$;
 
@@ -296,10 +345,7 @@ WITH actual AS (
 SELECT CASE
     WHEN (result ->> 'state') = 'complete'
      AND (result -> 'coverage' ->> 'observed_count') = '7'
-    AND (result -> 'no_effect') IS NOT DISTINCT FROM jsonb_build_object(
-         'mdm_writes', 0, 'react_work_writes', 0,
-         'react_lifecycle_writes', 0, 'intent_submissions', 0,
-         'refresh_calls', 0)
+    AND NOT result ? 'no_effect'
     THEN 'v0.47 normal-role comparison passed'
     ELSE current_setting('pgreact_v047_missing_setting')
 END AS result
