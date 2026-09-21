@@ -202,4 +202,146 @@ BEGIN
 END
 $$;
 
+DO $$
+BEGIN
+    BEGIN
+        PERFORM pgreact_mdm.publish_package(
+            'invalid-deadline',
+            '{"routes":[{"reason_code":"POSSIBLE_DUPLICATE","queue":"priority","priority":1}],"deadline":{"duration_seconds":30,"min_seconds":60,"max_seconds":86400,"replace_existing_deadline":false}}'::jsonb);
+        RAISE EXCEPTION 'v0.47 invalid deadline unexpectedly accepted';
+    EXCEPTION WHEN OTHERS THEN
+        IF SQLERRM NOT LIKE 'MDM_POLICY_INVALID:%POLICY_DEADLINE_BOUNDS%' THEN
+            RAISE;
+        END IF;
+    END;
+END
+$$;
+
+DO $$
+BEGIN
+    IF to_regnamespace('mdm_steward') IS NOT NULL THEN
+        RAISE EXCEPTION 'v0.47 fixture must run without an installed mdm_steward schema';
+    END IF;
+END
+$$;
+
+BEGIN;
+CREATE SCHEMA mdm_steward;
+DROP TABLE IF EXISTS mdm_steward.policy_cases_v1;
+CREATE TABLE mdm_steward.policy_cases_v1 (LIKE mdm_fixture.policy_cases_v1 INCLUDING ALL);
+ALTER TABLE mdm_steward.policy_cases_v1
+    ALTER COLUMN case_key TYPE text USING case_key::text;
+
+DO $$
+BEGIN
+    BEGIN
+        PERFORM pgreact_mdm.validate_inputs('mdm_steward.policy_cases_v1'::regclass);
+        RAISE EXCEPTION 'v0.47 invalid contract type unexpectedly accepted';
+    EXCEPTION WHEN OTHERS THEN
+        IF SQLERRM NOT LIKE 'MDM_INPUT_CONTRACT:%case_key must have type bigint, found text' THEN
+            RAISE;
+        END IF;
+    END;
+END
+$$;
+
+DO $$
+BEGIN
+    BEGIN
+        PERFORM pgreact_mdm.compare_population(
+            'mdm_fixture.policy_cases_v1'::regclass,
+            'policy-1', 'policy-1',
+            '2026-09-21 12:00:00+00',
+            '{"id":"invalid-range","key_min":0,"key_max":7,"expected_count":7}'::jsonb);
+        RAISE EXCEPTION 'v0.47 invalid key range unexpectedly accepted';
+    EXCEPTION WHEN OTHERS THEN
+        IF SQLERRM <> 'MDM_COMPARISON_POPULATION: invalid key range' THEN
+            RAISE;
+        END IF;
+    END;
+END
+$$;
+
+ROLLBACK;
+
+CREATE TEMP TABLE v047_role_created(created boolean) ON COMMIT PRESERVE ROWS;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'pgrex_v047_reader') THEN
+        CREATE ROLE pgrex_v047_reader NOLOGIN;
+        INSERT INTO v047_role_created VALUES (true);
+    END IF;
+END
+$$;
+
+GRANT USAGE ON SCHEMA mdm_fixture, pgreact_mdm TO pgrex_v047_reader;
+GRANT SELECT ON mdm_fixture.policy_cases_v1 TO pgrex_v047_reader;
+
+CREATE TEMP TABLE v047_before AS
+SELECT 'source' AS object_name,
+       jsonb_agg(to_jsonb(source_row) ORDER BY source_row.case_key) AS state
+FROM mdm_fixture.policy_cases_v1 AS source_row
+UNION ALL
+SELECT 'packages',
+       jsonb_agg(to_jsonb(package_row) ORDER BY package_row.policy_revision)
+FROM pgreact_mdm.policy_packages AS package_row;
+
+SET ROLE pgrex_v047_reader;
+WITH actual AS (
+    SELECT pgreact_mdm.compare_population(
+        'mdm_fixture.policy_cases_v1'::regclass,
+        'policy-1', 'policy-1',
+        '2026-09-21 12:00:00+00',
+        '{"id":"reader-complete","key_min":1,"key_max":7,"expected_count":7}'::jsonb) AS result)
+SELECT CASE
+    WHEN (result ->> 'state') = 'complete'
+     AND (result -> 'coverage' ->> 'observed_count') = '7'
+    AND (result -> 'no_effect') IS NOT DISTINCT FROM jsonb_build_object(
+         'mdm_writes', 0, 'react_work_writes', 0,
+         'react_lifecycle_writes', 0, 'intent_submissions', 0,
+         'refresh_calls', 0)
+    THEN 'v0.47 normal-role comparison passed'
+    ELSE current_setting('pgreact_v047_missing_setting')
+END AS result
+FROM actual;
+RESET ROLE;
+
+DO $$
+DECLARE
+    before_source jsonb;
+    before_packages jsonb;
+    after_source jsonb;
+    after_packages jsonb;
+    is_security_definer boolean;
+BEGIN
+    SELECT prosecdef INTO is_security_definer
+    FROM pg_proc
+    WHERE oid = 'pgreact_mdm.compare_population(regclass,text,text,timestamptz,jsonb)'::regprocedure;
+    IF is_security_definer THEN
+        RAISE EXCEPTION 'v0.47 comparison unexpectedly runs as SECURITY DEFINER';
+    END IF;
+
+    SELECT state INTO before_source FROM v047_before WHERE object_name = 'source';
+    SELECT state INTO before_packages FROM v047_before WHERE object_name = 'packages';
+    SELECT jsonb_agg(to_jsonb(source_row) ORDER BY source_row.case_key)
+    INTO after_source FROM mdm_fixture.policy_cases_v1 AS source_row;
+    SELECT jsonb_agg(to_jsonb(package_row) ORDER BY package_row.policy_revision)
+    INTO after_packages FROM pgreact_mdm.policy_packages AS package_row;
+    IF before_source IS DISTINCT FROM after_source
+       OR before_packages IS DISTINCT FROM after_packages THEN
+        RAISE EXCEPTION 'v0.47 read-only comparison changed durable state';
+    END IF;
+END
+$$;
+
+REVOKE USAGE ON SCHEMA mdm_fixture, pgreact_mdm FROM pgrex_v047_reader;
+REVOKE SELECT ON mdm_fixture.policy_cases_v1 FROM pgrex_v047_reader;
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM v047_role_created WHERE created) THEN
+        DROP ROLE pgrex_v047_reader;
+    END IF;
+END
+$$;
+
 SELECT 'v0.47 read-only policy package passed' AS result;
