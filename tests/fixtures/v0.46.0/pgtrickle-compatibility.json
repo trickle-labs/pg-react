@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "release": "0.46.0",
+  "pg_trickle": "0.105.2",
+  "pg_trickle_source": "33df4cc91fda4fbadba79470347a714c8509703a",
+  "pg_mdm": "0.11.0",
+  "pg_mdm_source": "97b78c82c0310cf750cd3e1b783a3ed35a2c9f1d",
+  "mdm_contract": {
+    "name": "MDM-STEWARDSHIP/1",
+    "revision": 1,
+    "status": "approved",
+    "sha256": "2161ce22b9d924ff3f3e6d8acde62fed01b6b1c1c4d7ba0fd4d5eb6e396e0fcf",
+    "fixture_sha256": "900f365533bab13480fcb88ab8e8b7956beb4f14a8cfc92cd46770b2e26ef3e4"
+  },
+  "coordination_mode": "LEGACY_EXPLICIT",
+  "scheduler_expected": "off",
+  "cdc_expected": "trigger",
+  "differential_max_change_ratio": 1.0,
+  "capabilities": {
+    "external_graph_refresh": {
+      "major": 1,
+      "minor": 0,
+      "enabled": true,
+      "status": "stable"
+    },
+    "output_delta_consumer": {
+      "major": 1,
+      "minor": 0,
+      "enabled": true,
+      "status": "stable"
+    }
+  },
+  "manifest_capabilities": {
+    "trigger_cdc": {
+      "major": 1,
+      "minor": 0,
+      "enabled": true,
+      "status": "stable"
+    },
+    "wal_cdc": {
+      "major": 1,
+      "minor": 0,
+      "enabled": true,
+      "status": "stable"
+    }
+  },
+  "react_usage": {
+    "graph_v1": "not used",
+    "delta_v1": "not used",
+    "wal_cdc": "not used",
+    "scheduler": "not used"
+  },
+  "mdm_read_gate": {
+    "status": "blocked",
+    "reason": "pg-mdm 0.11.0 does not ship mdm_steward.policy_cases_v1 or the M1 occurrence mapping"
+  },
+  "observed_incompatibilities": [
+    {
+      "classification": "UPSTREAM_CAPABILITY_ENABLED",
+      "property": "external_graph_refresh/output_delta_consumer",
+      "observed": "0.105.2 advertises stable enabled Graph V1 and Delta V1",
+      "resolution": "Admit the capabilities without changing React's explicit coordinator or calling either API"
+    },
+    {
+      "classification": "MDM_CONTRACT_NOT_INSTALLED",
+      "property": "mdm_steward.policy_cases_v1",
+      "observed": "The approved contract is frozen, but pg-mdm 0.11.0 does not ship its M1 projection",
+      "resolution": "Keep the optional adapter disabled until M1 is installed and independently qualified"
+    }
+  ]
+}

@@ -1,9 +1,9 @@
 # pg-react roadmap: optional MDM stewardship integration
 
-> **Status:** Ready to start stack qualification; stewardship APIs and joint compatibility remain to be implemented and proven\
-> **Updated:** 12 September 2026\
-> **Released baseline:** pg-react `0.45.0`; target dependencies pg-trickle `0.105.2` and pg-mdm `0.11.0`\
-> **Proposed sequence:** `0.46.0`–`0.50.0`, then independently opt-in `0.51.0`  
+> **Status:** v0.46.0 candidate implemented; live MDM read qualification remains blocked on M1\
+> **Updated:** 21 September 2026\
+> **Current candidate:** pg-react `0.46.0`; dependencies pg-trickle `0.105.2` and pg-mdm `0.11.0`\
+> **Proposed sequence:** `0.47.0`–`0.50.0`, then independently opt-in `0.51.0`  
 > **Budget:** Approximately six person-weeks per version, including tests, review, documentation, and contingency  
 > **Version 1.0:** Remains postponed; this roadmap does not introduce a 1.0 deadline
 
@@ -33,7 +33,7 @@ pg-react owns policy evaluation and delivery bookkeeping. MDM owns reviews, iden
 
 pg-trickle `0.105.2` advertises stable, enabled `external_graph_refresh` and `output_delta_consumer` major 1, minor 0. The earlier wait for a released Graph V1 build is obsolete. Start R0 qualification against this release now. Archive its published assurance evidence and rerun the joint cases before accepting the stack. The release's deferred soak and longevity work must remain visible in the supported operating limits. [S8]
 
-pg-react `0.45.0` still pins pg-trickle `0.98.0` and rejects enabled Graph/Delta capabilities in `sql/current/pgtrickle.sql`. R0 must update runtime admission, health diagnostics, packaging, migrations, and compatibility fixtures together. Resolve the existing PostgreSQL 18.4 manifest versus 18.3 image discrepancy against the actual selected binaries. Preserve `pg_trickle.differential_max_change_ratio=1.0` until its lifecycle regression proves a replacement safe. [S1–S3]
+pg-react `0.46.0` pins pg-trickle `0.105.2`, accepts its stable enabled Graph/Delta capabilities without switching React's explicit coordinator, and records the exact PostgreSQL 18.3 runtime image. Preserve `pg_trickle.differential_max_change_ratio=1.0` until its lifecycle regression proves a replacement safe. [S1–S3]
 
 pg-mdm `0.11.0` supplies review publication, human pair decisions, golden overrides, Graph V1 integration, and transactional refresh. Its qualified dependency is pg-trickle `0.105.1`; `0.105.2` needs a compatibility rerun. It does not supply `mdm_steward.policy_cases_v1`, `submit_policy_intent`, bindings, policy receipts, or approval proposals. The companion plan is now present and defines that post-0.11 work. MDM's forced FULL candidate-pair refresh remains required until an exact-output regression proves it can be removed. [S0, S9]
 

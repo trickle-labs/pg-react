@@ -9,9 +9,13 @@ canonical current guides. Immutable historical records must not be interpreted a
 current installation, authoring, upgrade, recovery, or operations
 instructions.
 
-The [v0.45.0 release notes](v0.45.0-release-notes.md) and
-[migration guide](v0.45.0-migration.md) document the pg_trickle 0.98.0
-compatibility release.
+The [v0.46.0 release notes](v0.46.0-release-notes.md) and
+[migration guide](v0.46.0-migration.md) document the pg_trickle 0.105.2
+compatibility and stewardship-contract qualification release. The prior
+0.45.0 release remains linked below as historical documentation.
+
+- [v0.46.0 release notes](v0.46.0-release-notes.md), [migration guide](v0.46.0-migration.md),
+  and [qualification plan](../plans/v0.46.0.md) document the R0 release.
 
 ## Milestone documentation
 

@@ -1,4 +1,4 @@
-# 0.45.0 benchmark contract
+# 0.46.0 benchmark contract
 
 The reproducible workload manifest is
 `tests/fixtures/m55/workloads.json`. It fixes seeds, timestamps, PostgreSQL
