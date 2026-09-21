@@ -43,6 +43,7 @@ static_audit() {
     docs/v0.46.0-migration.md \
     tests/fixtures/v0.46.0/pgtrickle-compatibility.json tests/v0.46.0.sql \
     tests/v0.46.0-pgtrickle.sql tests/v0.46.0-upgrade.sql tests/v0.46.0-concurrency.sql \
+    tests/m31-authorization.sql \
     contracts/MDM-STEWARDSHIP-1.json contracts/MDM-STEWARDSHIP-1-fixture.json \
     tests/mdm_stewardship_contract.py integrations/pg-mdm/contract/README.md \
     tests/integrations/pg-mdm/contract/README.md showcase/mdm-stewardship/README.md \
@@ -102,16 +103,20 @@ export COMPOSE_PROJECT_NAME=$project
 export PG_REACT_INIT_VERSION=0.46.0
 docker compose -p "$project" up -d --no-build >/dev/null 2>&1
 wait_for_version 0.46.0
+run_test '0.46.0 runtime identity' bash -c \
+  'test "$(docker compose -p "$COMPOSE_PROJECT_NAME" exec -T postgres psql -XAtq -U postgres -d postgres -c "SHOW server_version_num")" = "180003"'
 run_test '0.46.0 runtime contract' docker compose -p "$project" exec -T postgres \
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0.sql
 run_test '0.46.0 pg_trickle compatibility boundary' docker compose -p "$project" exec -T postgres \
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-pgtrickle.sql
+run_test '0.46.0 concurrency contract' docker compose -p "$project" exec -T postgres \
+  psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-concurrency.sql
 run_test 'M54 correctness corpus on 0.46.0' docker compose -p "$project" exec -T postgres \
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m54.sql
 run_test 'M34 scoped comparison corpus on 0.46.0' docker compose -p "$project" exec -T postgres \
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m55-comparison.sql
-run_test '0.46.0 concurrency contract' docker compose -p "$project" exec -T postgres \
-  psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-concurrency.sql
+run_test 'M31 authorization and RLS corpus on 0.46.0' docker compose -p "$project" exec -T postgres \
+  psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m31-authorization.sql
 
 if [[ $profile = complete ]]; then
   mapfile -t benchmark_profiles < <(jq -er '.profiles[] | [.name, (.matches | tostring), (.history_rows | tostring), (.cases | join(","))] | @tsv' tests/fixtures/m55/workloads.json)
@@ -123,6 +128,9 @@ if [[ $profile = complete ]]; then
     run_test "M55 benchmark $workload_profile" env \
       M55_ARTIFACT_DIR="$artifact_dir" \
       M55_BENCHMARK_OUTPUT="$artifact_dir/m55-benchmark.json" \
+      M55_BENCHMARK_MILESTONE=R0 \
+      M55_BENCHMARK_RELEASE=0.46.0 \
+      M55_BENCHMARK_PG_TRICKLE=0.105.2 \
       M55_BENCHMARK_PROFILE="$workload_profile" \
       M55_BENCHMARK_MATCHES="$profile_matches" \
       M55_BENCHMARK_HISTORY_ROWS="$profile_history" \
@@ -136,6 +144,9 @@ if [[ $profile = complete ]]; then
   export PG_REACT_INIT_VERSION=0.45.0
   docker compose -p "$upgrade_project" up -d --no-build >/dev/null 2>&1
   wait_for_version 0.45.0
+  docker compose -p "$upgrade_project" exec -T postgres psql -XAtq -U postgres -d postgres \
+    -v ON_ERROR_STOP=1 -c \
+    "INSERT INTO pgreact_internal.runtime_events(severity, event_type, detail) VALUES ('INFO', 'V046_UPGRADE_SENTINEL', '{\"preserve\":true}')"
   run_test '0.45.0 to 0.46.0 adjacent upgrade' docker compose -p "$upgrade_project" exec -T postgres \
     psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -c \
     "ALTER EXTENSION pg_react UPDATE TO '0.46.0';"
@@ -143,12 +154,12 @@ if [[ $profile = complete ]]; then
     psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-upgrade.sql
   run_test '0.46.0 upgraded pg_trickle compatibility boundary' docker compose -p "$upgrade_project" exec -T postgres \
     psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-pgtrickle.sql
+  run_test '0.46.0 upgraded concurrency contract' docker compose -p "$upgrade_project" exec -T postgres \
+    psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-concurrency.sql
   run_test '0.46.0 upgraded M54 correctness corpus' docker compose -p "$upgrade_project" exec -T postgres \
     psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m54.sql
   run_test '0.46.0 upgraded M34 scoped comparison corpus' docker compose -p "$upgrade_project" exec -T postgres \
     psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m55-comparison.sql
-  run_test '0.46.0 upgraded concurrency contract' docker compose -p "$upgrade_project" exec -T postgres \
-    psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-concurrency.sql
 fi
 
 echo "v0.46.0 $profile candidate Docker lane passed for $image"

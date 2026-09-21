@@ -58,11 +58,9 @@ BEGIN
     IF actual IS DISTINCT FROM expected THEN
         RAISE EXCEPTION 'v0.46.0 integration status changed: %', actual;
     END IF;
-    SELECT jsonb_build_object(
-        'external_graph_refresh', (status -> 'capabilities' -> 'external_graph_refresh') - 'raw',
-        'output_delta_consumer', (status -> 'capabilities' -> 'output_delta_consumer') - 'raw')
+    SELECT jsonb_object_agg(key, value - 'raw' ORDER BY key)
     INTO capabilities
-    FROM (SELECT pgreact_internal.pgtrickle_integration_status() AS status) current_status;
+    FROM jsonb_each(pgreact_internal.pgtrickle_integration_status() -> 'capabilities');
     expected := $json${
       "external_graph_refresh":{"major":1,"minor":0,"enabled":true,"status":"stable"},
       "output_delta_consumer":{"major":1,"minor":0,"enabled":true,"status":"stable"}

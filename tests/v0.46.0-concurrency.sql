@@ -2,6 +2,11 @@
 
 DO $v0460_concurrency$
 DECLARE actual jsonb;
+    expected jsonb := jsonb_build_object(
+        'coordination', 'LEGACY_EXPLICIT',
+        'scheduler', 'off',
+        'pending_work', 0,
+        'active_refresh_lock', false);
 BEGIN
     SELECT jsonb_build_object(
         'coordination', pgreact_internal.pgtrickle_integration_status() ->> 'coordination_mode',
@@ -12,8 +17,7 @@ BEGIN
             SELECT 1 FROM pg_locks
             WHERE locktype = 'advisory' AND granted))
     INTO actual;
-    IF actual ->> 'coordination' <> 'LEGACY_EXPLICIT'
-       OR actual ->> 'scheduler' <> 'off' THEN
+    IF actual IS DISTINCT FROM expected THEN
         RAISE EXCEPTION 'v0.46.0 concurrency coordination changed: %', actual;
     END IF;
 END

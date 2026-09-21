@@ -30,15 +30,26 @@ $v0460$;
 DO $v0460_health$
 DECLARE actual jsonb;
 BEGIN
-    SELECT jsonb_agg(jsonb_build_object('code', diagnostic ->> 'code',
-                                        'severity', diagnostic ->> 'severity')
+    SELECT jsonb_agg(diagnostic
                      ORDER BY diagnostic ->> 'code')
     INTO actual
     FROM jsonb_array_elements(pgreact_api.doctor() -> 'diagnostics') diagnostic
     WHERE diagnostic ->> 'code' LIKE 'PGT_%';
     IF actual IS DISTINCT FROM jsonb_build_array(
-        jsonb_build_object('code', 'PGT_DELTA_AVAILABLE', 'severity', 'INFO'),
-        jsonb_build_object('code', 'PGT_GRAPH_AVAILABLE', 'severity', 'INFO')) THEN
+        jsonb_build_object(
+            'code', 'PGT_DELTA_AVAILABLE', 'severity', 'INFO',
+            'object_identity', 'output_delta_consumer',
+            'message', 'Delta V1 is available upstream; pg-react does not consume output deltas',
+            'hint', 'No action is required; pg-react retains explicit coordination.',
+            'capability', 'output_delta_consumer', 'major', '1', 'minor', '0',
+            'enabled', true, 'status', 'stable'),
+        jsonb_build_object(
+            'code', 'PGT_GRAPH_AVAILABLE', 'severity', 'INFO',
+            'object_identity', 'external_graph_refresh',
+            'message', 'Graph V1 is available upstream; pg-react retains explicit coordination',
+            'hint', 'No action is required; pg-react does not call Graph V1.',
+            'capability', 'external_graph_refresh', 'major', '1', 'minor', '0',
+            'enabled', true, 'status', 'stable')) THEN
         RAISE EXCEPTION 'v0.46.0 healthy doctor transcript changed: %', actual;
     END IF;
 END
