@@ -7,6 +7,9 @@ case "$profile" in complete) ;; *) echo 'usage: tests/m55-benchmark.sh IMAGE' >&
 manifest=${M55_MANIFEST:-tests/fixtures/m55/workloads.json}
 output=${M55_BENCHMARK_OUTPUT:-m55-benchmark.json}
 workload_profile=${M55_BENCHMARK_PROFILE:-baseline}
+release=${M55_BENCHMARK_RELEASE:-0.44.0}
+pg_trickle_version=${M55_BENCHMARK_PG_TRICKLE:-0.81.0}
+milestone=${M55_BENCHMARK_MILESTONE:-M55}
 warmups=$(jq -er '.warmups' "$manifest")
 repetitions=$(jq -er '.measured_repetitions' "$manifest")
 matches=${M55_BENCHMARK_MATCHES:-1000}
@@ -40,14 +43,14 @@ trap cleanup EXIT
 export COMPOSE_PROJECT_NAME=$project
 export PG_REACT_IMAGE=$image
 export PG_REACT_PLATFORM=linux/amd64
-export PG_REACT_INIT_VERSION=0.44.0
+export PG_REACT_INIT_VERSION=$release
 export PG_REACT_POLL_INTERVAL_MS=${PG_REACT_POLL_INTERVAL_MS:-1000}
 
 docker compose -p "$project" up -d --no-build >/dev/null 2>&1
 ready=
 for _ in {1..120}; do
   if docker compose -p "$project" exec -T postgres psql -XAtq -U postgres -d postgres -c \
-      "SELECT extversion = '0.44.0' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
+      "SELECT extversion = '$release' FROM pg_extension WHERE extname = 'pg_react'" 2>/dev/null | grep -qx t; then
     ready=1
     break
   fi
@@ -160,11 +163,14 @@ jq -S -n \
   --argjson repetitions "$repetitions" \
   --argjson acceptance "$acceptance" \
   --slurpfile cases "$cases_json" \
-  '{schema_version: 1, milestone: "M55", release: "0.44.0",
+  --arg milestone "$milestone" \
+  --arg release "$release" \
+  --arg pg_trickle_version "$pg_trickle_version" \
+  '{schema_version: 1, milestone: $milestone, release: $release,
     profile: $profile, workload_profile: $workload_profile,
     image: $image, image_id: $image_id,
     git_revision: $revision, platform: "linux/amd64", postgresql: "18.3",
-    pg_trickle: "0.81.0", warmups: $warmups,
+    pg_trickle: $pg_trickle_version, warmups: $warmups,
     measured_repetitions: $repetitions, acceptance: $acceptance,
     environment: {
       docker_server_version: $docker_server_version,

@@ -8,12 +8,10 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --locked --release --jobs 1 --no-default-features --features pg18 && \
     cp target/release/libpg_react.so /build/libpg_react.so
 
-# Published pg_trickle v0.98.0 image, pinned by manifest digest. The upstream
-# 0.98.0-pg18.3 tag resolves to PostgreSQL 18.3; the PostgreSQL 18.4 image
-# identity is unresolved and is recorded in docs/current-release.json.
-FROM ghcr.io/trickle-labs/pg_trickle@sha256:383381c24af9fc43eadbf17429e89906527789942938f2da10861c9c5ffdcc5f
+# Published pg_trickle 0.108.0 image, pinned to the PostgreSQL 18.3 artifact.
+FROM ghcr.io/trickle-labs/pg_trickle@sha256:4856c3e9bc4de8a839daf7309326da49921db28b1bfe2bc48567205b78ff65c7
 
-ENV PG_REACT_INIT_VERSION=0.45.0
+ENV PG_REACT_INIT_VERSION=0.46.0
 
 COPY pg_react.control /usr/share/postgresql/18/extension/pg_react.control
 COPY sql/ /usr/share/postgresql/18/extension/

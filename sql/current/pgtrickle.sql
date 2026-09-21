@@ -1,4 +1,4 @@
--- pg_trickle 0.98 compatibility boundary.
+-- pg_trickle 0.108.0 compatibility boundary.
 --
 -- Assumption: integration_capabilities() is a public zero-argument set-returning
 -- function whose rows expose capability/name, major(_version), minor(_version),
@@ -95,15 +95,20 @@ BEGIN
     capabilities := pgreact_internal.pgtrickle_capability_report(rows);
     graph := capabilities -> 'external_graph_refresh';
     delta := capabilities -> 'output_delta_consumer';
-    package_qualified := installed_version = '0.98.0'
+    package_qualified := installed_version = '0.108.0'
         AND current_setting('transaction_isolation') = 'read committed'
         AND COALESCE(current_setting('pg_trickle.enabled', true), '') = 'off'
         AND COALESCE(current_setting('pg_trickle.cdc_mode', true), '') = 'trigger'
         AND COALESCE(current_setting('pg_trickle.differential_max_change_ratio', true), '0')::numeric = 1.0;
-    capability_qualified := graph IS NOT NULL AND delta IS NOT NULL
-        AND (graph ->> 'major')::integer = 1 AND (graph ->> 'minor')::integer = 0
-        AND (delta ->> 'major')::integer = 1 AND (delta ->> 'minor')::integer = 0
-        AND NOT (graph ->> 'enabled')::boolean AND NOT (delta ->> 'enabled')::boolean;
+    capability_qualified := graph IS NOT NULL
+        AND (graph ->> 'major')::integer = 1
+        AND (graph ->> 'minor')::integer = 2
+        AND (graph ->> 'enabled')::boolean
+        AND graph ->> 'status' = 'stable'
+        AND (delta IS NULL OR (
+            (delta ->> 'major')::integer = 1
+            AND (delta ->> 'minor')::integer = 1
+            AND delta ->> 'status' = 'stable'));
     RETURN jsonb_build_object(
         'extension_version', installed_version,
         'package_qualified', package_qualified,
@@ -111,9 +116,12 @@ BEGIN
         'qualified', package_qualified AND capability_qualified,
         'coordination_mode', CASE
             WHEN graph IS NULL OR (graph ->> 'major')::integer <> 1 THEN 'UNSUPPORTED'
-            WHEN (graph ->> 'enabled')::boolean THEN 'GRAPH_V1_READY'
-            ELSE 'LEGACY_EXPLICIT'
+            WHEN (graph ->> 'enabled')::boolean
+                AND graph ->> 'status' = 'stable' THEN 'LEGACY_EXPLICIT'
+            ELSE 'GRAPH_V1_REQUIRED'
         END,
+        'graph_v1_used', false,
+        'delta_v1_used', false,
         'scheduler_expected', 'off',
         'cdc_expected', 'trigger',
         'capabilities', capabilities);
@@ -131,13 +139,13 @@ DECLARE status jsonb := pgreact_internal.pgtrickle_integration_status();
 BEGIN
     IF NOT COALESCE((status ->> 'qualified')::boolean, false) THEN
         RAISE EXCEPTION 'pg-react pg_trickle runtime is unsupported: %', status
-            USING HINT = 'Use pg_trickle 0.98.0 with scheduler off, trigger CDC, and disabled Graph/Delta capabilities.';
+            USING HINT = 'Use pg_trickle 0.108.0 with scheduler off, trigger CDC, and stable enabled Graph V1.2.';
     END IF;
 END
 $pgtrickle$;
 
 COMMENT ON FUNCTION pgreact_internal.pgtrickle_integration_status() IS
-    'Public pg_trickle 0.98 capability report; package qualification is separate from capability enablement.';
+    'Public pg_trickle 0.108.0 capability report; stable enabled Graph V1.2 is admitted without changing React coordination.';
 
 CREATE OR REPLACE FUNCTION pgreact_internal.assert_m0_compatibility()
 RETURNS void
@@ -148,12 +156,12 @@ AS $pgtrickle$
 BEGIN
     PERFORM pgreact_internal.require_pgtrickle_runtime();
     IF current_setting('transaction_isolation') <> 'read committed' THEN
-        RAISE EXCEPTION 'pg-react 0.45.0 requires READ COMMITTED';
+        RAISE EXCEPTION 'pg-react 0.46.0 requires READ COMMITTED';
     END IF;
 END
 $pgtrickle$;
 
-CREATE FUNCTION pgreact_internal.pgtrickle_health_findings()
+CREATE OR REPLACE FUNCTION pgreact_internal.pgtrickle_health_findings()
 RETURNS SETOF jsonb
 LANGUAGE plpgsql
 STABLE
@@ -171,22 +179,22 @@ BEGIN
             'code', 'PGT_CAPABILITY_DISCOVERY_FAILED', 'severity', 'ERROR',
             'object_identity', 'pg_trickle',
             'message', 'pg-react could not read pg_trickle.integration_capabilities()',
-            'hint', 'Install the qualified pg_trickle 0.98.0 release and verify its public capability API.',
+            'hint', 'Install the qualified pg_trickle 0.108.0 release and verify its public capability API.',
             'details', jsonb_build_object('sqlstate', SQLSTATE, 'error', SQLERRM));
         RETURN;
     END;
 
     graph := status -> 'capabilities' -> 'external_graph_refresh';
     delta := status -> 'capabilities' -> 'output_delta_consumer';
-    IF status ->> 'extension_version' IS DISTINCT FROM '0.98.0' THEN
+    IF status ->> 'extension_version' IS DISTINCT FROM '0.108.0' THEN
         RETURN NEXT jsonb_build_object(
             'code', 'PGT_RUNTIME_UNSUPPORTED', 'severity', 'ERROR',
             'object_identity', 'pg_trickle',
-            'message', format('installed pg_trickle version is %s; pg-react 0.45.0 requires 0.98.0',
+            'message', format('installed pg_trickle version is %s; pg-react 0.46.0 requires 0.108.0',
                               COALESCE(status ->> 'extension_version', '<missing>')),
-            'hint', 'Upgrade pg_trickle to 0.98.0 before resuming pg-react coordination.',
+            'hint', 'Upgrade pg_trickle to 0.108.0 before resuming pg-react coordination.',
             'installed_version', status ->> 'extension_version',
-            'expected_version', '0.98.0',
+            'expected_version', '0.108.0',
             'coordination_mode', status ->> 'coordination_mode');
     END IF;
     IF COALESCE(current_setting('pg_trickle.enabled', true), '') <> 'off' THEN
@@ -210,49 +218,59 @@ BEGIN
             'message', 'pg_trickle may fall back to FULL refresh and suppress CDC triggers',
             'hint', 'Set pg_trickle.differential_max_change_ratio=1.0 for coordinated differential refresh.');
     END IF;
-    IF graph IS NULL OR (graph ->> 'major')::integer <> 1 THEN
+    IF graph IS NULL OR (graph ->> 'major')::integer <> 1
+       OR (graph ->> 'minor')::integer <> 2
+       OR graph ->> 'status' IS DISTINCT FROM 'stable' THEN
         RETURN NEXT jsonb_build_object(
-            'code', 'PGT_CAPABILITY_MAJOR_UNSUPPORTED', 'severity', 'ERROR',
+            'code', 'PGT_CAPABILITY_UNSUPPORTED', 'severity', 'ERROR',
             'object_identity', 'external_graph_refresh',
-            'message', 'the discovered Graph V1 capability has an unsupported major or is missing',
-            'hint', 'Use pg_trickle 0.98.0 with external_graph_refresh major 1.',
+            'message', 'the discovered stable Graph V1.2 capability is missing or unsupported',
+            'hint', 'Use pg_trickle 0.108.0 with stable external_graph_refresh 1.2.',
             'capability', 'external_graph_refresh',
             'major', graph ->> 'major', 'minor', graph ->> 'minor',
             'enabled', graph -> 'enabled', 'status', graph ->> 'status');
-    ELSIF (graph ->> 'enabled')::boolean THEN
+    ELSIF NOT (graph ->> 'enabled')::boolean THEN
         RETURN NEXT jsonb_build_object(
-            'code', 'PGT_RUNTIME_UNSUPPORTED', 'severity', 'ERROR',
+            'code', 'PGT_GRAPH_DISABLED', 'severity', 'ERROR',
             'object_identity', 'external_graph_refresh',
-            'message', 'Graph V1 is enabled but pg-react 0.45.0 does not execute Graph V1',
-            'hint', 'Disable external_graph_refresh before using the legacy explicit path.',
+            'message', 'Graph V1.2 is disabled but the optional stewardship adapter requires it',
+            'hint', 'Enable stable external_graph_refresh 1.2 before enabling adapter effects.',
             'capability', 'external_graph_refresh', 'major', graph ->> 'major',
             'minor', graph ->> 'minor', 'enabled', graph -> 'enabled',
             'status', graph ->> 'status');
     ELSE
         RETURN NEXT jsonb_build_object(
-            'code', 'PGT_GRAPH_DISABLED', 'severity', 'INFO',
+            'code', 'PGT_GRAPH_AVAILABLE', 'severity', 'INFO',
             'object_identity', 'external_graph_refresh',
-            'message', 'Graph V1 is present but disabled; legacy explicit coordination is expected',
-            'hint', 'No action is required for pg-react 0.45.0.',
+            'message', 'Graph V1.2 is available upstream; pg-react retains explicit coordination',
+            'hint', 'No action is required; pg-react does not call Graph V1.2.',
             'capability', 'external_graph_refresh', 'major', graph ->> 'major',
             'minor', graph ->> 'minor', 'enabled', graph -> 'enabled',
             'status', graph ->> 'status');
     END IF;
-    IF delta IS NULL OR (delta ->> 'major')::integer <> 1 THEN
+    IF delta IS NOT NULL AND ((delta ->> 'major')::integer <> 1
+       OR (delta ->> 'minor')::integer <> 1
+       OR delta ->> 'status' IS DISTINCT FROM 'stable') THEN
         RETURN NEXT jsonb_build_object(
-            'code', 'PGT_CAPABILITY_MAJOR_UNSUPPORTED', 'severity', 'ERROR',
+            'code', 'PGT_CAPABILITY_UNSUPPORTED', 'severity', 'ERROR',
             'object_identity', 'output_delta_consumer',
-            'message', 'the discovered Delta V1 capability has an unsupported major or is missing',
-            'hint', 'Use pg_trickle 0.98.0 with output_delta_consumer major 1.',
+            'message', 'the discovered Delta V1.1 capability is unsupported',
+            'hint', 'Use pg_trickle 0.108.0 with stable output_delta_consumer 1.1.',
             'capability', 'output_delta_consumer',
             'major', delta ->> 'major', 'minor', delta ->> 'minor',
             'enabled', delta -> 'enabled', 'status', delta ->> 'status');
+    ELSIF delta IS NULL THEN
+        RETURN NEXT jsonb_build_object(
+            'code', 'PGT_DELTA_UNAVAILABLE', 'severity', 'INFO',
+            'object_identity', 'output_delta_consumer',
+            'message', 'Delta V1.1 is unavailable; pg-react does not consume output deltas',
+            'hint', 'No action is required for the explicit pg-react path.');
     ELSIF (delta ->> 'enabled')::boolean THEN
         RETURN NEXT jsonb_build_object(
-            'code', 'PGT_RUNTIME_UNSUPPORTED', 'severity', 'ERROR',
+            'code', 'PGT_DELTA_AVAILABLE', 'severity', 'INFO',
             'object_identity', 'output_delta_consumer',
-            'message', 'Delta V1 is enabled but pg-react 0.45.0 does not consume output deltas',
-            'hint', 'Disable output_delta_consumer before using the legacy explicit path.',
+            'message', 'Delta V1.1 is available upstream; pg-react does not consume output deltas',
+            'hint', 'No action is required; pg-react retains explicit coordination.',
             'capability', 'output_delta_consumer', 'major', delta ->> 'major',
             'minor', delta ->> 'minor', 'enabled', delta -> 'enabled',
             'status', delta ->> 'status');
@@ -260,8 +278,8 @@ BEGIN
         RETURN NEXT jsonb_build_object(
             'code', 'PGT_DELTA_DISABLED', 'severity', 'INFO',
             'object_identity', 'output_delta_consumer',
-            'message', 'Delta V1 is present but disabled; pg-react does not consume output deltas',
-            'hint', 'No action is required for pg-react 0.45.0.',
+            'message', 'Delta V1.1 is present but disabled; pg-react does not consume output deltas',
+            'hint', 'No action is required for the explicit pg-react path.',
             'capability', 'output_delta_consumer', 'major', delta ->> 'major',
             'minor', delta ->> 'minor', 'enabled', delta -> 'enabled',
             'status', delta ->> 'status');
@@ -269,9 +287,16 @@ BEGIN
 END
 $pgtrickle$;
 
-ALTER FUNCTION pgreact.health_check() RENAME TO health_check_m44;
+DO $pgtrickle_compat$
+BEGIN
+    IF to_regprocedure('pgreact.health_check()') IS NOT NULL
+       AND to_regprocedure('pgreact.health_check_m44()') IS NULL THEN
+        EXECUTE 'ALTER FUNCTION pgreact.health_check() RENAME TO health_check_m44';
+    END IF;
+END
+$pgtrickle_compat$;
 
-CREATE FUNCTION pgreact.health_check()
+CREATE OR REPLACE FUNCTION pgreact.health_check()
 RETURNS TABLE(code text, severity text, object_identity text, message text, hint text)
 LANGUAGE SQL
 SECURITY DEFINER
@@ -285,9 +310,16 @@ AS $pgtrickle$
     FROM pgreact_internal.pgtrickle_health_findings() finding
 $pgtrickle$;
 
-ALTER FUNCTION pgreact_api.doctor() RENAME TO doctor_m44;
+DO $pgtrickle_compat$
+BEGIN
+    IF to_regprocedure('pgreact_api.doctor()') IS NOT NULL
+       AND to_regprocedure('pgreact_api.doctor_m44()') IS NULL THEN
+        EXECUTE 'ALTER FUNCTION pgreact_api.doctor() RENAME TO doctor_m44';
+    END IF;
+END
+$pgtrickle_compat$;
 
-CREATE FUNCTION pgreact_api.doctor()
+CREATE OR REPLACE FUNCTION pgreact_api.doctor()
 RETURNS jsonb
 LANGUAGE SQL
 STABLE
@@ -315,9 +347,16 @@ AS $pgtrickle$
     FROM base
 $pgtrickle$;
 
-ALTER FUNCTION pgreact_internal.managed_cycle(integer) RENAME TO managed_cycle_m44;
+DO $pgtrickle_compat$
+BEGIN
+    IF to_regprocedure('pgreact_internal.managed_cycle(integer)') IS NOT NULL
+       AND to_regprocedure('pgreact_internal.managed_cycle_m44(integer)') IS NULL THEN
+        EXECUTE 'ALTER FUNCTION pgreact_internal.managed_cycle(integer) RENAME TO managed_cycle_m44';
+    END IF;
+END
+$pgtrickle_compat$;
 
-CREATE FUNCTION pgreact_internal.managed_cycle(process_pid integer)
+CREATE OR REPLACE FUNCTION pgreact_internal.managed_cycle(process_pid integer)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
