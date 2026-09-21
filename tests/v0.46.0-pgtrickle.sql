@@ -18,6 +18,12 @@ BEGIN
        jsonb_build_object('major', 9, 'minor', 4, 'enabled', true, 'status', 'experimental') THEN
         RAISE EXCEPTION 'unknown capability handling changed: %', actual;
     END IF;
+    actual := pgreact_internal.pgtrickle_capability_report(jsonb_build_array(
+        jsonb_build_object('capability', 'output_delta_consumer', 'major_version', 1,
+                           'minor_version', 0, 'enabled', true, 'status', 'stable')));
+    IF actual ? 'external_graph_refresh' THEN
+        RAISE EXCEPTION 'missing Graph capability unexpectedly appeared: %', actual;
+    END IF;
 
     BEGIN
         PERFORM pgreact_internal.pgtrickle_capability_report(jsonb_build_array(
