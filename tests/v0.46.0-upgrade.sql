@@ -14,7 +14,7 @@ BEGIN
     INTO actual;
     IF actual IS DISTINCT FROM jsonb_build_object(
         'pg_react', '0.46.0',
-        'pg_trickle', '0.105.2',
+        'pg_trickle', '0.108.0',
         'declarations', 0,
         'history', 0,
         'upgrade_sentinel', 1) THEN

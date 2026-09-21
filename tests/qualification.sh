@@ -58,8 +58,12 @@ static_audit() {
     tests/m55-benchmark-case.sh
   python3 tests/mdm_stewardship_contract.py
   jq -e '.schema_version == 1 and .release == "0.46.0" and
-    .pg_trickle == "0.105.2" and
+    .pg_trickle == "0.108.0" and
+    .capabilities.external_graph_refresh.major == 1 and
+    .capabilities.external_graph_refresh.minor == 2 and
     .capabilities.external_graph_refresh.enabled == true and
+    .capabilities.output_delta_consumer.major == 1 and
+    .capabilities.output_delta_consumer.minor == 1 and
     .capabilities.output_delta_consumer.enabled == true and
     .manifest_capabilities.trigger_cdc.enabled == true and
     .manifest_capabilities.wal_cdc.enabled == true and
@@ -130,7 +134,7 @@ if [[ $profile = complete ]]; then
       M55_BENCHMARK_OUTPUT="$artifact_dir/m55-benchmark.json" \
       M55_BENCHMARK_MILESTONE=R0 \
       M55_BENCHMARK_RELEASE=0.46.0 \
-      M55_BENCHMARK_PG_TRICKLE=0.105.2 \
+      M55_BENCHMARK_PG_TRICKLE=0.108.0 \
       M55_BENCHMARK_PROFILE="$workload_profile" \
       M55_BENCHMARK_MATCHES="$profile_matches" \
       M55_BENCHMARK_HISTORY_ROWS="$profile_history" \

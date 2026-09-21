@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "release": "0.46.0",
-  "pg_trickle": "0.105.2",
-  "pg_trickle_source": "33df4cc91fda4fbadba79470347a714c8509703a",
+  "pg_trickle": "0.108.0",
+  "pg_trickle_source": "8bd0a4b5eb3e586ebdeea56bd774611aa7907e25",
   "pg_mdm": "0.11.0",
   "pg_mdm_source": "97b78c82c0310cf750cd3e1b783a3ed35a2c9f1d",
   "mdm_contract": {
@@ -19,15 +19,29 @@
   "capabilities": {
     "external_graph_refresh": {
       "major": 1,
-      "minor": 0,
+      "minor": 2,
       "enabled": true,
-      "status": "stable"
+      "status": "stable",
+      "details": {
+        "differential_features": [
+          "stable_row_identity_encoder_v2",
+          "custom_table_srf_out_columns",
+          "lateral_immutable_composite_function"
+        ]
+      }
     },
     "output_delta_consumer": {
       "major": 1,
-      "minor": 0,
+      "minor": 1,
       "enabled": true,
-      "status": "stable"
+      "status": "stable",
+      "details": {
+        "consumer_recovery_version": 1,
+        "public_resnapshot_request": true,
+        "public_consumer_validation": true,
+        "qualification_api": "qualify_output_delta_recovery",
+        "typed_delta_encoding_version": 1
+      }
     }
   },
   "manifest_capabilities": {
@@ -58,7 +72,7 @@
     {
       "classification": "UPSTREAM_CAPABILITY_ENABLED",
       "property": "external_graph_refresh/output_delta_consumer",
-      "observed": "0.105.2 advertises stable enabled Graph V1 and Delta V1",
+      "observed": "0.108.0 advertises stable enabled Graph V1.2 and Delta V1.1",
       "resolution": "Admit the capabilities without changing React's explicit coordinator or calling either API"
     },
     {

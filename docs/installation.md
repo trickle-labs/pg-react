@@ -1,7 +1,7 @@
 # Installation
 
 The current release is pg-react `0.46.0`. It runs inside PostgreSQL 18.3 with
-pg_trickle 0.105.2 and the PostgreSQL-managed runtime.
+pg_trickle 0.108.0 and the PostgreSQL-managed runtime.
 
 For the container image, use `ghcr.io/trickle-labs/pg-react:v0.46.0` or set
 `PG_REACT_IMAGE=pg-react:0.46.0` in the repository’s Compose setup. In a

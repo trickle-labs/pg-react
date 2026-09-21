@@ -2,7 +2,7 @@
 
 **Status:** Post-0.11 implementation plan; proposed stewardship APIs remain unimplemented\
 **Updated:** 12 September 2026\
-**Dependency target:** pg-mdm `0.11.0` plus the work below, pg-trickle `0.105.2`, and the pg-react `0.46.0`–`0.50.0` sequence\
+**Dependency target:** pg-mdm `0.11.0` plus the work below, pg-trickle `0.108.0`, and the pg-react `0.46.0`–`0.50.0` sequence\
 **Repository:** `trickle-labs/pg-mdm`\
 **Companion:** [pg-react implementation plan](PLAN_PG_REACT_MDM_STEWARDSHIP.md)  
 **Proposed shared contract:** `MDM-STEWARDSHIP/1`
@@ -25,9 +25,9 @@ There is no synchronous MDM -> React -> MDM refresh cycle. Human decisions remai
 
 ## 2. Entry gate
 
-Start joint stack qualification now. Released pg-trickle `0.105.2` advertises stable, enabled `external_graph_refresh` major 1, minor 0. Replace the old wait for the planned `0.97` freeze with a check of this release's artifact and assurance evidence. Pass the MDM graph, rollback, recovery, and clone-isolation cases before dependent integration implementation. [5]
+Start joint stack qualification now. Released pg-trickle `0.108.0` advertises stable, enabled `external_graph_refresh` major 1, minor 2 and `output_delta_consumer` major 1, minor 1. Replace the old wait for the planned `0.97` freeze with a check of this release's artifact and assurance evidence. Pass the MDM graph, rollback, recovery, and clone-isolation cases before dependent integration implementation. [5]
 
-MDM `0.11.0` pins pg-trickle `0.105.1`. Qualify `0.105.2` using the existing MDM E2E, upgrade, restore, security, and package checks. Keep full-entity resolution and the forced FULL candidate-pair nodes in `src/graph_spec.rs`; `0.105.2` has no engine changes that establish a fix for the multi-row pair-insert problem. Delta V1 remains unused. [4][5]
+MDM `0.11.0` pins pg-trickle `0.105.1`. Qualify `0.108.0` using the existing MDM E2E, upgrade, restore, security, and package checks. Keep full-entity resolution and the forced FULL candidate-pair nodes in `src/graph_spec.rs`; `0.108.0` has no engine changes that establish a fix for the multi-row pair-insert problem. Delta V1.1 remains unused. [4][5]
 
 Qualify pg-react against the same packaged stack in R0. Its released `0.45.0` runtime accepts pg-trickle `0.98.0` with disabled Graph/Delta capabilities, so both admission logic and packaging need changes. Use trigger CDC, scheduler off, `READ COMMITTED`, and separate MDM-owned EXTERNAL graphs as the initial joint profile. These are joint restrictions, not all of pg-trickle's capabilities. [6]
 
@@ -121,6 +121,6 @@ Implement this demonstration in `showcase/mdm-stewardship/` with exact expected 
 
 [4] pg-mdm `v0.11.0`: `DEPENDENCIES.md`, `ROADMAP.md`, `plans/v0.11.md`, and `src/graph_spec.rs` in `../pg-mdm`.
 
-[5] pg-trickle `v0.105.2`, commit `33df4cc9`: `docs/capability-manifest.json`, `CHANGELOG.md`, and release qualification manifest in `../pg-trickle1`. See the [release evidence register](../docs/planning/EVIDENCE.md#s8-pg-trickle-01052-release).
+[5] pg-trickle `v0.108.0`, commit `8bd0a4b5`: `docs/capability-manifest.json`, `CHANGELOG.md`, and release qualification manifest in `../pg-trickle1`. See the [release evidence register](../docs/planning/EVIDENCE.md#s10-pg-trickle-01080-release).
 
 [6] [pg-react support matrix](../docs/support-matrix.md) and [R0 implementation plan](v0.46.0.md).

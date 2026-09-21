@@ -8,8 +8,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --locked --release --jobs 1 --no-default-features --features pg18 && \
     cp target/release/libpg_react.so /build/libpg_react.so
 
-# Published pg_trickle 0.105.2 image, pinned to the PostgreSQL 18.3 artifact.
-FROM ghcr.io/trickle-labs/pg_trickle@sha256:4c3a79a6c9f5913c13779a0e005ff69eb561dce5420939e3f9f68dd647278406
+# Published pg_trickle 0.108.0 image, pinned to the PostgreSQL 18.3 artifact.
+FROM ghcr.io/trickle-labs/pg_trickle@sha256:4856c3e9bc4de8a839daf7309326da49921db28b1bfe2bc48567205b78ff65c7
 
 ENV PG_REACT_INIT_VERSION=0.46.0
 

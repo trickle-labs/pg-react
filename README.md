@@ -6,7 +6,7 @@ pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
 relations or views; declarations are typed SQL values; lifecycle, decisions,
 work, attempts, and explanations remain queryable in PostgreSQL.
 
-R0 / extension `0.46.0` is the current release. It qualifies pg_trickle 0.105.2
+R0 / extension `0.46.0` is the current release. It qualifies pg_trickle 0.108.0
 with stable Graph and Delta capabilities available upstream while pg-react keeps
 its explicit coordinator. The optional MDM adapter remains disabled pending M1.
 `1.0.0` is postponed indefinitely. Start with the
@@ -135,9 +135,9 @@ broader typed keys.
 - pg-react is not a synchronous write-path hook, a global-ordering service, a
   distributed transaction coordinator, or a general workflow/BPM engine.
 
-The qualified `0.46.0` environment is PostgreSQL 18.3, pg_trickle 0.105.2,
+The qualified `0.46.0` environment is PostgreSQL 18.3, pg_trickle 0.108.0,
 pgrx 0.18.0, Linux `amd64`, `READ COMMITTED`, trigger CDC, scheduler off, and
-the PostgreSQL-managed runtime. Graph V1 and Delta V1 remain unused by
+the PostgreSQL-managed runtime. Graph V1.2 and Delta V1.1 remain unused by
 pg-react. See the [Support Matrix](docs/support-matrix.md) before adopting it.
 
 ## Documentation

@@ -106,12 +106,24 @@ Inspected tag `v0.11.0`, commit `97b78c82c0310cf750cd3e1b783a3ed35a2c9f1d`, in `
 
 Reproduce tag identity with `rtk git -C ../pg-mdm rev-parse 'v0.11.0^{commit}'`; read pinned sources with `rtk git -C ../pg-mdm show v0.11.0:<path>`. Local source inspection establishes what shipped, not that this new three-extension stack passed qualification.
 
+## S10: pg-trickle 0.108.0 release
+
+Inspected tag `v0.108.0`, commit `8bd0a4b5eb3e586ebdeea56bd774611aa7907e25`, in `../pg-trickle1`. The official GitHub release is dated 20 September 2026 and points to the same commit. [Release](https://github.com/trickle-labs/pg-trickle/releases/tag/v0.108.0)
+
+| Source at the tag | Finding and planning consequence |
+|---|---|
+| [Capability manifest](https://github.com/trickle-labs/pg-trickle/blob/8bd0a4b5eb3e586ebdeea56bd774611aa7907e25/docs/capability-manifest.json) | Stable enabled Graph V1.2 and Delta V1.1 are published. Graph adds row-identity V2, table-SRF output columns, and lateral immutable composite-function support; Delta adds public resnapshot, validation, recovery qualification, and clone-adoption APIs. |
+| [Upgrade SQL](https://github.com/trickle-labs/pg-trickle/blob/8bd0a4b5eb3e586ebdeea56bd774611aa7907e25/sql/pg_trickle--0.107.0--0.108.0.sql) | The upgrade preserves Delta state and adds database-instance, output-contract, and row-identity-version fences plus the public recovery functions. |
+| [Qualification contract](https://github.com/trickle-labs/pg-trickle/blob/8bd0a4b5eb3e586ebdeea56bd774611aa7907e25/tests/release/v0.108.0-qualification.json) | The upstream contract requires exact Graph/Delta capability, recovery, compiler-v9, upgrade, and workload evidence; its expected results are not proof for this repository. |
+
+The pg-react boundary admits the new capability versions but continues to use explicit coordination, trigger CDC, scheduler off, and no Graph/Delta calls. MDM-owned Graph V1.2 execution and Delta V1.1 recovery remain separate qualification work.
+
 ## Decisions that must not be guessed
 
 | Unresolved input | Required owner and resolution | Deadline |
 |---|---|---|
 | Exact `MDM-STEWARDSHIP/1` contract | MDM owner supplies normative revision, SQL types/signatures, version negotiation and fixtures | Before 0.46.0 completion |
-| Joint `0.105.2` artifact qualification | Release availability is established; upstream liaison archives release assets/logs and joint owners rerun independent cases | R0 starts now; conformance precedes dependent integration implementation |
+| Joint `0.108.0` artifact qualification | Release availability is established; upstream liaison archives release assets/logs and joint owners rerun independent cases | R0 starts now; conformance precedes dependent integration implementation |
 | Effective PostgreSQL image/version | Release owner resolves 18.3/18.4 discrepancy, then qualifies exact stack | Before 0.46.0 completion |
 | MDM post-0.11 delivery | MDM owner estimates and schedules M0/M1/M2/M4 separately from React; M1 is absent in the base release | M1 before R0/R1 completion, M2 before R2/R3 live qualification |
 | Case occurrence and action-driving revision | MDM owner defines stable identity, recurrence, revision changes and token invalidation | Before immutable request-key codec is frozen |

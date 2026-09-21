@@ -30,7 +30,7 @@ jobs:
           awk '/name = "pg_react"/{getline; print; exit}' Cargo.lock | grep -qx 'version = "0.46.0"'
           grep -qx "default_version = '0.46.0'" pg_react.control
           grep -Fq 'version == "0.46.0"' src/managed.rs
-          jq -e '.extension_version == "0.46.0" and .postgresql == "18.3" and .pg_trickle == "0.105.2" and .cdc == "trigger" and .scheduler == "off" and .mdm_adapter == "disabled pending M1 qualification"' docs/current-release.json
+          jq -e '.extension_version == "0.46.0" and .postgresql == "18.3" and .pg_trickle == "0.108.0" and .cdc == "trigger" and .scheduler == "off" and .mdm_adapter == "disabled pending M1 qualification"' docs/current-release.json
           grep -Fq 'PG_REACT_INIT_VERSION=0.46.0' Dockerfile
           grep -Fq 'pg_trickle.cdc_mode=trigger' docker-compose.yml
           test -s sql/pg_react--0.45.0--0.46.0.sql

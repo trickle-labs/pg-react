@@ -10,7 +10,7 @@ current installation, authoring, upgrade, recovery, or operations
 instructions.
 
 The [v0.46.0 release notes](v0.46.0-release-notes.md) and
-[migration guide](v0.46.0-migration.md) document the pg_trickle 0.105.2
+[migration guide](v0.46.0-migration.md) document the pg_trickle 0.108.0
 compatibility and stewardship-contract qualification release. The prior
 0.45.0 release remains preserved in the immutable SQL artifacts.
 

@@ -6,7 +6,7 @@ test -s docs/current-release.json
 jq -e --arg version "$expected" --arg previous 0.45.0 \
    '.schema_version == 1 and .milestone == "R0" and .extension_version == $version and
     .previous_extension_version == $previous and .adjacent_upgrade == "0.45.0 -> 0.46.0" and
-    .postgresql == "18.3" and .pg_trickle == "0.105.2" and
+    .postgresql == "18.3" and .pg_trickle == "0.108.0" and
     .mdm_adapter == "disabled pending M1 qualification" and
    .v1_status == "postponed_indefinitely"' docs/current-release.json >/dev/null
 grep -qx "version = \"$expected\"" Cargo.toml

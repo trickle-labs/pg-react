@@ -2,7 +2,7 @@
 
 **Status:** Ready for R0 compatibility work; live stewardship depends on MDM M1/M2\
 **Updated:** 12 September 2026\
-**Baseline:** pg-react `0.45.0`; qualify pg-trickle `0.105.2` and pg-mdm `0.11.0` plus the companion's new APIs\
+**Baseline:** pg-react `0.45.0`; qualify pg-trickle `0.108.0` and pg-mdm `0.11.0` plus the companion's new APIs\
 **Repository:** `trickle-labs/pg-react`  
 **Companion:** [pg-mdm implementation plan](PLAN_PG_MDM_STEWARDSHIP_INTEGRATION.md)  
 **Proposed shared contract:** `MDM-STEWARDSHIP/1`
@@ -27,9 +27,9 @@ Package the integration as an optional adapter and policy example maintained in 
 
 ## 2. Dependencies and implementation gate
 
-Start R0 stack qualification now that pg-trickle `0.105.2` advertises stable, enabled Graph V1. Collect the released assurance evidence and pass the agreed conformance cases before dependent integration implementation. MDM `0.11.0` implements review publication but lacks the proposed policy projection and intent API. MDM M1 and M2 remain prerequisites for read-only and effectful joint qualification respectively. [4][5]
+Start R0 stack qualification now that pg-trickle `0.108.0` advertises stable, enabled Graph V1.2 and Delta V1.1. Collect the released assurance evidence and pass the agreed conformance cases before dependent integration implementation. MDM `0.11.0` implements review publication but lacks the proposed policy projection and intent API. MDM M1 and M2 remain prerequisites for read-only and effectful joint qualification respectively. [4][5]
 
-Compatibility is the first engineering task. pg-react `0.45.0` pins pg-trickle `0.98.0` and requires disabled Graph/Delta capabilities in `sql/current/pgtrickle.sql`. MDM `0.11.0` pins `0.105.1`. Update React admission, diagnostics, fixtures, and packaging for `0.105.2`, then qualify both projects on the same PostgreSQL 18 artifact. Resolve the existing PostgreSQL 18.3/18.4 image discrepancy using effective runtime identity. [3][4]
+Compatibility is the first engineering task. pg-react `0.45.0` pins pg-trickle `0.98.0` and requires disabled Graph/Delta capabilities in `sql/current/pgtrickle.sql`. MDM `0.11.0` pins `0.105.1`. Update React admission, diagnostics, fixtures, and packaging for `0.108.0`, then qualify both projects on the same PostgreSQL 18 artifact. Resolve the existing PostgreSQL 18.3/18.4 image discrepancy using effective runtime identity. [3][4]
 
 Keep React's explicit coordinator, trigger CDC, scheduler-off profile, and differential-refresh safeguard. MDM owns its EXTERNAL graph members and strict refresh transaction. An enabled Graph or Delta capability does not mean React must consume it. Test committed policy-table visibility, shared-source CDC, skipped ordinary refreshes, and FULL fallback before accepting the joint profile. Never infer successful delivery from NOTIFY or freshness metrics. [5]
 
@@ -152,6 +152,6 @@ Enable only routing and escalation for a small named cohort after tests pass. Mo
 
 [4] [MDM companion plan](PLAN_PG_MDM_STEWARDSHIP_INTEGRATION.md) and [pg-mdm 0.11.0 source evidence](../docs/planning/EVIDENCE.md#s9-pg-mdm-0110-foundation-and-missing-contract).
 
-[5] [pg-trickle 0.105.2 source evidence](../docs/planning/EVIDENCE.md#s8-pg-trickle-01052-release).
+[5] [pg-trickle 0.108.0 source evidence](../docs/planning/EVIDENCE.md#s10-pg-trickle-01080-release).
 
 [6] [MDM ownership and approval safeguards](PLAN_PG_MDM_STEWARDSHIP_INTEGRATION.md#6-approval-and-automation-safeguards).

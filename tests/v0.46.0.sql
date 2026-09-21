@@ -6,7 +6,7 @@ DECLARE
     actual jsonb;
     expected jsonb := jsonb_build_object(
         'pg_react', '0.46.0',
-        'pg_trickle', '0.105.2',
+        'pg_trickle', '0.108.0',
         'scheduler', 'off',
         'cdc', 'trigger',
         'differential_max_change_ratio', 1.0,
@@ -39,16 +39,16 @@ BEGIN
         jsonb_build_object(
             'code', 'PGT_DELTA_AVAILABLE', 'severity', 'INFO',
             'object_identity', 'output_delta_consumer',
-            'message', 'Delta V1 is available upstream; pg-react does not consume output deltas',
+            'message', 'Delta V1.1 is available upstream; pg-react does not consume output deltas',
             'hint', 'No action is required; pg-react retains explicit coordination.',
-            'capability', 'output_delta_consumer', 'major', '1', 'minor', '0',
+            'capability', 'output_delta_consumer', 'major', '1', 'minor', '1',
             'enabled', true, 'status', 'stable'),
         jsonb_build_object(
             'code', 'PGT_GRAPH_AVAILABLE', 'severity', 'INFO',
             'object_identity', 'external_graph_refresh',
-            'message', 'Graph V1 is available upstream; pg-react retains explicit coordination',
-            'hint', 'No action is required; pg-react does not call Graph V1.',
-            'capability', 'external_graph_refresh', 'major', '1', 'minor', '0',
+            'message', 'Graph V1.2 is available upstream; pg-react retains explicit coordination',
+            'hint', 'No action is required; pg-react does not call Graph V1.2.',
+            'capability', 'external_graph_refresh', 'major', '1', 'minor', '2',
             'enabled', true, 'status', 'stable')) THEN
         RAISE EXCEPTION 'v0.46.0 healthy doctor transcript changed: %', actual;
     END IF;

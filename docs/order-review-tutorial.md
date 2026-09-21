@@ -47,11 +47,11 @@ docker compose exec -T postgres psql -XAt -U postgres -d "$DB" \
 
 ```text
 pg_react=0.46.0
-pg_trickle=0.105.2
+pg_trickle=0.108.0
 t
 ```
 
-Stop if the extension versions or worker protocol differ. The supported server is PostgreSQL 18.3 with pg-react `0.46.0` and pg_trickle 0.105.2. Installation and preload details live in [Installation](installation.md), while runtime diagnosis belongs in [Operations](operations.md).
+Stop if the extension versions or worker protocol differ. The supported server is PostgreSQL 18.3 with pg-react `0.46.0` and pg_trickle 0.108.0. Installation and preload details live in [Installation](installation.md), while runtime diagnosis belongs in [Operations](operations.md).
 
 ## 3. Create the application facts
 
