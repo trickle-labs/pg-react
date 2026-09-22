@@ -26,7 +26,7 @@ BEGIN
     END IF;
     RETURN pgreact.policy_set(
         name           => $1,
-        version        => $2 || ':' || encode(package_digest, 'hex'),
+        version        => encode(package_digest, 'hex'),
         members        => ARRAY[$3]::pgreact_api.declaration[],
         applicability  => $4,
         subject_keys   => $5,

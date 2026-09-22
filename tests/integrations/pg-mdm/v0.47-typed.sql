@@ -8,6 +8,8 @@ DECLARE
     second_declaration pgreact_api.declaration;
     first_digest text;
     second_digest text;
+    preview jsonb;
+    review text;
 BEGIN
     member := pgreact_api.declaration('rule', 'mdm-fixture-rule',
         jsonb_build_object('condition', 'mdm_fixture.policy_cases_v1',
@@ -22,11 +24,21 @@ BEGIN
     second_declaration := pgreact_mdm.review_declaration('mdm-fixture', 'policy-2', member,
         'mdm_fixture.policy_cases_v1'::regclass, ARRAY['case_key'::name],
         '2026-09-21 12:00:00+00');
-    IF (first_declaration).spec ->> 'version' IS DISTINCT FROM 'policy-1:' || first_digest
-       OR (second_declaration).spec ->> 'version' IS DISTINCT FROM 'policy-2:' || second_digest
+    IF (first_declaration).spec ->> 'version' IS DISTINCT FROM first_digest
+       OR (second_declaration).spec ->> 'version' IS DISTINCT FROM second_digest
        OR first_digest = second_digest THEN
         RAISE EXCEPTION 'v0.47 typed package identity mismatch';
     END IF;
+    preview := pgreact.preview(first_declaration);
+    review := pgreact.review_token(preview);
+    BEGIN
+        PERFORM pgreact.deploy(second_declaration, review);
+        RAISE EXCEPTION 'v0.47 accepted a review for a changed package identity';
+    EXCEPTION WHEN OTHERS THEN
+        IF SQLERRM <> 'M54_REVIEW_TOKEN_MISMATCH: token declaration digest does not match' THEN
+            RAISE;
+        END IF;
+    END;
 END
 $$;
 

@@ -50097,12 +50097,13 @@ BEGIN
         'pgreact_internal.m53_package_preview(pgreact_api.declaration,jsonb)'::regprocedure)
     INTO definition;
     patched := regexp_replace(definition,
-        E'(?s)    FOR node IN\\s+WITH RECURSIVE package_nodes AS \\(.*?\\s+LOOP',
+        E'(?s)    FOR node IN\\s+WITH RECURSIVE package_nodes AS \\(.*?\\s+LOOP\\n        node_kind := node ->> ''kind'';',
         $replacement$
     FOR node IN
         SELECT value FROM jsonb_array_elements(
             pgreact_internal.m54_package_graph_order(package_normalized)) value
-    LOOP$replacement$, 1);
+    LOOP
+        node_kind := node ->> 'kind';$replacement$, 1);
     IF patched = definition THEN
         RAISE EXCEPTION 'M54 could not patch the package preview walk';
     END IF;
