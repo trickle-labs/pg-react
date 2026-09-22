@@ -2,8 +2,8 @@
   "release": "v0.47.0",
   "status": "blocked",
   "candidate": {
-    "evidence_tested_commit": "1a1dd2c0cbd0aaaecb74ca991f83dc8975c375cd",
-    "identity_note": "Fresh proof ran on the parent commit; the final PR head after this evidence repair is authoritative in VCS and cannot self-reference its own commit hash.",
+    "evidence_tested_commit": "839ac88e35ecc421047cacce223267047854729b",
+    "identity_note": "Live qualification ran against PR head 839ac88e35ecc421047cacce223267047854729b with the disposable joint image recorded below; rerun after committing further evidence-harness changes.",
     "base": "main",
     "source_plan": "plans/v0.47.0.md",
     "source_plan_sha256": "e9ebf729f5eb86b88a1597764c20dc81f7f7a0ff3ac7d602266885a7e90cea20"
@@ -17,21 +17,24 @@
   },
   "upstream": {
     "required_projection": "mdm_steward.policy_cases_v1",
-    "inspected_release": "pg-mdm v0.11.0",
-    "inspected_commit": "97b78c82c0310cf750cd3e1b783a3ed35a2c9f1d",
-    "projection_status": "absent",
-    "blocker": "pg-mdm M1/v0.13 is a plan in the inspected checkout; the released/current archive does not install policy_cases_v1"
+    "inspected_release": "pg-mdm v0.13.0",
+    "inspected_commit": "fa018625c3ddc1e479bc3342e8b284186d2cb757",
+    "projection_status": "present",
+    "artifact_digest": "sha256:0d4ca596335323ee5b1a8cb306221422ceb93aa466689f081e13ff77f976d856"
   },
   "environment": {
-    "postgresql": "18.6",
+    "postgresql": "18.4",
     "transaction_isolation": "read committed",
     "fixture": "showcase/mdm-stewardship/01-fixture.sql",
-    "database": "disposable local cluster",
-    "joint_live_stack": false
+    "database": "disposable local joint cluster",
+    "joint_live_stack": true,
+    "pg_mdm_image": "pg_mdm:0.13.0-e2e@sha256:0d4ca596335323ee5b1a8cb306221422ceb93aa466689f081e13ff77f976d856",
+    "pg_react_image": "pg-react:local-m1@sha256:be2e22e0f743236e42a9cedc97b755129e6b83936266d91f51e3e8958f6d14c6"
   },
   "numeric_limits": {
     "status": "blocked",
     "fixture_population": 7,
+    "live_population": 2,
     "required_workload_limits": null,
     "reason": "The release gate requires owner-approved churn, queue, retention, storage/WAL, and recovery limits before live qualification; no signed workload limits exist yet."
   },
@@ -50,72 +53,75 @@
       "required": true,
       "command": "rtk psql -X -v ON_ERROR_STOP=1 -p 55448 -U postgres -d postgres -f tests/integrations/pg-mdm/v0.47.sql",
       "expected": "Exact route, deadline, invalid-input, and contract-rejection transcripts",
-      "actual": "Fixture transcript passed for winner, tie, no-candidate, protection, no-op, deadline preservation/unknown opening, invalid deadline/key/type, RLS, and immutable packages",
-      "status": "passed_fixture",
-      "artifact": "tests/integrations/pg-mdm/v0.47.sql"
+      "actual": "Fixture transcript passed; live MDM projection transcript passed input validation, real rejected-review rows, routing, and elapsed deadlines",
+      "status": "passed_fixture_and_live",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
     },
     {
       "id": "T47.07-T47.10",
       "required": true,
       "command": "rtk psql -X -v ON_ERROR_STOP=1 -p 55448 -U postgres -d postgres -f tests/integrations/pg-mdm/v0.47.sql",
       "expected": "Replacement identity, no-effect comparison, complete/partial coverage, and ordinary-role authorization",
-      "actual": "Fixture comparison passed with exact replacement changes, partial state, no durable state delta, invoker execution, and a read-only role",
-      "status": "passed_fixture",
-      "artifact": "tests/integrations/pg-mdm/v0.47.sql"
+      "actual": "Fixture and live comparison passed complete/partial coverage, changed-policy detection, no durable state delta, and typed package identity",
+      "status": "passed_fixture_and_live",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
     },
     {
       "id": "T47.11",
       "required": true,
-      "command": "Not runnable without installed MDM M1",
+      "command": "/tests/e2e.sql, then tests/integrations/pg-mdm/v0.47-live-setup.sql and tests/integrations/pg-mdm/v0.47-live.sql",
       "expected": "Publication-only update and recurrence retain the correct occurrence identity",
-      "actual": "The required MDM publication/projection is absent",
-      "status": "blocked_upstream",
-      "artifact": "plans/v0.47.0.md"
+      "actual": "Initial live publication has stable case_key, review_id, occurrence, and publication-sourced opening time; publication-only update and recurrence remain unqualified",
+      "status": "blocked_recurrence",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
     },
     {
       "id": "T47.12",
       "required": true,
       "command": "rtk cargo check --locked --no-default-features && rtk cargo test --locked",
       "expected": "Core remains valid with the optional adapter absent",
-      "actual": "Cargo check passed; cargo test reports 8 passing tests; live adapter admission remains blocked by M1",
-      "status": "passed_core_blocked_live",
+      "actual": "Cargo check passed; cargo test reports 8 passing tests; live typed declaration identity passed against the installed projection",
+      "status": "passed",
       "artifact": "Cargo.toml"
     },
     {
       "id": "T47.13",
       "required": true,
-      "command": "Not runnable without installed MDM M1",
+      "command": "/tests/e2e.sql, then tests/integrations/pg-mdm/v0.47-live-setup.sql plus tests/integrations/pg-mdm/v0.47-live.sql",
       "expected": "Opening time, authorized backfill, recurrence, and restore preserve exact timestamps and identity",
-      "actual": "Fixture proves immutable opening-time calculation and unknown-time withholding; MDM backfill/recurrence/restore are upstream-owned and unavailable",
-      "status": "blocked_upstream",
-      "artifact": "plans/v0.47.0.md"
+      "actual": "Live projection proves publication-sourced opening time and elapsed deadline calculation; authorized backfill, recurrence, and restore remain unqualified",
+      "status": "blocked_recovery",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live-setup.sql"
     },
     {
       "id": "C02-C03-C09",
       "required": true,
       "command": "rtk psql -X -v ON_ERROR_STOP=1 -p 55448 -U postgres -d postgres -f tests/integrations/pg-mdm/v0.47.sql",
       "expected": "Core isolation, ordinary-role authorization, and no-effect bounded comparison",
-      "actual": "Fixture evidence passed; joint installed-stack authorization remains blocked",
-      "status": "passed_fixture_blocked_live",
-      "artifact": "tests/integrations/pg-mdm/v0.47.sql"
+      "actual": "Live joint stack passed projection access isolation, invoker routing/deadline/comparison reads, and no durable comparison delta",
+      "status": "passed_live",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
     },
     {
       "id": "C01-C05-C12",
       "required": true,
-      "command": "Joint qualification command is withheld until M1 is installed",
+      "command": "/tests/e2e.sql, then tests/integrations/pg-mdm/v0.47-live-setup.sql followed by tests/integrations/pg-mdm/v0.47-live.sql",
       "expected": "Exact packaged joint stack is installed and qualified with retained logs",
-      "actual": "No M1 projection or exact joint artifact exists to qualify",
-      "status": "blocked_upstream",
-      "artifact": "docs/planning/RELEASE-GATES.md"
+      "actual": "Installed pg-mdm v0.13.0 projection and pg-react joint image passed schema, access, adapter, and typed-flow qualification; workload-limit signoff remains separate",
+      "status": "passed_live_partial",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
     }
   ],
   "blocked_gates": [
-    "M1 projection absent from installed pg-mdm",
-    "Live joint-stack qualification unavailable",
-    "Owner-approved workload limits not signed"
+    "Owner-approved workload limits not signed",
+    "T47.11 publication-only recurrence qualification outstanding",
+    "T47.13 authorized backfill and restore qualification outstanding"
   ],
   "artifacts": {
     "fixture_sql": "tests/integrations/pg-mdm/v0.47.sql",
+    "upstream_bootstrap": "/tests/e2e.sql",
+    "live_setup_sql": "tests/integrations/pg-mdm/v0.47-live-setup.sql",
+    "live_qualification_sql": "tests/integrations/pg-mdm/v0.47-live.sql",
     "contract_check": "tests/mdm_stewardship_contract.py",
     "logs": "retain CI and qualification logs externally; do not commit mutable logs"
   }

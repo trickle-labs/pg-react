@@ -42,5 +42,10 @@ and declaration review. It does not deploy or run the declaration.
 Run `tests/integrations/pg-mdm/v0.47-typed.sql` after the fixture test in a
 database with the core extension installed to check that identity.
 
+For installed MDM M1 qualification, bootstrap the upstream image with its
+`/tests/e2e.sql`, then run `tests/integrations/pg-mdm/v0.47-live-setup.sql`
+followed by `tests/integrations/pg-mdm/v0.47-live.sql` in a disposable joint
+database.
+
 The package is adapter-owned and optional; the core pg-react extension remains
 usable without it.
