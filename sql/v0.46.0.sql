@@ -14752,6 +14752,7 @@ DECLARE
     deactivate_action regprocedure;
     change_action regprocedure;
 BEGIN
+    PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200000);
     PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200001);
     SELECT * INTO diagnostic
       FROM pgreact_internal.validate_resolved_rule(
