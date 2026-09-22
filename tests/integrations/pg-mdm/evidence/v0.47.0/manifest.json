@@ -2,8 +2,8 @@
   "release": "v0.47.0",
   "status": "blocked",
   "candidate": {
-    "evidence_tested_commit": "487519338ebd5bde6c17b3ff9e7fec4d01f89c4c",
-    "identity_note": "The final PR head is authoritative in VCS; a committed evidence file cannot self-reference its own commit hash.",
+    "evidence_tested_commit": "1a1dd2c0cbd0aaaecb74ca991f83dc8975c375cd",
+    "identity_note": "Fresh proof ran on the parent commit; the final PR head after this evidence repair is authoritative in VCS and cannot self-reference its own commit hash.",
     "base": "main",
     "source_plan": "plans/v0.47.0.md",
     "source_plan_sha256": "e9ebf729f5eb86b88a1597764c20dc81f7f7a0ff3ac7d602266885a7e90cea20"
