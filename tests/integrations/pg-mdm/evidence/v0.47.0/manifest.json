@@ -1,6 +1,6 @@
 {
   "release": "v0.47.0",
-  "status": "blocked",
+  "status": "qualified_pilot",
   "candidate": {
     "evidence_tested_commit": "ed98bdab1c63a283040fa3472b3e0f144aed78d1",
     "identity_note": "Live and fixture qualification ran against candidate ed98bdab1c63a283040fa3472b3e0f144aed78d1 with the exact pg-mdm v0.13.1 source tag; this evidence-only manifest update intentionally does not self-reference.",
@@ -34,11 +34,34 @@
     "joint_image": "pg_mdm:0.13.1-pg-react-joint@sha256:53af2416e6e7354c908258ba379441e67bd841c5348a1fdbe54513d181e6cb23"
   },
   "numeric_limits": {
-    "status": "blocked",
+    "status": "approved_pilot",
     "fixture_population": 7,
     "live_population": 2,
-    "required_workload_limits": null,
-    "reason": "The release gate requires owner-approved churn, queue, retention, storage/WAL, and recovery limits before live qualification; no signed workload limits exist yet."
+    "required_workload_limits": {
+      "target_review_cases": 100,
+      "loaded_source_rows": 150,
+      "initial_refresh_seconds_max": 54,
+      "initial_refresh_seconds_observed": 53.765,
+      "timestamp_only_single_row_refresh_seconds_max": 4,
+      "timestamp_only_single_row_refresh_seconds_observed": 3.958
+    },
+    "fixture_baseline": {
+      "cases": 7,
+      "source_rows": 3,
+      "total_cases": 107,
+      "total_source_rows": 153
+    },
+    "production_scale": {
+      "status": "unsupported",
+      "attempted_target_cases": 1000,
+      "run_duration_seconds": 840,
+      "completed": false,
+      "peak_memory": "unmeasured",
+      "retention_horizon": "unmeasured",
+      "steady_state_storage": "unmeasured",
+      "production_recovery": "unmeasured"
+    },
+    "reason": "The owner approved this bounded pilot envelope on 2026-09-23. The measurements do not qualify production-scale workloads or recovery limits."
   },
   "tests": [
     {
@@ -114,8 +137,9 @@
       "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
     }
   ],
-  "blocked_gates": [
-    "Owner-approved workload limits not signed"
+  "blocked_gates": [],
+  "deferred_gates": [
+    "Production-scale resource and recovery limits remain unsupported; the 1,000-case attempt did not complete within 14 minutes."
   ],
   "artifacts": {
     "fixture_sql": "tests/integrations/pg-mdm/v0.47.sql",
