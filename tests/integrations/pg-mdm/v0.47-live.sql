@@ -7,13 +7,18 @@ SET TIME ZONE 'UTC';
 \ir ../../../integrations/pg-mdm/sql/comparison.sql
 \ir ../../../integrations/pg-mdm/sql/typed-flow.sql
 
+-- The upstream lifecycle fixture leaves one open case without an auditable opening time.
 DO $$
 DECLARE
     actual jsonb;
 BEGIN
     actual := pgreact_mdm.validate_inputs('mdm_steward.policy_cases_v1'::regclass);
     IF actual IS DISTINCT FROM jsonb_build_object(
-        'state', 'valid', 'findings', '[]'::jsonb,
+        'state', 'valid',
+        'findings', jsonb_build_array(jsonb_build_object(
+            'code', 'MDM_INPUT_OPENING_UNKNOWN',
+            'rows', 1,
+            'message', 'open cases without an authorized opening time cannot receive a due-date proposal')),
         'source_relation', 'mdm_steward.policy_cases_v1') THEN
         RAISE EXCEPTION 'live MDM input validation mismatch: %', actual;
     END IF;
