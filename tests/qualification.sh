@@ -43,6 +43,7 @@ static_audit() {
     docs/v0.46.0-migration.md \
     tests/fixtures/v0.46.0/pgtrickle-compatibility.json tests/v0.46.0.sql \
     tests/v0.46.0-pgtrickle.sql tests/v0.46.0-upgrade.sql tests/v0.46.0-concurrency.sql \
+    tests/v0.46.0-ddl-lock-order.sh \
     tests/m31-authorization.sql \
     contracts/MDM-STEWARDSHIP-1.json contracts/MDM-STEWARDSHIP-1-fixture.json \
     tests/mdm_stewardship_contract.py integrations/pg-mdm/contract/README.md \
@@ -54,7 +55,7 @@ static_audit() {
     sql/pg_react--0.45.0--0.46.0.sql sql/pg_react--0.46.0.sql; do
     test -s "$file"
   done
-  bash -n bin/assemble-sql tests/qualification.sh tests/m55-benchmark.sh \
+  bash -n bin/assemble-sql tests/qualification.sh tests/v0.46.0-ddl-lock-order.sh tests/m55-benchmark.sh \
     tests/m55-benchmark-case.sh
   python3 tests/mdm_stewardship_contract.py
   jq -e '.schema_version == 1 and .release == "0.46.0" and
@@ -115,6 +116,8 @@ run_test '0.46.0 pg_trickle compatibility boundary' docker compose -p "$project"
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-pgtrickle.sql
 run_test '0.46.0 concurrency contract' docker compose -p "$project" exec -T postgres \
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-concurrency.sql
+run_test '0.46.0 DDL lock-order concurrency regression' \
+  bash tests/v0.46.0-ddl-lock-order.sh "$project"
 run_test 'M54 correctness corpus on 0.46.0' docker compose -p "$project" exec -T postgres \
   psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m54.sql
 run_test 'M34 scoped comparison corpus on 0.46.0' docker compose -p "$project" exec -T postgres \
@@ -160,6 +163,8 @@ if [[ $profile = complete ]]; then
     psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-pgtrickle.sql
   run_test '0.46.0 upgraded concurrency contract' docker compose -p "$upgrade_project" exec -T postgres \
     psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/v0.46.0-concurrency.sql
+  run_test '0.46.0 upgraded DDL lock-order concurrency regression' \
+    bash tests/v0.46.0-ddl-lock-order.sh "$upgrade_project"
   run_test '0.46.0 upgraded M54 correctness corpus' docker compose -p "$upgrade_project" exec -T postgres \
     psql -XAtq -U postgres -d postgres -v ON_ERROR_STOP=1 -f - < tests/m54.sql
   run_test '0.46.0 upgraded M34 scoped comparison corpus' docker compose -p "$upgrade_project" exec -T postgres \

@@ -19,6 +19,26 @@ BEGIN
 END
 $lock_order$;
 
+DO $binding_ddl_lock_order$
+DECLARE
+    definition text;
+    patched text;
+BEGIN
+    SELECT pg_get_functiondef(
+        'pgreact_internal.binding_ddl_lock()'::regprocedure)
+    INTO definition;
+    patched := replace(definition,
+        '    PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200001);',
+        '    -- Preserve the coordinator-before-binding order used by deployment.
+    PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200000);
+    PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200001);');
+    IF patched = definition THEN
+        RAISE EXCEPTION '0.46.0 could not patch binding_ddl_lock lock order';
+    END IF;
+    EXECUTE patched;
+END
+$binding_ddl_lock_order$;
+
 -- Qualify application_roles columns for PostgreSQL 18's PL/pgSQL name resolution.
 CREATE OR REPLACE FUNCTION pgreact_internal.m54_sync_grants(old_roles oid[] DEFAULT ARRAY[]::oid[])
 RETURNS void

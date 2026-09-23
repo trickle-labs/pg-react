@@ -276,6 +276,8 @@ AS $$
 BEGIN
     -- ponytail: one global DDL lock is enough for M0's one binding; use a
     -- per-object ProcessUtility hook if binding DDL throughput ever matters.
+    -- Preserve the coordinator-before-binding order used by deployment.
+    PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200000);
     PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200001);
 END
 $$;
