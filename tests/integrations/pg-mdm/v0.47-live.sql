@@ -22,6 +22,15 @@ BEGIN
         'source_relation', 'mdm_steward.policy_cases_v1') THEN
         RAISE EXCEPTION 'live MDM input validation mismatch: %', actual;
     END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM pg_proc AS proc
+        JOIN pg_namespace AS namespace ON namespace.oid = proc.pronamespace
+        WHERE namespace.nspname = 'mdm_steward'
+          AND proc.proname = 'submit_policy_intent'
+          AND has_function_privilege('mdm_output_reader', proc.oid, 'EXECUTE')) THEN
+        RAISE EXCEPTION 'read-only MDM reader can submit policy intents';
+    END IF;
 END
 $$;
 
@@ -49,6 +58,44 @@ SELECT pgreact_mdm.publish_package(
             'queue', 'mdm-urgent', 'priority', 1, 'action', 'ASSIGN_QUEUE'))))
 AS published;
 
+CREATE FUNCTION pg_temp.policy_effect_snapshot()
+RETURNS jsonb
+LANGUAGE plpgsql
+AS $function$
+DECLARE
+    relation record;
+    digest text;
+    snapshot jsonb := '{}'::jsonb;
+BEGIN
+    FOR relation IN
+        SELECT namespace.nspname, class.relname, class.relkind
+        FROM pg_class AS class
+        JOIN pg_namespace AS namespace ON namespace.oid = class.relnamespace
+        WHERE namespace.nspname IN (
+            'mdm_internal', 'mdm_steward', 'mdm_graph', 'mdm_out',
+            'pgreact_internal', 'pgreact_mdm', 'pgtrickle', 'pgtrickle_changes')
+          AND class.relkind IN ('r', 'p', 'S', 'm')
+    LOOP
+        IF relation.relkind = 'S' THEN
+            EXECUTE format(
+                'SELECT md5(jsonb_build_object(''last_value'', last_value, ''log_cnt'', log_cnt, ''is_called'', is_called)::text) FROM %I.%I',
+                relation.nspname, relation.relname)
+            INTO digest;
+        ELSE
+            EXECUTE format(
+                'SELECT md5(coalesce(jsonb_agg(to_jsonb(row_data) ORDER BY to_jsonb(row_data)::text)::text, ''[]'')) FROM %I.%I AS row_data',
+                relation.nspname, relation.relname)
+            INTO digest;
+        END IF;
+        snapshot := snapshot || jsonb_build_object(relation.nspname || '.' || relation.relname, digest);
+    END LOOP;
+    RETURN snapshot;
+END
+$function$;
+
+CREATE TEMP TABLE policy_effect_snapshot_before AS
+SELECT pg_temp.policy_effect_snapshot() AS state;
+
 DO $$
 DECLARE
     live_count bigint;
@@ -57,10 +104,6 @@ DECLARE
     deadlines jsonb;
     comparison jsonb;
     partial jsonb;
-    before_source jsonb;
-    after_source jsonb;
-    before_packages jsonb;
-    after_packages jsonb;
     captured_at timestamptz := '2026-09-22 12:00:00+00';
 BEGIN
     SELECT count(*), array_agg(case_key ORDER BY case_key)
@@ -103,14 +146,6 @@ BEGIN
         RAISE EXCEPTION 'live MDM deadline mismatch: %', deadlines;
     END IF;
 
-    SELECT jsonb_agg(to_jsonb(c) ORDER BY c.case_key)
-    INTO before_source
-    FROM pgreact_mdm.policy_inputs('mdm_steward.policy_cases_v1'::regclass) AS c
-    WHERE c.entity_name = 'review_admission_live';
-    SELECT jsonb_agg(to_jsonb(p) ORDER BY p.policy_revision)
-    INTO before_packages
-    FROM pgreact_mdm.policy_packages AS p;
-
     comparison := pgreact_mdm.compare_population(
         'mdm_steward.policy_cases_v1'::regclass,
         'live-policy-1', 'live-policy-2', captured_at,
@@ -141,17 +176,6 @@ BEGIN
         RAISE EXCEPTION 'live MDM partial comparison mismatch: %', partial;
     END IF;
 
-    SELECT jsonb_agg(to_jsonb(c) ORDER BY c.case_key)
-    INTO after_source
-    FROM pgreact_mdm.policy_inputs('mdm_steward.policy_cases_v1'::regclass) AS c
-    WHERE c.entity_name = 'review_admission_live';
-    SELECT jsonb_agg(to_jsonb(p) ORDER BY p.policy_revision)
-    INTO after_packages
-    FROM pgreact_mdm.policy_packages AS p;
-    IF before_source IS DISTINCT FROM after_source
-       OR before_packages IS DISTINCT FROM after_packages THEN
-        RAISE EXCEPTION 'live MDM comparison changed durable state';
-    END IF;
 END
 $$;
 
@@ -183,6 +207,17 @@ BEGIN
     review := pgreact.review_token(preview);
     IF review IS NULL OR length(review) = 0 THEN
         RAISE EXCEPTION 'live typed declaration produced no review token';
+    END IF;
+END
+$$;
+
+DO $$
+DECLARE before_state jsonb; after_state jsonb;
+BEGIN
+    SELECT state INTO STRICT before_state FROM pg_temp.policy_effect_snapshot_before;
+    after_state := pg_temp.policy_effect_snapshot();
+    IF before_state IS DISTINCT FROM after_state THEN
+        RAISE EXCEPTION 'read-only MDM calls changed durable MDM, pg-react, or pg-trickle state';
     END IF;
 END
 $$;
