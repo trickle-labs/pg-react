@@ -11,11 +11,10 @@ with fixture
 - pg-mdm source: `v0.11.0` / `97b78c82c0310cf750cd3e1b783a3ed35a2c9f1d`
 - pg-trickle source: `v0.108.0` / `8bd0a4b5eb3e586ebdeea56bd774611aa7907e25`
 
-The contract is approved and testable as a document. It is not an installed
-MDM API: pg-mdm 0.11.0 does not provide the policy projection, bindings,
-receipts, or intent function.
+The contract originated against pg-mdm 0.11.0, which did not provide the
+policy projection, bindings, receipts, or intent function.
 
-The v0.47 read-only package consumes only the policy projection and does not
-attempt to replace the missing MDM M1 artifact with private joins or UUID
-hashing. Live qualification remains blocked until M1 publishes the relation
-with the exact columns and occurrence semantics above.
+The v0.47 read-only package consumes only the public policy projection. The
+projection is available in pg-mdm v0.13.1 (extension version 0.14.0); joint
+live qualification and the supported pilot envelope are recorded in
+[`evidence/v0.47.0/manifest.json`](../../../tests/integrations/pg-mdm/evidence/v0.47.0/manifest.json).
