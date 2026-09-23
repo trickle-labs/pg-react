@@ -276,6 +276,8 @@ AS $$
 BEGIN
     -- ponytail: one global DDL lock is enough for M0's one binding; use a
     -- per-object ProcessUtility hook if binding DDL throughput ever matters.
+    -- Preserve the coordinator-before-binding order used by deployment.
+    PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200000);
     PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200001);
 END
 $$;
@@ -14752,6 +14754,7 @@ DECLARE
     deactivate_action regprocedure;
     change_action regprocedure;
 BEGIN
+    PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200000);
     PERFORM pg_catalog.pg_advisory_xact_lock(5788046901200001);
     SELECT * INTO diagnostic
       FROM pgreact_internal.validate_resolved_rule(
@@ -50097,12 +50100,13 @@ BEGIN
         'pgreact_internal.m53_package_preview(pgreact_api.declaration,jsonb)'::regprocedure)
     INTO definition;
     patched := regexp_replace(definition,
-        E'(?s)    FOR node IN\\s+WITH RECURSIVE package_nodes AS \\(.*?\\s+LOOP',
+        E'(?s)    FOR node IN\\s+WITH RECURSIVE package_nodes AS \\(.*?\\s+LOOP\\n        node_kind := node ->> ''kind'';',
         $replacement$
     FOR node IN
         SELECT value FROM jsonb_array_elements(
             pgreact_internal.m54_package_graph_order(package_normalized)) value
-    LOOP$replacement$, 1);
+    LOOP
+        node_kind := node ->> 'kind';$replacement$, 1);
     IF patched = definition THEN
         RAISE EXCEPTION 'M54 could not patch the package preview walk';
     END IF;

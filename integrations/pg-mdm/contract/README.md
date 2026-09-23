@@ -14,3 +14,8 @@ with fixture
 The contract is approved and testable as a document. It is not an installed
 MDM API: pg-mdm 0.11.0 does not provide the policy projection, bindings,
 receipts, or intent function.
+
+The v0.47 read-only package consumes only the policy projection and does not
+attempt to replace the missing MDM M1 artifact with private joins or UUID
+hashing. Live qualification remains blocked until M1 publishes the relation
+with the exact columns and occurrence semantics above.

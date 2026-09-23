@@ -1,0 +1,128 @@
+{
+  "release": "v0.47.0",
+  "status": "blocked",
+  "candidate": {
+    "evidence_tested_commit": "ed98bdab1c63a283040fa3472b3e0f144aed78d1",
+    "identity_note": "Live and fixture qualification ran against candidate ed98bdab1c63a283040fa3472b3e0f144aed78d1 with the exact pg-mdm v0.13.1 source tag; this evidence-only manifest update intentionally does not self-reference.",
+    "base": "main",
+    "source_plan": "plans/v0.47.0.md",
+    "source_plan_sha256": "e9ebf729f5eb86b88a1597764c20dc81f7f7a0ff3ac7d602266885a7e90cea20"
+  },
+  "contract": {
+    "name": "MDM-STEWARDSHIP/1",
+    "revision": 1,
+    "source_sha256": "2161ce22b9d924ff3f3e6d8acde62fed01b6b1c1c4d7ba0fd4d5eb6e396e0fcf",
+    "fixture_sha256": "900f365533bab13480fcb88ab8e8b7956beb4f14a8cfc92cd46770b2e26ef3e4",
+    "policy_vector_digest": "741ea9560a69ba3185eaa34760ba38d473aa43daa8e8c530c6c6c2ce867c2614"
+  },
+  "upstream": {
+    "required_projection": "mdm_steward.policy_cases_v1",
+    "inspected_release": "pg-mdm v0.13.1 source tag (extension version 0.14.0)",
+    "inspected_commit": "5f172cb7034c8d7c8e5c069f17a4b6dcbdce1cb2",
+    "projection_status": "present",
+    "artifact_digest": "sha256:fba6571fcbc2a542c10765c840520df2be999d3cce818f6f10913521cad277c1"
+  },
+  "environment": {
+    "postgresql": "18.4",
+    "transaction_isolation": "read committed",
+    "fixture": "showcase/mdm-stewardship/01-fixture.sql",
+    "database": "disposable local joint cluster",
+    "joint_live_stack": true,
+    "pg_mdm_image": "pg_mdm:0.13.1-e2e@sha256:fba6571fcbc2a542c10765c840520df2be999d3cce818f6f10913521cad277c1",
+    "pg_react_image": "pg-react:joint-v047@sha256:2a5a0e9e0c184f726a9e6bcd984e44e2832f2608d88f0d616b51c6328e83c633",
+    "pg_react_image_source_commit": "ed195f804f7a56d7eae7489ef351244a7aa202e3",
+    "joint_image": "pg_mdm:0.13.1-pg-react-joint@sha256:53af2416e6e7354c908258ba379441e67bd841c5348a1fdbe54513d181e6cb23"
+  },
+  "numeric_limits": {
+    "status": "blocked",
+    "fixture_population": 7,
+    "live_population": 2,
+    "required_workload_limits": null,
+    "reason": "The release gate requires owner-approved churn, queue, retention, storage/WAL, and recovery limits before live qualification; no signed workload limits exist yet."
+  },
+  "tests": [
+    {
+      "id": "CONTRACT",
+      "required": true,
+      "command": "rtk python3 tests/mdm_stewardship_contract.py",
+      "expected": "Exact contract and vector output conforms",
+      "actual": "pg-react MDM-STEWARDSHIP/1 contract and fixture conform",
+      "status": "passed",
+      "artifact": "tests/mdm_stewardship_contract.py"
+    },
+    {
+      "id": "T47.01-T47.06",
+      "required": true,
+      "command": "rtk psql -X -v ON_ERROR_STOP=1 -p 55448 -U postgres -d postgres -f tests/integrations/pg-mdm/v0.47.sql",
+      "expected": "Exact route, deadline, invalid-input, and contract-rejection transcripts",
+      "actual": "Fixture and joint live transcripts passed input validation with the expected unknown-opening finding, real rejected-review rows, routing, and elapsed deadlines",
+      "status": "passed_fixture_and_live",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
+    },
+    {
+      "id": "T47.07-T47.10",
+      "required": true,
+      "command": "rtk psql -X -v ON_ERROR_STOP=1 -p 55448 -U postgres -d postgres -f tests/integrations/pg-mdm/v0.47.sql",
+      "expected": "Replacement identity, no-effect comparison, complete/partial coverage, and ordinary-role authorization",
+      "actual": "Fixture and joint live comparison passed complete/partial coverage and changed-policy detection; all durable MDM, pg-react, and pg-trickle rows and sequence states stayed unchanged across read-only routing, deadline, comparison, and typed review calls",
+      "status": "passed_fixture_and_live",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
+    },
+    {
+      "id": "T47.11",
+      "required": true,
+      "command": "/tests/e2e.sql and /tests/e2e_policy.sql, then tests/integrations/pg-mdm/v0.47-live-setup.sql and tests/integrations/pg-mdm/v0.47-live.sql",
+      "expected": "Publication-only update and recurrence retain the correct occurrence identity",
+      "actual": "Exact-tag policy E2E passed publication identity and recurrence assertions; the pg-react live adapter, routing, deadline, comparison, and typed checks passed after that lifecycle fixture",
+      "status": "passed_upstream_and_live",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
+    },
+    {
+      "id": "T47.12",
+      "required": true,
+      "command": "rtk cargo check --locked --no-default-features && rtk cargo test --locked",
+      "expected": "Core remains valid with the optional adapter absent",
+      "actual": "Core check and unit tests passed; fixture and typed-flow checks passed without pg_mdm installed; fresh pg_react 0.45.0 to 0.46.0 adjacent upgrade preserved its sentinel data",
+      "status": "passed",
+      "artifact": "Cargo.toml"
+    },
+    {
+      "id": "T47.13",
+      "required": true,
+      "command": "pg-mdm v0.13.1 E2E suite; then joint /tests/e2e.sql, /tests/e2e_policy.sql, v0.47-live-setup.sql, v0.47-live.sql, v0.47.sql, and v0.47-typed.sql",
+      "expected": "Opening time, authorized backfill, recurrence, and restore preserve exact timestamps and identity",
+      "actual": "Exact-tag MDM E2E passed authorized backfill, recurrence, logical restore, and physical recovery; joint pg-react live qualification passed; logical and physical restore with pg-react installed preserved extension versions, policy row counts, and source/package hashes",
+      "status": "passed",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live-setup.sql"
+    },
+    {
+      "id": "C02-C03-C09",
+      "required": true,
+      "command": "rtk psql -X -v ON_ERROR_STOP=1 -p 55448 -U postgres -d postgres -f tests/integrations/pg-mdm/v0.47.sql",
+      "expected": "Core isolation, ordinary-role authorization, and no-effect bounded comparison",
+      "actual": "Live joint stack passed projection access isolation and invoker routing/deadline/comparison reads; the full durable-state snapshot stayed unchanged and mdm_output_reader cannot execute submit_policy_intent",
+      "status": "passed_live",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
+    },
+    {
+      "id": "C01-C05-C12",
+      "required": true,
+      "command": "/tests/e2e.sql, then tests/integrations/pg-mdm/v0.47-live-setup.sql followed by tests/integrations/pg-mdm/v0.47-live.sql",
+      "expected": "Exact packaged joint stack is installed and qualified with retained logs",
+      "actual": "Built exact pg-mdm v0.13.1 source tag (extension version 0.14.0); upstream base/policy E2E, joint live adapter, fixture, typed-flow, and joint logical/physical restore checks passed",
+      "status": "passed_live",
+      "artifact": "tests/integrations/pg-mdm/v0.47-live.sql"
+    }
+  ],
+  "blocked_gates": [
+    "Owner-approved workload limits not signed"
+  ],
+  "artifacts": {
+    "fixture_sql": "tests/integrations/pg-mdm/v0.47.sql",
+    "upstream_bootstrap": "/tests/e2e.sql, /tests/e2e_policy.sql",
+    "live_setup_sql": "tests/integrations/pg-mdm/v0.47-live-setup.sql",
+    "live_qualification_sql": "tests/integrations/pg-mdm/v0.47-live.sql",
+    "contract_check": "tests/mdm_stewardship_contract.py",
+    "logs": "retain CI and qualification logs externally; do not commit mutable logs"
+  }
+}

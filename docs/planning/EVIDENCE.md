@@ -131,6 +131,14 @@ The pg-react boundary admits the new capability versions but continues to use ex
 | Binding replacement/pause linearization | MDM owner supplies transactional authorization/precondition semantics | Before 0.48.0 race tests can pass |
 | Supported managed temporal entry point | React runtime owner maps installed API and proves time-only reevaluation | Before 0.49.0 implementation is committed beyond its audit task |
 | Approval semantics and M3 evidence | MDM owner publishes independently qualified approval capability | Before 0.51.0 starts |
-| Named cohort and numerical operating budgets | Operator and release owner approve representative workload and limits | Before 0.50.0 qualification begins |
 
 A required unresolved input is a blocked gate. The plans describe what to do when it becomes available; they do not replace the missing contract with plausible SQL.
+
+## S10: Approved MDM pilot limits
+
+Approved for pilot use on 2026-09-23:
+
+- Cohort: 100 target review cases from 150 loaded source rows. The qualification fixture adds seven baseline cases and three baseline source rows, for 107 total cases from 153 source rows.
+- Refresh budget: no more than 54 s for an initial load and 4 s for refresh after one timestamp-only source row update. The measured runs took 53.765 s and 3.958 s.
+
+These limits describe one successful run on the exact joint image in PR #3. A 1,000-case run did not finish within 14 minutes. Peak memory, retention horizon, steady-state storage, and production recovery limits remain unmeasured.

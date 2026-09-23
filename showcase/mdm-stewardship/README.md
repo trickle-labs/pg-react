@@ -1,9 +1,16 @@
-# MDM stewardship qualification fixture
+# MDM stewardship read-only package
 
-The v0.46.0 showcase is intentionally fixture-only. Use the approved
-contract and vectors in [`contracts/`](../../contracts/) to reproduce the
-request-key and policy-digest results.
+Run the fixture-only read path from the repository root:
 
-Live routing, deadline, escalation, MDM publication, and intent submission are
-not shown because pg-mdm 0.11.0 does not ship the required M1/M2 APIs. No
-counterfeit MDM schema or private-catalog access belongs in this showcase.
+```text
+psql -f showcase/mdm-stewardship/01-fixture.sql
+psql -f showcase/mdm-stewardship/02-read-only-package.sql
+```
+
+The fixture is in `mdm_fixture`, never `mdm_steward`. It demonstrates immutable
+package revisions, winner/tie/no-candidate/protected/no-op routing, opening-time
+validation, deadline preservation, and bounded no-effect comparison.
+
+Live routing and MDM publication remain blocked until pg-mdm M1 installs the
+authorized `mdm_steward.policy_cases_v1` projection. No intent submission or
+private-catalog access belongs in this showcase.
