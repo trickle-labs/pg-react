@@ -10,6 +10,7 @@ ALTER ROLE pgreact_mdm_worker
     NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
 GRANT USAGE ON SCHEMA pgreact, pgreact_mdm, mdm_steward
     TO mdm_helper_owner WITH GRANT OPTION;
+GRANT CREATE ON SCHEMA pgreact_mdm TO mdm_helper_owner;
 
 CREATE TABLE IF NOT EXISTS pgreact_mdm.policy_intent_bindings (
     binding_id uuid PRIMARY KEY,
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS pgreact_mdm.intent_holds (
     PRIMARY KEY (binding_id, case_key, policy_revision, action)
 );
 ALTER TABLE pgreact_mdm.intent_holds OWNER TO mdm_helper_owner;
+REVOKE CREATE ON SCHEMA pgreact_mdm FROM mdm_helper_owner;
 
 CREATE OR REPLACE FUNCTION pgreact_mdm.intent_binding_config(binding_id uuid)
 RETURNS SETOF pgreact_mdm.policy_intent_bindings
@@ -413,7 +415,7 @@ SELECT policy_case.case_key, policy_case.entity_name::text AS entity_name,
        policy_case.review_version, policy_case.definition_version,
        policy_case.publication_revision, policy_case.stewardship_epoch,
        policy_case.evidence_basis_digest, policy_case.action_revision,
-       policy_case.pending_stewardship
+       policy_case.pending_stewardship, policy_case.last_observed_at
 FROM mdm_steward.policy_cases_v1 AS policy_case
 JOIN pgreact_mdm.policy_intent_bindings AS binding
   ON binding.entity_name = policy_case.entity_name

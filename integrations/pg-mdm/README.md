@@ -15,7 +15,7 @@ v0.13.1 (extension version 0.14.0), which provides
 `mdm_steward.policy_cases_v1`; fixture qualification uses a separate schema.
 Support is limited to the approved 100-case pilot envelope. Production-scale
 resource and recovery limits remain unsupported; see the
-[v0.47.0 release notes](../../docs/v0.47.0-release-notes.md).
+[v0.48.0 release notes](../../docs/v0.48.0-release-notes.md).
 
 Install the SQL files in order:
 

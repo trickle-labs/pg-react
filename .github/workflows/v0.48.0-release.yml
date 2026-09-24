@@ -1,0 +1,230 @@
+name: Release pg-react adapter v0.48.0
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/v0.48.0-release.yml
+      - .github/workflows/qualification.yml
+      - Cargo.lock
+      - Cargo.toml
+      - Dockerfile
+      - docker/**
+      - docs/v0.48.0-release-notes.md
+      - integrations/pg-mdm/**
+      - plans/v0.48.0.md
+      - showcase/mdm-stewardship/**
+      - sql/**
+      - src/**
+      - tests/integrations/pg-mdm/**
+      - tests/mdm_stewardship_contract.py
+      - tests/qualification.sh
+  workflow_dispatch:
+  push:
+    tags:
+      - v0.48.0
+
+permissions:
+  contents: read
+
+jobs:
+  core_qualification:
+    uses: ./.github/workflows/qualification.yml
+    with:
+      image: pg-react:v0.48.0-qualification
+    secrets: inherit
+
+  adapter_qualification:
+    needs: core_qualification
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+        with:
+          name: v0.46.0-qualified-candidate
+          path: v0.46.0-evidence
+      - name: Load the core image qualified for this commit
+        env:
+          IMAGE: pg-react:v0.48.0-qualification
+        run: |
+          set -euo pipefail
+          sha256sum --check v0.46.0-evidence/candidate-image.SHA256SUMS
+          docker load --input v0.46.0-evidence/candidate-image.tar.gz
+          jq -e --arg commit "$GITHUB_SHA" \
+            '.status != "failed" and .commit == $commit' \
+            v0.46.0-evidence/evidence-manifest.json
+          image_id=$(docker image inspect --format '{{.Id}}' "$IMAGE")
+          test "$image_id" = "$(tr -d '\n' < v0.46.0-evidence/candidate-image.txt)"
+          mkdir -p v0.48.0-release-evidence
+          printf '%s\n' "$image_id" > v0.48.0-release-evidence/core-image-id.txt
+      - name: Run adapter fixture and request-codec checks
+        env:
+          IMAGE: pg-react:v0.48.0-qualification
+        run: |
+          set -euo pipefail
+          container=pg-react-v048
+          trap 'docker rm -f "$container" >/dev/null 2>&1 || true' EXIT
+          docker run --detach --name "$container" \
+            --env POSTGRES_PASSWORD=qualification \
+            --volume "$GITHUB_WORKSPACE:/work:ro" \
+            "$IMAGE" postgres -c shared_preload_libraries=pg_trickle,pg_react >/dev/null
+          for attempt in $(seq 1 60); do
+            if docker logs "$container" 2>&1 | grep -Fq 'PostgreSQL init process complete'; then
+              break
+            fi
+            sleep 2
+          done
+          if ! docker logs "$container" 2>&1 | grep -Fq 'PostgreSQL init process complete'; then
+            docker logs "$container"
+            exit 1
+          fi
+          for attempt in $(seq 1 60); do
+            if docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then
+              break
+            fi
+            sleep 2
+          done
+          docker exec "$container" pg_isready -U postgres
+          for test_file in v0.47.sql v0.47-typed.sql v0.48-codec.sql; do
+            log="v0.48.0-release-evidence/${test_file%.sql}.log"
+            if ! docker exec --env PGPASSWORD=qualification "$container" \
+              psql -X -v ON_ERROR_STOP=1 -U postgres -d postgres \
+              -f "/work/tests/integrations/pg-mdm/$test_file" > "$log" 2>&1; then
+              cat "$log"
+              exit 1
+            fi
+            grep -E 'passed|PASS' "$log" | tail -n 1
+          done
+      - name: Verify contract and joint live evidence
+        env:
+          IMAGE: pg-react:v0.48.0-qualification
+        run: |
+          set -euo pipefail
+          python3 tests/mdm_stewardship_contract.py \
+            > v0.48.0-release-evidence/contract.log 2>&1
+          echo 'MDM-STEWARDSHIP/1 contract: passed'
+          jq -e --arg event "$GITHUB_EVENT_NAME" '
+            .release == "v0.48.0" and
+            ((.status == "candidate" and $event == "pull_request") or
+             (.status == "qualified" and (.pending_acceptance_gates // [] | length == 0) and
+              all(.acceptance_gates[]; .status == "passed") and
+              (.pending_release_approvals // [] | length == 0) and
+              all(.release_approvals[]; .status == "approved"))) and
+            ([.acceptance_gates[].id] | sort) == [
+              "T48.01", "T48.02", "T48.03", "T48.04", "T48.05", "T48.06",
+              "T48.07", "T48.08", "T48.09", "T48.10", "T48.11", "T48.12"] and
+            ([.acceptance_gates[] | select(.status == "pending") | .id] | sort) ==
+              (.pending_acceptance_gates | sort) and
+            all(.acceptance_gates[]; .status == "passed" or .status == "pending") and
+            ([.release_approvals[].id] | sort) == ["retention_horizon"] and
+            ([.release_approvals[] | select(.status == "pending") | .id] | sort) ==
+              (.pending_release_approvals | sort) and
+            all(.release_approvals[]; .status == "approved" or .status == "pending") and
+            .runtime.postgresql == "18.4" and
+            .runtime.pg_react_extension == "0.46.0" and
+            .runtime.pg_mdm_extension == "0.14.0" and
+            .runtime.pg_trickle_extension == "0.108.0" and
+            ([.tests[].id] | sort) == ["codec", "live_worker", "restore", "security"] and
+            all(.tests[]; .status == "passed")
+          ' tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json
+          jq -r '.source_sha256 | to_entries[] | "\(.value)  \(.key)"' \
+            tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
+            > v0.48.0-release-evidence/source.SHA256SUMS
+          sha256sum --check v0.48.0-release-evidence/source.SHA256SUMS
+          cp tests/integrations/pg-mdm/evidence/v0.48.0.md \
+            v0.48.0-release-evidence/live-qualification.md
+          cp tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
+            v0.48.0-release-evidence/live-qualification.json
+          manifest_sha=$(sha256sum v0.48.0-release-evidence/live-qualification.json | awk '{print $1}')
+          image_id=$(tr -d '\n' < v0.48.0-release-evidence/core-image-id.txt)
+          jq -n --slurpfile manifest tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
+            --arg commit "$GITHUB_SHA" \
+            --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --arg image "$IMAGE" \
+            --arg image_id "$image_id" \
+            --arg live_manifest_sha256 "$manifest_sha" \
+            '{schema_version: 1, release: "v0.48.0", status: $manifest[0].status,
+              check_status: "passed", commit: $commit,
+              workflow_run: $run, qualified_core_image: $image, core_image_id: $image_id,
+              live_manifest_sha256: $live_manifest_sha256,
+              tests: [
+                {id: "core", status: "passed", workflow: "Canonical qualification"},
+                {id: "fixture", status: "passed", log: "v0.47.log"},
+                {id: "typed_flow", status: "passed", log: "v0.47-typed.log"},
+                {id: "codec", status: "passed", log: "v0.48-codec.log"},
+                {id: "contract", status: "passed", log: "contract.log"},
+                {id: "live_worker", status: "passed", manifest: "live-qualification.json"}
+              ]}' \
+            > v0.48.0-release-evidence/release-qualification.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: v0.48.0-release-evidence
+          path: v0.48.0-release-evidence/
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/tags/v0.48.0'
+    needs: adapter_qualification
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+        with:
+          name: v0.48.0-release-evidence
+          path: v0.48.0-release-evidence
+      - name: Verify tag and qualification evidence
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/tags/v0.48.0
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          jq -e --arg commit "$GITHUB_SHA" \
+            '.status == "qualified" and .check_status == "passed" and .commit == $commit and .release == "v0.48.0"' \
+            v0.48.0-release-evidence/release-qualification.json
+          jq -e '.status == "qualified" and (.pending_acceptance_gates | length == 0) and all(.acceptance_gates[]; .status == "passed") and (.pending_release_approvals | length == 0) and all(.release_approvals[]; .status == "approved") and .runtime.pg_mdm_extension == "0.14.0"' \
+            v0.48.0-release-evidence/live-qualification.json
+      - name: Build source and evidence archives
+        run: |
+          set -euo pipefail
+          artifact=pg-react-v0.48.0-adapter.tar.gz
+          git archive --format=tar --prefix=pg-react-v0.48.0-adapter/ "$GITHUB_SHA" \
+            LICENSE docs/v0.48.0-release-notes.md \
+            integrations/pg-mdm/README.md integrations/pg-mdm/sql \
+            integrations/pg-mdm/contract/README.md \
+            contracts/MDM-STEWARDSHIP-1.json contracts/MDM-STEWARDSHIP-1-fixture.json \
+            contracts/MDM-STEWARDSHIP-1-v2.json contracts/MDM-STEWARDSHIP-1-v3.json \
+            showcase/mdm-stewardship \
+            tests/integrations/pg-mdm/v0.47.sql \
+            tests/integrations/pg-mdm/v0.47-typed.sql \
+            tests/integrations/pg-mdm/v0.47-live-setup.sql \
+            tests/integrations/pg-mdm/v0.47-live.sql \
+            tests/integrations/pg-mdm/v0.48-codec.sql \
+            tests/integrations/pg-mdm/v0.48-live.sql \
+            tests/integrations/pg-mdm/v0.48-security.sql \
+            tests/integrations/pg-mdm/v0.48-restore-prepare.sql \
+            tests/integrations/pg-mdm/v0.48-restore-regrant.sql \
+            tests/integrations/pg-mdm/v0.48-restore.sql \
+            tests/integrations/pg-mdm/v0.48-restore.sh \
+            tests/integrations/pg-mdm/v0.48-worker-role-create.sql \
+            tests/integrations/pg-mdm/v0.48-worker-role-detach.sql \
+            tests/integrations/pg-mdm/evidence/v0.47.0/manifest.json \
+            tests/integrations/pg-mdm/evidence/v0.48.0.md \
+            tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
+            tests/mdm_stewardship_contract.py | gzip -n -9 > "$artifact"
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -C v0.48.0-release-evidence -cf - . | gzip -n -9 > pg-react-v0.48.0-evidence.tar.gz
+          sha256sum "$artifact" pg-react-v0.48.0-evidence.tar.gz > pg-react-v0.48.0.SHA256SUMS
+          sha256sum --check pg-react-v0.48.0.SHA256SUMS
+      - name: Require unpublished release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: '! gh release view v0.48.0 >/dev/null 2>&1'
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v0.48.0 \
+            pg-react-v0.48.0-adapter.tar.gz \
+            pg-react-v0.48.0-evidence.tar.gz \
+            pg-react-v0.48.0.SHA256SUMS \
+            --verify-tag --notes-file docs/v0.48.0-release-notes.md \
+            --title 'pg-react MDM adapter 0.48.0'

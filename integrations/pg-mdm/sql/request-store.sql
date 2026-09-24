@@ -279,6 +279,7 @@ CREATE TABLE IF NOT EXISTS pgreact_mdm.intent_requests (
     created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     PRIMARY KEY (binding_id, request_key)
 );
+GRANT CREATE ON SCHEMA pgreact_mdm TO mdm_helper_owner;
 ALTER TABLE pgreact_mdm.intent_requests OWNER TO mdm_helper_owner;
 
 CREATE TABLE IF NOT EXISTS pgreact_mdm.intent_attempts (
@@ -302,6 +303,7 @@ CREATE TABLE IF NOT EXISTS pgreact_mdm.intent_attempts (
         REFERENCES pgreact_mdm.intent_requests(binding_id, request_key)
 );
 ALTER TABLE pgreact_mdm.intent_attempts OWNER TO mdm_helper_owner;
+REVOKE CREATE ON SCHEMA pgreact_mdm FROM mdm_helper_owner;
 
 REVOKE ALL ON TABLE pgreact_mdm.policy_intent_packages,
     pgreact_mdm.intent_requests,
