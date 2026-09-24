@@ -51,7 +51,7 @@
     "plans/v0.48.0.md": "c7478ad22fb187bcc6bafd8d9098bab532acecad36fc0f8fffe599ff15736527",
     "tests/integrations/pg-mdm/v0.47-live-setup.sql": "c9f727696fef3ffb39b291f6f8be293efdc92ecdbdd4d78f58fe7a3cd7b0cc7d",
     "tests/integrations/pg-mdm/v0.47-live.sql": "46edf906f32c8808b206b74f02b31a7b306d5b083c85335963d71f4a9af9efee",
-    "tests/integrations/pg-mdm/v0.48-codec.sql": "d41225b185958b85f578104a927a3d70d26fecace96c0c7b437385321702e5a8",
+    "tests/integrations/pg-mdm/v0.48-codec.sql": "84b65e7529792a999710911b618de42102a4043281385afcd3b49439b68cd587",
     "tests/integrations/pg-mdm/v0.48-live.sql": "9c60d7bc2f086352eefbcf5fb15c97f50a66d95f1d08619717f5c98b3a845dfd",
     "tests/integrations/pg-mdm/v0.48-security.sql": "a736b8ca71b392cfba20a58608d9b027dc3c027a710de56542720992b82b8f22",
     "tests/integrations/pg-mdm/v0.48-restore-prepare.sql": "cebe53a1c11d14f33fe198cc3e3908a2e1ce84a0508fb7ec03b11c0ee884df2c",

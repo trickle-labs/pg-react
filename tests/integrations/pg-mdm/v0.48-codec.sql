@@ -1,5 +1,14 @@
 \set ON_ERROR_STOP on
 SET TIME ZONE 'UTC';
+DO $fixture$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'mdm_helper_owner'
+    ) THEN
+        CREATE ROLE mdm_helper_owner NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
+    END IF;
+END
+$fixture$;
 \ir ../../../integrations/pg-mdm/sql/request-store.sql
 
 BEGIN;
@@ -13,13 +22,13 @@ DECLARE
     stored pgreact_mdm.intent_requests%ROWTYPE;
     changed_body jsonb;
 BEGIN
-    published := pgreact_mdm.publish_intent_package('policy-1', package);
+    published := pgreact_mdm.publish_intent_package('v0.48-codec', package);
     IF published IS DISTINCT FROM '{
         "state":"published",
-        "policy_revision":"policy-1",
+        "policy_revision":"v0.48-codec",
         "canonical_encoding_version":1,
         "policy_package":{"routes":[{"queue":"priority","reason_code":"POSSIBLE_DUPLICATE"}]},
-        "policy_digest":"741ea9560a69ba3185eaa34760ba38d473aa43daa8e8c530c6c6c2ce867c2614"
+        "policy_digest":"f54e66a4789ff2208db5457778d1ae2fde5a1dc09569c4158551058d33bd0a50"
     }'::jsonb THEN
         RAISE EXCEPTION 'policy vector mismatch: %', published;
     END IF;
