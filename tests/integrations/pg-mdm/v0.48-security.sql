@@ -17,8 +17,14 @@ DECLARE
     conflict_response record;
     replay_response record;
     stale_response record;
+    denied_response record;
+    binding_row pgreact_mdm.policy_intent_bindings%ROWTYPE;
+    denied_after pgreact_mdm.authorized_policy_cases_v1%ROWTYPE;
     changed_arguments jsonb;
+    denied_arguments jsonb;
     stale_key bytea;
+    denied_key bytea;
+    denied_action text;
     visible_case pgreact_mdm.authorized_policy_cases_v1%ROWTYPE;
 BEGIN
     SELECT * INTO STRICT runner
@@ -53,6 +59,12 @@ BEGIN
        OR worker.rolinherit OR worker.rolcreatedb OR worker.rolcreaterole
        OR worker.rolreplication THEN
         RAISE EXCEPTION 'worker role attributes are not least-privilege';
+    END IF;
+    IF pg_catalog.has_table_privilege(worker_oid,
+           'pgreact_mdm.intent_requests', 'DELETE')
+       OR pg_catalog.has_table_privilege(worker_oid,
+           'pgreact_mdm.intent_attempts', 'DELETE') THEN
+        RAISE EXCEPTION 'worker can delete retained request or attempt identities';
     END IF;
     IF pg_catalog.pg_has_role(worker_oid, 'mdm_helper_owner', 'MEMBER')
        OR EXISTS (
@@ -350,8 +362,60 @@ BEGIN
     IF visible_case.action_revision IS DISTINCT FROM attempt_row.action_revision THEN
         RAISE EXCEPTION 'stale token changed the case action_revision';
     END IF;
+
+    SELECT * INTO STRICT binding_row
+    FROM pgreact_mdm.policy_intent_bindings
+    WHERE binding_id = request_row.binding_id;
+    SELECT action INTO STRICT denied_action
+    FROM unnest(ARRAY['ASSIGN_QUEUE', 'SET_DUE_AT', 'ESCALATE']::text[]) AS actions(action)
+    WHERE NOT action = ANY(binding_row.allowed_actions)
+    LIMIT 1;
+    denied_arguments := CASE denied_action
+        WHEN 'ASSIGN_QUEUE' THEN jsonb_build_object('queue', 'm2-ready')
+        WHEN 'SET_DUE_AT' THEN jsonb_build_object(
+            'due_at', (statement_timestamp() + interval '1 hour')::text)
+        ELSE jsonb_build_object('level', 1)
+    END;
+    denied_key := pgreact_mdm.intent_request_key(
+        binding_row.binding_id, binding_row.policy_revision, visible_case.case_key,
+        request_row.lifecycle_generation, visible_case.action_revision,
+        'denied-action-probe', 0);
+    SELECT * INTO STRICT denied_response
+    FROM mdm_steward.submit_policy_intent(
+        binding_row.binding_id, denied_key, visible_case.case_key, denied_action,
+        denied_arguments, visible_case.review_version, visible_case.definition_version,
+        visible_case.publication_revision, visible_case.stewardship_epoch,
+        visible_case.evidence_basis_digest, visible_case.action_revision,
+        binding_row.policy_digest, binding_row.policy_revision,
+        'pgreact:test-denied-action',
+        'pgreact:test-denied-action:' || visible_case.case_key::text);
+    IF denied_response.receipt_id IS NULL
+       OR denied_response.outcome IS DISTINCT FROM 'ACTION_DENIED'
+       OR denied_response.reason_code IS DISTINCT FROM 'ACTION_NOT_ALLOWED'
+       OR denied_response.case_key IS DISTINCT FROM visible_case.case_key
+       OR denied_response.action_revision IS DISTINCT FROM visible_case.action_revision
+       OR denied_response.control IS DISTINCT FROM jsonb_build_object(
+           'assigned_queue', visible_case.assigned_queue,
+           'due_at', visible_case.due_at::text,
+           'escalation_level', visible_case.escalation_level,
+           'manual_assignment_protected', visible_case.manual_assignment_protected)
+       OR denied_response.resulting_publication_revision IS NOT NULL THEN
+        RAISE EXCEPTION 'disallowed worker action did not return the exact no-change receipt';
+    END IF;
+    SELECT * INTO STRICT denied_after
+    FROM pgreact_mdm.authorized_policy_cases_v1
+    WHERE case_key = visible_case.case_key;
+    IF denied_after.action_revision IS DISTINCT FROM visible_case.action_revision
+       OR denied_after.assigned_queue IS DISTINCT FROM visible_case.assigned_queue
+       OR denied_after.due_at IS DISTINCT FROM visible_case.due_at
+       OR denied_after.escalation_level IS DISTINCT FROM visible_case.escalation_level
+       OR denied_after.manual_assignment_protected
+          IS DISTINCT FROM visible_case.manual_assignment_protected THEN
+        RAISE EXCEPTION 'disallowed worker action changed MDM controls';
+    END IF;
 END
 $security$;
 
 RESET ROLE;
+SELECT 'v0.48 disallowed worker action returned an unchanged denial receipt' AS result;
 SELECT 'v0.48 actual worker privileges and retry passed' AS result;

@@ -55,9 +55,10 @@ CREATE TABLE IF NOT EXISTS pgreact_mdm.intent_holds (
     case_key bigint NOT NULL,
     policy_revision text NOT NULL,
     action text NOT NULL,
+    expected_action_revision bigint NOT NULL CHECK (expected_action_revision > 0),
     reason_code text NOT NULL,
     held_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-    PRIMARY KEY (binding_id, case_key, policy_revision, action)
+    PRIMARY KEY (binding_id, case_key, policy_revision, action, expected_action_revision)
 );
 ALTER TABLE pgreact_mdm.intent_holds OWNER TO mdm_helper_owner;
 REVOKE CREATE ON SCHEMA pgreact_mdm FROM mdm_helper_owner;
@@ -625,7 +626,8 @@ BEGIN
             SELECT 1 FROM pgreact_mdm.intent_holds AS hold
             WHERE hold.binding_id = binding.binding_id
               AND hold.case_key = policy_case.case_key
-              AND hold.policy_revision = binding.policy_revision) THEN
+              AND hold.policy_revision = binding.policy_revision
+              AND hold.expected_action_revision = policy_case.action_revision) THEN
             RETURN;
         END IF;
         INSERT INTO pgreact_mdm.intent_requests(
@@ -697,11 +699,15 @@ BEGIN
         'IDEMPOTENCY_CONFLICT', 'STALE_CASE', 'BINDING_PAUSED', 'BINDING_REPLACED',
         'POLICY_MISMATCH', 'PENDING_STEWARDSHIP') THEN
         INSERT INTO pgreact_mdm.intent_holds(
-            binding_id, case_key, policy_revision, action, reason_code)
+            binding_id, case_key, policy_revision, action,
+            expected_action_revision, reason_code)
         VALUES (
             binding.binding_id, response.case_key, binding.policy_revision,
-            body ->> 'action', response.reason_code)
-        ON CONFLICT (binding_id, case_key, policy_revision, action) DO NOTHING;
+            body ->> 'action', (body ->> 'expected_action_revision')::bigint,
+            response.reason_code)
+        ON CONFLICT (
+            binding_id, case_key, policy_revision, action, expected_action_revision)
+        DO NOTHING;
     END IF;
 END
 $function$;

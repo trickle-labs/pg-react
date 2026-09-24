@@ -211,7 +211,8 @@ $limits$;
 
 CREATE TEMP TABLE v048_case_baseline AS
 SELECT DISTINCT case_row.case_key, case_row.entity_name, case_row.action_revision,
-       case_row.publication_revision, entity.decision_epoch,
+       case_row.publication_revision, case_row.status, case_row.resolved_at,
+       entity.decision_epoch,
        entity.publication_revision AS entity_publication_revision
 FROM mdm_steward.policy_cases_v1 AS case_row
 JOIN mdm_internal.entities AS entity
@@ -219,6 +220,31 @@ JOIN mdm_internal.entities AS entity
 JOIN v048_expected_intents AS expected
   ON expected.case_key = case_row.case_key
  AND expected.entity_name = case_row.entity_name;
+
+CREATE TEMP TABLE v048_stale_hold_probe AS
+SELECT expected.binding_id, expected.case_key, expected.entity_name, expected.action,
+       baseline.action_revision AS current_action_revision,
+       baseline.action_revision - 1 AS held_action_revision
+FROM v048_expected_intents AS expected
+JOIN v048_case_baseline AS baseline
+  ON baseline.case_key = expected.case_key
+ AND baseline.entity_name = expected.entity_name
+WHERE baseline.action_revision > 1
+ORDER BY expected.action, expected.case_key
+LIMIT 1;
+DO $stale_hold_probe$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM v048_stale_hold_probe) THEN
+        RAISE EXCEPTION 'fixture lacks a queue case with an older action revision';
+    END IF;
+    INSERT INTO pgreact_mdm.intent_holds(
+        binding_id, case_key, policy_revision, action,
+        expected_action_revision, reason_code)
+    SELECT binding_id, case_key, 'v0.48-live-policy', action,
+           held_action_revision, 'FRESHNESS_TOKEN_MISMATCH'
+    FROM v048_stale_hold_probe;
+END
+$stale_hold_probe$;
 
 SET SESSION AUTHORIZATION mdm_m2_runner;
 DO $refresh_bound_cases$
@@ -244,6 +270,84 @@ SELECT rule_version_id AS v048_queue_rule
 FROM pgreact.rules
 WHERE rule_name = 'v0.48-live-worker-queue' AND state = 'ACTIVE'
 \gset
+
+CREATE TEMP TABLE v048_failure_baseline AS
+SELECT
+    (SELECT count(*) FROM pgreact_mdm.intent_requests) AS request_count,
+    (SELECT count(*) FROM pgreact_mdm.intent_attempts) AS attempt_count,
+    (SELECT count(*) FROM mdm_steward.policy_receipts_v1) AS receipt_count;
+CREATE TEMP TABLE v048_failure_controls AS
+SELECT case_row.case_key, case_row.assigned_queue
+FROM mdm_steward.policy_cases_v1 AS case_row
+JOIN v048_expected_intents AS expected USING (case_key)
+WHERE expected.action = 'ASSIGN_QUEUE';
+UPDATE pgreact_internal.agenda
+SET available_at = clock_timestamp()
+WHERE rule_version_id = :'v048_queue_rule'::uuid AND state = 'PENDING';
+
+CREATE OR REPLACE FUNCTION pgreact_mdm.v048_fail_after_submit()
+RETURNS trigger LANGUAGE plpgsql AS $function$
+BEGIN
+    RAISE EXCEPTION USING ERRCODE = 'PZ004', MESSAGE = 'v048 injected post-submit failure';
+END
+$function$;
+CREATE TRIGGER v048_fail_after_submit
+BEFORE INSERT ON pgreact_mdm.intent_attempts
+FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.v048_fail_after_submit();
+SET SESSION AUTHORIZATION mdm_m2_runner;
+DO $post_submit_rollback$
+DECLARE
+    failure_seen boolean := false;
+    failure_message text;
+    episode_id bigint;
+    rule_id uuid;
+    executed integer := 0;
+BEGIN
+    SELECT rule_version_id INTO STRICT rule_id
+    FROM pgreact.rules
+    WHERE rule_name = 'v0.48-live-worker-queue' AND state = 'ACTIVE';
+    PERFORM set_config('role', 'pgreact_mdm_worker', true);
+    LOOP
+        BEGIN
+            episode_id := pgreact_mdm.execute_intent_episode(
+                rule_id, 'v0.48-post-submit-failure');
+        EXCEPTION WHEN SQLSTATE 'PZ004' THEN
+            GET STACKED DIAGNOSTICS failure_message = MESSAGE_TEXT;
+            IF failure_message <> 'v048 injected post-submit failure' THEN RAISE; END IF;
+            failure_seen := true;
+        END;
+        EXIT WHEN failure_seen OR episode_id IS NULL;
+        executed := executed + 1;
+        IF executed > 100 THEN
+            RAISE EXCEPTION 'worker did not reach the injected post-submit failure within 100 episodes';
+        END IF;
+    END LOOP;
+    IF NOT failure_seen THEN
+        RAISE EXCEPTION 'worker did not reach the injected post-submit failure';
+    END IF;
+END
+$post_submit_rollback$;
+RESET SESSION AUTHORIZATION;
+DROP TRIGGER v048_fail_after_submit ON pgreact_mdm.intent_attempts;
+DROP FUNCTION pgreact_mdm.v048_fail_after_submit();
+DO $post_submit_rollback_state$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM v048_failure_baseline AS baseline
+        WHERE baseline.request_count <> (SELECT count(*) FROM pgreact_mdm.intent_requests)
+           OR baseline.attempt_count <> (SELECT count(*) FROM pgreact_mdm.intent_attempts)
+           OR baseline.receipt_count <> (SELECT count(*) FROM mdm_steward.policy_receipts_v1))
+       OR EXISTS (
+           SELECT 1
+           FROM v048_failure_controls AS baseline
+           JOIN mdm_steward.policy_cases_v1 AS case_row USING (case_key)
+           WHERE case_row.assigned_queue IS DISTINCT FROM baseline.assigned_queue) THEN
+        RAISE EXCEPTION 'post-submit failure committed an intent, receipt, or queue control';
+    END IF;
+END
+$post_submit_rollback_state$;
+
 SELECT dblink_connect(
     'm2_worker_a', format('dbname=%s user=mdm_m2_runner', current_database()));
 SELECT dblink_connect(
@@ -391,6 +495,25 @@ BEGIN
     IF actual_work IS DISTINCT FROM expected_work THEN
         RAISE EXCEPTION 'v0.48 exact work/receipt vector mismatch: expected %, correlated %', expected_work, actual_work;
     END IF;
+    IF NOT EXISTS (
+        SELECT 1
+        FROM v048_stale_hold_probe AS probe
+        JOIN pgreact_mdm.intent_attempts AS attempt
+          ON attempt.binding_id = probe.binding_id
+         AND attempt.case_key = probe.case_key
+         AND attempt.request_body ->> 'action' = probe.action
+         AND attempt.outcome = 'APPLIED_CONTROL'
+        JOIN pgreact_mdm.intent_requests AS request
+          ON request.binding_id = attempt.binding_id
+         AND request.request_key = attempt.request_key
+        WHERE request.request_body ->> 'expected_action_revision' =
+              probe.current_action_revision::text
+          AND request.request_key = pgreact_mdm.intent_request_key(
+              request.binding_id, request.policy_revision, request.case_key,
+              request.lifecycle_generation, request.action_revision,
+              request.consequence_identity, request.escalation_level)) THEN
+        RAISE EXCEPTION 'older stale hold blocked work for fresh action revision';
+    END IF;
     IF EXISTS (SELECT 1 FROM pgreact_mdm.intent_queue_candidates)
        OR EXISTS (SELECT 1 FROM pgreact_mdm.intent_due_candidates)
        OR EXISTS (SELECT 1 FROM pgreact_mdm.intent_escalation_candidates) THEN
@@ -407,9 +530,27 @@ BEGIN
                    WHERE expected.case_key = baseline.case_key
                      AND expected.entity_name = baseline.entity_name)
            OR case_row.publication_revision <> baseline.publication_revision
+           OR case_row.status IS DISTINCT FROM baseline.status
+           OR case_row.resolved_at IS DISTINCT FROM baseline.resolved_at
            OR entity.decision_epoch <> baseline.decision_epoch
            OR entity.publication_revision <> baseline.entity_publication_revision) THEN
         RAISE EXCEPTION 'worker receipt write changed action/decision state or lost its receipt';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM pgreact_mdm.intent_attempts AS attempt
+        JOIN mdm_steward.policy_receipts_v1 AS receipt
+          ON receipt.binding_id = attempt.binding_id
+         AND receipt.request_key = attempt.request_key
+        WHERE attempt.outcome = 'APPLIED_CONTROL'
+          AND (attempt.resulting_publication_revision IS NOT NULL
+               OR receipt.resulting_publication_revision IS NOT NULL
+               OR attempt.case_key IN (
+                   SELECT baseline.case_key
+                   FROM v048_case_baseline AS baseline
+                   JOIN mdm_steward.policy_cases_v1 AS case_row USING (case_key)
+                   WHERE case_row.status <> 'open' OR case_row.resolved_at IS NOT NULL))) THEN
+        RAISE EXCEPTION 'applied control was reported as publication or case resolution';
     END IF;
 END
 $correlation$;
@@ -481,6 +622,8 @@ BEGIN
               WHERE expected.case_key = baseline.case_key
                 AND expected.entity_name = baseline.entity_name)
            OR case_row.publication_revision <> baseline.publication_revision
+           OR case_row.status IS DISTINCT FROM baseline.status
+           OR case_row.resolved_at IS DISTINCT FROM baseline.resolved_at
            OR entity.decision_epoch <> baseline.decision_epoch
            OR entity.publication_revision <> baseline.entity_publication_revision +
                  CASE WHEN baseline.entity_name = 'policy_qualification' THEN 1 ELSE 0 END) THEN
@@ -490,3 +633,5 @@ END
 $observation_work$;
 
 SELECT 'v0.48 actual worker actions, limits, receipts, and observation stability passed' AS result;
+SELECT 'v0.48 delivery did not publish or resolve cases' AS result;
+SELECT 'v0.48 post-submit rollback left no MDM or React effects' AS result;
