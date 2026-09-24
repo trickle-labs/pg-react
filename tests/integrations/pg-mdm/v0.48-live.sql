@@ -1,0 +1,552 @@
+\set ON_ERROR_STOP on
+SET TIME ZONE 'UTC';
+DO $runner$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'mdm_m2_runner') THEN
+        CREATE ROLE mdm_m2_runner LOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT
+            NOCREATEDB NOCREATEROLE NOREPLICATION;
+    END IF;
+END
+$runner$;
+ALTER ROLE mdm_m2_runner LOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT
+    NOCREATEDB NOCREATEROLE NOREPLICATION;
+\ir ../../../integrations/pg-mdm/sql/request-store.sql
+\ir ../../../integrations/pg-mdm/sql/intent-worker.sql
+GRANT pgreact_mdm_worker TO mdm_m2_runner WITH SET TRUE, INHERIT FALSE;
+GRANT USAGE ON SCHEMA pgreact_mdm
+    TO mdm_legacy_administrator, mdm_administrator;
+SELECT pgreact_mdm.configure_intent_deployer('mdm_m2_runner');
+CREATE EXTENSION IF NOT EXISTS dblink;
+
+SELECT case_row.entity_name::text AS queue_entity_name,
+       entity.execution_role_name AS queue_entity_execution_role,
+       case_row.reason_code AS queue_reason_code
+FROM mdm_steward.policy_cases_v1 AS case_row
+JOIN mdm_internal.entities AS entity
+  ON entity.entity_name = case_row.entity_name
+WHERE case_row.status = 'open'
+  AND case_row.entity_name = 'review_admission_live'
+  AND NOT case_row.pending_stewardship
+  AND NOT case_row.manual_assignment_protected
+  AND 'ASSIGN_QUEUE' = ANY(case_row.permitted_actions)
+  AND case_row.assigned_queue IS DISTINCT FROM 'm2-ready'::name
+ORDER BY case_row.case_key
+LIMIT 1
+\gset
+
+SELECT case_row.entity_name::text AS escalation_entity_name,
+       entity.execution_role_name AS escalation_entity_execution_role,
+       case_row.reason_code AS escalation_reason,
+       case_row.case_key AS escalation_case_key
+FROM mdm_steward.policy_cases_v1 AS case_row
+JOIN mdm_internal.entities AS entity
+  ON entity.entity_name = case_row.entity_name
+WHERE case_row.entity_name = 'policy_qualification'
+  AND case_row.status = 'open'
+  AND NOT case_row.pending_stewardship
+  AND case_row.due_at IS NULL
+  AND case_row.opened_at IS NOT NULL
+  AND case_row.escalation_level = 0
+  AND 'ESCALATE' = ANY(case_row.permitted_actions)
+ORDER BY case_row.case_key
+LIMIT 1
+\gset
+
+SELECT pgreact_mdm.publish_intent_package(
+    'v0.48-live-policy',
+    jsonb_build_object(
+        'deadline', jsonb_build_object(
+            'duration_seconds', 86400, 'min_seconds', 60, 'max_seconds', 86400,
+            'replace_existing_deadline', true),
+        'routes', jsonb_build_array(
+            jsonb_build_object(
+                'reason_code', :'queue_reason_code', 'entity_name', :'queue_entity_name',
+                'queue', 'm2-ready', 'priority', 0),
+            jsonb_build_object(
+                'reason_code', :'escalation_reason', 'entity_name', :'escalation_entity_name',
+                'action', 'ESCALATE', 'level', 1, 'priority', 0)))) AS publication;
+
+SET SESSION AUTHORIZATION mdm_m2_runner;
+DO $deploy$
+DECLARE
+    declaration pgreact_api.declaration;
+    preview jsonb;
+    review text;
+BEGIN
+    declaration := pgreact_mdm.intent_declaration(
+        'v0.48-live-worker', 'pgreact_mdm.intent_deployer_policy_cases_v1'::regclass,
+        statement_timestamp());
+    preview := pgreact.preview(declaration);
+    review := pgreact.review_token(preview);
+    PERFORM pgreact.deploy(declaration, review);
+END
+$deploy$;
+RESET SESSION AUTHORIZATION;
+SELECT pgreact_mdm.configure_intent_deployer('mdm_m2_runner');
+DO $dispatcher_owner$
+DECLARE
+    worker_oid oid;
+    runner_oid oid;
+BEGIN
+    SELECT oid INTO STRICT worker_oid
+    FROM pg_catalog.pg_roles WHERE rolname = 'pgreact_mdm_worker';
+    SELECT oid INTO STRICT runner_oid
+    FROM pg_catalog.pg_roles WHERE rolname = 'mdm_m2_runner';
+    IF (SELECT count(*) FROM pgreact.rules
+        WHERE rule_name IN (
+            'v0.48-live-worker-queue',
+            'v0.48-live-worker-due',
+            'v0.48-live-worker-escalation')
+          AND state = 'ACTIVE') <> 3
+       OR EXISTS (
+           SELECT 1
+           FROM pgreact.rules AS rule
+           JOIN pgreact_internal.rule_versions AS version USING (rule_version_id)
+           JOIN pg_catalog.pg_proc AS dispatcher
+             ON dispatcher.oid = version.dispatcher_oid
+           WHERE rule.rule_name IN (
+               'v0.48-live-worker-queue',
+               'v0.48-live-worker-due',
+               'v0.48-live-worker-escalation')
+             AND (version.owner_oid <> runner_oid
+                  OR dispatcher.proowner <> worker_oid
+                  OR NOT dispatcher.prosecdef)) THEN
+        RAISE EXCEPTION 'runner must own reviewed rules while the worker owns their episode dispatchers';
+    END IF;
+END
+$dispatcher_owner$;
+
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT binding_id AS v048_policy_binding_id, binding_version AS v048_policy_binding_version
+FROM pgreact_mdm.create_intent_binding(
+    :'queue_entity_name', 'v0.48-live-policy',
+    ARRAY['ASSIGN_QUEUE']::text[],
+    ARRAY['m2-ready']::text[], NULL, 0)
+\gset
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+SET SESSION AUTHORIZATION mdm_legacy_login;
+SET ROLE :"escalation_entity_execution_role";
+SELECT binding_id AS v048_escalation_binding_id,
+       binding_version AS v048_escalation_binding_version
+FROM pgreact_mdm.create_intent_binding(
+    :'escalation_entity_name', 'v0.48-live-policy',
+    ARRAY['ESCALATE', 'SET_DUE_AT']::text[], ARRAY[]::text[], interval '1 day', 1)
+\gset
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+SET SESSION AUTHORIZATION mdm_m2_runner;
+SET ROLE pgreact_mdm_worker;
+DO $fixture_due$
+DECLARE
+    binding pgreact_mdm.policy_intent_bindings%ROWTYPE;
+    policy_case pgreact_mdm.authorized_policy_cases_v1%ROWTYPE;
+    response record;
+    request_key bytea;
+    fixture_due timestamptz;
+BEGIN
+    SELECT * INTO STRICT binding
+    FROM pgreact_mdm.policy_intent_bindings
+    WHERE entity_name = 'policy_qualification'
+      AND policy_revision = 'v0.48-live-policy' AND enabled;
+    SELECT * INTO STRICT policy_case
+    FROM pgreact_mdm.authorized_policy_cases_v1
+    WHERE entity_name = 'policy_qualification'
+      AND case_key = (
+          SELECT min(case_key)
+          FROM pgreact_mdm.authorized_policy_cases_v1
+          WHERE entity_name = 'policy_qualification'
+            AND status = 'open' AND opened_at IS NOT NULL
+            AND due_at IS NULL AND escalation_level = 0
+            AND 'ESCALATE' = ANY(permitted_actions));
+    fixture_due := policy_case.opened_at + interval '30 seconds';
+    request_key := pgreact_mdm.intent_request_key(
+        binding.binding_id, binding.policy_revision, policy_case.case_key,
+        1, policy_case.action_revision, 'm2-fixture-due', 0);
+    SELECT * INTO STRICT response
+    FROM mdm_steward.submit_policy_intent(
+        binding.binding_id, request_key, policy_case.case_key,
+        'SET_DUE_AT', jsonb_build_object('due_at', pg_catalog.to_char(
+            fixture_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')),
+        policy_case.review_version, policy_case.definition_version,
+        policy_case.publication_revision, policy_case.stewardship_epoch,
+        policy_case.evidence_basis_digest, policy_case.action_revision,
+        binding.policy_digest, binding.policy_revision,
+        'pgreact:m2-fixture-eval',
+        'pgreact:m2-fixture-due:' || policy_case.case_key::text);
+    IF response.outcome <> 'APPLIED_CONTROL'
+       OR response.action_revision <> policy_case.action_revision + 1
+       OR (response.control ->> 'due_at')::timestamptz IS DISTINCT FROM fixture_due THEN
+        RAISE EXCEPTION 'could not seed the overdue escalation case: %', response;
+    END IF;
+END
+$fixture_due$;
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+CREATE TEMP TABLE v048_expected_intents AS
+SELECT 'ASSIGN_QUEUE'::text AS action, intent.case_key, intent.arguments,
+       intent.binding_id, binding.entity_name
+FROM pgreact_mdm.intent_queue_candidates AS intent
+JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+UNION ALL
+SELECT 'SET_DUE_AT', intent.case_key, intent.arguments,
+       intent.binding_id, binding.entity_name
+FROM pgreact_mdm.intent_due_candidates AS intent
+JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+UNION ALL
+SELECT 'ESCALATE', intent.case_key, intent.arguments,
+       intent.binding_id, binding.entity_name
+FROM pgreact_mdm.intent_escalation_candidates AS intent
+JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id);
+
+DO $limits$
+DECLARE
+    active_binding uuid;
+    escalation_binding uuid;
+    queues text[];
+    due_limit interval;
+    escalation_limit integer;
+BEGIN
+    SELECT binding_id, allowed_queues
+    INTO STRICT active_binding, queues
+    FROM pgreact_mdm.policy_intent_bindings
+    WHERE policy_revision = 'v0.48-live-policy'
+      AND entity_name = 'review_admission_live' AND enabled;
+    SELECT binding_id, max_due_interval, max_escalation_level
+    INTO STRICT escalation_binding, due_limit, escalation_limit
+    FROM pgreact_mdm.policy_intent_bindings
+    WHERE policy_revision = 'v0.48-live-policy'
+      AND entity_name = 'policy_qualification' AND enabled;
+    IF NOT EXISTS (SELECT 1 FROM v048_expected_intents WHERE action = 'ASSIGN_QUEUE')
+       OR NOT EXISTS (SELECT 1 FROM v048_expected_intents WHERE action = 'SET_DUE_AT')
+       OR NOT EXISTS (SELECT 1 FROM v048_expected_intents WHERE action = 'ESCALATE') THEN
+        RAISE EXCEPTION 'fixture must provide a candidate for each bounded intent';
+    END IF;
+
+    UPDATE pgreact_mdm.policy_intent_bindings
+    SET allowed_queues = ARRAY['not-allowed']::text[]
+    WHERE binding_id = active_binding;
+    IF EXISTS (SELECT 1 FROM pgreact_mdm.intent_queue_candidates) THEN
+        RAISE EXCEPTION 'worker ignored the configured queue allowlist';
+    END IF;
+    UPDATE pgreact_mdm.policy_intent_bindings
+    SET allowed_queues = queues
+    WHERE binding_id = active_binding;
+
+    UPDATE pgreact_mdm.policy_intent_bindings
+    SET max_due_interval = interval '1 second'
+    WHERE binding_id = escalation_binding;
+    IF EXISTS (SELECT 1 FROM pgreact_mdm.intent_due_candidates) THEN
+        RAISE EXCEPTION 'worker ignored the configured due-date limit';
+    END IF;
+    UPDATE pgreact_mdm.policy_intent_bindings
+    SET max_due_interval = due_limit
+    WHERE binding_id = escalation_binding;
+
+    UPDATE pgreact_mdm.policy_intent_bindings
+    SET max_escalation_level = 0
+    WHERE binding_id = escalation_binding;
+    IF EXISTS (SELECT 1 FROM pgreact_mdm.intent_escalation_candidates) THEN
+        RAISE EXCEPTION 'worker ignored the configured escalation limit';
+    END IF;
+    UPDATE pgreact_mdm.policy_intent_bindings
+    SET max_escalation_level = escalation_limit
+    WHERE binding_id = escalation_binding;
+END
+$limits$;
+
+CREATE TEMP TABLE v048_case_baseline AS
+SELECT DISTINCT case_row.case_key, case_row.entity_name, case_row.action_revision,
+       case_row.publication_revision, entity.decision_epoch,
+       entity.publication_revision AS entity_publication_revision
+FROM mdm_steward.policy_cases_v1 AS case_row
+JOIN mdm_internal.entities AS entity
+  ON entity.entity_name = case_row.entity_name
+JOIN v048_expected_intents AS expected
+  ON expected.case_key = case_row.case_key
+ AND expected.entity_name = case_row.entity_name;
+
+SET SESSION AUTHORIZATION mdm_m2_runner;
+DO $refresh_bound_cases$
+DECLARE rule_id uuid;
+BEGIN
+    PERFORM pgreact_mdm.sync_intent_case_identities();
+    FOR rule_id IN
+        SELECT rule.rule_version_id
+        FROM pgreact.rules AS rule
+        WHERE rule.rule_name IN (
+            'v0.48-live-worker-queue',
+            'v0.48-live-worker-due',
+            'v0.48-live-worker-escalation')
+          AND rule.state = 'ACTIVE'
+    LOOP
+        PERFORM pgreact.refresh_rule(rule_id);
+    END LOOP;
+END
+$refresh_bound_cases$;
+RESET SESSION AUTHORIZATION;
+
+SELECT rule_version_id AS v048_queue_rule
+FROM pgreact.rules
+WHERE rule_name = 'v0.48-live-worker-queue' AND state = 'ACTIVE'
+\gset
+SELECT dblink_connect(
+    'm2_worker_a', format('dbname=%s user=mdm_m2_runner', current_database()));
+SELECT dblink_connect(
+    'm2_worker_b', format('dbname=%s user=mdm_m2_runner', current_database()));
+SELECT dblink_send_query('m2_worker_a', format(
+    'WITH worker AS MATERIALIZED '
+    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)), '
+    'delay AS MATERIALIZED (SELECT pg_sleep(0.5) FROM worker) '
+    'SELECT pgreact_mdm.execute_intent_episode(%L::uuid, %L) IS NOT NULL FROM delay',
+    :'v048_queue_rule', 'm2-concurrent-a'));
+SELECT dblink_send_query('m2_worker_b', format(
+    'WITH worker AS MATERIALIZED '
+    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)), '
+    'delay AS MATERIALIZED (SELECT pg_sleep(0.5) FROM worker) '
+    'SELECT pgreact_mdm.execute_intent_episode(%L::uuid, %L) IS NOT NULL FROM delay',
+    :'v048_queue_rule', 'm2-concurrent-b'));
+CREATE TEMP TABLE v048_concurrency_results(executed boolean NOT NULL);
+INSERT INTO v048_concurrency_results
+SELECT * FROM dblink_get_result('m2_worker_a') AS result(executed boolean);
+INSERT INTO v048_concurrency_results
+SELECT * FROM dblink_get_result('m2_worker_b') AS result(executed boolean);
+SELECT dblink_disconnect('m2_worker_a');
+SELECT dblink_disconnect('m2_worker_b');
+DO $concurrency$
+BEGIN
+    IF (SELECT count(*) FROM v048_concurrency_results) <> 2
+       OR NOT EXISTS (SELECT 1 FROM v048_concurrency_results WHERE executed) THEN
+        RAISE EXCEPTION 'concurrent pg-react workers did not complete a queue episode';
+    END IF;
+END
+$concurrency$;
+
+SET SESSION AUTHORIZATION mdm_m2_runner;
+DO $work$
+DECLARE
+    rule_row record;
+    episode_id bigint;
+    attempts integer;
+    rules_seen integer := 0;
+    passes integer := 0;
+    pass_has_work boolean;
+    original_role text := current_setting('role');
+BEGIN
+    PERFORM pgreact_mdm.sync_intent_case_identities();
+    SELECT count(*) INTO rules_seen
+    FROM pgreact.rules AS rule
+    WHERE rule.rule_name IN (
+        'v0.48-live-worker-queue',
+        'v0.48-live-worker-due',
+        'v0.48-live-worker-escalation')
+      AND rule.state = 'ACTIVE';
+    IF rules_seen <> 3 THEN
+        RAISE EXCEPTION 'v0.48 deploy did not create all three intent rules';
+    END IF;
+    LOOP
+        pass_has_work := false;
+        FOR rule_row IN
+            SELECT rule.rule_version_id, rule.rule_name
+            FROM pgreact.rules AS rule
+            WHERE rule.rule_name IN (
+                'v0.48-live-worker-queue',
+                'v0.48-live-worker-due',
+                'v0.48-live-worker-escalation')
+              AND rule.state = 'ACTIVE'
+            ORDER BY CASE rule.rule_name
+                WHEN 'v0.48-live-worker-queue' THEN 1
+                WHEN 'v0.48-live-worker-due' THEN 2
+                ELSE 3 END
+        LOOP
+            attempts := 0;
+            LOOP
+                PERFORM pgreact.refresh_rule(rule_row.rule_version_id);
+                PERFORM set_config('role', 'pgreact_mdm_worker', true);
+                episode_id := pgreact_mdm.execute_intent_episode(
+                    rule_row.rule_version_id, 'v0.48-live-worker');
+                PERFORM set_config('role', original_role, true);
+                EXIT WHEN episode_id IS NULL;
+                pass_has_work := true;
+                attempts := attempts + 1;
+                IF attempts > 100 THEN
+                    RAISE EXCEPTION 'v0.48 worker did not drain its episode queue';
+                END IF;
+        END LOOP;
+        END LOOP;
+        EXIT WHEN NOT pass_has_work;
+        passes := passes + 1;
+        IF passes > 100 THEN
+            RAISE EXCEPTION 'v0.48 worker did not reach a quiescent episode queue';
+        END IF;
+    END LOOP;
+END
+$work$;
+RESET SESSION AUTHORIZATION;
+
+CREATE TEMP TABLE v048_episode_baseline AS
+SELECT rule.rule_version_id, count(episode.episode_id) AS episode_count
+FROM pgreact.rules AS rule
+LEFT JOIN pgreact.episodes AS episode USING (rule_version_id)
+WHERE rule.rule_name IN (
+    'v0.48-live-worker-queue',
+    'v0.48-live-worker-due',
+    'v0.48-live-worker-escalation')
+  AND rule.state = 'ACTIVE'
+GROUP BY rule.rule_version_id;
+
+DO $correlation$
+DECLARE
+    expected_work text[];
+    actual_work text[];
+BEGIN
+    SELECT array_agg(
+               binding_id::text || ':' || action || ':' || case_key::text || ':' ||
+               pgreact_mdm.canonical_json(arguments)
+               ORDER BY action, case_key, pgreact_mdm.canonical_json(arguments), binding_id)
+    INTO expected_work
+    FROM v048_expected_intents;
+    SELECT array_agg(
+               request.binding_id::text || ':' || (request.request_body ->> 'action') || ':' ||
+               request.case_key::text || ':' ||
+               pgreact_mdm.canonical_json(request.request_body -> 'arguments')
+               ORDER BY request.request_body ->> 'action', request.case_key,
+                        pgreact_mdm.canonical_json(request.request_body -> 'arguments'),
+                        request.binding_id)
+    INTO actual_work
+    FROM pgreact_mdm.intent_attempts AS attempt
+    JOIN pgreact_mdm.intent_requests AS request
+      ON request.binding_id = attempt.binding_id
+     AND request.request_key = attempt.request_key
+    JOIN mdm_steward.policy_receipts_v1 AS receipt
+      ON receipt.binding_id = attempt.binding_id
+     AND receipt.request_key = attempt.request_key
+    JOIN pgreact.episodes AS episode
+      ON episode.episode_id = request.first_episode_id
+    WHERE attempt.outcome = 'APPLIED_CONTROL'
+      AND attempt.receipt_id = receipt.receipt_id
+      AND attempt.work_ref = request.work_ref
+      AND attempt.request_body = request.request_body
+      AND request.request_digest = receipt.request_digest
+      AND receipt.request_body = request.request_body
+      AND receipt.outcome = attempt.outcome
+      AND receipt.case_key = attempt.case_key
+      AND receipt.action = request.request_body ->> 'action'
+      AND receipt.action_revision = attempt.action_revision
+      AND receipt.control IS NOT DISTINCT FROM attempt.control
+      AND receipt.resulting_publication_revision IS NOT DISTINCT FROM attempt.resulting_publication_revision
+      AND request.request_digest = pgreact_mdm.intent_request_digest(request.request_body)
+      AND request.request_key = pgreact_mdm.intent_request_key(
+          request.binding_id, request.policy_revision, request.case_key,
+          request.lifecycle_generation, request.action_revision,
+          request.consequence_identity, request.escalation_level)
+      AND request.work_ref = 'pgreact:' || episode.rule_version_id::text || ':' || episode.episode_id::text;
+    IF actual_work IS DISTINCT FROM expected_work THEN
+        RAISE EXCEPTION 'v0.48 exact work/receipt vector mismatch: expected %, correlated %', expected_work, actual_work;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pgreact_mdm.intent_queue_candidates)
+       OR EXISTS (SELECT 1 FROM pgreact_mdm.intent_due_candidates)
+       OR EXISTS (SELECT 1 FROM pgreact_mdm.intent_escalation_candidates) THEN
+        RAISE EXCEPTION 'candidate work remained after worker execution';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM v048_case_baseline AS baseline
+        JOIN mdm_steward.policy_cases_v1 AS case_row USING (case_key)
+        JOIN mdm_internal.entities AS entity
+          ON entity.entity_name = case_row.entity_name
+        WHERE case_row.action_revision <> baseline.action_revision +
+                  (SELECT count(*) FROM v048_expected_intents AS expected
+                   WHERE expected.case_key = baseline.case_key
+                     AND expected.entity_name = baseline.entity_name)
+           OR case_row.publication_revision <> baseline.publication_revision
+           OR entity.decision_epoch <> baseline.decision_epoch
+           OR entity.publication_revision <> baseline.entity_publication_revision) THEN
+        RAISE EXCEPTION 'worker receipt write changed action/decision state or lost its receipt';
+    END IF;
+END
+$correlation$;
+
+DO $source_update$
+DECLARE affected integer;
+BEGIN
+    UPDATE public.policy_qualification_source
+    SET display_name = 'Publication Only v0.48 ' ||
+                       pg_catalog.to_char(clock_timestamp(), 'YYYYMMDDHH24MISSUS'),
+        updated_at = statement_timestamp()
+    WHERE id = 105;
+    GET DIAGNOSTICS affected = ROW_COUNT;
+    IF affected <> 1 THEN
+        RAISE EXCEPTION 'publication-only fixture row 105 is missing';
+    END IF;
+END
+$source_update$;
+SET SESSION AUTHORIZATION mdm_legacy_login;
+SET ROLE mdm_legacy_administrator;
+DO $observation$
+DECLARE
+    result jsonb;
+BEGIN
+    result := mdm.refresh('policy_qualification', 'ALLOW');
+    IF result ->> 'changed' IS DISTINCT FROM 'true' THEN
+        RAISE EXCEPTION 'observation-only update did not publish: %', result;
+    END IF;
+END
+$observation$;
+RESET ROLE;
+
+RESET SESSION AUTHORIZATION;
+SET SESSION AUTHORIZATION mdm_m2_runner;
+DO $observation_refresh$
+DECLARE
+    rule_row record;
+BEGIN
+    PERFORM pgreact_mdm.sync_intent_case_identities();
+    FOR rule_row IN
+        SELECT rule.rule_version_id
+        FROM pgreact.rules AS rule
+        WHERE rule.rule_name IN (
+            'v0.48-live-worker-queue',
+            'v0.48-live-worker-due',
+            'v0.48-live-worker-escalation')
+          AND rule.state = 'ACTIVE'
+    LOOP
+        PERFORM pgreact.refresh_rule(rule_row.rule_version_id);
+    END LOOP;
+END
+$observation_refresh$;
+RESET SESSION AUTHORIZATION;
+
+DO $observation_work$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pgreact.rules AS rule
+        JOIN v048_episode_baseline AS baseline USING (rule_version_id)
+        WHERE baseline.episode_count <> (
+            SELECT count(*) FROM pgreact.episodes AS episode
+            WHERE episode.rule_version_id = rule.rule_version_id)) THEN
+        RAISE EXCEPTION 'observation-only publication created duplicate worker episodes';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM v048_case_baseline AS baseline
+        JOIN mdm_steward.policy_cases_v1 AS case_row USING (case_key)
+        JOIN mdm_internal.entities AS entity
+          ON entity.entity_name = case_row.entity_name
+        WHERE case_row.action_revision <> baseline.action_revision +
+              (SELECT count(*) FROM v048_expected_intents AS expected
+              WHERE expected.case_key = baseline.case_key
+                AND expected.entity_name = baseline.entity_name)
+           OR case_row.publication_revision <> baseline.publication_revision
+           OR entity.decision_epoch <> baseline.decision_epoch
+           OR entity.publication_revision <> baseline.entity_publication_revision +
+                 CASE WHEN baseline.entity_name = 'policy_qualification' THEN 1 ELSE 0 END) THEN
+        RAISE EXCEPTION 'observation-only publication changed policy action or decision state';
+    END IF;
+END
+$observation_work$;
+
+SELECT 'v0.48 actual worker actions, limits, receipts, and observation stability passed' AS result;

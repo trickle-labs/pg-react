@@ -1,7 +1,8 @@
 CREATE OR REPLACE FUNCTION pgreact_mdm.deadline_preview(
     source_relation regclass,
     target_revision text,
-    captured_at timestamptz
+    captured_at timestamptz,
+    target_entity text
 )
 RETURNS TABLE(
     case_key bigint,
@@ -73,11 +74,37 @@ BEGIN
                    'duration_seconds', ($1 -> 'deadline' ->> 'duration_seconds')::bigint,
                    'captured_at', $3::timestamptz)
         FROM %s AS c
+        WHERE $4 IS NULL OR c.entity_name::text = $4
         ORDER BY c.case_key
     $query$, source_relation)
-    USING package, target_revision, captured_at;
+    USING package, target_revision, captured_at, target_entity;
 END
 $function$;
 
-COMMENT ON FUNCTION pgreact_mdm.deadline_preview(regclass, text, timestamptz) IS
+CREATE OR REPLACE FUNCTION pgreact_mdm.deadline_preview(
+    source_relation regclass,
+    target_revision text,
+    captured_at timestamptz
+)
+RETURNS TABLE(
+    case_key bigint,
+    review_id uuid,
+    policy_revision text,
+    evaluated_at timestamptz,
+    existing_due_at timestamptz,
+    proposed_due_at timestamptz,
+    decision text,
+    reason text,
+    explanation jsonb
+)
+LANGUAGE SQL
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $function$
+    SELECT * FROM pgreact_mdm.deadline_preview($1, $2, $3, NULL::text)
+$function$;
+
+COMMENT ON FUNCTION pgreact_mdm.deadline_preview(regclass, text, timestamptz, text) IS
     'v0.47 elapsed-time deadline proposal using an explicit captured evaluation time';
+COMMENT ON FUNCTION pgreact_mdm.deadline_preview(regclass, text, timestamptz) IS
+    'v0.47 elapsed-time deadline proposal across the complete supplied policy relation';

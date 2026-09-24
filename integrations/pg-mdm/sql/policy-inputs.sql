@@ -130,7 +130,8 @@ AS $function$
                 COALESCE(route ->> 'entity_name', ''),
                 COALESCE(route ->> 'priority', ''),
                 route ->> 'queue',
-                COALESCE(route ->> 'action', 'ASSIGN_QUEUE'))
+                COALESCE(route ->> 'action', 'ASSIGN_QUEUE'),
+                COALESCE(route ->> 'level', ''))
             FROM jsonb_array_elements(package -> 'routes') AS item(route)),
             '[]'::jsonb))
 $function$;
@@ -190,7 +191,7 @@ BEGIN
         FOR route IN SELECT value FROM jsonb_array_elements(package -> 'routes') LOOP
             IF jsonb_typeof(route) = 'object' THEN
                 FOR field_name IN SELECT key FROM jsonb_object_keys(route) AS item(key) LOOP
-                    IF field_name NOT IN ('reason_code', 'entity_name', 'queue', 'priority', 'action') THEN
+                    IF field_name NOT IN ('reason_code', 'entity_name', 'queue', 'priority', 'action', 'level') THEN
                         findings := findings || jsonb_build_array(jsonb_build_object(
                             'code', 'POLICY_ROUTE_FIELD_UNKNOWN',
                             'field', field_name,
@@ -200,23 +201,34 @@ BEGIN
             END IF;
             IF jsonb_typeof(route) IS DISTINCT FROM 'object'
                OR NULLIF(btrim(route ->> 'reason_code'), '') IS NULL
-               OR NULLIF(btrim(route ->> 'queue'), '') IS NULL
-               OR COALESCE(route ->> 'priority', '') !~ '^[0-9]+$'
+               OR (COALESCE(route ->> 'action', 'ASSIGN_QUEUE') = 'ASSIGN_QUEUE'
+                   AND NULLIF(btrim(route ->> 'queue'), '') IS NULL)
+               OR (route ? 'priority' AND COALESCE(route ->> 'priority', '') !~ '^[0-9]+$')
+               OR (CASE WHEN COALESCE(route ->> 'priority', '0') ~ '^[0-9]+$'
+                        THEN COALESCE(route ->> 'priority', '0')::numeric > 2147483647
+                        ELSE false END)
                OR COALESCE(route ->> 'action', 'ASSIGN_QUEUE') NOT IN
-                    ('ASSIGN_QUEUE', 'SET_DUE_AT', 'ESCALATE') THEN
+                    ('ASSIGN_QUEUE', 'SET_DUE_AT', 'ESCALATE')
+               OR (COALESCE(route ->> 'action', 'ASSIGN_QUEUE') = 'ESCALATE'
+                   AND (COALESCE(route ->> 'level', '') !~ '^[1-9][0-9]*$'
+                        OR (CASE WHEN COALESCE(route ->> 'level', '') ~ '^[1-9][0-9]*$'
+                                 THEN (route ->> 'level')::numeric > 2147483647
+                                 ELSE false END)))
+               OR (COALESCE(route ->> 'action', 'ASSIGN_QUEUE') <> 'ESCALATE'
+                   AND route ? 'level') THEN
                 findings := findings || jsonb_build_array(jsonb_build_object(
                     'code', 'POLICY_ROUTE_INVALID',
                     'route', route,
-                    'message', 'route requires reason_code, queue, nonnegative priority, and a supported action'));
+                    'message', 'route requires a reason code, supported action, action-specific arguments, and an optional nonnegative priority'));
             END IF;
         END LOOP;
         SELECT count(*) INTO duplicate_count
         FROM (
             SELECT item.route ->> 'reason_code', item.route ->> 'entity_name',
-                   item.route ->> 'queue', item.route ->> 'priority',
+                   item.route ->> 'queue', item.route ->> 'priority', item.route ->> 'level',
                    COALESCE(item.route ->> 'action', 'ASSIGN_QUEUE')
             FROM jsonb_array_elements(package -> 'routes') AS item(route)
-            GROUP BY 1, 2, 3, 4, 5
+            GROUP BY 1, 2, 3, 4, 5, 6
             HAVING count(*) > 1
         ) duplicates;
         IF duplicate_count > 0 THEN
@@ -395,7 +407,9 @@ BEGIN
     IF has_rls THEN
         RAISE EXCEPTION 'MDM_INPUT_RLS_UNSUPPORTED: % uses row-level security', relation_name;
     END IF;
-    IF relation_name NOT IN ('mdm_steward.policy_cases_v1', 'mdm_fixture.policy_cases_v1') THEN
+    IF relation_name NOT IN ('mdm_steward.policy_cases_v1', 'mdm_fixture.policy_cases_v1',
+                             'pgreact_mdm.authorized_policy_cases_v1',
+                             'pgreact_mdm.intent_deployer_policy_cases_v1') THEN
         RAISE EXCEPTION 'MDM_INPUT_SOURCE: % is not the approved policy-case projection', relation_name;
     END IF;
     IF NOT has_table_privilege(current_user, source_relation, 'SELECT') THEN
