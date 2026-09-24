@@ -52,8 +52,8 @@ BEGIN
       AND attempt.control IS NOT DISTINCT FROM receipt.control
       AND attempt.resulting_publication_revision IS NOT DISTINCT FROM
           receipt.resulting_publication_revision;
-    IF correlated_receipts < 3 THEN
-        RAISE EXCEPTION 'restore lost exact request/attempt/receipt correlations: %',
+    IF correlated_receipts <> 2 THEN
+        RAISE EXCEPTION 'restore expected two exact due/escalation receipt correlations: %',
             correlated_receipts;
     END IF;
 

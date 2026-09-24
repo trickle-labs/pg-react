@@ -44,9 +44,9 @@ JOIN mdm_internal.entities AS entity
 WHERE case_row.entity_name = 'policy_qualification'
   AND case_row.status = 'open'
   AND NOT case_row.pending_stewardship
-  AND case_row.due_at IS NULL
+  AND case_row.due_at < statement_timestamp()
   AND case_row.opened_at IS NOT NULL
-  AND case_row.escalation_level = 0
+  AND case_row.escalation_level = 1
   AND 'ESCALATE' = ANY(case_row.permitted_actions)
 ORDER BY case_row.case_key
 LIMIT 1
@@ -57,14 +57,14 @@ SELECT pgreact_mdm.publish_intent_package(
     jsonb_build_object(
         'deadline', jsonb_build_object(
             'duration_seconds', 86400, 'min_seconds', 60, 'max_seconds', 86400,
-            'replace_existing_deadline', true),
+            'replace_existing_deadline', false),
         'routes', jsonb_build_array(
             jsonb_build_object(
                 'reason_code', :'queue_reason_code', 'entity_name', :'queue_entity_name',
                 'queue', 'm2-ready', 'priority', 0),
             jsonb_build_object(
                 'reason_code', :'escalation_reason', 'entity_name', :'escalation_entity_name',
-                'action', 'ESCALATE', 'level', 1, 'priority', 0)))) AS publication;
+                'action', 'ESCALATE', 'level', 2, 'priority', 0)))) AS publication;
 
 SET SESSION AUTHORIZATION mdm_m2_runner;
 DO $deploy$
@@ -132,57 +132,8 @@ SELECT binding_id AS v048_escalation_binding_id,
        binding_version AS v048_escalation_binding_version
 FROM pgreact_mdm.create_intent_binding(
     :'escalation_entity_name', 'v0.48-live-policy',
-    ARRAY['ESCALATE', 'SET_DUE_AT']::text[], ARRAY[]::text[], interval '1 day', 1)
+    ARRAY['ESCALATE', 'SET_DUE_AT']::text[], ARRAY[]::text[], interval '1 day', 2)
 \gset
-RESET ROLE;
-RESET SESSION AUTHORIZATION;
-
-SET SESSION AUTHORIZATION mdm_m2_runner;
-SET ROLE pgreact_mdm_worker;
-DO $fixture_due$
-DECLARE
-    binding pgreact_mdm.policy_intent_bindings%ROWTYPE;
-    policy_case pgreact_mdm.authorized_policy_cases_v1%ROWTYPE;
-    response record;
-    request_key bytea;
-    fixture_due timestamptz;
-BEGIN
-    SELECT * INTO STRICT binding
-    FROM pgreact_mdm.policy_intent_bindings
-    WHERE entity_name = 'policy_qualification'
-      AND policy_revision = 'v0.48-live-policy' AND enabled;
-    SELECT * INTO STRICT policy_case
-    FROM pgreact_mdm.authorized_policy_cases_v1
-    WHERE entity_name = 'policy_qualification'
-      AND case_key = (
-          SELECT min(case_key)
-          FROM pgreact_mdm.authorized_policy_cases_v1
-          WHERE entity_name = 'policy_qualification'
-            AND status = 'open' AND opened_at IS NOT NULL
-            AND due_at IS NULL AND escalation_level = 0
-            AND 'ESCALATE' = ANY(permitted_actions));
-    fixture_due := policy_case.opened_at + interval '30 seconds';
-    request_key := pgreact_mdm.intent_request_key(
-        binding.binding_id, binding.policy_revision, policy_case.case_key,
-        1, policy_case.action_revision, 'm2-fixture-due', 0);
-    SELECT * INTO STRICT response
-    FROM mdm_steward.submit_policy_intent(
-        binding.binding_id, request_key, policy_case.case_key,
-        'SET_DUE_AT', jsonb_build_object('due_at', pg_catalog.to_char(
-            fixture_due AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')),
-        policy_case.review_version, policy_case.definition_version,
-        policy_case.publication_revision, policy_case.stewardship_epoch,
-        policy_case.evidence_basis_digest, policy_case.action_revision,
-        binding.policy_digest, binding.policy_revision,
-        'pgreact:m2-fixture-eval',
-        'pgreact:m2-fixture-due:' || policy_case.case_key::text);
-    IF response.outcome <> 'APPLIED_CONTROL'
-       OR response.action_revision <> policy_case.action_revision + 1
-       OR (response.control ->> 'due_at')::timestamptz IS DISTINCT FROM fixture_due THEN
-        RAISE EXCEPTION 'could not seed the overdue escalation case: %', response;
-    END IF;
-END
-$fixture_due$;
 RESET ROLE;
 RESET SESSION AUTHORIZATION;
 
@@ -387,16 +338,9 @@ END
 $work$;
 RESET SESSION AUTHORIZATION;
 
-CREATE TEMP TABLE v048_episode_baseline AS
-SELECT rule.rule_version_id, count(episode.episode_id) AS episode_count
-FROM pgreact.rules AS rule
-LEFT JOIN pgreact.episodes AS episode USING (rule_version_id)
-WHERE rule.rule_name IN (
-    'v0.48-live-worker-queue',
-    'v0.48-live-worker-due',
-    'v0.48-live-worker-escalation')
-  AND rule.state = 'ACTIVE'
-GROUP BY rule.rule_version_id;
+CREATE TEMP TABLE v048_attempt_baseline AS
+SELECT count(*) AS attempt_count
+FROM pgreact_mdm.intent_attempts;
 
 DO $correlation$
 DECLARE
@@ -522,13 +466,9 @@ RESET SESSION AUTHORIZATION;
 
 DO $observation_work$
 BEGIN
-    IF EXISTS (
-        SELECT 1 FROM pgreact.rules AS rule
-        JOIN v048_episode_baseline AS baseline USING (rule_version_id)
-        WHERE baseline.episode_count <> (
-            SELECT count(*) FROM pgreact.episodes AS episode
-            WHERE episode.rule_version_id = rule.rule_version_id)) THEN
-        RAISE EXCEPTION 'observation-only publication created duplicate worker episodes';
+    IF (SELECT attempt_count FROM v048_attempt_baseline)
+       <> (SELECT count(*) FROM pgreact_mdm.intent_attempts) THEN
+        RAISE EXCEPTION 'observation-only publication created worker intent attempts';
     END IF;
     IF EXISTS (
         SELECT 1

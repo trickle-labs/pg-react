@@ -104,9 +104,10 @@ creates a test-only `mdm_m2_runner` login that can set only the worker role;
 each entity execution role creates its own binding. Run
 `tests/integrations/pg-mdm/v0.48-restore.sh` only in a disposable joint cluster;
 it pauses the source binding and recreates the worker role to qualify logical
-restore, stale database and role OIDs, and entity-role reconciliation. Joint
-v0.48 qualification passed. The roles, digests, commands, and results are in
-[the qualification evidence](../../tests/integrations/pg-mdm/evidence/v0.48.0.md).
+restore, stale database and role OIDs, and entity-role reconciliation. The
+checked-in v0.48 SQL checks passed on the local pg-mdm 0.14.0 image. T48.04-T48.10
+and the retention approval remain open. See [the qualification evidence](../../tests/integrations/pg-mdm/evidence/v0.48.0.md)
+for the results and remaining gates.
 The image carries the matching pg-mdm `configure_helper.sql`; when running the
 restore script from a host checkout, set `MDM_HELPER_CONFIG` to that file so
 restored MDM helpers regain their protected ownership before reconciliation.
