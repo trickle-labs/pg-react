@@ -1,12 +1,18 @@
 # Contract qualification seam
 
+The approved contract revision 3 snapshot is
+[`contracts/MDM-STEWARDSHIP-1-v3.json`](../../../../contracts/MDM-STEWARDSHIP-1-v3.json).
+It preserves revision 2 and records the Rust-facing `text[]` queue allowlist;
+MDM continues to store canonical queues as `name[]`.
+
 Run the canonical exact-output contract check from the repository root:
 
 ```text
 python3 tests/mdm_stewardship_contract.py
 ```
 
-This proves the approved contract and vectors only. Joint live qualification
+This proves the checked-in contract and vectors only. Joint v0.47 qualification
 against pg-mdm v0.13.1, including the authorized policy-case projection and
 occurrence mapping, is recorded in
 [`../evidence/v0.47.0/manifest.json`](../evidence/v0.47.0/manifest.json).
+Joint v0.48 worker qualification against pg-mdm 0.14 is pending.
