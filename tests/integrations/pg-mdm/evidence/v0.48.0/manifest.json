@@ -23,7 +23,7 @@
   "candidate": {
     "base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
     "source_plan": "plans/v0.48.0.md",
-    "identity_note": "PR #6 source starts at c13a614b9f5e4873f13acea75143da0aa18a84ad. Docker proof used that source plus the local intent-worker fix and test overlay recorded below. The local pg-mdm 0.14 image supplied policy_qualification. T48.01-T48.04, T48.10-T48.12 passed. T48.05-T48.09 remain open."
+    "identity_note": "PR #6 candidate is d9175f81918c5ce0f5ff89b85ee591a8bedf61bd. Docker proof ran the committed candidate source, including the intent-worker fix. The local pg-mdm 0.14 image supplied policy_qualification. T48.01-T48.04, T48.10-T48.12 passed. T48.05-T48.09 remain open."
   },
   "runtime": {
     "postgresql": "18.4",
@@ -38,7 +38,7 @@
     { "id": "live_worker", "status": "passed", "evidence": "v0.47-live.sql and v0.48-live.sql passed on PR #6 source plus local intent-worker fix and test overlay in Docker image sha256:5f5e55fb84875dd862aeafe62849841ba7536965c721fac7a04bbf386151cf95; includes exact post-submit rollback, no publish/resolve, and old-revision hold does not block fresh work" },
     { "id": "restore", "status": "passed", "evidence": "v0.48-restore.sh passed on PR #6 source plus local intent-worker fix and test overlay in Docker image sha256:5f5e55fb84875dd862aeafe62849841ba7536965c721fac7a04bbf386151cf95" },
     { "id": "security", "status": "passed", "evidence": "v0.48-security.sql passed on PR #6 source plus local intent-worker fix and test overlay in Docker image sha256:5f5e55fb84875dd862aeafe62849841ba7536965c721fac7a04bbf386151cf95; worker cannot delete retained records and ACTION_DENIED returned an unchanged control receipt" },
-    { "id": "missing_mdm_admission", "status": "passed", "evidence": "v0.48-admission.sh rejected deployment at the absent mdm_steward schema; zero intent requests existed" }
+    { "id": "missing_mdm_admission", "status": "passed", "evidence": "v0.48-admission.sh rejected deployment at the absent mdm_steward schema before effects; release workflow runs and archives its exact output" }
   ],
   "source_sha256": {
     "contracts/MDM-STEWARDSHIP-1-fixture.json": "900f365533bab13480fcb88ab8e8b7956beb4f14a8cfc92cd46770b2e26ef3e4",

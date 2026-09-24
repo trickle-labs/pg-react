@@ -94,6 +94,13 @@ jobs:
             fi
             grep -E 'passed|PASS' "$log" | tail -n 1
           done
+          log=v0.48.0-release-evidence/missing-mdm-admission.log
+          if ! docker exec "$container" \
+            sh /workspace/tests/integrations/pg-mdm/v0.48-admission.sh > "$log" 2>&1; then
+            cat "$log"
+            exit 1
+          fi
+          grep -F 'v0.48 missing-MDM admission rejected before effects: PASS' "$log"
       - name: Verify contract and joint live evidence
         env:
           IMAGE: pg-react:v0.48.0-qualification
@@ -123,7 +130,7 @@ jobs:
             .runtime.pg_react_extension == "0.46.0" and
             .runtime.pg_mdm_extension == "0.14.0" and
             .runtime.pg_trickle_extension == "0.108.0" and
-            ([.tests[].id] | sort) == ["codec", "live_worker", "restore", "security"] and
+            ([.tests[].id] | sort) == ["codec", "live_worker", "missing_mdm_admission", "restore", "security"] and
             all(.tests[]; .status == "passed")
           ' tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json
           jq -r '.source_sha256 | to_entries[] | "\(.value)  \(.key)"' \
@@ -151,6 +158,7 @@ jobs:
                 {id: "fixture", status: "passed", log: "v0.47.log"},
                 {id: "typed_flow", status: "passed", log: "v0.47-typed.log"},
                 {id: "codec", status: "passed", log: "v0.48-codec.log"},
+                {id: "missing_mdm_admission", status: "passed", log: "missing-mdm-admission.log"},
                 {id: "contract", status: "passed", log: "contract.log"},
                 {id: "live_worker", status: "passed", manifest: "live-qualification.json"}
               ]}' \
@@ -200,6 +208,7 @@ jobs:
             tests/integrations/pg-mdm/v0.48-codec.sql \
             tests/integrations/pg-mdm/v0.48-live.sql \
             tests/integrations/pg-mdm/v0.48-security.sql \
+            tests/integrations/pg-mdm/v0.48-admission.sh \
             tests/integrations/pg-mdm/v0.48-restore-prepare.sql \
             tests/integrations/pg-mdm/v0.48-restore-regrant.sql \
             tests/integrations/pg-mdm/v0.48-restore.sql \
