@@ -120,6 +120,29 @@ COMMENT ON VIEW pgreact_mdm.delivery_inspection_v1 IS
 REVOKE ALL ON pgreact_mdm.delivery_inspection_v1 FROM PUBLIC;
 GRANT SELECT ON pgreact_mdm.delivery_inspection_v1 TO PUBLIC;
 
+CREATE OR REPLACE FUNCTION pgreact_mdm.intent_receipt_exists(
+    request_binding_id uuid,
+    request_key bytea,
+    expected_receipt_id uuid
+)
+RETURNS boolean
+LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+    SELECT EXISTS (
+        SELECT 1
+        FROM mdm_steward.policy_receipts_v1 AS receipt
+        WHERE receipt.binding_id = $1
+          AND receipt.request_key = $2
+          AND receipt.receipt_id = $3)
+$function$;
+ALTER FUNCTION pgreact_mdm.intent_receipt_exists(uuid, bytea, uuid)
+    OWNER TO mdm_helper_owner;
+REVOKE ALL ON FUNCTION pgreact_mdm.intent_receipt_exists(uuid, bytea, uuid)
+    FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pgreact_mdm.intent_receipt_exists(uuid, bytea, uuid)
+    TO pgreact_mdm_worker;
+
 CREATE OR REPLACE FUNCTION pgreact_mdm.intent_binding_config(binding_id uuid)
 RETURNS SETOF pgreact_mdm.policy_intent_bindings
 LANGUAGE SQL
@@ -727,6 +750,38 @@ BEGIN
             key, digest, body, v_work_ref, 'IDEMPOTENCY_CONFLICT',
             'REQUEST_KEY_BODY_MISMATCH', (body ->> 'case_key')::bigint,
             (body ->> 'expected_action_revision')::bigint);
+        RETURN;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM pgreact_mdm.intent_attempts AS previous_attempt
+        WHERE previous_attempt.binding_id = binding.binding_id
+          AND previous_attempt.request_key = key
+          AND previous_attempt.receipt_id IS NOT NULL
+          AND NOT pgreact_mdm.intent_receipt_exists(
+              previous_attempt.binding_id,
+              previous_attempt.request_key,
+              previous_attempt.receipt_id)) THEN
+        INSERT INTO pgreact_mdm.intent_attempts(
+            episode_id, attempt_no, binding_id, request_key, request_digest,
+            request_body, work_ref, outcome, reason_code, case_key, action_revision)
+        VALUES (
+            (context).episode_id, (context).attempt_no, binding.binding_id,
+            key, digest, body, v_work_ref, 'RECOVERY_BLOCKED',
+            'MDM_RECEIPT_MISSING', (body ->> 'case_key')::bigint,
+            (body ->> 'expected_action_revision')::bigint);
+        INSERT INTO pgreact_mdm.intent_holds(
+            binding_id, case_key, policy_revision, action,
+            expected_action_revision, reason_code)
+        VALUES (
+            binding.binding_id, (body ->> 'case_key')::bigint,
+            binding.policy_revision, body ->> 'action',
+            (body ->> 'expected_action_revision')::bigint,
+            'MDM_RECEIPT_MISSING')
+        ON CONFLICT (
+            binding_id, case_key, policy_revision, action, expected_action_revision)
+        DO NOTHING;
         RETURN;
     END IF;
 

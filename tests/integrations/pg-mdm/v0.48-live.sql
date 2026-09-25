@@ -209,6 +209,139 @@ BEGIN
 END
 $limits$;
 
+BEGIN;
+DO $missing_receipt_recovery$
+DECLARE
+    queue_candidate pgreact_mdm.intent_queue_candidates%ROWTYPE;
+    binding pgreact_mdm.policy_intent_bindings%ROWTYPE;
+    policy_case pgreact_mdm.authorized_policy_cases_v1%ROWTYPE;
+    deployer_case pgreact_mdm.intent_deployer_policy_cases_v1%ROWTYPE;
+    context pgreact.activation_context;
+    context_rule_id uuid;
+    context_rule_version_id uuid;
+    work_ref text;
+    synthetic_request_key bytea;
+    request_body jsonb;
+    request_digest bytea;
+    fake_receipt_id uuid := '00000000-0000-0000-0000-000000000001';
+    control_before jsonb;
+    control_after jsonb;
+    retained_request pgreact_mdm.intent_requests%ROWTYPE;
+    blocked_attempt pgreact_mdm.intent_attempts%ROWTYPE;
+BEGIN
+    SELECT * INTO STRICT queue_candidate
+    FROM pgreact_mdm.intent_queue_candidates
+    ORDER BY case_key
+    LIMIT 1;
+    SELECT * INTO STRICT binding
+    FROM pgreact_mdm.policy_intent_bindings
+    WHERE binding_id = queue_candidate.binding_id;
+    SELECT * INTO STRICT policy_case
+    FROM pgreact_mdm.authorized_policy_cases_v1
+    WHERE case_key = queue_candidate.case_key
+      AND entity_name = binding.entity_name;
+    PERFORM pgreact_mdm.sync_intent_case_identities();
+    SELECT * INTO STRICT deployer_case
+    FROM pgreact_mdm.intent_deployer_policy_cases_v1
+    WHERE case_key = queue_candidate.case_key
+      AND entity_name = binding.entity_name;
+    SELECT rule.rule_id, rule.rule_version_id
+    INTO STRICT context_rule_id, context_rule_version_id
+    FROM pgreact.rules AS rule
+    WHERE rule.rule_name = 'v0.48-live-worker-queue'
+      AND rule.state = 'ACTIVE';
+
+    context := ROW(
+        '00000000-0000-0000-0000-000000000048'::uuid,
+        900000048::bigint,
+        context_rule_id,
+        context_rule_version_id,
+        1::bigint,
+        1::bigint,
+        'INSERT'::text,
+        2::integer,
+        statement_timestamp(),
+        'v0.48-missing-receipt'::text,
+        'v0.48-missing-receipt'::text
+    )::pgreact.activation_context;
+    work_ref := 'pgreact:' || context_rule_version_id::text || ':' ||
+                (context).episode_id::text;
+    synthetic_request_key := pgreact_mdm.intent_request_key(
+        binding.binding_id, binding.policy_revision, policy_case.case_key,
+        (context).generation, policy_case.action_revision,
+        queue_candidate.consequence_identity, queue_candidate.escalation_level);
+    request_body := pgreact_mdm.intent_request_body(
+        binding.binding_id, policy_case.case_key, queue_candidate.action,
+        queue_candidate.arguments, policy_case.review_version,
+        policy_case.definition_version, policy_case.publication_revision,
+        policy_case.stewardship_epoch, policy_case.evidence_basis_digest,
+        policy_case.action_revision, binding.policy_digest,
+        binding.policy_revision, 'pgreact:' || (context).activation_id::text,
+        work_ref);
+    request_digest := pgreact_mdm.intent_request_digest(request_body);
+    control_before := to_jsonb(policy_case) - ARRAY['last_observed_at'];
+
+    INSERT INTO pgreact_mdm.intent_requests(
+        binding_id, request_key, request_digest, request_body, work_ref,
+        policy_revision, case_key, lifecycle_generation, action_revision,
+        consequence_identity, escalation_level, first_episode_id)
+    VALUES (
+        binding.binding_id, synthetic_request_key, request_digest, request_body, work_ref,
+        binding.policy_revision, policy_case.case_key, (context).generation,
+        policy_case.action_revision, queue_candidate.consequence_identity,
+        queue_candidate.escalation_level, (context).episode_id);
+    INSERT INTO pgreact_mdm.intent_attempts(
+        episode_id, attempt_no, binding_id, request_key, request_digest,
+        request_body, work_ref, receipt_id, outcome, reason_code,
+        case_key, action_revision)
+    VALUES (
+        (context).episode_id, 1, binding.binding_id, synthetic_request_key,
+        request_digest, request_body, work_ref, fake_receipt_id,
+        'APPLIED_CONTROL', 'CONTROL_APPLIED', policy_case.case_key,
+        policy_case.action_revision);
+    IF pgreact_mdm.intent_receipt_exists(
+           binding.binding_id, synthetic_request_key, fake_receipt_id) THEN
+        RAISE EXCEPTION 'missing-receipt fixture unexpectedly exists in MDM';
+    END IF;
+
+    PERFORM set_config('role', 'pgreact_mdm_worker', true);
+    PERFORM pgreact_mdm.submit_queue_intent(context, deployer_case);
+
+    SELECT * INTO STRICT retained_request
+    FROM pgreact_mdm.intent_requests AS request
+    WHERE request.binding_id = binding.binding_id
+      AND request.request_key = synthetic_request_key;
+    SELECT * INTO STRICT blocked_attempt
+    FROM pgreact_mdm.intent_attempts
+    WHERE episode_id = (context).episode_id
+      AND attempt_no = 2;
+    SELECT to_jsonb(current_case) - ARRAY['last_observed_at']
+    INTO STRICT control_after
+    FROM pgreact_mdm.authorized_policy_cases_v1 AS current_case
+    WHERE current_case.case_key = policy_case.case_key
+      AND current_case.entity_name = policy_case.entity_name;
+    IF retained_request.request_body IS DISTINCT FROM request_body
+       OR retained_request.request_key IS DISTINCT FROM synthetic_request_key
+       OR retained_request.request_digest IS DISTINCT FROM request_digest
+       OR blocked_attempt.outcome IS DISTINCT FROM 'RECOVERY_BLOCKED'
+       OR blocked_attempt.reason_code IS DISTINCT FROM 'MDM_RECEIPT_MISSING'
+       OR blocked_attempt.receipt_id IS NOT NULL
+       OR control_after IS DISTINCT FROM control_before
+       OR NOT EXISTS (
+           SELECT 1 FROM pgreact_mdm.intent_holds AS hold
+           WHERE hold.binding_id = binding.binding_id
+             AND hold.case_key = policy_case.case_key
+             AND hold.policy_revision = binding.policy_revision
+             AND hold.action = queue_candidate.action
+             AND hold.expected_action_revision = policy_case.action_revision
+             AND hold.reason_code = 'MDM_RECEIPT_MISSING') THEN
+        RAISE EXCEPTION 'missing-receipt recovery changed request or control state, retried MDM, or failed to hold work';
+    END IF;
+END
+$missing_receipt_recovery$;
+ROLLBACK;
+SELECT 'v0.48 missing-receipt recovery blocked without resubmission: PASS' AS result;
+
 CREATE TEMP TABLE v048_case_baseline AS
 SELECT DISTINCT case_row.case_key, case_row.entity_name, case_row.action_revision,
        case_row.publication_revision, case_row.status, case_row.resolved_at,
@@ -624,8 +757,16 @@ END
 $delivery_inspection$;
 
 CREATE TEMP TABLE v048_attempt_baseline AS
-SELECT count(*) AS attempt_count
-FROM pgreact_mdm.intent_attempts;
+SELECT count(*) AS attempt_count,
+       COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+                       'binding_id', request.binding_id,
+                       'request_key', encode(request.request_key, 'hex'),
+                       'request_digest', encode(request.request_digest, 'hex'),
+                       'request_body', request.request_body)
+                    ORDER BY request.binding_id, request.request_key)
+           FROM pgreact_mdm.intent_requests AS request), '[]'::jsonb)
+           AS request_identity;
 
 DO $correlation$
 DECLARE
@@ -792,6 +933,17 @@ BEGIN
        <> (SELECT count(*) FROM pgreact_mdm.intent_attempts) THEN
         RAISE EXCEPTION 'observation-only publication created worker intent attempts';
     END IF;
+    IF (SELECT request_identity FROM v048_attempt_baseline) IS DISTINCT FROM
+       COALESCE((
+           SELECT jsonb_agg(jsonb_build_object(
+                       'binding_id', request.binding_id,
+                       'request_key', encode(request.request_key, 'hex'),
+                       'request_digest', encode(request.request_digest, 'hex'),
+                       'request_body', request.request_body)
+                    ORDER BY request.binding_id, request.request_key)
+           FROM pgreact_mdm.intent_requests AS request), '[]'::jsonb) THEN
+        RAISE EXCEPTION 'observation-only publication changed request identity or body';
+    END IF;
     IF EXISTS (
         SELECT 1
         FROM v048_case_baseline AS baseline
@@ -813,6 +965,183 @@ BEGIN
 END
 $observation_work$;
 
+CREATE TEMP TABLE v048_r10_case AS
+SELECT case_row.case_key, case_row.action_revision
+FROM mdm_steward.policy_cases_v1 AS case_row
+WHERE case_row.entity_name = 'review_admission_live'
+  AND case_row.status = 'open'
+  AND case_row.assigned_queue = 'm2-ready'
+ORDER BY case_row.case_key
+LIMIT 1;
+SET SESSION AUTHORIZATION mdm_legacy_login;
+SET ROLE mdm_legacy_administrator;
+DO $r10_reopen_case$
+DECLARE case_row record;
+BEGIN
+    SELECT * INTO STRICT case_row FROM v048_r10_case;
+    PERFORM mdm_steward.set_case_controls(
+        case_row.case_key, 'manual-review', NULL, 0, false,
+        case_row.action_revision, 'v0.48 independent job fixture');
+END
+$r10_reopen_case$;
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+SELECT pgreact.refresh_rule(:'v048_queue_rule'::uuid);
+CREATE TEMP TABLE v048_r10_baseline AS
+SELECT (SELECT count(*) FROM pgreact_mdm.intent_requests) AS requests,
+       (SELECT count(*) FROM pgreact_mdm.intent_attempts) AS attempts,
+       (SELECT count(*) FROM mdm_steward.policy_receipts_v1) AS receipts;
+SELECT dblink_connect(
+    'm2_bad_job', format('dbname=%s user=mdm_m2_runner', current_database()));
+SELECT dblink_connect(
+    'm2_healthy_job', format('dbname=%s user=mdm_m2_runner', current_database()));
+SELECT dblink_send_query('m2_bad_job',
+    'WITH worker AS MATERIALIZED '
+    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)) '
+    'SELECT pgreact_mdm.submit_intent(NULL::pgreact.activation_context, ''{}''::jsonb) IS NULL FROM worker');
+SELECT dblink_send_query('m2_healthy_job', format(
+    'WITH worker AS MATERIALIZED '
+    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)) '
+    'SELECT pgreact_mdm.execute_intent_episode(%L::uuid, %L) IS NOT NULL FROM worker',
+    :'v048_queue_rule', 'v0.48-independent-healthy-job'));
+CREATE TEMP TABLE v048_r10_healthy_result(executed boolean NOT NULL);
+INSERT INTO v048_r10_healthy_result
+SELECT * FROM dblink_get_result('m2_healthy_job') AS result(executed boolean);
+DO $r10_failed_job$
+DECLARE
+    failure_seen boolean := false;
+    failure_message text;
+BEGIN
+    BEGIN
+        PERFORM result
+        FROM dblink_get_result('m2_bad_job') AS result(value boolean);
+    EXCEPTION WHEN OTHERS THEN
+        GET STACKED DIAGNOSTICS failure_message = MESSAGE_TEXT;
+        failure_seen := failure_message = 'query returned no rows';
+    END;
+    IF NOT failure_seen THEN
+        RAISE EXCEPTION 'malformed job did not fail at the worker boundary: %', failure_message;
+    END IF;
+END
+$r10_failed_job$;
+SELECT dblink_disconnect('m2_bad_job');
+SELECT dblink_disconnect('m2_healthy_job');
+DO $r10_independent_commit$
+BEGIN
+    IF (SELECT executed FROM v048_r10_healthy_result) IS DISTINCT FROM true
+       OR (SELECT count(*) FROM pgreact_mdm.intent_requests)
+          <= (SELECT requests FROM v048_r10_baseline)
+       OR (SELECT count(*) FROM pgreact_mdm.intent_attempts)
+          <= (SELECT attempts FROM v048_r10_baseline)
+       OR (SELECT count(*) FROM mdm_steward.policy_receipts_v1)
+          <= (SELECT receipts FROM v048_r10_baseline)
+       OR NOT EXISTS (
+           SELECT 1 FROM pgreact_mdm.delivery_inspection_v1 AS inspection
+           JOIN v048_r10_case AS expected USING (case_key)
+           WHERE inspection.action = 'ASSIGN_QUEUE'
+             AND inspection.delivery_outcome = 'APPLIED_CONTROL'
+             AND inspection.mdm_receipt_id IS NOT NULL) THEN
+        RAISE EXCEPTION 'malformed job prevented the unrelated healthy job from committing';
+    END IF;
+END
+$r10_independent_commit$;
+
+SELECT binding.binding_version AS v048_replacement_binding_version
+FROM pgreact_mdm.policy_intent_bindings AS binding
+WHERE binding.binding_id = :'v048_policy_binding_id'::uuid
+\gset
+SELECT case_row.case_key AS v048_replacement_case_key,
+       case_row.action_revision AS v048_replacement_case_revision
+FROM mdm_steward.policy_cases_v1 AS case_row
+WHERE case_row.entity_name = 'review_admission_live'
+  AND case_row.status = 'open'
+  AND case_row.assigned_queue = 'm2-ready'
+ORDER BY case_row.case_key
+LIMIT 1
+\gset
+SET SESSION AUTHORIZATION mdm_legacy_login;
+SET ROLE mdm_legacy_administrator;
+SELECT mdm_steward.set_case_controls(
+    :'v048_replacement_case_key'::bigint, 'manual-review', NULL, 0, false,
+    :'v048_replacement_case_revision'::bigint,
+    'v0.48 policy replacement pending-work fixture');
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+CREATE TEMP TABLE v048_replacement_candidates AS
+SELECT * FROM pgreact_mdm.intent_queue_candidates
+WHERE binding_id = :'v048_policy_binding_id'::uuid;
+CREATE TEMP TABLE v048_replacement_ledger AS
+SELECT
+    (SELECT COALESCE(jsonb_agg(to_jsonb(request)
+                               ORDER BY request.binding_id, request.request_key), '[]'::jsonb)
+     FROM pgreact_mdm.intent_requests AS request) AS requests,
+    (SELECT COALESCE(jsonb_agg(to_jsonb(attempt)
+                               ORDER BY attempt.episode_id, attempt.attempt_no), '[]'::jsonb)
+     FROM pgreact_mdm.intent_attempts AS attempt) AS attempts;
+DO $replacement_fixture$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM v048_replacement_candidates) THEN
+        RAISE EXCEPTION 'replacement fixture lacks unattempted old-binding work';
+    END IF;
+END
+$replacement_fixture$;
+
+DO $replacement_package$
+DECLARE package jsonb;
+BEGIN
+    SELECT policy_package INTO STRICT package
+    FROM pgreact_mdm.policy_intent_packages
+    WHERE policy_revision = 'v0.48-live-policy';
+    PERFORM pgreact_mdm.publish_intent_package(
+        'v0.48-live-policy-r23', package);
+END
+$replacement_package$;
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT binding_id AS v048_replacement_binding_id
+FROM pgreact_mdm.replace_intent_binding(
+    :'v048_policy_binding_id'::uuid,
+    :'v048_replacement_binding_version'::bigint,
+    'v0.48-live-policy-r23',
+    ARRAY['ASSIGN_QUEUE']::text[], ARRAY['m2-ready']::text[], NULL, 0)
+\gset
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+CREATE TEMP TABLE v048_replacement_ids AS
+SELECT :'v048_policy_binding_id'::uuid AS old_binding_id,
+       :'v048_replacement_binding_id'::uuid AS new_binding_id,
+       :'v048_replacement_case_key'::bigint AS case_key;
+DO $replacement_state$
+DECLARE ids v048_replacement_ids%ROWTYPE;
+BEGIN
+    SELECT * INTO STRICT ids FROM v048_replacement_ids;
+    IF EXISTS (
+           SELECT 1 FROM pgreact_mdm.intent_queue_candidates
+           WHERE binding_id = ids.old_binding_id)
+       OR NOT EXISTS (
+           SELECT 1 FROM pgreact_mdm.intent_queue_candidates
+           WHERE binding_id = ids.new_binding_id
+             AND case_key = ids.case_key)
+       OR EXISTS (
+           SELECT 1 FROM pgreact_mdm.policy_intent_bindings AS binding
+           WHERE binding.binding_id = ids.old_binding_id
+             AND binding.enabled)
+       OR (SELECT requests FROM v048_replacement_ledger) IS DISTINCT FROM (
+           SELECT COALESCE(jsonb_agg(to_jsonb(request)
+                                     ORDER BY request.binding_id, request.request_key), '[]'::jsonb)
+           FROM pgreact_mdm.intent_requests AS request)
+       OR (SELECT attempts FROM v048_replacement_ledger) IS DISTINCT FROM (
+           SELECT COALESCE(jsonb_agg(to_jsonb(attempt)
+                                     ORDER BY attempt.episode_id, attempt.attempt_no), '[]'::jsonb)
+           FROM pgreact_mdm.intent_attempts AS attempt) THEN
+        RAISE EXCEPTION 'policy replacement lost old work, retained old candidates, or changed attempted bytes';
+    END IF;
+END
+$replacement_state$;
+
 SELECT 'v0.48 actual worker actions, limits, receipts, and observation stability passed' AS result;
+SELECT 'v0.48 malformed job did not roll back unrelated healthy work' AS result;
+SELECT 'v0.48 policy replacement withdrew old candidates and preserved attempted work' AS result;
 SELECT 'v0.48 delivery did not publish or resolve cases' AS result;
 SELECT 'v0.48 post-submit rollback left no MDM or React effects' AS result;

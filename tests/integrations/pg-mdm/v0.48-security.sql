@@ -425,6 +425,9 @@ DO $retention$
 DECLARE
     request_blocked boolean := false;
     attempt_blocked boolean := false;
+    request_delete_blocked boolean := false;
+    attempt_delete_blocked boolean := false;
+    request_truncate_blocked boolean := false;
     attempt_truncate_blocked boolean := false;
     truncate_guards text[];
 BEGIN
@@ -434,6 +437,12 @@ BEGIN
         WHERE work_ref = (SELECT min(work_ref) FROM pgreact_mdm.intent_requests);
     EXCEPTION WHEN SQLSTATE '55000' THEN
         request_blocked := true;
+    END;
+    BEGIN
+        DELETE FROM pgreact_mdm.intent_requests
+        WHERE work_ref = (SELECT min(work_ref) FROM pgreact_mdm.intent_requests);
+    EXCEPTION WHEN SQLSTATE '55000' THEN
+        request_delete_blocked := true;
     END;
     BEGIN
         UPDATE pgreact_mdm.intent_attempts
@@ -446,8 +455,18 @@ BEGIN
         attempt_blocked := true;
     END;
     BEGIN
-        TRUNCATE pgreact_mdm.intent_attempts;
+        DELETE FROM pgreact_mdm.intent_attempts
+        WHERE (episode_id, attempt_no) = (
+            SELECT episode_id, attempt_no
+            FROM pgreact_mdm.intent_attempts
+            ORDER BY episode_id, attempt_no LIMIT 1);
     EXCEPTION WHEN SQLSTATE '55000' THEN
+        attempt_delete_blocked := true;
+    END;
+    BEGIN
+        TRUNCATE pgreact_mdm.intent_requests, pgreact_mdm.intent_attempts;
+    EXCEPTION WHEN SQLSTATE '55000' THEN
+        request_truncate_blocked := true;
         attempt_truncate_blocked := true;
     END;
     SELECT array_agg(relation.relname::text ORDER BY relation.relname::text)
@@ -459,7 +478,8 @@ BEGIN
       AND (trigger_row.tgtype & 32) <> 0
       AND NOT trigger_row.tgisinternal;
     IF NOT request_blocked OR NOT attempt_blocked
-       OR NOT attempt_truncate_blocked
+       OR NOT request_delete_blocked OR NOT attempt_delete_blocked
+       OR NOT request_truncate_blocked OR NOT attempt_truncate_blocked
        OR truncate_guards IS DISTINCT FROM ARRAY[
            'intent_attempts', 'intent_requests']::text[] THEN
         RAISE EXCEPTION 'indefinite request and attempt retention was not enforced';
