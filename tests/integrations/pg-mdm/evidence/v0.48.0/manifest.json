@@ -26,7 +26,7 @@
     "head": "d73f03ea18d06d10891ea352d743eedbb0e6bf2f",
     "source_snapshot_sha256": "176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1",
     "source_plan": "plans/v0.48.0.md",
-    "identity_note": "Current source snapshot is based on PR #6 head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay, including the postgres-user admission workflow fix, archived at run-2026-09-25/candidate-snapshot-workflow-fix.tar. The complete T48 qualification artifacts remain from snapshot 9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21; product SQL and test sources are unchanged, and the admission check was rerun successfully on the current workflow snapshot. The v4 owner sign-off remains bound to the earlier snapshot; current-candidate sign-off and contract-plan reconciliation are pending."
+    "identity_note": "Current source snapshot is based on PR #6 head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay, including the postgres-user admission workflow fix, archived at run-2026-09-25/candidate-snapshot-workflow-fix.tar. Issue #7 contract v5 records owner sign-off for snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1 against base 678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5 and waives independent review for this solo-maintainer release. The complete T48 qualification artifacts remain bound to prior snapshot 9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21; product SQL and test sources are unchanged, and the admission check passed on the current workflow snapshot. Current-head qualification runs remain pending."
   },
   "runtime": {
     "postgresql": "18.4",
@@ -97,17 +97,19 @@
     ]
   },
   "candidate_acceptance": {
-    "status": "pending_contract_reconciliation_and_owner_signoff",
-    "contract_revision": "v4",
+    "status": "candidate_owner_signed",
+    "contract_revision": "v5",
     "source_snapshot_sha256": "176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1",
-    "comparison_base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5"
+    "comparison_base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
+    "approval_comment_url": "https://github.com/trickle-labs/pg-react/issues/7#issuecomment-5839165372",
+    "approval_comment_sha256": "14fe55cfc895cbf61e6bff961c26ab9f55c857384fdfeba9bb25ee40ae083abe"
   },
   "independent_review": {
     "status": "waived",
     "reviewer": "grove",
-    "decision": "owner sign-off approved under issue #7 contract v4; independent review waived for this solo-maintainer release",
-    "candidate_source_snapshot_sha256": "9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21",
-    "reason": "Issue #7 contract v4 binds the owner sign-off to this exact source fingerprint and waives independent review for this solo-maintainer release."
+    "decision": "issue owner approved exact candidate source snapshot under issue #7 contract v5; independent review waived for this solo-maintainer release",
+    "candidate_source_snapshot_sha256": "176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1",
+    "reason": "Issue #7 contract v5 records the issue owner's explicit sign-off for this exact source fingerprint and comparison base. The waiver applies only to independent review for this solo-maintainer release."
   },
   "tests": [
     { "id": "codec", "status": "passed", "command": "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-codec.sql", "expected": "canonical bytes, digest, request key, body, and retry identity match fixed vectors", "actual": "exit 0; v0.48 canonical digest, request-key, body, and retry checks: PASS", "log": "run-2026-09-25/v048-codec.log", "log_sha256": "408e5c6c52839c33031796deb3d300e5fba304eba805f9d456697ab9a1708183" },
