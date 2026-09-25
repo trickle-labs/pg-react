@@ -18,7 +18,7 @@
   ],
   "pending_release_approvals": [],
   "release_approvals": [
-    { "id": "retention_horizon", "status": "passed", "evidence": "MDM-STEWARDSHIP-1-v3.json SHA-256 fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe is approved by both owners and requires no automatic deletion of request bodies or receipts in v1" }
+    { "id": "retention_horizon", "status": "approved", "evidence": "MDM-STEWARDSHIP-1-v3.json SHA-256 fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe is approved by both owners and requires no automatic deletion of request bodies or receipts in v1" }
   ],
   "candidate": {
     "base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
