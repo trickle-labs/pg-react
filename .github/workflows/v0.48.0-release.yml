@@ -96,7 +96,7 @@ jobs:
           done
           log=v0.48.0-release-evidence/missing-mdm-admission.log
           if ! docker exec "$container" \
-            sh /workspace/tests/integrations/pg-mdm/v0.48-admission.sh > "$log" 2>&1; then
+            sh /work/tests/integrations/pg-mdm/v0.48-admission.sh > "$log" 2>&1; then
             cat "$log"
             exit 1
           fi
