@@ -10,8 +10,7 @@ END
 $runner$;
 ALTER ROLE mdm_m2_runner LOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT
     NOCREATEDB NOCREATEROLE NOREPLICATION;
-\ir ../../../integrations/pg-mdm/sql/request-store.sql
-\ir ../../../integrations/pg-mdm/sql/intent-worker.sql
+\ir v0.48-adjacent-upgrade.sql
 GRANT pgreact_mdm_worker TO mdm_m2_runner WITH SET TRUE, INHERIT FALSE;
 GRANT USAGE ON SCHEMA pgreact_mdm
     TO mdm_legacy_administrator, mdm_administrator;
@@ -342,6 +341,395 @@ $missing_receipt_recovery$;
 ROLLBACK;
 SELECT 'v0.48 missing-receipt recovery blocked without resubmission: PASS' AS result;
 
+BEGIN;
+CREATE OR REPLACE FUNCTION mdm_steward.submit_policy_intent(
+    binding_id uuid, request_key bytea, case_key bigint, action text,
+    arguments jsonb, expected_review_version bigint,
+    expected_definition_version bigint, expected_publication_revision bigint,
+    expected_stewardship_epoch bigint, expected_evidence_basis_digest bytea,
+    expected_action_revision bigint, expected_policy_digest bytea,
+    policy_revision text, evaluation_ref text, work_ref text)
+RETURNS TABLE(
+    receipt_id uuid, outcome text, reason_code text, case_key bigint,
+    action_revision bigint, control jsonb, resulting_publication_revision bigint)
+LANGUAGE SQL VOLATILE
+SET search_path = pg_catalog, pg_temp
+AS $function$
+    SELECT CASE WHEN $4 = 'ASSIGN_QUEUE' THEN NULL::uuid
+                ELSE '00000000-0000-0000-0000-000000000048'::uuid END,
+           CASE $4 WHEN 'SET_DUE_AT' THEN 'OPENED_AT_UNKNOWN'
+                   WHEN 'ESCALATE' THEN 'ACTION_DENIED'
+                   ELSE 'UNRECOGNIZED_MDM_OUTCOME' END,
+           CASE $4 WHEN 'SET_DUE_AT' THEN 'OPENING_TIME_UNAVAILABLE'
+                   WHEN 'ESCALATE' THEN 'ACTION_NOT_ALLOWED'
+                   ELSE 'SYNTHETIC_UNKNOWN_REASON' END,
+           $3, $11, NULL::jsonb, NULL::bigint
+$function$;
+
+DO $outcome_classification$
+DECLARE
+    queue_candidate pgreact_mdm.intent_queue_candidates%ROWTYPE;
+    due_candidate pgreact_mdm.intent_due_candidates%ROWTYPE;
+    escalation_candidate pgreact_mdm.intent_escalation_candidates%ROWTYPE;
+    conflict_candidate pgreact_mdm.intent_queue_candidates%ROWTYPE;
+    queue_case pgreact_mdm.intent_deployer_policy_cases_v1%ROWTYPE;
+    due_case pgreact_mdm.intent_deployer_policy_cases_v1%ROWTYPE;
+    escalation_case pgreact_mdm.intent_deployer_policy_cases_v1%ROWTYPE;
+    conflict_case pgreact_mdm.intent_deployer_policy_cases_v1%ROWTYPE;
+    queue_binding pgreact_mdm.policy_intent_bindings%ROWTYPE;
+    queue_context pgreact.activation_context;
+    due_context pgreact.activation_context;
+    escalation_context pgreact.activation_context;
+    conflict_context pgreact.activation_context;
+    queue_rule_id uuid;
+    queue_version_id uuid;
+    due_rule_id uuid;
+    due_version_id uuid;
+    escalation_rule_id uuid;
+    escalation_version_id uuid;
+    queue_attempt pgreact_mdm.intent_attempts%ROWTYPE;
+    due_attempt pgreact_mdm.intent_attempts%ROWTYPE;
+    escalation_attempt pgreact_mdm.intent_attempts%ROWTYPE;
+    queue_inspection pgreact_mdm.delivery_inspection_v1%ROWTYPE;
+    due_inspection pgreact_mdm.delivery_inspection_v1%ROWTYPE;
+    escalation_inspection pgreact_mdm.delivery_inspection_v1%ROWTYPE;
+    conflict_attempt pgreact_mdm.intent_attempts%ROWTYPE;
+    conflict_inspection pgreact_mdm.delivery_inspection_v1%ROWTYPE;
+    queue_control jsonb;
+    due_control jsonb;
+    escalation_control jsonb;
+    conflict_key bytea;
+    conflict_digest bytea;
+    conflict_body jsonb;
+    conflict_work_ref text;
+BEGIN
+    PERFORM pgreact_mdm.sync_intent_case_identities();
+    SELECT * INTO STRICT queue_candidate
+    FROM pgreact_mdm.intent_queue_candidates ORDER BY case_key LIMIT 1;
+    SELECT * INTO STRICT due_candidate
+    FROM pgreact_mdm.intent_due_candidates ORDER BY case_key LIMIT 1;
+    SELECT * INTO STRICT escalation_candidate
+    FROM pgreact_mdm.intent_escalation_candidates ORDER BY case_key LIMIT 1;
+    SELECT * INTO STRICT conflict_candidate
+    FROM pgreact_mdm.intent_queue_candidates
+    WHERE case_key <> queue_candidate.case_key
+    ORDER BY case_key LIMIT 1;
+    SELECT * INTO STRICT queue_case
+    FROM pgreact_mdm.intent_deployer_policy_cases_v1
+    WHERE case_key = queue_candidate.case_key;
+    SELECT * INTO STRICT due_case
+    FROM pgreact_mdm.intent_deployer_policy_cases_v1
+    WHERE case_key = due_candidate.case_key;
+    SELECT * INTO STRICT escalation_case
+    FROM pgreact_mdm.intent_deployer_policy_cases_v1
+    WHERE case_key = escalation_candidate.case_key;
+    SELECT * INTO STRICT conflict_case
+    FROM pgreact_mdm.intent_deployer_policy_cases_v1
+    WHERE case_key = conflict_candidate.case_key;
+    SELECT rule_id, rule_version_id INTO STRICT queue_rule_id, queue_version_id
+    FROM pgreact.rules WHERE rule_name = 'v0.48-live-worker-queue' AND state = 'ACTIVE';
+    SELECT rule_id, rule_version_id INTO STRICT due_rule_id, due_version_id
+    FROM pgreact.rules WHERE rule_name = 'v0.48-live-worker-due' AND state = 'ACTIVE';
+    SELECT rule_id, rule_version_id INTO STRICT escalation_rule_id, escalation_version_id
+    FROM pgreact.rules WHERE rule_name = 'v0.48-live-worker-escalation' AND state = 'ACTIVE';
+    SELECT to_jsonb(case_row) - ARRAY['last_observed_at'] INTO STRICT queue_control
+    FROM pgreact_mdm.authorized_policy_cases_v1 AS case_row
+    WHERE case_row.case_key = queue_case.case_key;
+    SELECT to_jsonb(case_row) - ARRAY['last_observed_at'] INTO STRICT due_control
+    FROM pgreact_mdm.authorized_policy_cases_v1 AS case_row
+    WHERE case_row.case_key = due_case.case_key;
+    SELECT to_jsonb(case_row) - ARRAY['last_observed_at'] INTO STRICT escalation_control
+    FROM pgreact_mdm.authorized_policy_cases_v1 AS case_row
+    WHERE case_row.case_key = escalation_case.case_key;
+    SELECT * INTO STRICT queue_binding
+    FROM pgreact_mdm.policy_intent_bindings
+    WHERE binding_id = queue_candidate.binding_id;
+    conflict_context := ROW(
+        '00000000-0000-0000-0000-000000000051'::uuid, 900000051::bigint,
+        queue_rule_id, queue_version_id, 2::bigint, 0::bigint, 'INSERT'::text,
+        1::integer, statement_timestamp(), 'v0.48-outcome-conflict',
+        'v0.48-outcome-conflict')::pgreact.activation_context;
+    conflict_work_ref := 'pgreact:' || queue_version_id::text || ':' ||
+                         (conflict_context).episode_id::text;
+    conflict_key := pgreact_mdm.intent_request_key(
+        queue_binding.binding_id, queue_binding.policy_revision,
+        conflict_case.case_key, 1, conflict_case.action_revision,
+        conflict_candidate.consequence_identity, conflict_candidate.escalation_level);
+    conflict_body := pgreact_mdm.intent_request_body(
+        queue_binding.binding_id, conflict_case.case_key, conflict_candidate.action,
+        conflict_candidate.arguments, conflict_case.review_version,
+        conflict_case.definition_version, conflict_case.publication_revision,
+        conflict_case.stewardship_epoch, conflict_case.evidence_basis_digest,
+        conflict_case.action_revision, queue_binding.policy_digest,
+        queue_binding.policy_revision, 'v0.48-outcome-conflict', conflict_work_ref);
+    conflict_digest := pgreact_mdm.intent_request_digest(conflict_body);
+    INSERT INTO pgreact_mdm.intent_requests(
+        binding_id, request_key, request_digest, request_body, work_ref,
+        policy_revision, case_key, lifecycle_generation, action_revision,
+        consequence_identity, escalation_level, first_episode_id)
+    VALUES (
+        queue_binding.binding_id, conflict_key, conflict_digest, conflict_body,
+        conflict_work_ref, queue_binding.policy_revision, conflict_case.case_key,
+        1, conflict_case.action_revision, conflict_candidate.consequence_identity,
+        conflict_candidate.escalation_level, (conflict_context).episode_id);
+    conflict_context := ROW(
+        (conflict_context).activation_id, (conflict_context).episode_id,
+        (conflict_context).rule_id, (conflict_context).rule_version_id,
+        2::bigint, 0::bigint, 'INSERT'::text, 1::integer,
+        statement_timestamp(), 'v0.48-outcome-conflict',
+        'v0.48-outcome-conflict')::pgreact.activation_context;
+
+    queue_context := ROW(
+        '00000000-0000-0000-0000-000000000048'::uuid, 900000048::bigint,
+        queue_rule_id, queue_version_id, 1::bigint, 0::bigint, 'INSERT'::text,
+        1::integer, statement_timestamp(), 'v0.48-outcome-queue',
+        'v0.48-outcome-queue')::pgreact.activation_context;
+    due_context := ROW(
+        '00000000-0000-0000-0000-000000000049'::uuid, 900000049::bigint,
+        due_rule_id, due_version_id, 1::bigint, 0::bigint, 'INSERT'::text,
+        1::integer, statement_timestamp(), 'v0.48-outcome-due',
+        'v0.48-outcome-due')::pgreact.activation_context;
+    escalation_context := ROW(
+        '00000000-0000-0000-0000-000000000050'::uuid, 900000050::bigint,
+        escalation_rule_id, escalation_version_id, 1::bigint, 0::bigint, 'INSERT'::text,
+        1::integer, statement_timestamp(), 'v0.48-outcome-escalation',
+        'v0.48-outcome-escalation')::pgreact.activation_context;
+    PERFORM set_config('role', 'pgreact_mdm_worker', true);
+    PERFORM pgreact_mdm.submit_queue_intent(queue_context, queue_case);
+    PERFORM pgreact_mdm.submit_due_intent(due_context, due_case);
+    PERFORM pgreact_mdm.submit_escalation_intent(escalation_context, escalation_case);
+    PERFORM pgreact_mdm.submit_intent(conflict_context, to_jsonb(conflict_candidate));
+
+    SELECT * INTO STRICT queue_attempt
+    FROM pgreact_mdm.intent_attempts
+    WHERE episode_id = (queue_context).episode_id AND attempt_no = 1;
+    SELECT * INTO STRICT due_attempt
+    FROM pgreact_mdm.intent_attempts
+    WHERE episode_id = (due_context).episode_id AND attempt_no = 1;
+    SELECT * INTO STRICT escalation_attempt
+    FROM pgreact_mdm.intent_attempts
+    WHERE episode_id = (escalation_context).episode_id AND attempt_no = 1;
+    SELECT * INTO STRICT conflict_attempt
+    FROM pgreact_mdm.intent_attempts
+    WHERE episode_id = (conflict_context).episode_id AND attempt_no = 1;
+    SELECT * INTO STRICT queue_inspection
+    FROM pgreact_mdm.delivery_inspection_v1
+    WHERE work_ref = 'pgreact:' || queue_version_id::text || ':' ||
+                    (queue_context).episode_id::text;
+    SELECT * INTO STRICT due_inspection
+    FROM pgreact_mdm.delivery_inspection_v1
+    WHERE work_ref = 'pgreact:' || due_version_id::text || ':' ||
+                    (due_context).episode_id::text;
+    SELECT * INTO STRICT escalation_inspection
+    FROM pgreact_mdm.delivery_inspection_v1
+    WHERE work_ref = 'pgreact:' || escalation_version_id::text || ':' ||
+                    (escalation_context).episode_id::text;
+    SELECT * INTO STRICT conflict_inspection
+    FROM pgreact_mdm.delivery_inspection_v1
+    WHERE work_ref = conflict_work_ref;
+
+    IF queue_attempt.outcome IS DISTINCT FROM 'UNRECOGNIZED_MDM_OUTCOME'
+       OR queue_attempt.reason_code IS DISTINCT FROM 'SYNTHETIC_UNKNOWN_REASON'
+       OR queue_inspection.remediation_state IS DISTINCT FROM 'HELD'
+       OR queue_inspection.remediation_reason_code IS DISTINCT FROM 'UNKNOWN_MDM_OUTCOME'
+       OR due_attempt.outcome IS DISTINCT FROM 'OPENED_AT_UNKNOWN'
+       OR due_attempt.reason_code IS DISTINCT FROM 'OPENING_TIME_UNAVAILABLE'
+       OR due_inspection.remediation_state IS DISTINCT FROM 'HELD'
+       OR due_inspection.remediation_reason_code IS DISTINCT FROM 'OPENING_TIME_UNAVAILABLE'
+       OR escalation_attempt.outcome IS DISTINCT FROM 'ACTION_DENIED'
+       OR escalation_attempt.reason_code IS DISTINCT FROM 'ACTION_NOT_ALLOWED'
+       OR escalation_inspection.remediation_state IS DISTINCT FROM 'HELD'
+       OR escalation_inspection.remediation_reason_code IS DISTINCT FROM 'ACTION_NOT_ALLOWED'
+       OR conflict_attempt.outcome IS DISTINCT FROM 'IDEMPOTENCY_CONFLICT'
+       OR conflict_attempt.reason_code IS DISTINCT FROM 'REQUEST_KEY_BODY_MISMATCH'
+       OR conflict_inspection.remediation_state IS DISTINCT FROM 'HELD'
+       OR conflict_inspection.remediation_reason_code IS DISTINCT FROM 'REQUEST_KEY_BODY_MISMATCH'
+       OR NOT EXISTS (
+           SELECT 1 FROM pgreact_mdm.intent_requests AS request
+           WHERE request.binding_id = queue_binding.binding_id
+             AND request.request_key = conflict_key
+             AND request.request_digest = conflict_digest
+             AND request.request_body = conflict_body)
+       OR queue_inspection.mdm_receipt_id IS NOT NULL
+       OR queue_control IS DISTINCT FROM (
+           SELECT to_jsonb(case_row) - ARRAY['last_observed_at']
+           FROM pgreact_mdm.authorized_policy_cases_v1 AS case_row
+           WHERE case_row.case_key = queue_case.case_key)
+       OR due_control IS DISTINCT FROM (
+           SELECT to_jsonb(case_row) - ARRAY['last_observed_at']
+           FROM pgreact_mdm.authorized_policy_cases_v1 AS case_row
+           WHERE case_row.case_key = due_case.case_key)
+       OR escalation_control IS DISTINCT FROM (
+           SELECT to_jsonb(case_row) - ARRAY['last_observed_at']
+           FROM pgreact_mdm.authorized_policy_cases_v1 AS case_row
+           WHERE case_row.case_key = escalation_case.case_key) THEN
+        RAISE EXCEPTION 'terminal and unknown MDM results were not preserved, held, and isolated from controls';
+    END IF;
+END
+$outcome_classification$;
+ROLLBACK;
+SELECT 'v0.48 invalid, denied, and unknown outcomes are held with public diagnostics: PASS' AS result;
+
+SELECT pgreact_mdm.sync_intent_case_identities();
+SELECT candidate.binding_id AS v048_race_binding_id,
+       candidate.case_key AS v048_race_case_key,
+       case_row.action_revision AS v048_race_old_revision,
+       CASE WHEN case_row.assigned_queue = 'manual-review' THEN 'v048-human-race'
+            ELSE 'manual-review' END AS v048_race_human_queue,
+       COALESCE(case_row.due_at::text, '__NULL__') AS v048_race_due_text,
+       case_row.escalation_level AS v048_race_escalation_level,
+       case_row.manual_assignment_protected AS v048_race_manual_protection,
+       rule.rule_id AS v048_race_rule_id,
+       rule.rule_version_id AS v048_race_rule_version
+FROM pgreact_mdm.intent_queue_candidates AS candidate
+JOIN pgreact_mdm.authorized_policy_cases_v1 AS case_row USING (case_key)
+CROSS JOIN LATERAL (
+    SELECT rule_id, rule_version_id FROM pgreact.rules
+    WHERE rule_name = 'v0.48-live-worker-queue' AND state = 'ACTIVE'
+) AS rule
+WHERE candidate.binding_id = :'v048_policy_binding_id'::uuid
+ORDER BY candidate.case_key DESC
+LIMIT 1
+\gset
+CREATE TEMP TABLE v048_human_edit_race_baseline AS
+SELECT case_row.case_key, case_row.action_revision,
+       case_row.assigned_queue AS old_queue,
+       case_row.due_at, case_row.escalation_level,
+       case_row.manual_assignment_protected,
+       :'v048_race_human_queue'::name AS human_queue
+FROM pgreact_mdm.authorized_policy_cases_v1 AS case_row
+WHERE case_row.case_key = :'v048_race_case_key'::bigint;
+CREATE OR REPLACE FUNCTION pgreact_mdm.v048_test_insert_gate()
+RETURNS trigger LANGUAGE plpgsql
+AS $function$
+BEGIN
+    PERFORM pg_catalog.pg_advisory_lock(TG_ARGV[0]::bigint);
+    PERFORM pg_catalog.pg_advisory_unlock(TG_ARGV[0]::bigint);
+    RETURN NEW;
+END
+$function$;
+GRANT EXECUTE ON FUNCTION pgreact_mdm.v048_test_insert_gate() TO pgreact_mdm_worker;
+SELECT pg_catalog.pg_advisory_lock(5788046901200060);
+CREATE TRIGGER v048_human_edit_gate
+BEFORE INSERT ON pgreact_mdm.intent_requests
+FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.v048_test_insert_gate('5788046901200060');
+SELECT dblink_connect('m2_human_edit_race', format(
+    'dbname=%s user=mdm_m2_runner application_name=v0.48-human-edit-race',
+    current_database()));
+SELECT dblink_send_query('m2_human_edit_race', format(
+    'WITH worker AS MATERIALIZED '
+    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)), '
+    'target AS MATERIALIZED '
+    '(SELECT case_row.* FROM pgreact_mdm.intent_deployer_policy_cases_v1 AS case_row '
+    'JOIN pgreact_mdm.intent_queue_candidates AS candidate USING (case_key) '
+    'CROSS JOIN worker WHERE candidate.binding_id = %L::uuid '
+    'AND candidate.case_key = %L::bigint), '
+    'run AS MATERIALIZED (SELECT pgreact_mdm.submit_queue_intent('
+    'ROW(%L::uuid, %L::bigint, %L::uuid, %L::uuid, 1::bigint, 0::bigint, '
+    '''INSERT''::text, 1::integer, statement_timestamp(), '
+    '''v0.48-human-edit-race'', ''v0.48-human-edit-race'')::pgreact.activation_context, '
+    'target) FROM target) SELECT 1 FROM run',
+    :'v048_race_binding_id', :'v048_race_case_key',
+    '00000000-0000-0000-0000-000000000060', '900000060',
+    :'v048_race_rule_id', :'v048_race_rule_version'));
+DO $human_edit_worker_wait$
+DECLARE deadline timestamptz := clock_timestamp() + interval '15 seconds';
+BEGIN
+    LOOP
+        IF EXISTS (
+            SELECT 1 FROM pg_catalog.pg_stat_activity
+            WHERE application_name = 'v0.48-human-edit-race'
+              AND wait_event_type = 'Lock' AND wait_event = 'advisory') THEN
+            RETURN;
+        END IF;
+        IF clock_timestamp() >= deadline THEN
+            RAISE EXCEPTION 'human-edit worker did not reach the request boundary';
+        END IF;
+        PERFORM pg_sleep(0.01);
+    END LOOP;
+END
+$human_edit_worker_wait$;
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT mdm_steward.set_case_controls(
+    :'v048_race_case_key'::bigint, :'v048_race_human_queue'::name,
+    NULLIF(:'v048_race_due_text', '__NULL__')::timestamptz,
+    :'v048_race_escalation_level'::integer,
+    :'v048_race_manual_protection'::boolean,
+    :'v048_race_old_revision'::bigint,
+    'v0.48 concurrent human queue edit');
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+SELECT pg_catalog.pg_advisory_unlock(5788046901200060);
+DO $human_edit_worker_result$
+DECLARE result integer;
+BEGIN
+    SELECT value INTO STRICT result
+    FROM dblink_get_result('m2_human_edit_race') AS response(value integer);
+    IF result IS DISTINCT FROM 1 THEN
+        RAISE EXCEPTION 'human-edit worker did not complete its stale request';
+    END IF;
+END
+$human_edit_worker_result$;
+SELECT dblink_disconnect('m2_human_edit_race');
+DROP TRIGGER v048_human_edit_gate ON pgreact_mdm.intent_requests;
+CREATE TEMP TABLE v048_human_edit_race AS
+SELECT baseline.case_key, baseline.action_revision AS old_action_revision,
+       baseline.old_queue,
+       request.binding_id, request.request_key, request.request_body,
+       request.work_ref, attempt.receipt_id, attempt.outcome, attempt.reason_code,
+       case_row.action_revision AS fresh_action_revision,
+       case_row.assigned_queue AS fresh_assigned_queue
+FROM v048_human_edit_race_baseline AS baseline
+JOIN pgreact_mdm.intent_requests AS request
+  ON request.binding_id = :'v048_race_binding_id'::uuid
+ AND request.case_key = baseline.case_key
+ AND request.action_revision = baseline.action_revision
+JOIN pgreact_mdm.intent_attempts AS attempt
+  ON attempt.episode_id = request.first_episode_id AND attempt.attempt_no = 1
+JOIN pgreact_mdm.authorized_policy_cases_v1 AS case_row
+  ON case_row.case_key = baseline.case_key
+WHERE request.first_episode_id = 900000060;
+DO $human_edit_stale_result$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM v048_human_edit_race AS stale
+        JOIN pgreact_mdm.delivery_inspection_v1 AS inspection
+          ON inspection.work_ref = stale.work_ref
+        WHERE stale.outcome = 'STALE_CASE'
+          AND stale.reason_code IS NOT NULL
+          AND stale.fresh_action_revision = stale.old_action_revision + 1
+          AND stale.fresh_assigned_queue IS DISTINCT FROM stale.old_queue
+          AND inspection.mdm_outcome = 'STALE_CASE'
+          AND inspection.remediation_state = 'HELD'
+          AND inspection.remediation_reason_code = stale.reason_code
+          AND EXISTS (
+              SELECT 1 FROM pgreact_mdm.intent_holds AS hold
+              WHERE hold.binding_id = stale.binding_id
+                AND hold.case_key = stale.case_key
+                AND hold.expected_action_revision = stale.old_action_revision
+                AND hold.reason_code = stale.reason_code)) THEN
+        RAISE EXCEPTION 'human edit was not preserved as a terminal stale delivery with remediation';
+    END IF;
+END
+$human_edit_stale_result$;
+SELECT pgreact.refresh_rule(:'v048_race_rule_version'::uuid);
+DO $human_edit_reevaluation$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM v048_human_edit_race AS stale
+        JOIN pgreact_mdm.intent_queue_candidates AS fresh USING (case_key)
+        JOIN pgreact_mdm.authorized_policy_cases_v1 AS case_row USING (case_key)
+        WHERE fresh.binding_id = stale.binding_id
+          AND case_row.action_revision = stale.fresh_action_revision
+          AND fresh.action = 'ASSIGN_QUEUE'
+          AND fresh.arguments ->> 'queue' = 'm2-ready') THEN
+        RAISE EXCEPTION 'fresh action facts were not re-evaluated after stale delivery';
+    END IF;
+END
+$human_edit_reevaluation$;
+SELECT 'v0.48 human-edit race preserved current controls and re-evaluated fresh work' AS result;
+
 CREATE TEMP TABLE v048_case_baseline AS
 SELECT DISTINCT case_row.case_key, case_row.entity_name, case_row.action_revision,
        case_row.publication_revision, case_row.status, case_row.resolved_at,
@@ -512,7 +900,10 @@ BEGIN
         expected_action_revision, reason_code)
     SELECT binding_id, case_key, 'v0.48-live-policy', action,
            held_action_revision, 'FRESHNESS_TOKEN_MISMATCH'
-    FROM v048_stale_hold_probe;
+    FROM v048_stale_hold_probe
+    ON CONFLICT (
+        binding_id, case_key, policy_revision, action, expected_action_revision)
+    DO NOTHING;
 END
 $stale_hold_probe$;
 
@@ -551,55 +942,150 @@ SELECT case_row.case_key, case_row.assigned_queue
 FROM mdm_steward.policy_cases_v1 AS case_row
 JOIN v048_expected_intents AS expected USING (case_key)
 WHERE expected.action = 'ASSIGN_QUEUE';
-UPDATE pgreact_internal.agenda
-SET available_at = clock_timestamp()
-WHERE rule_version_id = :'v048_queue_rule'::uuid AND state = 'PENDING';
-
-CREATE OR REPLACE FUNCTION pgreact_mdm.v048_fail_after_submit()
-RETURNS trigger LANGUAGE plpgsql AS $function$
+CREATE TEMP TABLE v048_failure_target AS
+SELECT agenda.episode_id,
+       agenda.new_bindings ->> 'case_key' AS case_key,
+       agenda.new_bindings ->> 'action_revision' AS action_revision,
+       'pgreact:' || agenda.rule_version_id::text || ':' || agenda.episode_id::text AS work_ref
+FROM pgreact_internal.agenda AS agenda
+WHERE agenda.rule_version_id = :'v048_queue_rule'::uuid
+  AND agenda.state = 'PENDING'
+  AND EXISTS (
+      SELECT 1 FROM v048_expected_intents AS expected
+      WHERE expected.action = 'ASSIGN_QUEUE'
+        AND expected.case_key = (agenda.new_bindings ->> 'case_key')::bigint)
+ORDER BY agenda.episode_id
+LIMIT 1;
+CREATE TEMP TABLE v048_failure_agenda_baseline AS
+SELECT episode_id, state, available_at
+FROM pgreact_internal.agenda
+WHERE rule_version_id = :'v048_queue_rule'::uuid;
+DO $failure_target$
 BEGIN
-    RAISE EXCEPTION USING ERRCODE = 'PZ004', MESSAGE = 'v048 injected post-submit failure';
+    IF (SELECT count(*) FROM v048_failure_target) <> 1 THEN
+        RAISE EXCEPTION 'post-submit retry fixture did not select exactly one queue episode';
+    END IF;
+END
+$failure_target$;
+SELECT set_config('v048.retry_target_episode', episode_id::text, false),
+       set_config('v048.retry_work_ref', work_ref, false)
+FROM v048_failure_target;
+UPDATE pgreact_internal.agenda AS agenda
+SET available_at = CASE
+    WHEN agenda.episode_id = (SELECT episode_id FROM v048_failure_target)
+    THEN clock_timestamp()
+    ELSE 'infinity'::timestamptz
+END
+WHERE agenda.rule_version_id = :'v048_queue_rule'::uuid
+  AND agenda.state IN ('PENDING', 'RETRY_WAIT');
+CREATE TEMP SEQUENCE v048_retry_insert_count;
+CREATE TEMP SEQUENCE v048_retry_request_fingerprint;
+GRANT USAGE, SELECT, UPDATE ON SEQUENCE
+    v048_retry_insert_count, v048_retry_request_fingerprint
+    TO pgreact_mdm_worker;
+CREATE OR REPLACE FUNCTION pgreact_mdm.v048_check_retry_request()
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $function$
+DECLARE
+    insert_no bigint;
+    fingerprint bigint;
+    prior_fingerprint bigint;
+BEGIN
+    IF NEW.work_ref <> current_setting('v048.retry_work_ref', true) THEN
+        RETURN NEW;
+    END IF;
+    insert_no := nextval('pg_temp.v048_retry_insert_count');
+    fingerprint := GREATEST(1, (
+        'x' || substr(encode(pg_catalog.sha256(
+            NEW.request_key || NEW.request_digest || convert_to(NEW.work_ref, 'UTF8')),
+            'hex'), 1, 15))::bit(60)::bigint);
+    IF insert_no = 1 THEN
+        PERFORM pg_catalog.setval(
+            'pg_temp.v048_retry_request_fingerprint'::regclass, fingerprint, true);
+    ELSIF insert_no = 2 THEN
+        SELECT last_value INTO prior_fingerprint
+        FROM pg_temp.v048_retry_request_fingerprint;
+        IF prior_fingerprint <> fingerprint THEN
+            RAISE EXCEPTION 'transient retry changed request key, body, or work reference';
+        END IF;
+    ELSE
+        RAISE EXCEPTION 'transient retry inserted more than two request records';
+    END IF;
+    RETURN NEW;
 END
 $function$;
-CREATE TRIGGER v048_fail_after_submit
+CREATE OR REPLACE FUNCTION pgreact_mdm.v048_fail_first_retry_attempt()
+RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp AS $function$
+BEGIN
+    IF NEW.work_ref = current_setting('v048.retry_work_ref', true)
+       AND currval('pg_temp.v048_retry_insert_count') = 1 THEN
+        RAISE EXCEPTION USING
+            ERRCODE = '40001', MESSAGE = 'v048 injected transient serialization failure';
+    END IF;
+    RETURN NEW;
+END
+$function$;
+CREATE TRIGGER v048_retry_request_identity
+BEFORE INSERT ON pgreact_mdm.intent_requests
+FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.v048_check_retry_request();
+
+CREATE TRIGGER v048_fail_first_retry_attempt
 BEFORE INSERT ON pgreact_mdm.intent_attempts
-FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.v048_fail_after_submit();
+FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.v048_fail_first_retry_attempt();
 SET SESSION AUTHORIZATION mdm_m2_runner;
-DO $post_submit_rollback$
+DO $transient_retry$
 DECLARE
-    failure_seen boolean := false;
-    failure_message text;
     episode_id bigint;
     rule_id uuid;
-    executed integer := 0;
+    retry_state text;
+    retry_sqlstate text;
+    target_episode_id bigint;
 BEGIN
     SELECT rule_version_id INTO STRICT rule_id
     FROM pgreact.rules
     WHERE rule_name = 'v0.48-live-worker-queue' AND state = 'ACTIVE';
+    target_episode_id := current_setting('v048.retry_target_episode')::bigint;
     PERFORM set_config('role', 'pgreact_mdm_worker', true);
-    LOOP
-        BEGIN
-            episode_id := pgreact_mdm.execute_intent_episode(
-                rule_id, 'v0.48-post-submit-failure');
-        EXCEPTION WHEN SQLSTATE 'PZ004' THEN
-            GET STACKED DIAGNOSTICS failure_message = MESSAGE_TEXT;
-            IF failure_message <> 'v048 injected post-submit failure' THEN RAISE; END IF;
-            failure_seen := true;
-        END;
-        EXIT WHEN failure_seen OR episode_id IS NULL;
-        executed := executed + 1;
-        IF executed > 100 THEN
-            RAISE EXCEPTION 'worker did not reach the injected post-submit failure within 100 episodes';
-        END IF;
-    END LOOP;
-    IF NOT failure_seen THEN
-        RAISE EXCEPTION 'worker did not reach the injected post-submit failure';
+    episode_id := pgreact_mdm.execute_intent_episode(
+        rule_id, 'v0.48-transient-retry');
+    IF episode_id IS DISTINCT FROM target_episode_id THEN
+        RAISE EXCEPTION 'transient failure did not execute the isolated target episode';
+    END IF;
+    PERFORM set_config('v048.retry_first_result', episode_id::text, false);
+END
+$transient_retry$;
+RESET SESSION AUTHORIZATION;
+DROP TRIGGER v048_fail_first_retry_attempt ON pgreact_mdm.intent_attempts;
+DROP TRIGGER v048_retry_request_identity ON pgreact_mdm.intent_requests;
+DROP FUNCTION pgreact_mdm.v048_fail_first_retry_attempt();
+DROP FUNCTION pgreact_mdm.v048_check_retry_request();
+DO $transient_retry_state$
+DECLARE
+    target_episode_id bigint := current_setting('v048.retry_target_episode')::bigint;
+    retry_state text;
+    retry_sqlstate text;
+BEGIN
+    SELECT execution.status, execution.error_code
+    INTO STRICT retry_state, retry_sqlstate
+    FROM pgreact_internal.executions AS execution
+    WHERE execution.episode_id = target_episode_id
+    ORDER BY execution.attempt_no DESC
+    LIMIT 1;
+    IF current_setting('v048.retry_first_result') <> target_episode_id::text
+       OR retry_state <> 'RETRY_WAIT' OR retry_sqlstate <> '40001'
+       OR NOT EXISTS (
+           SELECT 1 FROM pgreact_internal.agenda AS agenda
+           WHERE agenda.episode_id = target_episode_id
+             AND agenda.state = 'RETRY_WAIT'
+             AND agenda.attempt_count = 1
+             AND agenda.max_attempts = 5
+             AND agenda.retry_initial_seconds = 1
+             AND agenda.retry_multiplier = 2
+             AND agenda.retry_max_seconds = 30
+             AND agenda.available_at > clock_timestamp()) THEN
+        RAISE EXCEPTION 'serialization failure did not enter the configured bounded retry wait';
     END IF;
 END
-$post_submit_rollback$;
-RESET SESSION AUTHORIZATION;
-DROP TRIGGER v048_fail_after_submit ON pgreact_mdm.intent_attempts;
-DROP FUNCTION pgreact_mdm.v048_fail_after_submit();
+$transient_retry_state$;
 DO $post_submit_rollback_state$
 BEGIN
     IF EXISTS (
@@ -617,6 +1103,86 @@ BEGIN
     END IF;
 END
 $post_submit_rollback_state$;
+DO $retry_backoff$
+DECLARE
+    target_episode_id bigint := current_setting('v048.retry_target_episode')::bigint;
+    deadline timestamptz := clock_timestamp() + interval '5 seconds';
+BEGIN
+    LOOP
+        EXIT WHEN EXISTS (
+            SELECT 1 FROM pgreact_internal.agenda AS agenda
+            WHERE agenda.episode_id = target_episode_id
+              AND agenda.state = 'RETRY_WAIT'
+              AND agenda.available_at <= clock_timestamp());
+        IF clock_timestamp() >= deadline THEN
+            RAISE EXCEPTION 'bounded retry did not become available after its backoff';
+        END IF;
+        PERFORM pg_sleep(0.02);
+    END LOOP;
+END
+$retry_backoff$;
+SET SESSION AUTHORIZATION mdm_m2_runner;
+DO $retry_same_request$
+DECLARE
+    retry_result bigint;
+    target_episode_id bigint := current_setting('v048.retry_target_episode')::bigint;
+    rule_id uuid;
+BEGIN
+    SELECT rule_version_id INTO STRICT rule_id
+    FROM pgreact.rules
+    WHERE rule_name = 'v0.48-live-worker-queue' AND state = 'ACTIVE';
+    PERFORM set_config('role', 'pgreact_mdm_worker', true);
+    retry_result := pgreact_mdm.execute_intent_episode(
+        rule_id, 'v0.48-transient-retry');
+    IF retry_result IS DISTINCT FROM target_episode_id THEN
+        RAISE EXCEPTION 'bounded retry did not complete the original episode';
+    END IF;
+    PERFORM set_config('v048.retry_result', retry_result::text, false);
+END
+$retry_same_request$;
+RESET SESSION AUTHORIZATION;
+DO $retry_same_request_state$
+DECLARE
+    target_episode_id bigint := current_setting('v048.retry_target_episode')::bigint;
+    request_count integer;
+    execution_vector text[];
+BEGIN
+    SELECT count(*) INTO request_count
+    FROM pgreact_mdm.intent_requests AS request
+    WHERE request.work_ref = current_setting('v048.retry_work_ref');
+    SELECT array_agg(execution.status || ':' || execution.attempt_no::text || ':'
+                     || COALESCE(execution.error_code, '') ORDER BY execution.attempt_no)
+    INTO execution_vector
+    FROM pgreact_internal.executions AS execution
+    WHERE execution.episode_id = target_episode_id;
+    IF current_setting('v048.retry_result') <> target_episode_id::text
+       OR request_count <> 1
+       OR (SELECT last_value FROM pg_temp.v048_retry_insert_count) <> 1
+       OR execution_vector IS DISTINCT FROM ARRAY[
+           'RETRY_WAIT:1:40001', 'COMPLETED:2:']::text[]
+       OR NOT EXISTS (
+           SELECT 1 FROM pgreact_mdm.intent_requests AS request
+           WHERE request.work_ref = current_setting('v048.retry_work_ref')
+             AND request.first_episode_id = target_episode_id
+             AND request.request_digest = pgreact_mdm.intent_request_digest(request.request_body)
+             AND request.request_key = pgreact_mdm.intent_request_key(
+                 request.binding_id, request.policy_revision, request.case_key,
+                 request.lifecycle_generation, request.action_revision,
+                 request.consequence_identity, request.escalation_level)) THEN
+        RAISE EXCEPTION 'transient retry proof mismatch: result %, target %, requests %, inserts %, executions %',
+            current_setting('v048.retry_result', true), target_episode_id,
+            request_count, (SELECT last_value FROM pg_temp.v048_retry_insert_count),
+            execution_vector;
+    END IF;
+END
+$retry_same_request_state$;
+UPDATE pgreact_internal.agenda AS agenda
+SET available_at = baseline.available_at
+FROM v048_failure_agenda_baseline AS baseline
+WHERE agenda.episode_id = baseline.episode_id
+  AND agenda.episode_id <> (SELECT episode_id FROM v048_failure_target)
+  AND agenda.state = baseline.state;
+SELECT 'v0.48 transient SQLSTATE retry preserved the exact request identity/body: PASS' AS result;
 
 SELECT dblink_connect(
     'm2_worker_a', format('dbname=%s user=mdm_m2_runner', current_database()));
@@ -1106,6 +1672,47 @@ BEGIN
 END
 $r10_independent_commit$;
 
+DO $stale_reevaluation_complete$
+DECLARE
+    stale v048_human_edit_race%ROWTYPE;
+    fresh_request pgreact_mdm.intent_requests%ROWTYPE;
+    fresh_attempt pgreact_mdm.intent_attempts%ROWTYPE;
+BEGIN
+    SELECT * INTO STRICT stale FROM v048_human_edit_race;
+    SELECT * INTO STRICT fresh_request
+    FROM pgreact_mdm.intent_requests AS request
+    WHERE request.binding_id = stale.binding_id
+      AND request.case_key = stale.case_key
+      AND request.action_revision = stale.fresh_action_revision
+      AND request.request_key <> stale.request_key;
+    SELECT * INTO STRICT fresh_attempt
+    FROM pgreact_mdm.intent_attempts AS attempt
+    WHERE attempt.episode_id = fresh_request.first_episode_id
+      AND attempt.binding_id = fresh_request.binding_id
+      AND attempt.request_key = fresh_request.request_key
+      AND attempt.outcome = 'APPLIED_CONTROL'
+    ORDER BY attempt.attempted_at DESC, attempt.attempt_no DESC
+    LIMIT 1;
+    IF fresh_request.request_body ->> 'expected_action_revision'
+           <> stale.fresh_action_revision::text
+       OR fresh_attempt.request_body IS DISTINCT FROM fresh_request.request_body
+       OR fresh_attempt.receipt_id IS NULL
+       OR NOT pgreact_mdm.intent_receipt_exists(
+           fresh_request.binding_id, fresh_request.request_key, fresh_attempt.receipt_id)
+       OR (SELECT count(*) FROM pgreact_mdm.intent_requests AS request
+           WHERE request.binding_id = stale.binding_id
+             AND request.case_key = stale.case_key
+             AND request.action_revision = stale.old_action_revision) <> 1
+       OR NOT EXISTS (
+           SELECT 1 FROM mdm_steward.policy_cases_v1 AS case_row
+           WHERE case_row.case_key = stale.case_key
+             AND case_row.assigned_queue = 'm2-ready'
+             AND case_row.action_revision = stale.fresh_action_revision + 1) THEN
+        RAISE EXCEPTION 'stale work did not stay terminal while fresh work applied once with a new key';
+    END IF;
+END
+$stale_reevaluation_complete$;
+
 SELECT binding.binding_version AS v048_replacement_binding_version
 FROM pgreact_mdm.policy_intent_bindings AS binding
 WHERE binding.binding_id = :'v048_policy_binding_id'::uuid
@@ -1205,3 +1812,322 @@ SELECT 'v0.48 malformed job did not roll back unrelated healthy work' AS result;
 SELECT 'v0.48 policy replacement withdrew old candidates and preserved attempted work' AS result;
 SELECT 'v0.48 delivery did not publish or resolve cases' AS result;
 SELECT 'v0.48 post-submit rollback left no MDM or React effects' AS result;
+
+SELECT runtime.runtime_version AS v048_pause_race_runtime
+FROM pgreact_mdm.policy_intent_runtime AS runtime
+WHERE runtime.binding_id = :'v048_replacement_binding_id'::uuid
+\gset
+CREATE TEMP TABLE v048_pause_race_baseline AS
+SELECT candidate.binding_id, candidate.case_key,
+       case_row.action_revision,
+       jsonb_build_object(
+           'assigned_queue', case_row.assigned_queue::text,
+           'due_at', case_row.due_at::text,
+           'escalation_level', case_row.escalation_level,
+           'manual_assignment_protected', case_row.manual_assignment_protected) AS controls
+FROM pgreact_mdm.intent_queue_candidates AS candidate
+JOIN pgreact_mdm.authorized_policy_cases_v1 AS case_row USING (case_key)
+WHERE candidate.binding_id = :'v048_replacement_binding_id'::uuid
+ORDER BY candidate.case_key
+LIMIT 1;
+DO $pause_race_fixture$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM v048_pause_race_baseline) THEN
+        RAISE EXCEPTION 'replacement binding lacks a live candidate for the pause race';
+    END IF;
+END
+$pause_race_fixture$;
+SELECT pg_catalog.pg_advisory_lock(5788046901200061);
+CREATE TRIGGER v048_pause_race_gate
+BEFORE INSERT ON pgreact_mdm.intent_requests
+FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.v048_test_insert_gate('5788046901200061');
+SELECT dblink_connect('m2_pause_race', format(
+    'dbname=%s user=mdm_m2_runner application_name=v0.48-pause-race',
+    current_database()));
+SELECT dblink_send_query('m2_pause_race', format(
+    'WITH worker AS MATERIALIZED '
+    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)), '
+    'target AS MATERIALIZED '
+    '(SELECT case_row.* FROM pgreact_mdm.intent_deployer_policy_cases_v1 AS case_row '
+    'JOIN pgreact_mdm.intent_queue_candidates AS candidate USING (case_key) '
+    'CROSS JOIN worker WHERE candidate.binding_id = %L::uuid '
+    'AND candidate.case_key = %L::bigint), '
+    'run AS MATERIALIZED (SELECT pgreact_mdm.submit_queue_intent('
+    'ROW(%L::uuid, %L::bigint, %L::uuid, %L::uuid, 1::bigint, 0::bigint, '
+    '''INSERT''::text, 1::integer, statement_timestamp(), '
+    '''v0.48-pause-race'', ''v0.48-pause-race'')::pgreact.activation_context, '
+    'target) FROM target) SELECT 1 FROM run',
+    :'v048_replacement_binding_id',
+    (SELECT case_key::text FROM v048_pause_race_baseline),
+    '00000000-0000-0000-0000-000000000061', '900000061',
+    :'v048_race_rule_id', :'v048_race_rule_version'));
+DO $pause_race_worker_wait$
+DECLARE deadline timestamptz := clock_timestamp() + interval '15 seconds';
+BEGIN
+    LOOP
+        IF EXISTS (
+            SELECT 1 FROM pg_catalog.pg_stat_activity
+            WHERE application_name = 'v0.48-pause-race'
+              AND wait_event_type = 'Lock' AND wait_event = 'advisory') THEN
+            RETURN;
+        END IF;
+        IF clock_timestamp() >= deadline THEN
+            RAISE EXCEPTION 'pause-race worker did not reach the request boundary';
+        END IF;
+        PERFORM pg_sleep(0.01);
+    END LOOP;
+END
+$pause_race_worker_wait$;
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT pgreact_mdm.pause_intent_binding(
+    :'v048_replacement_binding_id'::uuid, :'v048_pause_race_runtime'::bigint)
+    AS v048_pause_race_version
+\gset
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+SELECT pg_catalog.pg_advisory_unlock(5788046901200061);
+DO $pause_race_worker_result$
+DECLARE result integer;
+BEGIN
+    SELECT value INTO STRICT result
+    FROM dblink_get_result('m2_pause_race') AS response(value integer);
+    IF result IS DISTINCT FROM 1 THEN
+        RAISE EXCEPTION 'pause-race worker did not complete its in-flight request';
+    END IF;
+END
+$pause_race_worker_result$;
+SELECT dblink_disconnect('m2_pause_race');
+DROP TRIGGER v048_pause_race_gate ON pgreact_mdm.intent_requests;
+DO $pause_race_assertion$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM v048_pause_race_baseline AS baseline
+        JOIN pgreact_mdm.intent_requests AS request USING (binding_id, case_key)
+        JOIN pgreact_mdm.intent_attempts AS attempt
+          ON attempt.episode_id = request.first_episode_id
+         AND attempt.attempt_no = 1
+        JOIN pgreact_mdm.delivery_inspection_v1 AS inspection
+          ON inspection.work_ref = attempt.work_ref
+        WHERE request.first_episode_id = 900000061
+          AND attempt.outcome = 'BINDING_PAUSED'
+          AND attempt.reason_code = 'BINDING_PAUSED'
+          AND inspection.remediation_state = 'HELD'
+          AND inspection.remediation_reason_code = 'BINDING_PAUSED'
+          AND inspection.mdm_outcome = 'BINDING_PAUSED'
+          AND inspection.mdm_receipt_id = attempt.receipt_id
+          AND EXISTS (
+              SELECT 1 FROM mdm_steward.policy_cases_v1 AS case_row
+              WHERE case_row.case_key = baseline.case_key
+                AND case_row.action_revision = baseline.action_revision
+                AND jsonb_build_object(
+                    'assigned_queue', case_row.assigned_queue::text,
+                    'due_at', case_row.due_at::text,
+                    'escalation_level', case_row.escalation_level,
+                    'manual_assignment_protected', case_row.manual_assignment_protected)
+                    = baseline.controls)) THEN
+        RAISE EXCEPTION 'paused binding accepted an in-flight new intent or changed its control';
+    END IF;
+END
+$pause_race_assertion$;
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT pgreact_mdm.reconcile_intent_binding(
+    :'v048_replacement_binding_id'::uuid, :'v048_pause_race_version'::bigint);
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+DROP FUNCTION pgreact_mdm.v048_test_insert_gate();
+SELECT 'v0.48 in-flight pause was rejected with a retained no-change receipt' AS result;
+
+SELECT case_row.case_key AS v048_ambiguous_case_key,
+       case_row.action_revision AS v048_ambiguous_old_revision,
+       COALESCE(case_row.due_at::text, '__NULL__') AS v048_ambiguous_due_text,
+       case_row.escalation_level AS v048_ambiguous_escalation_level,
+       case_row.manual_assignment_protected AS v048_ambiguous_manual_protection
+FROM mdm_steward.policy_cases_v1 AS case_row
+WHERE case_row.entity_name = 'review_admission_live'
+  AND case_row.status = 'open'
+  AND case_row.assigned_queue = 'm2-ready'
+  AND NOT case_row.manual_assignment_protected
+  AND case_row.case_key <> (SELECT case_key FROM v048_pause_race_baseline)
+ORDER BY case_row.case_key
+LIMIT 1
+\gset
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT mdm_steward.set_case_controls(
+    :'v048_ambiguous_case_key'::bigint, 'manual-review'::name,
+    NULLIF(:'v048_ambiguous_due_text', '__NULL__')::timestamptz,
+    :'v048_ambiguous_escalation_level'::integer,
+    :'v048_ambiguous_manual_protection'::boolean,
+    :'v048_ambiguous_old_revision'::bigint,
+    'v0.48 ambiguous-commit fixture');
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+SELECT pgreact.refresh_rule(:'v048_queue_rule'::uuid);
+CREATE TEMP TABLE v048_ambiguous_candidate AS
+SELECT candidate.binding_id, candidate.case_key
+FROM pgreact_mdm.intent_queue_candidates AS candidate
+WHERE candidate.binding_id = :'v048_replacement_binding_id'::uuid
+  AND candidate.case_key = :'v048_ambiguous_case_key'::bigint;
+DO $ambiguous_candidate$
+BEGIN
+    IF (SELECT count(*) FROM v048_ambiguous_candidate) <> 1 THEN
+        RAISE EXCEPTION 'ambiguous-commit fixture did not create one fresh queue candidate';
+    END IF;
+END
+$ambiguous_candidate$;
+CREATE TEMP TABLE v048_ambiguous_control_baseline AS
+SELECT case_row.case_key, case_row.action_revision,
+       case_row.assigned_queue::text AS assigned_queue
+FROM mdm_steward.policy_cases_v1 AS case_row
+WHERE case_row.case_key = :'v048_ambiguous_case_key'::bigint;
+CREATE TEMP TABLE v048_ambiguous_counts AS
+SELECT (SELECT count(*) FROM pgreact_mdm.intent_requests) AS requests,
+       (SELECT count(*) FROM pgreact_mdm.intent_attempts) AS attempts,
+       (SELECT count(*) FROM mdm_steward.policy_receipts_v1) AS receipts;
+UPDATE pgreact_internal.agenda
+SET available_at = CASE
+    WHEN new_bindings ->> 'case_key' =
+         (SELECT case_key::text FROM v048_ambiguous_candidate)
+     AND (new_bindings ->> 'action_revision')::bigint =
+         (SELECT action_revision FROM v048_ambiguous_control_baseline)
+    THEN clock_timestamp()
+    ELSE 'infinity'::timestamptz
+END
+WHERE rule_version_id = :'v048_queue_rule'::uuid AND state = 'PENDING';
+SELECT dblink_connect('m2_ambiguous_commit', format(
+    'dbname=%s user=mdm_m2_runner application_name=v0.48-ambiguous-commit',
+    current_database()));
+SELECT dblink_send_query('m2_ambiguous_commit', format(
+    'WITH worker AS MATERIALIZED '
+    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)) '
+    'SELECT pgreact_mdm.execute_intent_episode(%L::uuid, ''v0.48-ambiguous-commit'') '
+    'FROM worker', :'v048_queue_rule'));
+DO $ambiguous_commit_wait$
+DECLARE deadline timestamptz := clock_timestamp() + interval '15 seconds';
+BEGIN
+    LOOP
+        IF EXISTS (
+            SELECT 1
+            FROM pgreact_internal.executions AS execution
+            JOIN pgreact_internal.agenda AS agenda USING (episode_id)
+            WHERE execution.worker_id = 'v0.48-ambiguous-commit'
+              AND execution.status = 'COMPLETED'
+              AND agenda.state = 'COMPLETED') THEN
+            RETURN;
+        END IF;
+        IF clock_timestamp() >= deadline THEN
+            RAISE EXCEPTION 'worker did not commit before the client disconnect';
+        END IF;
+        PERFORM pg_sleep(0.01);
+    END LOOP;
+END
+$ambiguous_commit_wait$;
+SELECT dblink_disconnect('m2_ambiguous_commit');
+CREATE TEMP TABLE v048_ambiguous_result AS
+SELECT execution.episode_id, request.binding_id, request.case_key, request.request_key,
+       request.request_body, request.work_ref, attempt.attempt_no,
+       attempt.request_body AS attempt_body, attempt.receipt_id,
+       attempt.outcome, attempt.reason_code,
+       attempt.action_revision, attempt.control,
+       execution.status AS execution_status, agenda.state AS agenda_state
+FROM pgreact_internal.executions AS execution
+JOIN pgreact_mdm.intent_attempts AS attempt USING (episode_id)
+JOIN pgreact_mdm.intent_requests AS request
+  ON request.binding_id = attempt.binding_id
+ AND request.request_key = attempt.request_key
+ AND request.first_episode_id = attempt.episode_id
+JOIN pgreact_internal.agenda AS agenda USING (episode_id)
+WHERE execution.worker_id = 'v0.48-ambiguous-commit';
+DO $ambiguous_commit_result$
+BEGIN
+    IF (SELECT count(*) FROM v048_ambiguous_result) <> 1
+       OR (SELECT outcome FROM v048_ambiguous_result) <> 'APPLIED_CONTROL'
+       OR (SELECT execution_status FROM v048_ambiguous_result) <> 'COMPLETED'
+       OR (SELECT agenda_state FROM v048_ambiguous_result) <> 'COMPLETED'
+       OR (SELECT count(*) FROM pgreact_mdm.intent_requests)
+          <> (SELECT requests + 1 FROM v048_ambiguous_counts)
+       OR (SELECT count(*) FROM pgreact_mdm.intent_attempts)
+          <> (SELECT attempts + 1 FROM v048_ambiguous_counts)
+       OR (SELECT request_body IS DISTINCT FROM attempt_body
+           FROM v048_ambiguous_result)
+       OR (SELECT count(*) FROM mdm_steward.policy_receipts_v1)
+          <> (SELECT receipts + 1 FROM v048_ambiguous_counts)
+       OR (SELECT case_row.action_revision FROM mdm_steward.policy_cases_v1 AS case_row
+           JOIN v048_ambiguous_control_baseline AS baseline USING (case_key))
+          <> (SELECT action_revision + 1 FROM v048_ambiguous_control_baseline) THEN
+        RAISE EXCEPTION 'disconnect did not leave exactly one committed control, receipt, and completed work item';
+    END IF;
+END
+$ambiguous_commit_result$;
+SELECT episode_id AS v048_ambiguous_episode,
+       binding_id AS v048_ambiguous_binding
+FROM v048_ambiguous_result
+\gset
+SELECT request.binding_id AS v048_replay_binding,
+       encode(request.request_key, 'hex') AS v048_replay_key,
+       request.request_body ->> 'case_key' AS v048_replay_case_key,
+       request.request_body ->> 'action' AS v048_replay_action,
+       request.request_body -> 'arguments' AS v048_replay_arguments,
+       request.request_body ->> 'expected_review_version' AS v048_replay_review_version,
+       request.request_body ->> 'expected_definition_version' AS v048_replay_definition_version,
+       request.request_body ->> 'expected_publication_revision' AS v048_replay_publication_revision,
+       request.request_body ->> 'expected_stewardship_epoch' AS v048_replay_stewardship_epoch,
+       request.request_body ->> 'expected_evidence_basis_digest' AS v048_replay_evidence_digest,
+       request.request_body ->> 'expected_action_revision' AS v048_replay_action_revision,
+       request.request_body ->> 'expected_policy_digest' AS v048_replay_policy_digest,
+       request.policy_revision AS v048_replay_policy_revision,
+       request.request_body ->> 'evaluation_ref' AS v048_replay_evaluation_ref,
+       request.work_ref AS v048_replay_work_ref
+FROM pgreact_mdm.intent_requests AS request
+WHERE request.binding_id = :'v048_ambiguous_binding'::uuid
+  AND request.first_episode_id = :'v048_ambiguous_episode'::bigint
+\gset
+SELECT dblink_connect('m2_reconnected_replay', format(
+    'dbname=%s user=mdm_m2_runner application_name=v0.48-reconnected-replay options=%L',
+    current_database(), '-c role=pgreact_mdm_worker'));
+SELECT dblink_send_query('m2_reconnected_replay', format(
+    'SELECT response.* FROM '
+    'mdm_steward.submit_policy_intent(%L::uuid, decode(%L, ''hex''), %L::bigint, '
+    '%L, %L::jsonb, %L::bigint, %L::bigint, %L::bigint, %L::bigint, '
+    'decode(%L, ''hex''), %L::bigint, decode(%L, ''hex''), %L, %L, %L) AS response',
+    :'v048_replay_binding', :'v048_replay_key', :'v048_replay_case_key',
+    :'v048_replay_action', :'v048_replay_arguments',
+    :'v048_replay_review_version', :'v048_replay_definition_version',
+    :'v048_replay_publication_revision', :'v048_replay_stewardship_epoch',
+    :'v048_replay_evidence_digest', :'v048_replay_action_revision',
+    :'v048_replay_policy_digest', :'v048_replay_policy_revision',
+    :'v048_replay_evaluation_ref', :'v048_replay_work_ref'));
+CREATE TEMP TABLE v048_ambiguous_replay AS
+SELECT * FROM dblink_get_result('m2_reconnected_replay') AS response(
+    receipt_id uuid, outcome text, reason_code text, case_key bigint,
+    action_revision bigint, control jsonb, resulting_publication_revision bigint);
+SELECT dblink_disconnect('m2_reconnected_replay');
+DO $ambiguous_replay_assertion$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM v048_ambiguous_result AS original
+        JOIN v048_ambiguous_replay AS replay
+          ON replay.receipt_id = original.receipt_id
+         AND replay.outcome = original.outcome
+         AND replay.reason_code = original.reason_code
+         AND replay.case_key = original.case_key
+         AND replay.action_revision = original.action_revision
+         AND replay.control = original.control
+         AND replay.resulting_publication_revision IS NULL
+         AND (SELECT count(*) FROM mdm_steward.policy_receipts_v1)
+             = (SELECT receipts + 1 FROM v048_ambiguous_counts)
+         AND (SELECT count(*) FROM pgreact_mdm.intent_attempts)
+             = (SELECT attempts + 1 FROM v048_ambiguous_counts)
+         AND EXISTS (
+             SELECT 1 FROM mdm_steward.policy_cases_v1 AS case_row
+             JOIN v048_ambiguous_control_baseline AS baseline USING (case_key)
+             WHERE case_row.action_revision = baseline.action_revision + 1
+               AND case_row.assigned_queue = 'm2-ready')) THEN
+        RAISE EXCEPTION 'reconnected replay did not return the exact original MDM receipt';
+    END IF;
+END
+$ambiguous_replay_assertion$;
+SELECT 'v0.48 ambiguous commit disconnected, then replayed the original receipt' AS result;

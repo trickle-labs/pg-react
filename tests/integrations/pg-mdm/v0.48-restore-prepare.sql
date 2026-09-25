@@ -7,8 +7,9 @@ FROM pgreact_mdm.policy_intent_bindings AS binding
 LEFT JOIN mdm_internal.policy_binding_runtime AS runtime
   USING (binding_id)
 WHERE binding.enabled
-  AND binding.policy_revision = 'v0.48-live-policy'
   AND binding.entity_name = 'policy_qualification'
+ORDER BY binding.binding_version DESC
+LIMIT 1
 \gset
 
 SET SESSION AUTHORIZATION mdm_legacy_login;
@@ -26,8 +27,9 @@ SELECT binding.binding_id AS v048_escalation_binding_id,
 FROM pgreact_mdm.policy_intent_bindings AS binding
 LEFT JOIN mdm_internal.policy_binding_runtime AS runtime USING (binding_id)
 WHERE binding.enabled
-  AND binding.policy_revision = 'v0.48-live-policy'
   AND binding.entity_name = 'review_admission_live'
+ORDER BY binding.binding_version DESC
+LIMIT 1
 \gset
 
 SET SESSION AUTHORIZATION mdm_test_login;

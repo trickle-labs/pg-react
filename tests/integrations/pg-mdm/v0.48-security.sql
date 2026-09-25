@@ -16,15 +16,17 @@ DECLARE
     response record;
     conflict_response record;
     replay_response record;
-    stale_response record;
+    superseded_response record;
     denied_response record;
     binding_row pgreact_mdm.policy_intent_bindings%ROWTYPE;
     denied_after pgreact_mdm.authorized_policy_cases_v1%ROWTYPE;
     changed_arguments jsonb;
     denied_arguments jsonb;
-    stale_key bytea;
+    superseded_key bytea;
     denied_key bytea;
     denied_action text;
+    action_revision_before bigint;
+    control_before jsonb;
     visible_case pgreact_mdm.authorized_policy_cases_v1%ROWTYPE;
 BEGIN
     SELECT * INTO STRICT runner
@@ -59,6 +61,16 @@ BEGIN
        OR worker.rolinherit OR worker.rolcreatedb OR worker.rolcreaterole
        OR worker.rolreplication THEN
         RAISE EXCEPTION 'worker role attributes are not least-privilege';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_proc AS procedure
+        JOIN pg_catalog.pg_namespace AS namespace
+          ON namespace.oid = procedure.pronamespace
+        WHERE namespace.nspname = 'pgreact_mdm'
+          AND pg_catalog.pg_get_functiondef(procedure.oid)
+              ~* '(dblink|http|curl|socket|lo_import|lo_export)') THEN
+        RAISE EXCEPTION 'adapter function definitions reference a network or external transfer API';
     END IF;
     IF pg_catalog.has_table_privilege(worker_oid,
            'pgreact_mdm.intent_requests', 'DELETE')
@@ -170,10 +182,12 @@ BEGIN
         NULL;
     END;
 
-    SELECT * INTO STRICT attempt_row
-    FROM pgreact_mdm.intent_attempts
-    WHERE outcome = 'APPLIED_CONTROL'
-    ORDER BY attempted_at DESC, episode_id DESC, attempt_no DESC
+    SELECT attempt.* INTO STRICT attempt_row
+    FROM pgreact_mdm.intent_attempts AS attempt
+    JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+    WHERE attempt.outcome = 'APPLIED_CONTROL'
+      AND NOT binding.enabled
+    ORDER BY attempt.attempted_at DESC, attempt.episode_id DESC, attempt.attempt_no DESC
     LIMIT 1;
     SELECT * INTO STRICT request_row
     FROM pgreact_mdm.intent_requests AS request
@@ -251,6 +265,10 @@ BEGIN
        OR conflict_response.resulting_publication_revision IS NOT NULL THEN
         RAISE EXCEPTION 'changed-body retry did not return the exact idempotency conflict';
     END IF;
+    SELECT * INTO STRICT visible_case
+    FROM pgreact_mdm.authorized_policy_cases_v1
+    WHERE case_key = attempt_row.case_key;
+    action_revision_before := visible_case.action_revision;
     SELECT * INTO STRICT replay_response
     FROM mdm_steward.submit_policy_intent(
         request_row.binding_id, request_row.request_key,
@@ -276,8 +294,8 @@ BEGIN
     SELECT * INTO STRICT visible_case
     FROM pgreact_mdm.authorized_policy_cases_v1
     WHERE case_key = attempt_row.case_key;
-    IF visible_case.action_revision IS DISTINCT FROM attempt_row.action_revision THEN
-        RAISE EXCEPTION 'same-body retry changed action_revision';
+    IF visible_case.action_revision IS DISTINCT FROM action_revision_before THEN
+        RAISE EXCEPTION 'same-body retry changed current action_revision';
     END IF;
 
     BEGIN
@@ -328,13 +346,19 @@ BEGIN
         IF pg_catalog.strpos(SQLERRM, 'MDM_UNAUTHORIZED') = 0 THEN RAISE; END IF;
     END;
 
-    stale_key := pgreact_mdm.intent_request_key(
+    action_revision_before := visible_case.action_revision;
+    control_before := jsonb_build_object(
+        'assigned_queue', visible_case.assigned_queue::text,
+        'due_at', visible_case.due_at::text,
+        'escalation_level', visible_case.escalation_level,
+        'manual_assignment_protected', visible_case.manual_assignment_protected);
+    superseded_key := pgreact_mdm.intent_request_key(
         request_row.binding_id, request_row.policy_revision, request_row.case_key,
         request_row.lifecycle_generation + 1, visible_case.action_revision,
-        'stale-token-probe', request_row.escalation_level);
-    SELECT * INTO STRICT stale_response
+        'replaced-binding-probe', request_row.escalation_level);
+    SELECT * INTO STRICT superseded_response
     FROM mdm_steward.submit_policy_intent(
-        request_row.binding_id, stale_key, request_row.case_key,
+        request_row.binding_id, superseded_key, request_row.case_key,
         request_row.request_body ->> 'action', request_row.request_body -> 'arguments',
         (request_row.request_body ->> 'expected_review_version')::bigint,
         (request_row.request_body ->> 'expected_definition_version')::bigint,
@@ -343,29 +367,34 @@ BEGIN
         pg_catalog.decode(request_row.request_body ->> 'expected_evidence_basis_digest', 'hex'),
         (request_row.request_body ->> 'expected_action_revision')::bigint,
         pg_catalog.decode(request_row.request_body ->> 'expected_policy_digest', 'hex'),
-        request_row.policy_revision, 'pgreact:test-stale-token',
-        'pgreact:test-stale-token:' || request_row.case_key::text);
-    IF stale_response.receipt_id IS NULL
-       OR stale_response.outcome IS DISTINCT FROM 'STALE_CASE'
-       OR stale_response.reason_code IS DISTINCT FROM 'FRESHNESS_TOKEN_MISMATCH'
-       OR stale_response.action_revision IS DISTINCT FROM visible_case.action_revision
-       OR stale_response.control IS DISTINCT FROM jsonb_build_object(
-           'assigned_queue', visible_case.assigned_queue::text,
-           'due_at', visible_case.due_at::text,
-           'escalation_level', visible_case.escalation_level,
-           'manual_assignment_protected', visible_case.manual_assignment_protected) THEN
-        RAISE EXCEPTION 'worker token-stale intent did not return the exact no-change receipt';
+        request_row.policy_revision, 'pgreact:test-replaced-binding',
+        'pgreact:test-replaced-binding:' || request_row.case_key::text);
+    IF superseded_response.receipt_id IS NULL
+       OR superseded_response.outcome IS DISTINCT FROM 'BINDING_REPLACED'
+       OR superseded_response.reason_code IS DISTINCT FROM 'BINDING_REPLACED'
+       OR superseded_response.action_revision IS DISTINCT FROM action_revision_before
+       OR superseded_response.control IS DISTINCT FROM control_before
+       OR superseded_response.resulting_publication_revision IS NOT NULL THEN
+        RAISE EXCEPTION 'superseded worker binding did not return the exact no-change receipt';
     END IF;
     SELECT * INTO STRICT visible_case
     FROM pgreact_mdm.authorized_policy_cases_v1
     WHERE case_key = attempt_row.case_key;
-    IF visible_case.action_revision IS DISTINCT FROM attempt_row.action_revision THEN
-        RAISE EXCEPTION 'stale token changed the case action_revision';
+    IF visible_case.action_revision IS DISTINCT FROM action_revision_before
+       OR jsonb_build_object(
+           'assigned_queue', visible_case.assigned_queue::text,
+           'due_at', visible_case.due_at::text,
+           'escalation_level', visible_case.escalation_level,
+           'manual_assignment_protected', visible_case.manual_assignment_protected)
+          IS DISTINCT FROM control_before THEN
+        RAISE EXCEPTION 'superseded worker binding changed current MDM controls';
     END IF;
 
     SELECT * INTO STRICT binding_row
     FROM pgreact_mdm.policy_intent_bindings
-    WHERE binding_id = request_row.binding_id;
+    WHERE enabled AND entity_name = visible_case.entity_name
+    ORDER BY binding_version DESC
+    LIMIT 1;
     SELECT action INTO STRICT denied_action
     FROM unnest(ARRAY['ASSIGN_QUEUE', 'SET_DUE_AT', 'ESCALATE']::text[]) AS actions(action)
     WHERE NOT action = ANY(binding_row.allowed_actions)

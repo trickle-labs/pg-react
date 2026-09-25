@@ -1,0 +1,8 @@
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:7: NOTICE:  relation "policy_intent_packages" already exists, skipping
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:281: NOTICE:  relation "intent_requests" already exists, skipping
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:304: NOTICE:  relation "intent_attempts" already exists, skipping
+                              result                               
+-------------------------------------------------------------------
+ v0.48 canonical digest, request-key, body, and retry checks: PASS
+(1 row)
+

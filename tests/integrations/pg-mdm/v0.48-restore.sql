@@ -105,6 +105,9 @@ BEGIN
     SELECT * INTO STRICT attempt
     FROM pgreact_mdm.intent_attempts
     WHERE outcome = 'APPLIED_CONTROL'
+      AND binding_id = (
+          SELECT binding_id FROM pgreact_mdm.policy_intent_bindings
+          WHERE enabled AND entity_name = 'policy_qualification')
     ORDER BY attempted_at DESC, episode_id DESC, attempt_no DESC
     LIMIT 1;
     SELECT * INTO STRICT request
@@ -152,8 +155,9 @@ SELECT binding.binding_id AS v048_escalation_binding_id,
 FROM pgreact_mdm.policy_intent_bindings AS binding
 LEFT JOIN mdm_internal.policy_binding_runtime AS runtime USING (binding_id)
 WHERE binding.enabled
-  AND binding.policy_revision = 'v0.48-live-policy'
   AND binding.entity_name = 'review_admission_live'
+ORDER BY binding.binding_version DESC
+LIMIT 1
 \gset
 
 RESET ROLE;
@@ -185,6 +189,9 @@ BEGIN
     SELECT * INTO STRICT attempt
     FROM pgreact_mdm.intent_attempts
     WHERE outcome = 'APPLIED_CONTROL'
+      AND binding_id = (
+          SELECT binding_id FROM pgreact_mdm.policy_intent_bindings
+          WHERE enabled AND entity_name = 'policy_qualification')
     ORDER BY attempted_at DESC, episode_id DESC, attempt_no DESC
     LIMIT 1;
     SELECT * INTO STRICT request

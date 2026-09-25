@@ -66,7 +66,11 @@ jobs:
           docker run --detach --name "$container" \
             --env POSTGRES_PASSWORD=qualification \
             --volume "$GITHUB_WORKSPACE:/work:ro" \
-            "$IMAGE" postgres -c shared_preload_libraries=pg_trickle,pg_react >/dev/null
+            "$IMAGE" postgres \
+              -c shared_preload_libraries=pg_trickle,pg_react \
+              -c pg_trickle.enabled=off \
+              -c pg_trickle.cdc_mode=trigger \
+              -c pg_trickle.differential_max_change_ratio=1.0 >/dev/null
           for attempt in $(seq 1 60); do
             if docker logs "$container" 2>&1 | grep -Fq 'PostgreSQL init process complete'; then
               break
@@ -95,7 +99,7 @@ jobs:
             grep -E 'passed|PASS' "$log" | tail -n 1
           done
           log=v0.48.0-release-evidence/missing-mdm-admission.log
-          if ! docker exec --env PGUSER=postgres "$container" \
+          if ! docker exec "$container" \
             sh /work/tests/integrations/pg-mdm/v0.48-admission.sh > "$log" 2>&1; then
             cat "$log"
             exit 1
@@ -122,7 +126,7 @@ jobs:
             ([.acceptance_gates[] | select(.status == "pending") | .id] | sort) ==
               (.pending_acceptance_gates | sort) and
             all(.acceptance_gates[]; .status == "passed" or .status == "pending") and
-            ([.release_approvals[].id] | sort) == ["retention_horizon"] and
+            ([.release_approvals[].id] | sort) == ["mdm_m2_contract_approval", "retention_horizon"] and
             ([.release_approvals[] | select(.status == "pending") | .id] | sort) ==
               (.pending_release_approvals | sort) and
             all(.release_approvals[]; .status == "approved" or .status == "pending") and
@@ -137,6 +141,17 @@ jobs:
             tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
             > v0.48.0-release-evidence/source.SHA256SUMS
           sha256sum --check v0.48.0-release-evidence/source.SHA256SUMS
+          source_snapshot=$(jq -cS '{head: .candidate.head, files: .source_sha256}' \
+            tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json | sha256sum | awk '{print $1}')
+          test "$source_snapshot" = "$(jq -r '.candidate.source_snapshot_sha256' \
+            tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json)"
+          jq -r '.qualification_run.artifacts[] | "\(.sha256)  tests/integrations/pg-mdm/evidence/v0.48.0/\(.path)"' \
+            tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
+            > v0.48.0-release-evidence/qualification.SHA256SUMS
+          sha256sum --check v0.48.0-release-evidence/qualification.SHA256SUMS
+          mkdir -p v0.48.0-release-evidence/qualification/2026-09-25
+          cp -R tests/integrations/pg-mdm/evidence/v0.48.0/run-2026-09-25/. \
+            v0.48.0-release-evidence/qualification/2026-09-25/
           cp tests/integrations/pg-mdm/evidence/v0.48.0.md \
             v0.48.0-release-evidence/live-qualification.md
           cp tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
@@ -188,7 +203,7 @@ jobs:
           jq -e --arg commit "$GITHUB_SHA" \
             '.status == "qualified" and .check_status == "passed" and .commit == $commit and .release == "v0.48.0"' \
             v0.48.0-release-evidence/release-qualification.json
-          jq -e '.status == "qualified" and (.pending_acceptance_gates | length == 0) and all(.acceptance_gates[]; .status == "passed") and (.pending_release_approvals | length == 0) and all(.release_approvals[]; .status == "approved") and .runtime.pg_mdm_extension == "0.14.0"' \
+          jq -e '.status == "qualified" and (.pending_acceptance_gates | length == 0) and all(.acceptance_gates[]; .status == "passed") and (.pending_release_approvals | length == 0) and all(.release_approvals[]; .status == "approved") and .independent_review.status == "approved" and (.independent_review.reviewer | type == "string" and length > 0) and .independent_review.candidate_source_snapshot_sha256 == .candidate.source_snapshot_sha256 and .runtime.pg_mdm_extension == "0.14.0"' \
             v0.48.0-release-evidence/live-qualification.json
       - name: Build source and evidence archives
         run: |
@@ -206,6 +221,7 @@ jobs:
             tests/integrations/pg-mdm/v0.47-live-setup.sql \
             tests/integrations/pg-mdm/v0.47-live.sql \
             tests/integrations/pg-mdm/v0.48-codec.sql \
+            tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql \
             tests/integrations/pg-mdm/v0.48-live.sql \
             tests/integrations/pg-mdm/v0.48-security.sql \
             tests/integrations/pg-mdm/v0.48-admission.sh \
@@ -218,6 +234,7 @@ jobs:
             tests/integrations/pg-mdm/evidence/v0.47.0/manifest.json \
             tests/integrations/pg-mdm/evidence/v0.48.0.md \
             tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
+            tests/integrations/pg-mdm/evidence/v0.48.0/run-2026-09-25 \
             tests/mdm_stewardship_contract.py | gzip -n -9 > "$artifact"
           tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
             -C v0.48.0-release-evidence -cf - . | gzip -n -9 > pg-react-v0.48.0-evidence.tar.gz

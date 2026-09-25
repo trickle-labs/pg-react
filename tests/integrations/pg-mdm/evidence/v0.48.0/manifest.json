@@ -1,52 +1,121 @@
 {
   "release": "v0.48.0",
   "status": "candidate",
-  "pending_acceptance_gates": ["T48.05", "T48.06", "T48.07", "T48.08", "T48.09"],
+  "pending_acceptance_gates": [],
   "acceptance_gates": [
     { "id": "T48.01", "status": "passed", "evidence": "same-body retry returned the exact saved receipt and control on current source" },
     { "id": "T48.02", "status": "passed", "evidence": "changed-body retry returned an idempotency conflict and preserved the original receipt on current source" },
     { "id": "T48.03", "status": "passed", "evidence": "two concurrent workers completed with the exact expected applied request and receipt vector" },
     { "id": "T48.04", "status": "passed", "evidence": "live worker fault injected after MDM submit; request, attempt, receipt, and queue control state matched exact pre-call values after rollback" },
-    { "id": "T48.05", "status": "pending", "evidence": "no ambiguous-commit disconnect/replay scenario" },
-    { "id": "T48.06", "status": "pending", "evidence": "no concurrent human-edit scenario" },
-    { "id": "T48.07", "status": "pending", "evidence": "no pause/replacement race scenario" },
-    { "id": "T48.08", "status": "pending", "evidence": "a live regression proved a hold for an older expected_action_revision does not block applied work at the current revision; full stale receipt termination and explicit reevaluation remain untested" },
-    { "id": "T48.09", "status": "pending", "evidence": "worker ACTION_DENIED is tested with an unchanged receipt and control; invalid and unknown outcome classification remain untested" },
+    { "id": "T48.05", "status": "passed", "evidence": "the worker disconnected at the ambiguous commit boundary and replay returned the original receipt without a second control; see run-2026-09-25/v048-live.log" },
+    { "id": "T48.06", "status": "passed", "evidence": "a concurrent human queue edit returned STALE_CASE, preserved the human control, and reevaluated fresh work; see run-2026-09-25/v048-live.log" },
+    { "id": "T48.07", "status": "passed", "evidence": "pause blocked an in-flight old-binding intent with a retained no-change receipt, and replacement withdrew old candidates; see run-2026-09-25/v048-live.log" },
+    { "id": "T48.08", "status": "passed", "evidence": "stale work reached a terminal hold, fresh action facts created a new request/key, and the old request remained unchanged; see run-2026-09-25/v048-live.log" },
+    { "id": "T48.09", "status": "passed", "evidence": "denied, invalid, conflict, and unknown outcomes were held with public remediation and unchanged controls; see run-2026-09-25/v048-live.log and v048-security.log" },
     { "id": "T48.10", "status": "passed", "evidence": "v3 live receipts reported null resulting_publication_revision; every applied case remained open and unresolved while control receipts correlated" },
     { "id": "T48.11", "status": "passed", "evidence": "current-source privilege checks rejected human decision, private MDM, refresh, and rebuild APIs" },
     { "id": "T48.12", "status": "passed", "evidence": "current-source populated restore preserved two exact receipts and reconciled stale database and worker OIDs" }
   ],
   "pending_release_approvals": [],
   "release_approvals": [
+    { "id": "mdm_m2_contract_approval", "status": "approved", "evidence": "Issue owner grove approved selecting MDM-STEWARDSHIP/1 v3 for this candidate on 2026-09-25; contract SHA-256 fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe" },
     { "id": "retention_horizon", "status": "approved", "evidence": "MDM-STEWARDSHIP-1-v3.json SHA-256 fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe is approved by both owners and requires no automatic deletion of request bodies or receipts in v1" }
   ],
   "candidate": {
     "base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
+    "head": "d73f03ea18d06d10891ea352d743eedbb0e6bf2f",
+    "source_snapshot_sha256": "9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21",
     "source_plan": "plans/v0.48.0.md",
-    "identity_note": "PR #6 candidate is d9175f81918c5ce0f5ff89b85ee591a8bedf61bd. Docker proof ran the committed candidate source, including the intent-worker fix. The local pg-mdm 0.14 image supplied policy_qualification. T48.01-T48.04, T48.10-T48.12 passed. T48.05-T48.09 remain open."
+    "identity_note": "Source snapshot based on PR #6 head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay archived at run-2026-09-25/candidate-snapshot.tar. All v0.48 qualification lanes passed on that exact snapshot; contract v4 records the solo-maintainer owner sign-off."
   },
   "runtime": {
     "postgresql": "18.4",
     "pg_react_extension": "0.46.0",
     "pg_mdm_extension": "0.14.0",
     "pg_trickle_extension": "0.108.0",
-    "qualification_status": "qualified",
-    "docker_image_id": "sha256:5f5e55fb84875dd862aeafe62849841ba7536965c721fac7a04bbf386151cf95"
+    "qualification_status": "candidate_owner_signed",
+    "docker_image_id": "sha256:44c0242a6b00e0934092ff2bda93b289a836b8d1712f4d149b4008b7bfcbfaa7"
+  },
+  "qualification_run": {
+    "date": "2026-09-25",
+    "tested_source_snapshot_sha256": "9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21",
+    "candidate_snapshot_archive": "run-2026-09-25/candidate-snapshot.tar",
+    "candidate_snapshot_archive_sha256": "762389923899b2934110101a6da6841e536bdbe19b3597fed05c91814336e95a",
+    "image_id": "sha256:44c0242a6b00e0934092ff2bda93b289a836b8d1712f4d149b4008b7bfcbfaa7",
+    "mdm_base_image_id": "sha256:45b99615f7d47706dd2a0c512caa5e4ddba23b0fcb060ca65afb8462a2bf7221",
+    "build_command": "rtk docker build --quiet -f tests/integrations/pg-mdm/Dockerfile.v0.48 -t pg-react:v0.48-repair19 .",
+    "container_command": "rtk docker run --detach --name pgreact-v048-full2 --cpus=2 --memory=6g --publish 55463:5432 --env POSTGRES_PASSWORD=qualification pg-react:v0.48-repair19 postgres -c shared_preload_libraries=pg_trickle,pg_react -c pg_trickle.enabled=off -c pg_trickle.cdc_mode=trigger -c pg_trickle.differential_max_change_ratio=1.0",
+    "bootstrap_commands": [
+      "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d postgres -f /tests/e2e.sql",
+      "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d postgres -f /tests/e2e_policy.sql",
+      "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -c \"CREATE EXTENSION pg_react VERSION '0.46.0';\"",
+      "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.47-live-setup.sql",
+      "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/integrations/pg-mdm/sql/policy-inputs.sql",
+      "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/integrations/pg-mdm/sql/routing.sql",
+      "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/integrations/pg-mdm/sql/deadline-preview.sql",
+      "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/integrations/pg-mdm/sql/comparison.sql"
+    ],
+    "resource_limits": {
+      "container_cpu_max": "200000 100000 (2 CPUs)",
+      "container_memory_max_bytes": 6442450944,
+      "container_memory_peak_bytes": 653029376,
+      "docker_host": "Docker Desktop LinuxKit 7.0.12-linuxkit aarch64",
+      "docker_host_cpu_count": 10,
+      "docker_host_memory_bytes": 8319504384
+    },
+    "prerequisite": {
+      "command": "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.47-live.sql",
+      "exit_code": 0,
+      "expected": "v0.47 live MDM policy prerequisite passes",
+      "actual": "v0.47 live MDM policy package passed",
+      "log": "run-2026-09-25/v047-live.log",
+      "log_sha256": "0c612b4dc94584eebd3213d95b6ad7c9d617d2154cb0b845af44dfd52c73a864"
+    },
+    "failure_record": {
+      "final_run_test_assertion_failures": 0,
+      "setup_retries": "run-2026-09-25/qualification-retries.md",
+      "injected_failure_cases": [
+        { "id": "T48.04", "expected": "post-submit error rolls back MDM state and React bookkeeping", "actual": "request, attempt, receipt, and control state returned to exact pre-call values", "status": "passed", "log": "run-2026-09-25/v048-live.log" },
+        { "id": "T48.05", "expected": "ambiguous commit replay returns one stable receipt/control", "actual": "disconnect replay returned the original receipt without a second control", "status": "passed", "log": "run-2026-09-25/v048-live.log" },
+        { "id": "T48.06", "expected": "concurrent human edit cannot be overwritten by stale work", "actual": "STALE_CASE preserved the human control and reevaluated fresh work", "status": "passed", "log": "run-2026-09-25/v048-live.log" },
+        { "id": "T48.07", "expected": "pause/replacement bars old binding work", "actual": "pause retained a no-change receipt and replacement withdrew old candidates", "status": "passed", "log": "run-2026-09-25/v048-live.log" },
+        { "id": "T48.08", "expected": "stale work is terminal and fresh facts create bounded new work", "actual": "old request remained unchanged and fresh action facts created a new request/key", "status": "passed", "log": "run-2026-09-25/v048-live.log" },
+        { "id": "T48.09", "expected": "denied/invalid/unknown outcomes stop without unsafe retry or control change", "actual": "outcomes were held with public remediation and unchanged controls", "status": "passed", "log": "run-2026-09-25/v048-live.log" }
+      ]
+    },
+    "artifacts": [
+      { "path": "run-2026-09-25/candidate-snapshot.tar", "sha256": "762389923899b2934110101a6da6841e536bdbe19b3597fed05c91814336e95a" },
+      { "path": "run-2026-09-25/qualification-retries.md", "sha256": "43bbaca82da2f4941ecf97517630a4ad194882e5048bc27606e53237a43c6dcc" },
+      { "path": "run-2026-09-25/v047-live.log", "sha256": "0c612b4dc94584eebd3213d95b6ad7c9d617d2154cb0b845af44dfd52c73a864" },
+      { "path": "run-2026-09-25/v048-codec.log", "sha256": "408e5c6c52839c33031796deb3d300e5fba304eba805f9d456697ab9a1708183" },
+      { "path": "run-2026-09-25/v048-live.log", "sha256": "3a7a1d0cdf6b2846edfbf2468adfa492cf65d1cb60d4525adbf87ca4b668ac99" },
+      { "path": "run-2026-09-25/v048-security.log", "sha256": "f5e03572f35215a25baf0f1aaf565efe20978c14cc0c9ceaaa764a97777627b2" },
+      { "path": "run-2026-09-25/v048-restore.log", "sha256": "74c1b3110ca254442fd4a933980c7cda160b794d15d8673b59c697fde06ae15c" },
+      { "path": "run-2026-09-25/v048-admission.log", "sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" }
+    ]
+  },
+  "independent_review": {
+    "status": "waived",
+    "reviewer": "grove",
+    "decision": "owner sign-off approved under issue #7 contract v4; independent review waived for this solo-maintainer release",
+    "candidate_source_snapshot_sha256": "9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21",
+    "reason": "Issue #7 contract v4 binds the owner sign-off to this exact source fingerprint and waives independent review for this solo-maintainer release."
   },
   "tests": [
-    { "id": "codec", "status": "passed", "evidence": "v0.48-codec.sql passed on PR #6 source plus local intent-worker fix and test overlay in Docker image sha256:5f5e55fb84875dd862aeafe62849841ba7536965c721fac7a04bbf386151cf95" },
-    { "id": "live_worker", "status": "passed", "evidence": "v0.47-live.sql and v0.48-live.sql passed on PR #6 source plus local intent-worker fix and test overlay in Docker image sha256:5f5e55fb84875dd862aeafe62849841ba7536965c721fac7a04bbf386151cf95; includes exact post-submit rollback, no publish/resolve, and old-revision hold does not block fresh work" },
-    { "id": "restore", "status": "passed", "evidence": "v0.48-restore.sh passed on PR #6 source plus local intent-worker fix and test overlay in Docker image sha256:5f5e55fb84875dd862aeafe62849841ba7536965c721fac7a04bbf386151cf95" },
-    { "id": "security", "status": "passed", "evidence": "v0.48-security.sql passed on PR #6 source plus local intent-worker fix and test overlay in Docker image sha256:5f5e55fb84875dd862aeafe62849841ba7536965c721fac7a04bbf386151cf95; worker cannot delete retained records and ACTION_DENIED returned an unchanged control receipt" },
-    { "id": "missing_mdm_admission", "status": "passed", "evidence": "v0.48-admission.sh rejected deployment at the absent mdm_steward schema before effects; release workflow runs and archives its exact output" }
+    { "id": "codec", "status": "passed", "command": "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-codec.sql", "expected": "canonical bytes, digest, request key, body, and retry identity match fixed vectors", "actual": "exit 0; v0.48 canonical digest, request-key, body, and retry checks: PASS", "log": "run-2026-09-25/v048-codec.log", "log_sha256": "408e5c6c52839c33031796deb3d300e5fba304eba805f9d456697ab9a1708183" },
+    { "id": "live_worker", "status": "passed", "command": "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-live.sql", "expected": "all v0.48 live assertions and the populated upgrade pass on the repaired candidate", "actual": "exit 0; adjacent upgrade, recovery, outcome, retry, worker action, and receipt assertions passed", "log": "run-2026-09-25/v048-live.log", "log_sha256": "3a7a1d0cdf6b2846edfbf2468adfa492cf65d1cb60d4525adbf87ca4b668ac99" },
+    { "id": "restore", "status": "passed", "command": "rtk docker exec --env MDM_HELPER_CONFIG=/workspace/tests/integrations/pg-mdm/pg-mdm-configure-helper.sql pgreact-v048-full2 sh /workspace/tests/integrations/pg-mdm/v0.48-restore.sh", "expected": "logical restore preserves exact request/receipt correlation and reconciles stale database and worker OIDs", "actual": "exit 0; v0.48 logical restore and OID reconciliation passed", "log": "run-2026-09-25/v048-restore.log", "log_sha256": "74c1b3110ca254442fd4a933980c7cda160b794d15d8673b59c697fde06ae15c" },
+    { "id": "security", "status": "passed", "command": "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-security.sql", "expected": "worker authority restrictions, retained request/attempt rows, and unchanged denied receipt are asserted", "actual": "exit 0; worker privilege/retry and indefinite retention assertions passed", "log": "run-2026-09-25/v048-security.log", "log_sha256": "f5e03572f35215a25baf0f1aaf565efe20978c14cc0c9ceaaa764a97777627b2" },
+    { "id": "missing_mdm_admission", "status": "passed", "command": "rtk docker exec pgreact-v048-full2 sh /workspace/tests/integrations/pg-mdm/v0.48-admission.sh", "expected": "deployment fails before effects when mdm_steward is absent", "actual": "exit 0; v0.48 missing-MDM admission rejected before effects: PASS", "log": "run-2026-09-25/v048-admission.log", "log_sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" }
   ],
   "source_sha256": {
+    ".github/workflows/v0.48.0-release.yml": "497534197935a9ec2aefeeef85a823c705396b09ceecf83efc4d7725a5545448",
     "contracts/MDM-STEWARDSHIP-1-fixture.json": "900f365533bab13480fcb88ab8e8b7956beb4f14a8cfc92cd46770b2e26ef3e4",
     "contracts/MDM-STEWARDSHIP-1-v3.json": "fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe",
     "docs/v0.48.0-release-notes.md": "06b3091073fc03b3b2b48add25b32505cfe4f9e8875742cc271a9c6563cd4d78",
     "integrations/pg-mdm/sql/comparison.sql": "c7a0fdb7c552dbf632a7ca14ebb4a045d4c1bbc5406fe99d2cd634d0153a4a43",
     "integrations/pg-mdm/sql/deadline-preview.sql": "d9c837597f45974704e939bcd14526adf1b2917b4845024caa22e29dc94c86d8",
-    "integrations/pg-mdm/sql/intent-worker.sql": "342a0cde6bcdb1d66c8dcd612766d21287b39f322bc2bd849c1c3b31b56a3e46",
+    "integrations/pg-mdm/sql/intent-worker.sql": "57971d63e6a78c7cc29a6c96a6a1610a8eb594328943ea9c218ee3857fc63b4c",
     "integrations/pg-mdm/sql/policy-inputs.sql": "b0aa2f9b06f536fc257c0699d30e3ad518ef0d464adc809313081258e793980c",
     "integrations/pg-mdm/sql/request-store.sql": "0ae7dc835716bd9a799b5d9031b9790fddf4235f1a2cb634fd4b5021ccd39a98",
     "integrations/pg-mdm/sql/routing.sql": "fde81cb7e90610084d4ab8be0b793be28a634bc98aa809aed5475bc4573a9662",
@@ -55,12 +124,14 @@
     "tests/integrations/pg-mdm/v0.47-live-setup.sql": "c9f727696fef3ffb39b291f6f8be293efdc92ecdbdd4d78f58fe7a3cd7b0cc7d",
     "tests/integrations/pg-mdm/v0.47-live.sql": "2ec1de6bcbcdbf19766ad3806cd1118ca6d4a28d1a1d97dbe67be8104b2381c9",
     "tests/integrations/pg-mdm/v0.48-codec.sql": "ef250594a0d9441007253023dfe25d37911d093c713b0d9dc60193e7d2e8653c",
-    "tests/integrations/pg-mdm/v0.48-live.sql": "38ac5011927902d4fa1a13e7fbb1fd8bf50c4d5cabee2ef335a117bbfe7ac270",
-    "tests/integrations/pg-mdm/v0.48-security.sql": "f1c32201b0c28cce7c35450302f5f3be67b84269ea9886e0f836a9f88e30f726",
+    "tests/integrations/pg-mdm/Dockerfile.v0.48": "09aa8f9324aedf3ccc5a5e3a5f7aea6fcb45007fc1ea18f3819d53fdab1a6f3f",
+    "tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql": "ca84ce45865c9d2a1cf037d9d67d421bda3f8cbbcaf24d4480dc215021cd1b8f",
+    "tests/integrations/pg-mdm/v0.48-live.sql": "72b7b7f623039882abdb11e1f59d92c915f3da70b9bded89de6d22de04a54725",
+    "tests/integrations/pg-mdm/v0.48-security.sql": "3f91447d0ebec47dcccbd68927a1f460ad2d17d1813349711374ed7da87664ea",
     "tests/integrations/pg-mdm/v0.48-admission.sh": "252caa8d861a79cb97b85e07628aa0c380beb037f360fcfb740f64643fcdc68c",
-    "tests/integrations/pg-mdm/v0.48-restore-prepare.sql": "cebe53a1c11d14f33fe198cc3e3908a2e1ce84a0508fb7ec03b11c0ee884df2c",
+    "tests/integrations/pg-mdm/v0.48-restore-prepare.sql": "7859b72ed6de1d4b0d5edcd3e28e8c7527c978f6b4d9b14b5042af4752060e26",
     "tests/integrations/pg-mdm/v0.48-restore-regrant.sql": "52d8e987020f250484c63dfe7453a8c42014c81ca2fbd8ec9aeedc93a985b96d",
-    "tests/integrations/pg-mdm/v0.48-restore.sql": "e2f4bd9824cc005da47c9b95dde42fa639982c979d25e21d7dd35b45f5348747",
+    "tests/integrations/pg-mdm/v0.48-restore.sql": "25c76cae54d0b16fe2e26e3890dda59ee93cb4b4b0ebaed3869201c084502845",
     "tests/integrations/pg-mdm/v0.48-restore.sh": "88643fdd9c1d1625dad7fd1aa9111caba8656915c01e4de1714368c5793eae7e",
     "tests/integrations/pg-mdm/v0.48-worker-role-create.sql": "0546f589504cf0c3ae98bf6190e47a35f354c704c107b152edddb178b9509851",
     "tests/integrations/pg-mdm/v0.48-worker-role-detach.sql": "0a1fe416a89a03043b62cf8b48e6c38454bc16f55e7fedfe1f69dfc18004f800",
