@@ -1,0 +1,15 @@
+                               result                                
+---------------------------------------------------------------------
+ v0.48 disallowed worker action returned an unchanged denial receipt
+(1 row)
+
+                     result                      
+-------------------------------------------------
+ v0.48 actual worker privileges and retry passed
+(1 row)
+
+                        result                         
+-------------------------------------------------------
+ v0.48 indefinite request and attempt retention passed
+(1 row)
+

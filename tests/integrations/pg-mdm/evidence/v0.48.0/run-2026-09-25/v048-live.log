@@ -1,0 +1,563 @@
+psql:/workspace/tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql:4: NOTICE:  schema "pgreact_mdm" already exists, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql:69: NOTICE:  table "m26_decision_candidates" does not exist, skipping
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         run                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"clock": {"frontier": "2026-09-25T18:26:01.01367+00:00", "sampled_time": "2026-09-25T18:26:01.01367+00:00", "affected_keys": 0, "affected_rules": 0, "previous_frontier": "-infinity"}, "rules": [], "frontier": "2026-09-25T18:26:01.01367+00:00", "programs": [], "relations": [], "policy_sets": [], "jobs_created": 0, "sampled_time": "2026-09-25T18:26:01.01367+00:00", "contract_version": 15, "temporal_changed": 0, "decision_analyses": {"analyses": [], "frontier": "2026-09-25T18:26:01.01367+00:00", "contract_version": 15}, "decision_programs": {"frontier": "2026-09-25T18:26:01.01367+00:00", "programs": [{"owner": "postgres", "state": "ACTIVE", "valid_to": null, "program_id": "8a1ac8f1-a0d6-4889-a43f-b1e5dfe41bf6", "valid_from": "2026-09-25T18:25:00.927046+00:00", "version_id": "5ca87e4e-b74c-43fe-bbd9-ed28e3c85d7a", "version_no": 1, "deployed_at": "2026-09-25T18:25:01.009034+00:00", "program_name": "v0.48-adjacent-routing", "result_types": [{"type": "text", "column": "result"}], "version_state": "DEPLOYED", "max_candidates": 1000, "result_columns": ["result"], "priority_column": "priority", "source_signature": "\\xcb05194fa6672dd062b8e9cc5ee4214c7e230af8061aa4f8525f41541691700a", "candidate_relation": "v048_adjacent_upgrade.routes", "subject_key_column": "subject_id", "candidate_key_column": "candidate_id", "source_definition_digest": "\\xe3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"}], "subjects": [{"state": "WINNER", "revision": 0, "claimable": true, "generation": 1, "program_id": "8a1ac8f1-a0d6-4889-a43f-b1e5dfe41bf6", "version_id": "5ca87e4e-b74c-43fe-bbd9-ed28e3c85d7a", "competitors": [{"result": {"result": "ready"}, "priority": 1, "candidate": 1001}, {"result": {"result": "fallback"}, "priority": 2, "candidate": 1002}], "subject_key": 1, "last_seen_at": "2026-09-25T18:25:01.049178+00:00", "program_name": "v0.48-adjacent-routing", "activation_id": "dd090b25-f471-83d6-b014-53bc0b6166b2", "first_seen_at": "2026-09-25T18:25:01.049178+00:00", "winner_result": {"result": "ready"}, "winner_priority": 1, "winner_candidate": 1001, "competitors_truncated": false}], "selection": "lowest priority wins; an equal best priority is ambiguous", "contract_version": 14}, "effective_policies": {"changed": [], "frontier": "2026-09-25T18:26:01.01367+00:00", "transitions": 0}, "frontier_invariant": {"frontier": "2026-09-25T18:26:01.01367+00:00", "sampled_time": "2026-09-25T18:26:01.01367+00:00"}, "parameter_families": {"families": [], "frontier": "2026-09-25T18:26:01.01367+00:00", "contract_version": 13}}
+(1 row)
+
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:10: NOTICE:  trigger "policy_intent_packages_immutable" for relation "pgreact_mdm.policy_intent_packages" does not exist, skipping
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:322: NOTICE:  trigger "intent_requests_retained" for relation "pgreact_mdm.intent_requests" does not exist, skipping
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:326: NOTICE:  trigger "intent_requests_no_truncate" for relation "pgreact_mdm.intent_requests" does not exist, skipping
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:330: NOTICE:  trigger "intent_attempts_retained" for relation "pgreact_mdm.intent_attempts" does not exist, skipping
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:334: NOTICE:  trigger "intent_attempts_no_truncate" for relation "pgreact_mdm.intent_attempts" does not exist, skipping
+psql:/workspace/integrations/pg-mdm/sql/intent-worker.sql:62: NOTICE:  relation "intent_holds" already exists, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql:156: NOTICE:  table "changes_47856" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql:158: NOTICE:  table "changes_47867" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql:159: NOTICE:  table "changes_47881" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql:160: NOTICE:  table "changes_47851" does not exist, skipping
+                                       result                                        
+-------------------------------------------------------------------------------------
+ v0.48 adjacent upgrade preserved admission-off and ordinary decision behavior: PASS
+(1 row)
+
+ configure_intent_deployer 
+---------------------------
+ 
+(1 row)
+
+                                                                                                                                                                                                                                                                                                            publication                                                                                                                                                                                                                                                                                                            
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"state": "published", "policy_digest": "c9e960c2fbeea63174cf37a143acd2b6be8da6735ebd9adbb86d012e9009876b", "policy_package": {"routes": [{"level": 2, "action": "ESCALATE", "priority": 0, "entity_name": "policy_qualification", "reason_code": "ESTABLISHED_NEEDS_TWO_STRONG_CONNECTIONS"}, {"queue": "m2-ready", "priority": 0, "entity_name": "review_admission_live", "reason_code": "SINGLETON_NEEDS_INDEPENDENT_GROUP"}], "deadline": {"max_seconds": 86400, "min_seconds": 60, "duration_seconds": 86400, "replace_existing_deadline": false}}, "policy_revision": "v0.48-live-policy", "canonical_encoding_version": 1}
+(1 row)
+
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: WARNING:  [pg_trickle] SELECT_STAR: The defining query uses SELECT *, so source schema changes can require reinitialization. HINT: List output columns explicitly for a more stable stream-table schema.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_fc95610fe09d1826" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_65da9bb261506db2" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_409934bc10a68525" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_88d416c90441286b" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff created (pgt_id=143, mode=DIFFERENTIAL, initialized=true)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  pg_trickle: trigger pgreact_capture on pgreact_runtime.m0_35f0fe8291f34715a9ff is on a stream table. It will fire during DIFFERENTIAL refresh with correct TG_OP/OLD/NEW. Note: row-level triggers do NOT fire during FULL refresh. Use REFRESH MODE DIFFERENTIAL to ensure triggers fire on every change.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  pg_trickle: trigger pgreact_finalize on pgreact_runtime.m0_35f0fe8291f34715a9ff is on a stream table. It will fire during DIFFERENTIAL refresh with correct TG_OP/OLD/NEW. Note: row-level triggers do NOT fire during FULL refresh. Use REFRESH MODE DIFFERENTIAL to ensure triggers fire on every change.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: WARNING:  [pg_trickle] SELECT_STAR: The defining query uses SELECT *, so source schema changes can require reinitialization. HINT: List output columns explicitly for a more stable stream-table schema.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_fc95610fe09d1826" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_65da9bb261506db2" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_409934bc10a68525" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_88d416c90441286b" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b created (pgt_id=144, mode=DIFFERENTIAL, initialized=true)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  pg_trickle: trigger pgreact_capture on pgreact_runtime.m0_d5518f8d05b4458ba64b is on a stream table. It will fire during DIFFERENTIAL refresh with correct TG_OP/OLD/NEW. Note: row-level triggers do NOT fire during FULL refresh. Use REFRESH MODE DIFFERENTIAL to ensure triggers fire on every change.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  pg_trickle: trigger pgreact_finalize on pgreact_runtime.m0_d5518f8d05b4458ba64b is on a stream table. It will fire during DIFFERENTIAL refresh with correct TG_OP/OLD/NEW. Note: row-level triggers do NOT fire during FULL refresh. Use REFRESH MODE DIFFERENTIAL to ensure triggers fire on every change.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: WARNING:  [pg_trickle] SELECT_STAR: The defining query uses SELECT *, so source schema changes can require reinitialization. HINT: List output columns explicitly for a more stable stream-table schema.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_fc95610fe09d1826" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_65da9bb261506db2" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_409934bc10a68525" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  publication "pgtrickle_cdc_88d416c90441286b" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a created (pgt_id=145, mode=DIFFERENTIAL, initialized=true)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  pg_trickle: trigger pgreact_capture on pgreact_runtime.m0_580b61460d8a4573951a is on a stream table. It will fire during DIFFERENTIAL refresh with correct TG_OP/OLD/NEW. Note: row-level triggers do NOT fire during FULL refresh. Use REFRESH MODE DIFFERENTIAL to ensure triggers fire on every change.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:82: NOTICE:  pg_trickle: trigger pgreact_finalize on pgreact_runtime.m0_580b61460d8a4573951a is on a stream table. It will fire during DIFFERENTIAL refresh with correct TG_OP/OLD/NEW. Note: row-level triggers do NOT fire during FULL refresh. Use REFRESH MODE DIFFERENTIAL to ensure triggers fire on every change.
+ configure_intent_deployer 
+---------------------------
+ 
+(1 row)
+
+                              result                               
+-------------------------------------------------------------------
+ v0.48 missing-receipt recovery blocked without resubmission: PASS
+(1 row)
+
+                                       result                                       
+------------------------------------------------------------------------------------
+ v0.48 invalid, denied, and unknown outcomes are held with public diagnostics: PASS
+(1 row)
+
+ sync_intent_case_identities 
+-----------------------------
+                           7
+(1 row)
+
+ pg_advisory_lock 
+------------------
+ 
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+            set_case_controls             
+------------------------------------------
+ (01a0d9d0-4ce7-78ba-9eef-c399a44f5ae1,2)
+(1 row)
+
+ pg_advisory_unlock 
+--------------------
+ t
+(1 row)
+
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:716: NOTICE:  table "__pgt_cdc_145_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:716: NOTICE:  table "__pgt_cdc_145_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:716: NOTICE:  table "__pgt_cdc_145_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:716: NOTICE:  table "__pgt_cdc_145_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:716: NOTICE:  table "__pgt_delta_145" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:716: INFO:  [PGS_PROFILE] explicit_dml: materialize=26.43ms delete=0.56ms(0) update=0.39ms(0) insert=2.44ms(7) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:716: INFO:  [PGS_PROFILE] decision=6.05ms generate+build=6.99ms merge_exec=51.88ms cleanup_enqueue=0.28ms total=65.20ms affected=7 phantom_cleanup=0 delta_est=29 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:716: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +7 -0)
+ refresh_rule 
+--------------
+ 
+(1 row)
+
+                                    result                                    
+------------------------------------------------------------------------------
+ v0.48 human-edit race preserved current controls and re-evaluated fresh work
+(1 row)
+
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:799: NOTICE:  table "__pgt_cdc_145_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:799: NOTICE:  table "__pgt_cdc_145_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:799: NOTICE:  table "__pgt_cdc_145_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:799: NOTICE:  table "__pgt_cdc_145_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:799: NOTICE:  table "__pgt_delta_145" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:799: INFO:  [PGS_PROFILE] explicit_dml: materialize=20.33ms delete=1.53ms(7) update=0.44ms(0) insert=0.22ms(0) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:799: INFO:  [PGS_PROFILE] decision=4.26ms generate+build=2.63ms merge_exec=35.64ms cleanup_enqueue=0.00ms total=42.54ms affected=7 phantom_cleanup=0 delta_est=1 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:799: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +7 -0)
+ v048_reconciled_runtime 
+-------------------------
+                       4
+(1 row)
+
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_143_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_143_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_143_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_143_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_delta_143" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  [PGS_PROFILE] explicit_dml: materialize=19.73ms delete=0.39ms(0) update=0.33ms(0) insert=1.60ms(7) for pgreact_runtime.m0_35f0fe8291f34715a9ff
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  [PGS_PROFILE] decision=3.19ms generate+build=5.75ms merge_exec=34.07ms cleanup_enqueue=0.00ms total=43.02ms affected=7 phantom_cleanup=0 delta_est=33 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +7 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_144_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_144_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_144_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_144_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_delta_144" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  [PGS_PROFILE] explicit_dml: materialize=17.59ms delete=0.35ms(0) update=0.27ms(0) insert=1.32ms(7) for pgreact_runtime.m0_d5518f8d05b4458ba64b
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  [PGS_PROFILE] decision=3.31ms generate+build=4.37ms merge_exec=30.65ms cleanup_enqueue=0.00ms total=38.32ms affected=7 phantom_cleanup=0 delta_est=33 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +7 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_145_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_145_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_145_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_cdc_145_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: NOTICE:  table "__pgt_delta_145" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  [PGS_PROFILE] explicit_dml: materialize=17.13ms delete=0.36ms(0) update=0.45ms(0) insert=1.08ms(7) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  [PGS_PROFILE] decision=3.06ms generate+build=2.69ms merge_exec=31.30ms cleanup_enqueue=0.00ms total=37.05ms affected=7 phantom_cleanup=0 delta_est=3 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:927: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +7 -0)
+ set_config |                   set_config                    
+------------+-------------------------------------------------
+ 27         | pgreact:580b6146-0d8a-4573-951a-b2cdd81cdaa4:27
+(1 row)
+
+                                     result                                     
+--------------------------------------------------------------------------------
+ v0.48 transient SQLSTATE retry preserved the exact request identity/body: PASS
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_145_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_145_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_145_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_145_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_delta_145" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] explicit_dml: materialize=16.85ms delete=0.46ms(0) update=0.84ms(1) insert=0.17ms(0) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] decision=3.38ms generate+build=2.18ms merge_exec=29.11ms cleanup_enqueue=0.00ms total=34.68ms affected=1 phantom_cleanup=0 delta_est=2 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48486" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48491" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48496" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48501" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48506" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] explicit_dml: materialize=17.17ms delete=0.41ms(0) update=0.64ms(1) insert=0.17ms(0) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] decision=3.51ms generate+build=1.96ms merge_exec=29.66ms cleanup_enqueue=0.00ms total=35.14ms affected=1 phantom_cleanup=0 delta_est=2 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_143_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_143_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_143_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_143_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_delta_143" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] explicit_dml: materialize=16.37ms delete=0.39ms(0) update=0.96ms(2) insert=0.16ms(0) for pgreact_runtime.m0_35f0fe8291f34715a9ff
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] decision=2.91ms generate+build=2.00ms merge_exec=29.38ms cleanup_enqueue=0.00ms total=34.29ms affected=2 phantom_cleanup=0 delta_est=4 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +2 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48536" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48541" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48546" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48551" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48556" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] explicit_dml: materialize=16.35ms delete=0.32ms(0) update=0.60ms(1) insert=0.14ms(0) for pgreact_runtime.m0_35f0fe8291f34715a9ff
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] decision=3.50ms generate+build=2.31ms merge_exec=29.32ms cleanup_enqueue=0.00ms total=35.13ms affected=1 phantom_cleanup=0 delta_est=2 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_144_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_144_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_144_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_cdc_144_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "__pgt_delta_144" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] explicit_dml: materialize=17.48ms delete=0.35ms(0) update=1.20ms(3) insert=0.17ms(0) for pgreact_runtime.m0_d5518f8d05b4458ba64b
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] decision=3.16ms generate+build=2.11ms merge_exec=31.35ms cleanup_enqueue=0.00ms total=36.62ms affected=3 phantom_cleanup=0 delta_est=6 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +3 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48586" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48591" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48596" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48601" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48606" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] explicit_dml: materialize=16.88ms delete=0.52ms(0) update=0.75ms(1) insert=0.17ms(0) for pgreact_runtime.m0_d5518f8d05b4458ba64b
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] decision=3.55ms generate+build=2.12ms merge_exec=30.27ms cleanup_enqueue=0.00ms total=35.95ms affected=1 phantom_cleanup=0 delta_est=2 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48511" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48516" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48521" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48526" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48531" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] explicit_dml: materialize=16.02ms delete=0.32ms(0) update=0.75ms(2) insert=0.17ms(0) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] decision=3.14ms generate+build=1.99ms merge_exec=31.78ms cleanup_enqueue=0.00ms total=36.91ms affected=2 phantom_cleanup=0 delta_est=4 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +2 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48561" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48566" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48571" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48576" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: NOTICE:  table "changes_48581" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] explicit_dml: materialize=16.22ms delete=0.29ms(0) update=0.60ms(1) insert=0.14ms(0) for pgreact_runtime.m0_35f0fe8291f34715a9ff
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  [PGS_PROFILE] decision=3.09ms generate+build=2.02ms merge_exec=28.80ms cleanup_enqueue=0.00ms total=33.91ms affected=1 phantom_cleanup=0 delta_est=2 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1278: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_15_24041" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_15_23989" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_15" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_15" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=2.22ms delete=1.43ms(1) update=0.18ms(0) insert=0.10ms(1) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_0
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=2.33ms generate+build=3.70ms merge_exec=16.10ms cleanup_enqueue=0.00ms total=22.14ms affected=2 phantom_cleanup=0 delta_est=3 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_0 refreshed (DIFFERENTIAL: +2 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_16_33357" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_16_23989" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_16_24000" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_16" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_16" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=9.45ms delete=0.87ms(1) update=0.20ms(0) insert=0.09ms(1) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_1
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_recon_16" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "changes_48741" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=2.66ms generate+build=5.79ms merge_exec=33.19ms cleanup_enqueue=0.00ms total=41.64ms affected=2 phantom_cleanup=0 delta_est=4 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_1 refreshed (DIFFERENTIAL: +2 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_17_33367" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_17" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_17" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=1.42ms delete=0.50ms(0) update=0.20ms(0) insert=0.06ms(0) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_2
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=1.19ms generate+build=1.92ms merge_exec=13.40ms cleanup_enqueue=0.00ms total=16.51ms affected=0 phantom_cleanup=0 delta_est=0 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_2 refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_3 refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_4 refreshed (DIFFERENTIAL: +0 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_20_33357" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_20_24000" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_20_23989" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_20" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_20" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=6.51ms delete=0.69ms(1) update=0.20ms(0) insert=0.10ms(1) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_5
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_recon_20" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "changes_48786" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=2.28ms generate+build=2.89ms merge_exec=29.90ms cleanup_enqueue=0.00ms total=35.07ms affected=2 phantom_cleanup=0 delta_est=4 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_5 refreshed (DIFFERENTIAL: +2 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_21_33458" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_21" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_21" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=1.29ms delete=0.62ms(1) update=0.17ms(0) insert=0.08ms(1) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_6
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=0.51ms generate+build=1.01ms merge_exec=9.64ms cleanup_enqueue=0.00ms total=11.17ms affected=2 phantom_cleanup=0 delta_est=0 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_6 refreshed (DIFFERENTIAL: +2 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_22_33468" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_22" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_22" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=1.50ms delete=0.38ms(0) update=0.33ms(1) insert=0.17ms(1) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_7
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=0.68ms generate+build=4.46ms merge_exec=10.29ms cleanup_enqueue=0.00ms total=15.43ms affected=2 phantom_cleanup=0 delta_est=0 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_7 refreshed (DIFFERENTIAL: +2 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_23_33490" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_23" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_23" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=0.80ms delete=0.36ms(0) update=0.14ms(0) insert=0.04ms(0) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_8
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=0.53ms generate+build=0.80ms merge_exec=7.90ms cleanup_enqueue=0.00ms total=9.24ms affected=0 phantom_cleanup=0 delta_est=0 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_8 refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_24_33389" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_24_33411" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_24_33468" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_24_33490" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  [pg_trickle] SCAL-3: deep-join work_mem (512MB) exceeds delta_work_mem_cap_mb (256MB). Falling back to FULL refresh.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_24" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_9 refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_25_33537" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_25" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_25" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=1.01ms delete=0.53ms(0) update=0.14ms(0) insert=0.04ms(0) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_10
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=0.53ms generate+build=0.87ms merge_exec=9.18ms cleanup_enqueue=0.00ms total=10.59ms affected=0 phantom_cleanup=0 delta_est=0 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_10 refreshed (DIFFERENTIAL: +1 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_26_33389" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_26_33411" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_26_33468" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_26_33490" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  [pg_trickle] SCAL-3: deep-join work_mem (512MB) exceeds delta_work_mem_cap_mb (256MB). Falling back to FULL refresh.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_26" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_11 refreshed (DIFFERENTIAL: +10 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33571" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33367" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33458" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33389" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33468" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33411" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33490" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33436" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33515" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33537" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_27_33549" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  [pg_trickle] SCAL-3: deep-join work_mem (512MB) exceeds delta_work_mem_cap_mb (256MB). Falling back to FULL refresh.
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_27" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_12 refreshed (DIFFERENTIAL: +24 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_28_33458" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_cdc_28_33584" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_delta_28" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_pre_28" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] explicit_dml: materialize=5.85ms delete=0.60ms(1) update=0.20ms(0) insert=0.08ms(1) for mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_13
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "__pgt_recon_28" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: NOTICE:  table "changes_48994" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  [PGS_PROFILE] decision=0.76ms generate+build=1.91ms merge_exec=24.40ms cleanup_enqueue=0.00ms total=27.08ms affected=2 phantom_cleanup=0 delta_est=0 mode=INCR path=cache_miss hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1475: INFO:  Stream table mdm_graph.mdm_g_01a0d9cebf527a3c9f129a5047a53d27_13 refreshed (DIFFERENTIAL: +2 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_143_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_143_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_143_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_143_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_delta_143" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  [PGS_PROFILE] explicit_dml: materialize=16.12ms delete=0.32ms(0) update=1.79ms(5) insert=0.15ms(0) for pgreact_runtime.m0_35f0fe8291f34715a9ff
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  [PGS_PROFILE] decision=4.25ms generate+build=3.08ms merge_exec=32.30ms cleanup_enqueue=0.00ms total=39.64ms affected=5 phantom_cleanup=0 delta_est=10 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  Stream table pgreact_runtime.m0_35f0fe8291f34715a9ff refreshed (DIFFERENTIAL: +5 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_144_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_144_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_144_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_144_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_delta_144" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  [PGS_PROFILE] explicit_dml: materialize=15.96ms delete=0.32ms(0) update=1.40ms(5) insert=0.15ms(0) for pgreact_runtime.m0_d5518f8d05b4458ba64b
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  [PGS_PROFILE] decision=3.20ms generate+build=2.35ms merge_exec=29.48ms cleanup_enqueue=0.00ms total=35.03ms affected=5 phantom_cleanup=0 delta_est=10 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  Stream table pgreact_runtime.m0_d5518f8d05b4458ba64b refreshed (DIFFERENTIAL: +5 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_145_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_145_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_145_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_cdc_145_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: NOTICE:  table "__pgt_delta_145" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  [PGS_PROFILE] explicit_dml: materialize=15.61ms delete=0.48ms(0) update=1.95ms(5) insert=0.18ms(0) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  [PGS_PROFILE] decision=3.05ms generate+build=2.08ms merge_exec=29.33ms cleanup_enqueue=0.00ms total=34.46ms affected=5 phantom_cleanup=0 delta_est=10 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1497: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +5 -0)
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1596: NOTICE:  table "__pgt_cdc_145_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1596: NOTICE:  table "__pgt_cdc_145_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1596: NOTICE:  table "__pgt_cdc_145_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1596: NOTICE:  table "__pgt_cdc_145_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1596: NOTICE:  table "__pgt_delta_145" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1596: INFO:  [PGS_PROFILE] explicit_dml: materialize=15.59ms delete=0.27ms(0) update=0.54ms(1) insert=0.14ms(0) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1596: INFO:  [PGS_PROFILE] decision=3.04ms generate+build=2.07ms merge_exec=26.45ms cleanup_enqueue=0.00ms total=31.57ms affected=1 phantom_cleanup=0 delta_est=2 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1596: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +1 -0)
+ refresh_rule 
+--------------
+ 
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+            set_case_controls             
+------------------------------------------
+ (01a0d9d0-6307-76ab-af76-6efc9fb5cf83,5)
+(1 row)
+
+                                     result                                      
+---------------------------------------------------------------------------------
+ v0.48 actual worker actions, limits, receipts, and observation stability passed
+(1 row)
+
+                            result                            
+--------------------------------------------------------------
+ v0.48 malformed job did not roll back unrelated healthy work
+(1 row)
+
+                                    result                                     
+-------------------------------------------------------------------------------
+ v0.48 policy replacement withdrew old candidates and preserved attempted work
+(1 row)
+
+                     result                      
+-------------------------------------------------
+ v0.48 delivery did not publish or resolve cases
+(1 row)
+
+                         result                          
+---------------------------------------------------------
+ v0.48 post-submit rollback left no MDM or React effects
+(1 row)
+
+ pg_advisory_lock 
+------------------
+ 
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+ pg_advisory_unlock 
+--------------------
+ t
+(1 row)
+
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+ reconcile_intent_binding 
+--------------------------
+                        4
+(1 row)
+
+                                result                                
+----------------------------------------------------------------------
+ v0.48 in-flight pause was rejected with a retained no-change receipt
+(1 row)
+
+            set_case_controls             
+------------------------------------------
+ (01a0d9d0-6429-705d-bec2-cfdd70785ca9,4)
+(1 row)
+
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1968: NOTICE:  table "__pgt_cdc_145_25055" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1968: NOTICE:  table "__pgt_cdc_145_47974" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1968: NOTICE:  table "__pgt_cdc_145_48004" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1968: NOTICE:  table "__pgt_cdc_145_48017" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1968: NOTICE:  table "__pgt_delta_145" does not exist, skipping
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1968: INFO:  [PGS_PROFILE] explicit_dml: materialize=17.10ms delete=0.44ms(0) update=1.33ms(2) insert=0.33ms(0) for pgreact_runtime.m0_580b61460d8a4573951a
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1968: INFO:  [PGS_PROFILE] decision=3.22ms generate+build=2.32ms merge_exec=29.94ms cleanup_enqueue=0.00ms total=35.48ms affected=2 phantom_cleanup=0 delta_est=17 mode=INCR path=cache_hit hints=none strategy=explicit_dml
+psql:/workspace/tests/integrations/pg-mdm/v0.48-live.sql:1968: INFO:  Stream table pgreact_runtime.m0_580b61460d8a4573951a refreshed (DIFFERENTIAL: +2 -0)
+ refresh_rule 
+--------------
+ 
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+ dblink_connect 
+----------------
+ OK
+(1 row)
+
+ dblink_send_query 
+-------------------
+                 1
+(1 row)
+
+ dblink_disconnect 
+-------------------
+ OK
+(1 row)
+
+                                 result                                  
+-------------------------------------------------------------------------
+ v0.48 ambiguous commit disconnected, then replayed the original receipt
+(1 row)
+

@@ -1,0 +1,395 @@
+SET
+SET
+RESET
+RESET
+SET
+SET
+RESET
+RESET
+           result            
+-----------------------------
+ v0.48 restore source paused
+(1 row)
+
+REASSIGN OWNED
+DROP OWNED
+REASSIGN OWNED
+DROP OWNED
+SET
+REVOKE
+RESET
+SET
+REVOKE
+RESET
+SET
+REVOKE
+RESET
+SET
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+RESET
+REASSIGN OWNED
+DROP OWNED
+REASSIGN OWNED
+DROP OWNED
+REASSIGN OWNED
+DROP OWNED
+REASSIGN OWNED
+DROP OWNED
+REASSIGN OWNED
+DROP OWNED
+SET
+REVOKE
+RESET
+SET
+REVOKE
+RESET
+SET
+REVOKE
+RESET
+SET
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+REVOKE
+RESET
+REVOKE ROLE
+DROP ROLE
+CREATE ROLE
+GRANT ROLE
+BEGIN
+GRANT
+GRANT
+GRANT
+                                   format                                    
+-----------------------------------------------------------------------------
+ ALTER TABLE mdm_out.policy_qualification OWNER TO mdm_helper_owner
+ ALTER TABLE mdm_out.policy_qualification_members OWNER TO mdm_helper_owner
+ ALTER TABLE mdm_out.policy_qualification_review OWNER TO mdm_helper_owner
+ ALTER TABLE mdm_out.customer OWNER TO mdm_helper_owner
+ ALTER TABLE mdm_out.customer_members OWNER TO mdm_helper_owner
+ ALTER TABLE mdm_out.customer_review OWNER TO mdm_helper_owner
+ ALTER TABLE mdm_out.review_admission_live OWNER TO mdm_helper_owner
+ ALTER TABLE mdm_out.review_admission_live_members OWNER TO mdm_helper_owner
+ ALTER TABLE mdm_out.review_admission_live_review OWNER TO mdm_helper_owner
+(9 rows)
+
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+GRANT
+                           format                            
+-------------------------------------------------------------
+ GRANT USAGE ON SCHEMA pgtrickle_changes TO mdm_helper_owner
+(1 row)
+
+GRANT
+                                   format                                   
+----------------------------------------------------------------------------
+ GRANT SELECT ON ALL TABLES IN SCHEMA pgtrickle_changes TO mdm_helper_owner
+(1 row)
+
+GRANT
+                                                      format                                                       
+-------------------------------------------------------------------------------------------------------------------
+ ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA pgtrickle_changes GRANT SELECT ON TABLES TO mdm_helper_owner
+(1 row)
+
+ALTER DEFAULT PRIVILEGES
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+ALTER TABLE
+ALTER TABLE
+ALTER SEQUENCE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER SCHEMA
+ALTER TABLE
+ALTER TABLE
+ALTER TABLE
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+ALTER FUNCTION
+COMMIT
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:7: NOTICE:  relation "policy_intent_packages" already exists, skipping
+CREATE TABLE
+DROP TRIGGER
+CREATE TRIGGER
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:281: NOTICE:  relation "intent_requests" already exists, skipping
+CREATE TABLE
+GRANT
+ALTER TABLE
+psql:/workspace/integrations/pg-mdm/sql/request-store.sql:304: NOTICE:  relation "intent_attempts" already exists, skipping
+CREATE TABLE
+ALTER TABLE
+REVOKE
+CREATE FUNCTION
+ALTER FUNCTION
+REVOKE
+DROP TRIGGER
+CREATE TRIGGER
+DROP TRIGGER
+CREATE TRIGGER
+DROP TRIGGER
+CREATE TRIGGER
+DROP TRIGGER
+CREATE TRIGGER
+REVOKE
+REVOKE
+GRANT
+DO
+ALTER ROLE
+GRANT
+GRANT
+psql:/workspace/integrations/pg-mdm/sql/intent-worker.sql:30: NOTICE:  relation "policy_intent_bindings" already exists, skipping
+CREATE TABLE
+ALTER TABLE
+psql:/workspace/integrations/pg-mdm/sql/intent-worker.sql:34: NOTICE:  relation "policy_intent_one_enabled_binding_per_entity" already exists, skipping
+CREATE INDEX
+psql:/workspace/integrations/pg-mdm/sql/intent-worker.sql:42: NOTICE:  relation "policy_intent_runtime" already exists, skipping
+CREATE TABLE
+ALTER TABLE
+psql:/workspace/integrations/pg-mdm/sql/intent-worker.sql:50: NOTICE:  relation "intent_case_identities" already exists, skipping
+CREATE TABLE
+ALTER TABLE
+psql:/workspace/integrations/pg-mdm/sql/intent-worker.sql:62: NOTICE:  relation "intent_holds" already exists, skipping
+CREATE TABLE
+ALTER TABLE
+DO
+REVOKE
+CREATE VIEW
+COMMENT
+REVOKE
+GRANT
+CREATE FUNCTION
+ALTER FUNCTION
+REVOKE
+GRANT
+CREATE FUNCTION
+GRANT
+CREATE FUNCTION
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+REVOKE
+GRANT
+CREATE FUNCTION
+GRANT
+ALTER FUNCTION
+REVOKE
+REVOKE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE VIEW
+REVOKE
+GRANT
+CREATE FUNCTION
+ALTER FUNCTION
+REVOKE
+CREATE VIEW
+REVOKE
+CREATE VIEW
+CREATE VIEW
+CREATE VIEW
+CREATE FUNCTION
+CREATE FUNCTION
+ALTER FUNCTION
+REVOKE
+GRANT
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+CREATE FUNCTION
+GRANT
+ALTER FUNCTION
+REVOKE
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+GRANT
+REVOKE
+REVOKE
+GRANT
+GRANT
+GRANT
+REVOKE
+GRANT
+GRANT
+GRANT
+GRANT
+REVOKE
+CREATE FUNCTION
+GRANT
+GRANT
+CREATE FUNCTION
+REVOKE
+CREATE FUNCTION
+REVOKE
+GRANT
+GRANT
+GRANT
+GRANT
+ configure_policy_worker_privileges 
+------------------------------------
+ 
+(1 row)
+
+ configure_intent_deployer 
+---------------------------
+ 
+(1 row)
+
+SET
+DO
+SET
+SET
+DO
+RESET
+RESET
+SET
+                                       rebind                                        
+-------------------------------------------------------------------------------------
+ {"entity_name": "policy_qualification", "desired_version": 1, "rebound_sources": 1}
+(1 row)
+
+RESET
+SET
+SET
+RESET
+RESET
+RESET
+SET
+                                        rebind                                        
+--------------------------------------------------------------------------------------
+ {"entity_name": "review_admission_live", "desired_version": 1, "rebound_sources": 1}
+(1 row)
+
+RESET
+SET
+SET
+RESET
+RESET
+SET
+ sync_intent_case_identities 
+-----------------------------
+                           0
+(1 row)
+
+RESET
+SET
+SET
+DO
+RESET
+RESET
+DO
+                       result                        
+-----------------------------------------------------
+ v0.48 logical restore and OID reconciliation passed
+(1 row)
+

@@ -15,4 +15,6 @@ This proves the checked-in contract and vectors only. Joint v0.47 qualification
 against pg-mdm v0.13.1, including the authorized policy-case projection and
 occurrence mapping, is recorded in
 [`../evidence/v0.47.0/manifest.json`](../evidence/v0.47.0/manifest.json).
-Joint v0.48 worker qualification against pg-mdm 0.14 is pending.
+Joint v0.48 worker qualification against pg-mdm 0.14 passed. The recorded
+commands, image identities, and results are in the
+[v0.48.0 qualification evidence](../evidence/v0.48.0.md).

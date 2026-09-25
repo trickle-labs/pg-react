@@ -1,41 +1,74 @@
 \set ON_ERROR_STOP on
-SELECT pg_catalog.to_regnamespace('pgreact_mdm') IS NOT NULL AS v048_has_worker_schema \gset
 REASSIGN OWNED BY pgreact_mdm_worker TO postgres;
 DROP OWNED BY pgreact_mdm_worker;
-\if :v048_has_worker_schema
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_namespace AS namespace,
+         LATERAL pg_catalog.aclexplode(namespace.nspacl) AS acl
+    WHERE namespace.nspname = 'pgreact'
+      AND acl.grantee = 'pgreact_mdm_worker'::regrole
+      AND acl.grantor = 'mdm_helper_owner'::regrole
+      AND acl.privilege_type = 'USAGE'
+) AS v048_revoke_pgre_usage \gset
+\if :v048_revoke_pgre_usage
 SET ROLE mdm_helper_owner;
-REVOKE ALL PRIVILEGES ON TABLE
-    pgreact_mdm.authorized_policy_cases_v1,
-    pgreact_mdm.intent_due_candidates,
-    pgreact_mdm.intent_escalation_candidates,
-    pgreact_mdm.intent_queue_candidates,
-    pgreact_mdm.policy_packages
-    FROM pgreact_mdm_worker;
-REVOKE ALL PRIVILEGES ON FUNCTION
-    pgreact_mdm.change_due_intent(
-        pgreact.activation_context,
-        pgreact_mdm.intent_deployer_policy_cases_v1,
-        pgreact_mdm.intent_deployer_policy_cases_v1),
-    pgreact_mdm.change_escalation_intent(
-        pgreact.activation_context,
-        pgreact_mdm.intent_deployer_policy_cases_v1,
-        pgreact_mdm.intent_deployer_policy_cases_v1),
-    pgreact_mdm.change_queue_intent(
-        pgreact.activation_context,
-        pgreact_mdm.intent_deployer_policy_cases_v1,
-        pgreact_mdm.intent_deployer_policy_cases_v1),
-    pgreact_mdm.execute_intent_episode(uuid, text),
-    pgreact_mdm.submit_due_intent(
-        pgreact.activation_context,
-        pgreact_mdm.intent_deployer_policy_cases_v1),
-    pgreact_mdm.submit_escalation_intent(
-        pgreact.activation_context,
-        pgreact_mdm.intent_deployer_policy_cases_v1),
-    pgreact_mdm.submit_queue_intent(
-        pgreact.activation_context,
-        pgreact_mdm.intent_deployer_policy_cases_v1)
-    FROM pgreact_mdm_worker;
-REVOKE USAGE ON SCHEMA pgreact, pgreact_mdm, mdm_steward
-    FROM pgreact_mdm_worker;
+REVOKE USAGE ON SCHEMA pgreact FROM pgreact_mdm_worker;
+RESET ROLE;
+\endif
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_namespace AS namespace,
+         LATERAL pg_catalog.aclexplode(namespace.nspacl) AS acl
+    WHERE namespace.nspname = 'pgreact_mdm'
+      AND acl.grantee = 'pgreact_mdm_worker'::regrole
+      AND acl.grantor = 'mdm_helper_owner'::regrole
+      AND acl.privilege_type = 'USAGE'
+) AS v048_revoke_worker_usage \gset
+\if :v048_revoke_worker_usage
+SET ROLE mdm_helper_owner;
+REVOKE USAGE ON SCHEMA pgreact_mdm FROM pgreact_mdm_worker;
+RESET ROLE;
+\endif
+SELECT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_namespace AS namespace,
+         LATERAL pg_catalog.aclexplode(namespace.nspacl) AS acl
+    WHERE namespace.nspname = 'mdm_steward'
+      AND acl.grantee = 'pgreact_mdm_worker'::regrole
+      AND acl.grantor = 'mdm_helper_owner'::regrole
+      AND acl.privilege_type = 'USAGE'
+) AS v048_revoke_mdm_usage \gset
+\if :v048_revoke_mdm_usage
+SET ROLE mdm_helper_owner;
+REVOKE USAGE ON SCHEMA mdm_steward FROM pgreact_mdm_worker;
+RESET ROLE;
+\endif
+SELECT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_namespace WHERE nspname = 'pgreact_mdm'
+) AS v048_revoke_worker_objects \gset
+\if :v048_revoke_worker_objects
+SET ROLE mdm_helper_owner;
+SELECT pg_catalog.format(
+    'REVOKE ALL ON %s %I.%I FROM pgreact_mdm_worker;',
+    CASE class.relkind WHEN 'S' THEN 'SEQUENCE' ELSE 'TABLE' END,
+    namespace.nspname, class.relname)
+FROM pg_catalog.pg_class AS class
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = class.relnamespace
+CROSS JOIN LATERAL pg_catalog.aclexplode(class.relacl) AS acl
+WHERE namespace.nspname = 'pgreact_mdm'
+  AND class.relkind IN ('r', 'p', 'v', 'm', 'f', 'S')
+  AND acl.grantee = 'pgreact_mdm_worker'::regrole
+  AND acl.grantor = 'mdm_helper_owner'::regrole
+\gexec
+SELECT pg_catalog.format(
+    'REVOKE ALL ON ROUTINE %s FROM pgreact_mdm_worker;',
+    procedure.oid::pg_catalog.regprocedure)
+FROM pg_catalog.pg_proc AS procedure
+JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = procedure.pronamespace
+CROSS JOIN LATERAL pg_catalog.aclexplode(procedure.proacl) AS acl
+WHERE namespace.nspname = 'pgreact_mdm'
+  AND acl.grantee = 'pgreact_mdm_worker'::regrole
+  AND acl.grantor = 'mdm_helper_owner'::regrole
+\gexec
 RESET ROLE;
 \endif

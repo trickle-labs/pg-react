@@ -10,6 +10,7 @@ ALTER ROLE pgreact_mdm_worker
     NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
 GRANT USAGE ON SCHEMA pgreact, pgreact_mdm, mdm_steward
     TO mdm_helper_owner WITH GRANT OPTION;
+GRANT CREATE ON SCHEMA pgreact_mdm TO mdm_helper_owner;
 
 CREATE TABLE IF NOT EXISTS pgreact_mdm.policy_intent_bindings (
     binding_id uuid PRIMARY KEY,
@@ -54,11 +55,134 @@ CREATE TABLE IF NOT EXISTS pgreact_mdm.intent_holds (
     case_key bigint NOT NULL,
     policy_revision text NOT NULL,
     action text NOT NULL,
+    expected_action_revision bigint NOT NULL CHECK (expected_action_revision > 0),
     reason_code text NOT NULL,
     held_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-    PRIMARY KEY (binding_id, case_key, policy_revision, action)
+    PRIMARY KEY (binding_id, case_key, policy_revision, action, expected_action_revision)
 );
 ALTER TABLE pgreact_mdm.intent_holds OWNER TO mdm_helper_owner;
+
+DO $intent_holds_upgrade$
+DECLARE
+    has_action_revision boolean;
+BEGIN
+    SELECT EXISTS (
+        SELECT 1
+        FROM pg_catalog.pg_attribute
+        WHERE attrelid = 'pgreact_mdm.intent_holds'::regclass
+          AND attname = 'expected_action_revision'
+          AND NOT attisdropped)
+    INTO has_action_revision;
+    IF NOT has_action_revision THEN
+        ALTER TABLE pgreact_mdm.intent_holds
+            ADD COLUMN expected_action_revision bigint;
+        UPDATE pgreact_mdm.intent_holds AS hold
+        SET expected_action_revision = policy_case.action_revision
+        FROM mdm_steward.policy_cases_v1 AS policy_case
+        WHERE policy_case.case_key = hold.case_key
+          AND hold.expected_action_revision IS NULL;
+        IF EXISTS (
+            SELECT 1
+            FROM pgreact_mdm.intent_holds
+            WHERE expected_action_revision IS NULL) THEN
+            RAISE EXCEPTION
+                'MDM_INTENT_HOLD_MIGRATION: cannot derive action revision for retained hold';
+        END IF;
+        ALTER TABLE pgreact_mdm.intent_holds
+            ALTER COLUMN expected_action_revision SET NOT NULL;
+        ALTER TABLE pgreact_mdm.intent_holds
+            ADD CONSTRAINT intent_holds_expected_action_revision_check
+            CHECK (expected_action_revision > 0);
+        ALTER TABLE pgreact_mdm.intent_holds
+            DROP CONSTRAINT IF EXISTS intent_holds_pkey;
+        ALTER TABLE pgreact_mdm.intent_holds
+            ADD CONSTRAINT intent_holds_pkey PRIMARY KEY (
+                binding_id, case_key, policy_revision, action,
+                expected_action_revision);
+    END IF;
+END
+$intent_holds_upgrade$;
+REVOKE CREATE ON SCHEMA pgreact_mdm FROM mdm_helper_owner;
+
+CREATE OR REPLACE VIEW pgreact_mdm.delivery_inspection_v1 AS
+SELECT request.work_ref,
+       binding.binding_id,
+       binding.binding_version,
+       binding.entity_name::text AS entity_name,
+       request.policy_revision,
+       encode(binding.policy_digest, 'hex') AS policy_digest,
+       request.case_key,
+       request.lifecycle_generation,
+       request.action_revision,
+       request.request_body ->> 'action' AS action,
+       request.created_at AS requested_at,
+       COALESCE(attempt.outcome, 'PENDING') AS delivery_outcome,
+       attempt.reason_code AS delivery_reason_code,
+       attempt.attempted_at,
+       receipt.receipt_id AS mdm_receipt_id,
+       receipt.outcome AS mdm_outcome,
+       receipt.reason_code AS mdm_reason_code,
+       receipt.resulting_publication_revision,
+       case_row.status AS current_case_status,
+       case_row.publication_revision AS current_publication_revision,
+       CASE WHEN hold.reason_code IS NULL THEN 'NONE' ELSE 'HELD' END AS remediation_state,
+       hold.reason_code AS remediation_reason_code,
+       hold.held_at AS remediation_at
+FROM pgreact_mdm.intent_requests AS request
+JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+LEFT JOIN LATERAL (
+    SELECT saved_attempt.*
+    FROM pgreact_mdm.intent_attempts AS saved_attempt
+    WHERE saved_attempt.binding_id = request.binding_id
+      AND saved_attempt.request_key = request.request_key
+    ORDER BY saved_attempt.attempted_at DESC,
+             saved_attempt.episode_id DESC,
+             saved_attempt.attempt_no DESC
+    LIMIT 1
+) AS attempt ON true
+LEFT JOIN mdm_steward.policy_receipts_v1 AS receipt
+  ON receipt.receipt_id = attempt.receipt_id
+LEFT JOIN mdm_steward.policy_cases_v1 AS case_row
+  ON case_row.entity_name = binding.entity_name
+ AND case_row.case_key = request.case_key
+LEFT JOIN LATERAL (
+    SELECT saved_hold.reason_code, saved_hold.held_at
+    FROM pgreact_mdm.intent_holds AS saved_hold
+    WHERE saved_hold.binding_id = request.binding_id
+      AND saved_hold.case_key = request.case_key
+      AND saved_hold.policy_revision = request.policy_revision
+      AND saved_hold.action = request.request_body ->> 'action'
+      AND saved_hold.expected_action_revision = request.action_revision
+    ORDER BY saved_hold.held_at DESC
+    LIMIT 1
+) AS hold ON true;
+COMMENT ON VIEW pgreact_mdm.delivery_inspection_v1 IS
+    'Versioned read-only delivery, MDM receipt, policy, case, and remediation inspection.';
+REVOKE ALL ON pgreact_mdm.delivery_inspection_v1 FROM PUBLIC;
+GRANT SELECT ON pgreact_mdm.delivery_inspection_v1 TO PUBLIC;
+
+CREATE OR REPLACE FUNCTION pgreact_mdm.intent_receipt_exists(
+    request_binding_id uuid,
+    request_key bytea,
+    expected_receipt_id uuid
+)
+RETURNS boolean
+LANGUAGE SQL STABLE SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+    SELECT EXISTS (
+        SELECT 1
+        FROM mdm_steward.policy_receipts_v1 AS receipt
+        WHERE receipt.binding_id = $1
+          AND receipt.request_key = $2
+          AND receipt.receipt_id = $3)
+$function$;
+ALTER FUNCTION pgreact_mdm.intent_receipt_exists(uuid, bytea, uuid)
+    OWNER TO mdm_helper_owner;
+REVOKE ALL ON FUNCTION pgreact_mdm.intent_receipt_exists(uuid, bytea, uuid)
+    FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pgreact_mdm.intent_receipt_exists(uuid, bytea, uuid)
+    TO pgreact_mdm_worker;
 
 CREATE OR REPLACE FUNCTION pgreact_mdm.intent_binding_config(binding_id uuid)
 RETURNS SETOF pgreact_mdm.policy_intent_bindings
@@ -413,7 +537,7 @@ SELECT policy_case.case_key, policy_case.entity_name::text AS entity_name,
        policy_case.review_version, policy_case.definition_version,
        policy_case.publication_revision, policy_case.stewardship_epoch,
        policy_case.evidence_basis_digest, policy_case.action_revision,
-       policy_case.pending_stewardship
+       policy_case.pending_stewardship, policy_case.last_observed_at
 FROM mdm_steward.policy_cases_v1 AS policy_case
 JOIN pgreact_mdm.policy_intent_bindings AS binding
   ON binding.entity_name = policy_case.entity_name
@@ -623,7 +747,8 @@ BEGIN
             SELECT 1 FROM pgreact_mdm.intent_holds AS hold
             WHERE hold.binding_id = binding.binding_id
               AND hold.case_key = policy_case.case_key
-              AND hold.policy_revision = binding.policy_revision) THEN
+              AND hold.policy_revision = binding.policy_revision
+              AND hold.expected_action_revision = policy_case.action_revision) THEN
             RETURN;
         END IF;
         INSERT INTO pgreact_mdm.intent_requests(
@@ -666,6 +791,49 @@ BEGIN
             key, digest, body, v_work_ref, 'IDEMPOTENCY_CONFLICT',
             'REQUEST_KEY_BODY_MISMATCH', (body ->> 'case_key')::bigint,
             (body ->> 'expected_action_revision')::bigint);
+        INSERT INTO pgreact_mdm.intent_holds(
+            binding_id, case_key, policy_revision, action,
+            expected_action_revision, reason_code)
+        VALUES (
+            binding.binding_id, (body ->> 'case_key')::bigint,
+            binding.policy_revision, body ->> 'action',
+            (body ->> 'expected_action_revision')::bigint,
+            'REQUEST_KEY_BODY_MISMATCH')
+        ON CONFLICT (
+            binding_id, case_key, policy_revision, action, expected_action_revision)
+        DO NOTHING;
+        RETURN;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM pgreact_mdm.intent_attempts AS previous_attempt
+        WHERE previous_attempt.binding_id = binding.binding_id
+          AND previous_attempt.request_key = key
+          AND previous_attempt.receipt_id IS NOT NULL
+          AND NOT pgreact_mdm.intent_receipt_exists(
+              previous_attempt.binding_id,
+              previous_attempt.request_key,
+              previous_attempt.receipt_id)) THEN
+        INSERT INTO pgreact_mdm.intent_attempts(
+            episode_id, attempt_no, binding_id, request_key, request_digest,
+            request_body, work_ref, outcome, reason_code, case_key, action_revision)
+        VALUES (
+            (context).episode_id, (context).attempt_no, binding.binding_id,
+            key, digest, body, v_work_ref, 'RECOVERY_BLOCKED',
+            'MDM_RECEIPT_MISSING', (body ->> 'case_key')::bigint,
+            (body ->> 'expected_action_revision')::bigint);
+        INSERT INTO pgreact_mdm.intent_holds(
+            binding_id, case_key, policy_revision, action,
+            expected_action_revision, reason_code)
+        VALUES (
+            binding.binding_id, (body ->> 'case_key')::bigint,
+            binding.policy_revision, body ->> 'action',
+            (body ->> 'expected_action_revision')::bigint,
+            'MDM_RECEIPT_MISSING')
+        ON CONFLICT (
+            binding_id, case_key, policy_revision, action, expected_action_revision)
+        DO NOTHING;
         RETURN;
     END IF;
 
@@ -691,18 +859,48 @@ BEGIN
         response.outcome, response.reason_code, response.case_key,
         response.action_revision, response.control,
         response.resulting_publication_revision);
-    IF response.outcome IN (
-        'IDEMPOTENCY_CONFLICT', 'STALE_CASE', 'BINDING_PAUSED', 'BINDING_REPLACED',
-        'POLICY_MISMATCH', 'PENDING_STEWARDSHIP') THEN
+    IF response.outcome IS DISTINCT FROM 'APPLIED_CONTROL'
+       AND response.outcome IS DISTINCT FROM 'NO_CHANGE' THEN
         INSERT INTO pgreact_mdm.intent_holds(
-            binding_id, case_key, policy_revision, action, reason_code)
+            binding_id, case_key, policy_revision, action,
+            expected_action_revision, reason_code)
         VALUES (
             binding.binding_id, response.case_key, binding.policy_revision,
-            body ->> 'action', response.reason_code)
-        ON CONFLICT (binding_id, case_key, policy_revision, action) DO NOTHING;
+            body ->> 'action', (body ->> 'expected_action_revision')::bigint,
+            CASE WHEN response.outcome IN (
+                'STALE_CASE', 'CASE_CLOSED', 'ACTION_DENIED',
+                'MANUAL_PROTECTION', 'OPENED_AT_UNKNOWN', 'LIMIT_EXCEEDED',
+                'BINDING_PAUSED', 'BINDING_REPLACED', 'POLICY_MISMATCH',
+                'PENDING_STEWARDSHIP', 'IDEMPOTENCY_CONFLICT')
+            THEN COALESCE(response.reason_code, response.outcome)
+            ELSE 'UNKNOWN_MDM_OUTCOME' END)
+        ON CONFLICT (
+            binding_id, case_key, policy_revision, action, expected_action_revision)
+        DO NOTHING;
     END IF;
 END
 $function$;
+
+CREATE OR REPLACE FUNCTION pgreact_mdm.submit_intent_as_worker(
+    context pgreact.activation_context,
+    candidate jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+BEGIN
+    PERFORM pgreact_mdm.submit_intent($1, $2);
+END
+$function$;
+ALTER FUNCTION pgreact_mdm.submit_intent_as_worker(
+    pgreact.activation_context, jsonb) OWNER TO pgreact_mdm_worker;
+REVOKE ALL ON FUNCTION pgreact_mdm.submit_intent_as_worker(
+    pgreact.activation_context, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pgreact_mdm.submit_intent(
+    pgreact.activation_context, jsonb) TO pgreact_mdm_worker;
 
 CREATE OR REPLACE FUNCTION pgreact_mdm.submit_queue_intent(
     context pgreact.activation_context,
@@ -722,7 +920,7 @@ BEGIN
     ORDER BY intent.binding_id
     LIMIT 1;
     IF FOUND THEN
-        PERFORM pgreact_mdm.submit_intent($1, candidate);
+        PERFORM pgreact_mdm.submit_intent_as_worker($1, candidate);
     END IF;
 END
 $function$;
@@ -745,7 +943,7 @@ BEGIN
     ORDER BY intent.binding_id
     LIMIT 1;
     IF FOUND THEN
-        PERFORM pgreact_mdm.submit_intent($1, candidate);
+        PERFORM pgreact_mdm.submit_intent_as_worker($1, candidate);
     END IF;
 END
 $function$;
@@ -768,7 +966,7 @@ BEGIN
     ORDER BY intent.binding_id
     LIMIT 1;
     IF FOUND THEN
-        PERFORM pgreact_mdm.submit_intent($1, candidate);
+        PERFORM pgreact_mdm.submit_intent_as_worker($1, candidate);
     END IF;
 END
 $function$;
@@ -876,6 +1074,7 @@ AS $function$
 DECLARE
     version pgreact_internal.rule_versions%ROWTYPE;
     runner pg_catalog.pg_roles%ROWTYPE;
+    claimed record;
 BEGIN
     SELECT * INTO STRICT runner
     FROM pg_catalog.pg_roles
@@ -899,7 +1098,11 @@ BEGIN
            'pgreact_mdm.change_escalation_intent(pgreact.activation_context,pgreact_mdm.intent_deployer_policy_cases_v1,pgreact_mdm.intent_deployer_policy_cases_v1)'::regprocedure::oid) THEN
         RAISE EXCEPTION 'MDM_RUNNER_RULE: rule is not an active intent rule owned by %', session_user;
     END IF;
-    RETURN pgreact_internal.execute_one($1, $2);
+    SELECT * INTO claimed FROM pgreact.claim_episode_m31_base($1, $2);
+    IF NOT FOUND THEN RETURN NULL; END IF;
+    PERFORM pgreact.execute_claimed_episode_m31_base(
+        claimed.episode_id, $2, claimed.lease_token);
+    RETURN claimed.episode_id;
 END
 $function$;
 GRANT EXECUTE ON FUNCTION pgreact_mdm.submit_queue_intent(
@@ -1009,7 +1212,7 @@ BEGIN
     END LOOP;
     EXECUTE 'REVOKE CREATE ON SCHEMA pgreact_runtime FROM pgreact_mdm_worker';
     EXECUTE format('REVOKE CREATE ON SCHEMA pgreact_mdm FROM %I', $1);
-    EXECUTE format('GRANT EXECUTE ON FUNCTION pgreact.preview(pgreact_api.declaration, jsonb), pgreact.review_token(jsonb), pgreact.deploy(pgreact_api.declaration, text, jsonb), pgreact_mdm.submit_intent(pgreact.activation_context, jsonb), pgreact_mdm.execute_intent_episode(uuid, text), pgreact_mdm.sync_intent_case_identities(), pgreact.refresh_rule(uuid) TO %I', $1);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION pgreact.preview(pgreact_api.declaration, jsonb), pgreact.review_token(jsonb), pgreact.deploy(pgreact_api.declaration, text, jsonb), pgreact_mdm.submit_intent(pgreact.activation_context, jsonb), pgreact_mdm.submit_intent_as_worker(pgreact.activation_context, jsonb), pgreact_mdm.execute_intent_episode(uuid, text), pgreact_mdm.sync_intent_case_identities(), pgreact.refresh_rule(uuid) TO %I', $1);
 END
 $function$;
 

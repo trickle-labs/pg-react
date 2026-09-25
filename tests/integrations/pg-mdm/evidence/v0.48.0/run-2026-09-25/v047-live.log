@@ -1,0 +1,17 @@
+psql:/workspace/integrations/pg-mdm/sql/policy-inputs.sql:5: NOTICE:  schema "pgreact_mdm" already exists, skipping
+psql:/workspace/integrations/pg-mdm/sql/policy-inputs.sql:46: NOTICE:  relation "policy_packages" already exists, skipping
+                                                                                                                                                                                                                    published                                                                                                                                                                                                                    
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"state": "published", "policy_digest": "4ea8e02f4d3f79ea622ba7ca8f1b219f88c5f5a20d46eb52aae3e1c75d71e684", "policy_package": {"routes": [{"queue": "mdm-review", "action": "ASSIGN_QUEUE", "priority": 1, "reason_code": "SINGLETON_NEEDS_INDEPENDENT_GROUP"}], "deadline": {"max_seconds": 86400, "min_seconds": 60, "duration_seconds": 3600, "replace_existing_deadline": false}, "applicability": {}}, "policy_revision": "live-policy-1"}
+(1 row)
+
+                                                                                                                                                                                                                   published                                                                                                                                                                                                                    
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ {"state": "published", "policy_digest": "9c0b18b6c1e3f6f9a8a305c2be3934f2558355f0e069e130914310c7f0e3412a", "policy_package": {"routes": [{"queue": "mdm-urgent", "action": "ASSIGN_QUEUE", "priority": 1, "reason_code": "SINGLETON_NEEDS_INDEPENDENT_GROUP"}], "deadline": {"max_seconds": 86400, "min_seconds": 60, "duration_seconds": 7200, "replace_existing_deadline": true}, "applicability": {}}, "policy_revision": "live-policy-2"}
+(1 row)
+
+                result                
+--------------------------------------
+ v0.47 live MDM policy package passed
+(1 row)
+

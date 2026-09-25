@@ -1,4 +1,5 @@
 \set ON_ERROR_STOP on
+REVOKE pgreact_mdm_worker FROM mdm_m2_runner;
 DROP ROLE pgreact_mdm_worker;
 CREATE ROLE pgreact_mdm_worker
     NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT NOCREATEDB NOCREATEROLE NOREPLICATION;
