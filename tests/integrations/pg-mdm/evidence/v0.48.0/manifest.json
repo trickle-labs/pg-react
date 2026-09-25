@@ -24,7 +24,7 @@
   "candidate": {
     "base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
     "head": "d73f03ea18d06d10891ea352d743eedbb0e6bf2f",
-    "source_snapshot_sha256": "563db6daa8f8642d71c4996562e49e9126f5e7e191e41f2a468613eefd54d50a",
+    "source_snapshot_sha256": "176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1",
     "source_plan": "plans/v0.48.0.md",
     "identity_note": "Current source snapshot is based on PR #6 head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay, including the postgres-user admission workflow fix, archived at run-2026-09-25/candidate-snapshot-workflow-fix.tar. The complete T48 qualification artifacts remain from snapshot 9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21; product SQL and test sources are unchanged, and the admission check was rerun successfully on the current workflow snapshot. The v4 owner sign-off remains bound to the earlier snapshot; current-candidate sign-off and contract-plan reconciliation are pending."
   },
@@ -85,7 +85,7 @@
     },
     "artifacts": [
       { "path": "run-2026-09-25/candidate-snapshot.tar", "sha256": "762389923899b2934110101a6da6841e536bdbe19b3597fed05c91814336e95a" },
-      { "path": "run-2026-09-25/candidate-snapshot-workflow-fix.tar", "sha256": "7e09649e5c92a78173b0d34be64cedc3ae75790884571960e879af37eeb98618" },
+      { "path": "run-2026-09-25/candidate-snapshot-workflow-fix.tar", "sha256": "707fd54b78c0782d0c70ec396447c0d4e2a0fe296415c722254af2624c8effc3" },
       { "path": "run-2026-09-25/qualification-retries.md", "sha256": "43bbaca82da2f4941ecf97517630a4ad194882e5048bc27606e53237a43c6dcc" },
       { "path": "run-2026-09-25/v047-live.log", "sha256": "0c612b4dc94584eebd3213d95b6ad7c9d617d2154cb0b845af44dfd52c73a864" },
       { "path": "run-2026-09-25/v048-codec.log", "sha256": "408e5c6c52839c33031796deb3d300e5fba304eba805f9d456697ab9a1708183" },
@@ -99,7 +99,7 @@
   "candidate_acceptance": {
     "status": "pending_contract_reconciliation_and_owner_signoff",
     "contract_revision": "v4",
-    "source_snapshot_sha256": "563db6daa8f8642d71c4996562e49e9126f5e7e191e41f2a468613eefd54d50a",
+    "source_snapshot_sha256": "176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1",
     "comparison_base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5"
   },
   "independent_review": {
