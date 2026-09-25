@@ -99,7 +99,7 @@ jobs:
             grep -E 'passed|PASS' "$log" | tail -n 1
           done
           log=v0.48.0-release-evidence/missing-mdm-admission.log
-          if ! docker exec "$container" \
+          if ! docker exec --user postgres "$container" \
             sh /work/tests/integrations/pg-mdm/v0.48-admission.sh > "$log" 2>&1; then
             cat "$log"
             exit 1

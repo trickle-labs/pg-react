@@ -24,16 +24,16 @@
   "candidate": {
     "base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
     "head": "d73f03ea18d06d10891ea352d743eedbb0e6bf2f",
-    "source_snapshot_sha256": "9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21",
+    "source_snapshot_sha256": "563db6daa8f8642d71c4996562e49e9126f5e7e191e41f2a468613eefd54d50a",
     "source_plan": "plans/v0.48.0.md",
-    "identity_note": "Source snapshot based on PR #6 head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay archived at run-2026-09-25/candidate-snapshot.tar. All v0.48 qualification lanes passed on that exact snapshot; contract v4 records the solo-maintainer owner sign-off."
+    "identity_note": "Current source snapshot is based on PR #6 head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay, including the postgres-user admission workflow fix, archived at run-2026-09-25/candidate-snapshot-workflow-fix.tar. The complete T48 qualification artifacts remain from snapshot 9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21; product SQL and test sources are unchanged, and the admission check was rerun successfully on the current workflow snapshot. The v4 owner sign-off remains bound to the earlier snapshot; current-candidate sign-off and contract-plan reconciliation are pending."
   },
   "runtime": {
     "postgresql": "18.4",
     "pg_react_extension": "0.46.0",
     "pg_mdm_extension": "0.14.0",
     "pg_trickle_extension": "0.108.0",
-    "qualification_status": "candidate_owner_signed",
+    "qualification_status": "candidate_pending_owner_signoff",
     "docker_image_id": "sha256:44c0242a6b00e0934092ff2bda93b289a836b8d1712f4d149b4008b7bfcbfaa7"
   },
   "qualification_run": {
@@ -85,14 +85,22 @@
     },
     "artifacts": [
       { "path": "run-2026-09-25/candidate-snapshot.tar", "sha256": "762389923899b2934110101a6da6841e536bdbe19b3597fed05c91814336e95a" },
+      { "path": "run-2026-09-25/candidate-snapshot-workflow-fix.tar", "sha256": "7e09649e5c92a78173b0d34be64cedc3ae75790884571960e879af37eeb98618" },
       { "path": "run-2026-09-25/qualification-retries.md", "sha256": "43bbaca82da2f4941ecf97517630a4ad194882e5048bc27606e53237a43c6dcc" },
       { "path": "run-2026-09-25/v047-live.log", "sha256": "0c612b4dc94584eebd3213d95b6ad7c9d617d2154cb0b845af44dfd52c73a864" },
       { "path": "run-2026-09-25/v048-codec.log", "sha256": "408e5c6c52839c33031796deb3d300e5fba304eba805f9d456697ab9a1708183" },
       { "path": "run-2026-09-25/v048-live.log", "sha256": "3a7a1d0cdf6b2846edfbf2468adfa492cf65d1cb60d4525adbf87ca4b668ac99" },
       { "path": "run-2026-09-25/v048-security.log", "sha256": "f5e03572f35215a25baf0f1aaf565efe20978c14cc0c9ceaaa764a97777627b2" },
       { "path": "run-2026-09-25/v048-restore.log", "sha256": "74c1b3110ca254442fd4a933980c7cda160b794d15d8673b59c697fde06ae15c" },
-      { "path": "run-2026-09-25/v048-admission.log", "sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" }
+      { "path": "run-2026-09-25/v048-admission.log", "sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" },
+      { "path": "run-2026-09-25/v048-admission-recheck.log", "sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" }
     ]
+  },
+  "candidate_acceptance": {
+    "status": "pending_contract_reconciliation_and_owner_signoff",
+    "contract_revision": "v4",
+    "source_snapshot_sha256": "563db6daa8f8642d71c4996562e49e9126f5e7e191e41f2a468613eefd54d50a",
+    "comparison_base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5"
   },
   "independent_review": {
     "status": "waived",
@@ -106,10 +114,10 @@
     { "id": "live_worker", "status": "passed", "command": "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-live.sql", "expected": "all v0.48 live assertions and the populated upgrade pass on the repaired candidate", "actual": "exit 0; adjacent upgrade, recovery, outcome, retry, worker action, and receipt assertions passed", "log": "run-2026-09-25/v048-live.log", "log_sha256": "3a7a1d0cdf6b2846edfbf2468adfa492cf65d1cb60d4525adbf87ca4b668ac99" },
     { "id": "restore", "status": "passed", "command": "rtk docker exec --env MDM_HELPER_CONFIG=/workspace/tests/integrations/pg-mdm/pg-mdm-configure-helper.sql pgreact-v048-full2 sh /workspace/tests/integrations/pg-mdm/v0.48-restore.sh", "expected": "logical restore preserves exact request/receipt correlation and reconciles stale database and worker OIDs", "actual": "exit 0; v0.48 logical restore and OID reconciliation passed", "log": "run-2026-09-25/v048-restore.log", "log_sha256": "74c1b3110ca254442fd4a933980c7cda160b794d15d8673b59c697fde06ae15c" },
     { "id": "security", "status": "passed", "command": "rtk docker exec pgreact-v048-full2 psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-security.sql", "expected": "worker authority restrictions, retained request/attempt rows, and unchanged denied receipt are asserted", "actual": "exit 0; worker privilege/retry and indefinite retention assertions passed", "log": "run-2026-09-25/v048-security.log", "log_sha256": "f5e03572f35215a25baf0f1aaf565efe20978c14cc0c9ceaaa764a97777627b2" },
-    { "id": "missing_mdm_admission", "status": "passed", "command": "rtk docker exec pgreact-v048-full2 sh /workspace/tests/integrations/pg-mdm/v0.48-admission.sh", "expected": "deployment fails before effects when mdm_steward is absent", "actual": "exit 0; v0.48 missing-MDM admission rejected before effects: PASS", "log": "run-2026-09-25/v048-admission.log", "log_sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" }
+    { "id": "missing_mdm_admission", "status": "passed", "command": "rtk docker exec --user postgres pg-react-pr6-ci-fix sh /work/tests/integrations/pg-mdm/v0.48-admission.sh", "expected": "deployment fails before effects when mdm_steward is absent", "actual": "exit 0; v0.48 missing-MDM admission rejected before effects: PASS on image sha256:44c0242a6b00e0934092ff2bda93b289a836b8d1712f4d149b4008b7bfcbfaa7", "log": "run-2026-09-25/v048-admission-recheck.log", "log_sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" }
   ],
   "source_sha256": {
-    ".github/workflows/v0.48.0-release.yml": "497534197935a9ec2aefeeef85a823c705396b09ceecf83efc4d7725a5545448",
+    ".github/workflows/v0.48.0-release.yml": "a2143b318fe1168efb1bb2d22494b70b88be37f275726a0235e73611cf3090df",
     "contracts/MDM-STEWARDSHIP-1-fixture.json": "900f365533bab13480fcb88ab8e8b7956beb4f14a8cfc92cd46770b2e26ef3e4",
     "contracts/MDM-STEWARDSHIP-1-v3.json": "fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe",
     "docs/v0.48.0-release-notes.md": "06b3091073fc03b3b2b48add25b32505cfe4f9e8875742cc271a9c6563cd4d78",
