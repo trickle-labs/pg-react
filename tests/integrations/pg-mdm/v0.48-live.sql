@@ -757,16 +757,20 @@ END
 $delivery_inspection$;
 
 CREATE TEMP TABLE v048_attempt_baseline AS
-SELECT count(*) AS attempt_count,
+SELECT COALESCE((
+           SELECT jsonb_agg(to_jsonb(request)
+                            ORDER BY request.binding_id, request.request_key)
+           FROM pgreact_mdm.intent_requests AS request
+           JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+           WHERE binding.entity_name = 'policy_qualification'), '[]'::jsonb)
+           AS request_identity,
        COALESCE((
-           SELECT jsonb_agg(jsonb_build_object(
-                       'binding_id', request.binding_id,
-                       'request_key', encode(request.request_key, 'hex'),
-                       'request_digest', encode(request.request_digest, 'hex'),
-                       'request_body', request.request_body)
-                    ORDER BY request.binding_id, request.request_key)
-           FROM pgreact_mdm.intent_requests AS request), '[]'::jsonb)
-           AS request_identity;
+           SELECT jsonb_agg(to_jsonb(attempt)
+                            ORDER BY attempt.episode_id, attempt.attempt_no)
+           FROM pgreact_mdm.intent_attempts AS attempt
+           JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+           WHERE binding.entity_name = 'policy_qualification'), '[]'::jsonb)
+           AS attempt_identity;
 
 DO $correlation$
 DECLARE
@@ -929,20 +933,41 @@ RESET SESSION AUTHORIZATION;
 
 DO $observation_work$
 BEGIN
-    IF (SELECT attempt_count FROM v048_attempt_baseline)
-       <> (SELECT count(*) FROM pgreact_mdm.intent_attempts) THEN
-        RAISE EXCEPTION 'observation-only publication created worker intent attempts';
+    IF (SELECT attempt_identity FROM v048_attempt_baseline) IS DISTINCT FROM
+       COALESCE((
+           SELECT jsonb_agg(to_jsonb(attempt)
+                            ORDER BY attempt.episode_id, attempt.attempt_no)
+           FROM pgreact_mdm.intent_attempts AS attempt
+           JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+           WHERE binding.entity_name = 'policy_qualification'), '[]'::jsonb) THEN
+        RAISE EXCEPTION 'observation-only publication changed exact policy_qualification attempts';
     END IF;
     IF (SELECT request_identity FROM v048_attempt_baseline) IS DISTINCT FROM
        COALESCE((
-           SELECT jsonb_agg(jsonb_build_object(
-                       'binding_id', request.binding_id,
-                       'request_key', encode(request.request_key, 'hex'),
-                       'request_digest', encode(request.request_digest, 'hex'),
-                       'request_body', request.request_body)
-                    ORDER BY request.binding_id, request.request_key)
-           FROM pgreact_mdm.intent_requests AS request), '[]'::jsonb) THEN
+           SELECT jsonb_agg(to_jsonb(request)
+                            ORDER BY request.binding_id, request.request_key)
+           FROM pgreact_mdm.intent_requests AS request
+           JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+           WHERE binding.entity_name = 'policy_qualification'), '[]'::jsonb) THEN
         RAISE EXCEPTION 'observation-only publication changed request identity or body';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+        FROM pgreact_mdm.intent_requests AS request
+        JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+        JOIN pgreact_mdm.delivery_inspection_v1 AS inspection USING (work_ref)
+        JOIN mdm_steward.policy_cases_v1 AS case_row
+          ON case_row.entity_name = binding.entity_name
+         AND case_row.case_key = request.case_key
+        WHERE binding.entity_name = 'policy_qualification'
+          AND (inspection.delivery_outcome IS DISTINCT FROM 'APPLIED_CONTROL'
+               OR inspection.mdm_receipt_id IS NULL
+               OR inspection.mdm_outcome IS DISTINCT FROM 'APPLIED_CONTROL'
+               OR inspection.resulting_publication_revision IS NOT NULL
+               OR inspection.current_case_status IS DISTINCT FROM 'open'
+               OR inspection.current_publication_revision IS DISTINCT FROM
+                  case_row.publication_revision)) THEN
+        RAISE EXCEPTION 'published MDM state obscured delivery, receipt, or open-case state';
     END IF;
     IF EXISTS (
         SELECT 1
@@ -973,8 +998,24 @@ WHERE case_row.entity_name = 'review_admission_live'
   AND case_row.assigned_queue = 'm2-ready'
 ORDER BY case_row.case_key
 LIMIT 1;
-SET SESSION AUTHORIZATION mdm_legacy_login;
-SET ROLE mdm_legacy_administrator;
+GRANT SELECT ON v048_r10_case TO :"queue_entity_execution_role";
+CREATE TEMP TABLE v048_r10_old_request AS
+SELECT request.binding_id, request.case_key, request.request_key,
+       request.request_body, request.action_revision
+FROM pgreact_mdm.intent_requests AS request
+JOIN v048_r10_case AS expected USING (case_key)
+WHERE request.binding_id = :'v048_policy_binding_id'::uuid
+ORDER BY request.action_revision DESC
+LIMIT 1;
+DO $r10_prior_request$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM v048_r10_old_request) THEN
+        RAISE EXCEPTION 'independent-job fixture lacks a prior queue request';
+    END IF;
+END
+$r10_prior_request$;
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
 DO $r10_reopen_case$
 DECLARE case_row record;
 BEGIN
@@ -1000,9 +1041,15 @@ SELECT dblink_send_query('m2_bad_job',
     '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)) '
     'SELECT pgreact_mdm.submit_intent(NULL::pgreact.activation_context, ''{}''::jsonb) IS NULL FROM worker');
 SELECT dblink_send_query('m2_healthy_job', format(
-    'WITH worker AS MATERIALIZED '
-    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)) '
-    'SELECT pgreact_mdm.execute_intent_episode(%L::uuid, %L) IS NOT NULL FROM worker',
+    'WITH RECURSIVE worker AS MATERIALIZED '
+    '(SELECT set_config(''role'', ''pgreact_mdm_worker'', false)), '
+    'episodes(n, episode_id) AS ( '
+    'SELECT 1, pgreact_mdm.execute_intent_episode(%L::uuid, %L) FROM worker '
+    'UNION ALL '
+    'SELECT n + 1, pgreact_mdm.execute_intent_episode(%L::uuid, %L) '
+    'FROM episodes WHERE episode_id IS NOT NULL AND n < 100) '
+    'SELECT bool_or(episode_id IS NOT NULL) FROM episodes',
+    :'v048_queue_rule', 'v0.48-independent-healthy-job',
     :'v048_queue_rule', 'v0.48-independent-healthy-job'));
 CREATE TEMP TABLE v048_r10_healthy_result(executed boolean NOT NULL);
 INSERT INTO v048_r10_healthy_result
@@ -1040,7 +1087,20 @@ BEGIN
            JOIN v048_r10_case AS expected USING (case_key)
            WHERE inspection.action = 'ASSIGN_QUEUE'
              AND inspection.delivery_outcome = 'APPLIED_CONTROL'
-             AND inspection.mdm_receipt_id IS NOT NULL) THEN
+             AND inspection.mdm_receipt_id IS NOT NULL)
+       OR NOT EXISTS (
+           SELECT 1
+           FROM v048_r10_old_request AS previous
+           JOIN pgreact_mdm.intent_requests AS revised
+             ON revised.binding_id = previous.binding_id
+            AND revised.case_key = previous.case_key
+            AND revised.action_revision > previous.action_revision
+            AND revised.request_key <> previous.request_key
+           WHERE EXISTS (
+               SELECT 1 FROM pgreact_mdm.intent_requests AS retained
+               WHERE retained.binding_id = previous.binding_id
+                 AND retained.request_key = previous.request_key
+                 AND retained.request_body = previous.request_body)) THEN
         RAISE EXCEPTION 'malformed job prevented the unrelated healthy job from committing';
     END IF;
 END
@@ -1059,8 +1119,8 @@ WHERE case_row.entity_name = 'review_admission_live'
 ORDER BY case_row.case_key
 LIMIT 1
 \gset
-SET SESSION AUTHORIZATION mdm_legacy_login;
-SET ROLE mdm_legacy_administrator;
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
 SELECT mdm_steward.set_case_controls(
     :'v048_replacement_case_key'::bigint, 'manual-review', NULL, 0, false,
     :'v048_replacement_case_revision'::bigint,
