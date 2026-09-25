@@ -63,6 +63,63 @@ CREATE TABLE IF NOT EXISTS pgreact_mdm.intent_holds (
 ALTER TABLE pgreact_mdm.intent_holds OWNER TO mdm_helper_owner;
 REVOKE CREATE ON SCHEMA pgreact_mdm FROM mdm_helper_owner;
 
+CREATE OR REPLACE VIEW pgreact_mdm.delivery_inspection_v1 AS
+SELECT request.work_ref,
+       binding.binding_id,
+       binding.binding_version,
+       binding.entity_name::text AS entity_name,
+       request.policy_revision,
+       encode(binding.policy_digest, 'hex') AS policy_digest,
+       request.case_key,
+       request.lifecycle_generation,
+       request.action_revision,
+       request.request_body ->> 'action' AS action,
+       request.created_at AS requested_at,
+       COALESCE(attempt.outcome, 'PENDING') AS delivery_outcome,
+       attempt.reason_code AS delivery_reason_code,
+       attempt.attempted_at,
+       receipt.receipt_id AS mdm_receipt_id,
+       receipt.outcome AS mdm_outcome,
+       receipt.reason_code AS mdm_reason_code,
+       receipt.resulting_publication_revision,
+       case_row.status AS current_case_status,
+       case_row.publication_revision AS current_publication_revision,
+       CASE WHEN hold.reason_code IS NULL THEN 'NONE' ELSE 'HELD' END AS remediation_state,
+       hold.reason_code AS remediation_reason_code,
+       hold.held_at AS remediation_at
+FROM pgreact_mdm.intent_requests AS request
+JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+LEFT JOIN LATERAL (
+    SELECT saved_attempt.*
+    FROM pgreact_mdm.intent_attempts AS saved_attempt
+    WHERE saved_attempt.binding_id = request.binding_id
+      AND saved_attempt.request_key = request.request_key
+    ORDER BY saved_attempt.attempted_at DESC,
+             saved_attempt.episode_id DESC,
+             saved_attempt.attempt_no DESC
+    LIMIT 1
+) AS attempt ON true
+LEFT JOIN mdm_steward.policy_receipts_v1 AS receipt
+  ON receipt.receipt_id = attempt.receipt_id
+LEFT JOIN mdm_steward.policy_cases_v1 AS case_row
+  ON case_row.entity_name = binding.entity_name
+ AND case_row.case_key = request.case_key
+LEFT JOIN LATERAL (
+    SELECT saved_hold.reason_code, saved_hold.held_at
+    FROM pgreact_mdm.intent_holds AS saved_hold
+    WHERE saved_hold.binding_id = request.binding_id
+      AND saved_hold.case_key = request.case_key
+      AND saved_hold.policy_revision = request.policy_revision
+      AND saved_hold.action = request.request_body ->> 'action'
+      AND saved_hold.expected_action_revision = request.action_revision
+    ORDER BY saved_hold.held_at DESC
+    LIMIT 1
+) AS hold ON true;
+COMMENT ON VIEW pgreact_mdm.delivery_inspection_v1 IS
+    'Versioned read-only delivery, MDM receipt, policy, case, and remediation inspection.';
+REVOKE ALL ON pgreact_mdm.delivery_inspection_v1 FROM PUBLIC;
+GRANT SELECT ON pgreact_mdm.delivery_inspection_v1 TO PUBLIC;
+
 CREATE OR REPLACE FUNCTION pgreact_mdm.intent_binding_config(binding_id uuid)
 RETURNS SETOF pgreact_mdm.policy_intent_bindings
 LANGUAGE SQL

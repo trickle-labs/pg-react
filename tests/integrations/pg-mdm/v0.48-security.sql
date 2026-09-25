@@ -419,3 +419,51 @@ $security$;
 RESET ROLE;
 SELECT 'v0.48 disallowed worker action returned an unchanged denial receipt' AS result;
 SELECT 'v0.48 actual worker privileges and retry passed' AS result;
+
+\connect :v048_database postgres
+DO $retention$
+DECLARE
+    request_blocked boolean := false;
+    attempt_blocked boolean := false;
+    attempt_truncate_blocked boolean := false;
+    truncate_guards text[];
+BEGIN
+    BEGIN
+        UPDATE pgreact_mdm.intent_requests
+        SET created_at = created_at
+        WHERE work_ref = (SELECT min(work_ref) FROM pgreact_mdm.intent_requests);
+    EXCEPTION WHEN SQLSTATE '55000' THEN
+        request_blocked := true;
+    END;
+    BEGIN
+        UPDATE pgreact_mdm.intent_attempts
+        SET attempted_at = attempted_at
+        WHERE (episode_id, attempt_no) = (
+            SELECT episode_id, attempt_no
+            FROM pgreact_mdm.intent_attempts
+            ORDER BY episode_id, attempt_no LIMIT 1);
+    EXCEPTION WHEN SQLSTATE '55000' THEN
+        attempt_blocked := true;
+    END;
+    BEGIN
+        TRUNCATE pgreact_mdm.intent_attempts;
+    EXCEPTION WHEN SQLSTATE '55000' THEN
+        attempt_truncate_blocked := true;
+    END;
+    SELECT array_agg(relation.relname::text ORDER BY relation.relname::text)
+    INTO truncate_guards
+    FROM pg_catalog.pg_trigger AS trigger_row
+    JOIN pg_catalog.pg_class AS relation ON relation.oid = trigger_row.tgrelid
+    WHERE trigger_row.tgname IN (
+              'intent_requests_no_truncate', 'intent_attempts_no_truncate')
+      AND (trigger_row.tgtype & 32) <> 0
+      AND NOT trigger_row.tgisinternal;
+    IF NOT request_blocked OR NOT attempt_blocked
+       OR NOT attempt_truncate_blocked
+       OR truncate_guards IS DISTINCT FROM ARRAY[
+           'intent_attempts', 'intent_requests']::text[] THEN
+        RAISE EXCEPTION 'indefinite request and attempt retention was not enforced';
+    END IF;
+END
+$retention$;
+SELECT 'v0.48 indefinite request and attempt retention passed' AS result;

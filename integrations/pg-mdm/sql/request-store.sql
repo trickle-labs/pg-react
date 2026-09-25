@@ -305,6 +305,37 @@ CREATE TABLE IF NOT EXISTS pgreact_mdm.intent_attempts (
 ALTER TABLE pgreact_mdm.intent_attempts OWNER TO mdm_helper_owner;
 REVOKE CREATE ON SCHEMA pgreact_mdm FROM mdm_helper_owner;
 
+CREATE OR REPLACE FUNCTION pgreact_mdm.reject_intent_record_mutation()
+RETURNS trigger
+LANGUAGE plpgsql
+SET search_path = pg_catalog, pg_temp
+AS $function$
+BEGIN
+    RAISE EXCEPTION USING
+        ERRCODE = '55000',
+        MESSAGE = 'MDM_INTENT_RECORD_RETAINED: request and attempt records are append-only';
+END
+$function$;
+ALTER FUNCTION pgreact_mdm.reject_intent_record_mutation() OWNER TO mdm_helper_owner;
+REVOKE ALL ON FUNCTION pgreact_mdm.reject_intent_record_mutation() FROM PUBLIC;
+
+DROP TRIGGER IF EXISTS intent_requests_retained ON pgreact_mdm.intent_requests;
+CREATE TRIGGER intent_requests_retained
+BEFORE UPDATE OR DELETE ON pgreact_mdm.intent_requests
+FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.reject_intent_record_mutation();
+DROP TRIGGER IF EXISTS intent_requests_no_truncate ON pgreact_mdm.intent_requests;
+CREATE TRIGGER intent_requests_no_truncate
+BEFORE TRUNCATE ON pgreact_mdm.intent_requests
+FOR EACH STATEMENT EXECUTE FUNCTION pgreact_mdm.reject_intent_record_mutation();
+DROP TRIGGER IF EXISTS intent_attempts_retained ON pgreact_mdm.intent_attempts;
+CREATE TRIGGER intent_attempts_retained
+BEFORE UPDATE OR DELETE ON pgreact_mdm.intent_attempts
+FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.reject_intent_record_mutation();
+DROP TRIGGER IF EXISTS intent_attempts_no_truncate ON pgreact_mdm.intent_attempts;
+CREATE TRIGGER intent_attempts_no_truncate
+BEFORE TRUNCATE ON pgreact_mdm.intent_attempts
+FOR EACH STATEMENT EXECUTE FUNCTION pgreact_mdm.reject_intent_record_mutation();
+
 REVOKE ALL ON TABLE pgreact_mdm.policy_intent_packages,
     pgreact_mdm.intent_requests,
     pgreact_mdm.intent_attempts FROM PUBLIC;

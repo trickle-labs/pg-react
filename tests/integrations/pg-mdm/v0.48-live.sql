@@ -221,6 +221,143 @@ JOIN v048_expected_intents AS expected
   ON expected.case_key = case_row.case_key
  AND expected.entity_name = case_row.entity_name;
 
+CREATE TEMP TABLE v048_disabled_snapshot AS
+SELECT
+    (SELECT jsonb_agg(to_jsonb(case_row) ORDER BY case_row.case_key)
+     FROM mdm_steward.policy_cases_v1 AS case_row) AS cases,
+    (SELECT jsonb_agg(to_jsonb(receipt) ORDER BY receipt.receipt_id)
+     FROM mdm_steward.policy_receipts_v1 AS receipt) AS receipts,
+    (SELECT jsonb_agg(to_jsonb(request) ORDER BY request.binding_id, request.request_key)
+     FROM pgreact_mdm.intent_requests AS request) AS requests,
+    (SELECT jsonb_agg(to_jsonb(attempt) ORDER BY attempt.episode_id, attempt.attempt_no)
+     FROM pgreact_mdm.intent_attempts AS attempt) AS attempts;
+
+SELECT runtime.runtime_version AS v048_policy_runtime_version
+FROM pgreact_mdm.policy_intent_runtime AS runtime
+WHERE runtime.binding_id = :'v048_policy_binding_id'::uuid
+\gset
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT pgreact_mdm.pause_intent_binding(
+           :'v048_policy_binding_id'::uuid, :'v048_policy_runtime_version'::bigint)
+       AS v048_paused_runtime
+\gset
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+SET SESSION AUTHORIZATION mdm_m2_runner;
+DO $disabled_binding$
+DECLARE
+    rule_id uuid;
+    episode_id bigint;
+    iterations integer := 0;
+BEGIN
+    SELECT rule_version_id INTO STRICT rule_id
+    FROM pgreact.rules
+    WHERE rule_name = 'v0.48-live-worker-queue' AND state = 'ACTIVE';
+    IF EXISTS (
+        SELECT 1 FROM pgreact_mdm.intent_queue_candidates
+        WHERE binding_id = (
+            SELECT binding_id FROM pgreact_mdm.policy_intent_bindings
+            WHERE entity_name = 'review_admission_live'
+              AND policy_revision = 'v0.48-live-policy')) THEN
+        RAISE EXCEPTION 'paused binding still produced queue candidates';
+    END IF;
+    PERFORM pgreact.refresh_rule(rule_id);
+    PERFORM set_config('role', 'pgreact_mdm_worker', true);
+    LOOP
+        episode_id := pgreact_mdm.execute_intent_episode(
+            rule_id, 'v0.48-disabled-binding');
+        EXIT WHEN episode_id IS NULL;
+        iterations := iterations + 1;
+        IF iterations > 100 THEN
+            RAISE EXCEPTION 'paused-binding work did not drain within 100 episodes';
+        END IF;
+    END LOOP;
+END
+$disabled_binding$;
+RESET SESSION AUTHORIZATION;
+
+DO $shadow_no_effect$
+DECLARE
+    comparison jsonb;
+    expected_keys bigint[];
+    compared_keys bigint[];
+BEGIN
+    SELECT array_agg(DISTINCT case_key ORDER BY case_key)
+    INTO expected_keys
+    FROM v048_expected_intents;
+    comparison := pgreact_mdm.compare_population(
+        'mdm_steward.policy_cases_v1'::regclass,
+        'v0.48-live-policy', 'v0.48-live-policy', statement_timestamp(),
+        jsonb_build_object(
+            'id', 'v0.48-live-shadow',
+            'membership', to_jsonb(expected_keys),
+            'expected_count', cardinality(expected_keys)));
+    SELECT array_agg((item.value ->> 'case_key')::bigint ORDER BY (item.value ->> 'case_key')::bigint)
+    INTO compared_keys
+    FROM jsonb_array_elements(comparison -> 'rows') AS item(value);
+    IF comparison ->> 'state' IS DISTINCT FROM 'complete'
+       OR comparison ->> 'read_only' IS DISTINCT FROM 'true'
+       OR compared_keys IS DISTINCT FROM expected_keys
+       OR EXISTS (
+           SELECT 1 FROM jsonb_array_elements(comparison -> 'rows') AS item(value)
+           WHERE item.value ->> 'changed' IS DISTINCT FROM 'false')
+       OR EXISTS (
+           SELECT 1
+           FROM v048_disabled_snapshot AS before
+           WHERE before.cases IS DISTINCT FROM (
+                     SELECT jsonb_agg(to_jsonb(case_row) ORDER BY case_row.case_key)
+                     FROM mdm_steward.policy_cases_v1 AS case_row)
+              OR before.receipts IS DISTINCT FROM (
+                     SELECT jsonb_agg(to_jsonb(receipt) ORDER BY receipt.receipt_id)
+                     FROM mdm_steward.policy_receipts_v1 AS receipt)
+              OR before.requests IS DISTINCT FROM (
+                     SELECT jsonb_agg(to_jsonb(request)
+                                      ORDER BY request.binding_id, request.request_key)
+                     FROM pgreact_mdm.intent_requests AS request)
+              OR before.attempts IS DISTINCT FROM (
+                     SELECT jsonb_agg(to_jsonb(attempt)
+                                      ORDER BY attempt.episode_id, attempt.attempt_no)
+                     FROM pgreact_mdm.intent_attempts AS attempt)) THEN
+        RAISE EXCEPTION 'disabled or shadow evaluation changed candidates, controls, receipts, or request state';
+    END IF;
+END
+$shadow_no_effect$;
+
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT pgreact_mdm.reconcile_intent_binding(
+           :'v048_policy_binding_id'::uuid, :'v048_paused_runtime'::bigint) AS v048_reconciled_runtime;
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+DO $disabled_binding_restored$
+DECLARE
+    expected_queue text[];
+    actual_queue text[];
+BEGIN
+    SELECT array_agg(case_key::text || ':' || pgreact_mdm.canonical_json(arguments) ORDER BY case_key)
+    INTO expected_queue
+    FROM v048_expected_intents
+    WHERE binding_id = (
+        SELECT binding_id FROM pgreact_mdm.policy_intent_bindings
+        WHERE entity_name = 'review_admission_live'
+          AND policy_revision = 'v0.48-live-policy')
+      AND action = 'ASSIGN_QUEUE';
+    SELECT array_agg(case_key::text || ':' || pgreact_mdm.canonical_json(arguments) ORDER BY case_key)
+    INTO actual_queue
+    FROM pgreact_mdm.intent_queue_candidates
+    WHERE binding_id = (
+        SELECT binding_id FROM pgreact_mdm.policy_intent_bindings
+        WHERE entity_name = 'review_admission_live'
+          AND policy_revision = 'v0.48-live-policy');
+    IF actual_queue IS DISTINCT FROM expected_queue THEN
+        RAISE EXCEPTION 're-enabled binding did not restore its exact candidate output';
+    END IF;
+END
+$disabled_binding_restored$;
+
 CREATE TEMP TABLE v048_stale_hold_probe AS
 SELECT expected.binding_id, expected.case_key, expected.entity_name, expected.action,
        baseline.action_revision AS current_action_revision,
@@ -441,6 +578,50 @@ BEGIN
 END
 $work$;
 RESET SESSION AUTHORIZATION;
+
+DO $delivery_inspection$
+DECLARE
+    expected_work_refs text[];
+    inspected_work_refs text[];
+BEGIN
+    SELECT array_agg(work_ref ORDER BY work_ref)
+    INTO expected_work_refs
+    FROM pgreact_mdm.intent_requests;
+    SELECT array_agg(work_ref ORDER BY work_ref)
+    INTO inspected_work_refs
+    FROM pgreact_mdm.delivery_inspection_v1;
+    IF inspected_work_refs IS DISTINCT FROM expected_work_refs
+       OR NOT EXISTS (
+           SELECT 1
+           FROM pgreact_mdm.delivery_inspection_v1 AS inspection
+           JOIN pgreact_mdm.intent_requests AS request USING (work_ref)
+           JOIN pgreact_mdm.intent_attempts AS attempt
+             ON attempt.binding_id = request.binding_id
+            AND attempt.request_key = request.request_key
+            AND attempt.receipt_id = inspection.mdm_receipt_id
+           JOIN mdm_steward.policy_receipts_v1 AS receipt
+             ON receipt.receipt_id = inspection.mdm_receipt_id
+           WHERE inspection.binding_id = request.binding_id
+             AND inspection.policy_revision = request.policy_revision
+             AND inspection.entity_name = 'policy_qualification'
+             AND inspection.action = request.request_body ->> 'action'
+             AND inspection.delivery_outcome = attempt.outcome
+             AND inspection.mdm_outcome = receipt.outcome
+             AND inspection.current_case_status IS NOT NULL
+             AND inspection.current_publication_revision IS NOT NULL)
+       OR NOT has_table_privilege('mdm_test_login',
+              'pgreact_mdm.delivery_inspection_v1', 'SELECT')
+       OR has_table_privilege('mdm_test_login',
+              'pgreact_mdm.delivery_inspection_v1', 'UPDATE')
+       OR EXISTS (
+           SELECT 1 FROM information_schema.columns
+           WHERE table_schema = 'pgreact_mdm'
+             AND table_name = 'delivery_inspection_v1'
+             AND column_name IN ('request_key', 'request_body')) THEN
+        RAISE EXCEPTION 'versioned delivery inspection did not expose exact read-only work, receipt, case, and policy state';
+    END IF;
+END
+$delivery_inspection$;
 
 CREATE TEMP TABLE v048_attempt_baseline AS
 SELECT count(*) AS attempt_count
