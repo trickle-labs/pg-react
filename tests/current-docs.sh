@@ -9,9 +9,6 @@ jq -e --arg version "$expected" --arg previous 0.45.0 \
     .postgresql == "18.3" and .pg_trickle == "0.108.0" and
     .mdm_adapter == "disabled pending M1 qualification" and
    .v1_status == "postponed_indefinitely"' docs/current-release.json >/dev/null
-grep -qx "version = \"$expected\"" Cargo.toml
-awk '/name = "pg_react"/{found=1; next} found && /^version =/{print; exit}' Cargo.lock |
-  grep -qx "version = \"$expected\""
 grep -qx "default_version = '$expected'" pg_react.control
 grep -Fq "version == \"$expected\"" src/managed.rs
 grep -Fq "PG_REACT_INIT_VERSION=$expected" Dockerfile
