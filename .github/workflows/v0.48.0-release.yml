@@ -148,8 +148,10 @@ jobs:
           sha256sum --check v0.48.0-release-evidence/source.SHA256SUMS
           source_snapshot=$(jq -cS '{head: .candidate.head, files: .source_sha256}' \
             tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json | sha256sum | awk '{print $1}')
-          test "$source_snapshot" = "$(jq -r '.candidate.source_snapshot_sha256' \
-            tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json)"
+          recorded_snapshot=$(jq -r '.candidate.source_snapshot_sha256' \
+            tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json)
+          printf 'Source snapshot: computed=%s recorded=%s\n' "$source_snapshot" "$recorded_snapshot"
+          test "$source_snapshot" = "$recorded_snapshot"
           jq -r '.qualification_run.artifacts[] | "\(.sha256)  tests/integrations/pg-mdm/evidence/v0.48.0/\(.path)"' \
             tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
             > v0.48.0-release-evidence/qualification.SHA256SUMS
