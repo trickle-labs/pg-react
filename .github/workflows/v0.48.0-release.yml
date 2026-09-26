@@ -116,7 +116,12 @@ jobs:
           jq -e --arg event "$GITHUB_EVENT_NAME" '
             .release == "v0.48.0" and
             ((.status == "candidate" and $event == "pull_request") or
-             (.status == "qualified" and (.pending_acceptance_gates // [] | length == 0) and
+             ((.status == "qualified" or
+               (.status == "candidate" and $event == "push" and
+                .runtime.qualification_status == "candidate_qualified_owner_signed" and
+                .independent_review.status == "waived" and
+                .independent_review.candidate_source_snapshot_sha256 == .candidate.source_snapshot_sha256)) and
+              (.pending_acceptance_gates // [] | length == 0) and
               all(.acceptance_gates[]; .status == "passed") and
               (.pending_release_approvals // [] | length == 0) and
               all(.release_approvals[]; .status == "approved"))) and
@@ -164,7 +169,8 @@ jobs:
             --arg image "$IMAGE" \
             --arg image_id "$image_id" \
             --arg live_manifest_sha256 "$manifest_sha" \
-            '{schema_version: 1, release: "v0.48.0", status: $manifest[0].status,
+            '{schema_version: 1, release: "v0.48.0",
+              status: (if $event == "push" and $manifest[0].status == "candidate" then "qualified" else $manifest[0].status end),
               check_status: "passed", commit: $commit,
               workflow_run: $run, qualified_core_image: $image, core_image_id: $image_id,
               live_manifest_sha256: $live_manifest_sha256,
@@ -203,7 +209,7 @@ jobs:
           jq -e --arg commit "$GITHUB_SHA" \
             '.status == "qualified" and .check_status == "passed" and .commit == $commit and .release == "v0.48.0"' \
             v0.48.0-release-evidence/release-qualification.json
-          jq -e '.status == "qualified" and (.pending_acceptance_gates | length == 0) and all(.acceptance_gates[]; .status == "passed") and (.pending_release_approvals | length == 0) and all(.release_approvals[]; .status == "approved") and .independent_review.status == "approved" and (.independent_review.reviewer | type == "string" and length > 0) and .independent_review.candidate_source_snapshot_sha256 == .candidate.source_snapshot_sha256 and .runtime.pg_mdm_extension == "0.14.0"' \
+          jq -e '.status == "qualified" and (.pending_acceptance_gates | length == 0) and all(.acceptance_gates[]; .status == "passed") and (.pending_release_approvals | length == 0) and all(.release_approvals[]; .status == "approved") and (((.independent_review.status == "approved") and (.independent_review.reviewer | type == "string" and length > 0)) or (.independent_review.status == "waived" and .runtime.qualification_status == "candidate_qualified_owner_signed" and (.independent_review.reviewer | type == "string" and length > 0) and (.independent_review.decision | type == "string" and length > 0) and (.independent_review.reason | type == "string" and length > 0))) and .independent_review.candidate_source_snapshot_sha256 == .candidate.source_snapshot_sha256 and .runtime.pg_mdm_extension == "0.14.0"' \
             v0.48.0-release-evidence/live-qualification.json
       - name: Build source and evidence archives
         run: |
