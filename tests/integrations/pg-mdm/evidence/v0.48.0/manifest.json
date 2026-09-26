@@ -24,9 +24,9 @@
   "candidate": {
     "base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
     "head": "d73f03ea18d06d10891ea352d743eedbb0e6bf2f",
-    "source_snapshot_sha256": "ea50477780ee538f1b11ffb023c672c89fbd4ae2fdb27e3f4866931ef4b076f2",
+    "source_snapshot_sha256": "72bcb375ff94cebb44f7f8be8fca87505b34394024b5f0ad4cf699760fc52346",
     "source_plan": "plans/v0.48.0.md",
-    "identity_note": "Current release source snapshot is based on PR #6 source head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay and the 2026-09-26 release-gate-only workflow correction; its SHA-256 is ea50477780ee538f1b11ffb023c672c89fbd4ae2fdb27e3f4866931ef4b076f2. Issue #7 contract v5 records owner sign-off for runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1 against base 678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5; the 2026-09-26 user instruction authorized this workflow-only release-gate delta and retag. T48.01-T48.12 live qualification remains recorded against tested runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1, with runtime and test files unchanged; prior snapshot 9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21 remains recorded separately."
+    "identity_note": "Current release source snapshot is based on PR #6 source head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay and the 2026-09-26 release-gate-only workflow correction; its SHA-256 is 72bcb375ff94cebb44f7f8be8fca87505b34394024b5f0ad4cf699760fc52346. Issue #7 contract v5 records owner sign-off for runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1 against base 678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5; the 2026-09-26 user instruction authorized this workflow-only release-gate delta and retag. T48.01-T48.12 live qualification remains recorded against tested runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1, with runtime and test files unchanged; prior snapshot 9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21 remains recorded separately."
   },
   "runtime": {
     "postgresql": "18.4",
@@ -120,8 +120,8 @@
     "status": "waived",
     "reviewer": "grove",
     "decision": "issue owner approved the runtime source snapshot under issue #7 contract v5; the 2026-09-26 user instruction authorized this release-gate-only workflow delta and retag; independent review remains waived for this solo-maintainer release",
-    "candidate_source_snapshot_sha256": "ea50477780ee538f1b11ffb023c672c89fbd4ae2fdb27e3f4866931ef4b076f2",
-    "reason": "Issue #7 contract v5 records the issue owner's explicit sign-off for runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1 against base 678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5; the 2026-09-26 instruction authorizes the workflow-only release-gate delta at candidate fingerprint ea50477780ee538f1b11ffb023c672c89fbd4ae2fdb27e3f4866931ef4b076f2. Product/runtime and test files are unchanged. The waiver applies only to independent review for this solo-maintainer release."
+    "candidate_source_snapshot_sha256": "72bcb375ff94cebb44f7f8be8fca87505b34394024b5f0ad4cf699760fc52346",
+    "reason": "Issue #7 contract v5 records the issue owner's explicit sign-off for runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1 against base 678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5; the 2026-09-26 instruction authorizes the workflow-only release-gate delta at candidate fingerprint 72bcb375ff94cebb44f7f8be8fca87505b34394024b5f0ad4cf699760fc52346. Product/runtime and test files are unchanged. The waiver applies only to independent review for this solo-maintainer release."
   },
   "tests": [
     { "id": "codec", "status": "passed", "command": "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-codec.sql", "expected": "canonical bytes, digest, request key, body, and retry identity match fixed vectors", "actual": "exit 0; v0.48 canonical digest, request-key, body, and retry checks: PASS", "log": "run-2026-09-25/v048-codec-176b4654.log.gz", "log_sha256": "353ec5718d38c2508ac7ea9e2adcd38360ce6ffe01e0af1953f2232fc0780a04" },
