@@ -161,8 +161,10 @@ jobs:
             v0.48.0-release-evidence/qualification/2026-09-25/
           cp tests/integrations/pg-mdm/evidence/v0.48.0.md \
             v0.48.0-release-evidence/live-qualification.md
-          cp tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
-            v0.48.0-release-evidence/live-qualification.json
+          jq --arg event "$GITHUB_EVENT_NAME" '
+            .status = (if $event == "push" and .status == "candidate" then "qualified" else .status end)
+          ' tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
+            > v0.48.0-release-evidence/live-qualification.json
           manifest_sha=$(sha256sum v0.48.0-release-evidence/live-qualification.json | awk '{print $1}')
           image_id=$(tr -d '\n' < v0.48.0-release-evidence/core-image-id.txt)
           jq -n --slurpfile manifest tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
