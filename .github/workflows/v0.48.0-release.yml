@@ -164,6 +164,7 @@ jobs:
           manifest_sha=$(sha256sum v0.48.0-release-evidence/live-qualification.json | awk '{print $1}')
           image_id=$(tr -d '\n' < v0.48.0-release-evidence/core-image-id.txt)
           jq -n --slurpfile manifest tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
+            --arg event "$GITHUB_EVENT_NAME" \
             --arg commit "$GITHUB_SHA" \
             --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             --arg image "$IMAGE" \
