@@ -3,137 +3,244 @@
   "status": "candidate",
   "pending_acceptance_gates": [],
   "acceptance_gates": [
-    { "id": "T48.01", "status": "passed", "evidence": "same-body retry returned the exact saved receipt and control on snapshot 176b4654; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.02", "status": "passed", "evidence": "changed-body retry returned an idempotency conflict and preserved the original receipt on snapshot 176b4654; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.03", "status": "passed", "evidence": "two concurrent workers completed with the exact expected applied request and receipt vector on snapshot 176b4654; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.04", "status": "passed", "evidence": "live worker fault injected after MDM submit; request, attempt, receipt, and queue control state matched exact pre-call values after rollback; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.05", "status": "passed", "evidence": "the worker disconnected at the ambiguous commit boundary and replay returned the original receipt without a second control; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.06", "status": "passed", "evidence": "a concurrent human queue edit returned STALE_CASE, preserved the human control, and reevaluated fresh work; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.07", "status": "passed", "evidence": "pause blocked an in-flight old-binding intent with a retained no-change receipt, and replacement withdrew old candidates; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.08", "status": "passed", "evidence": "stale work reached a terminal hold, fresh action facts created a new request/key, and the old request remained unchanged; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.09", "status": "passed", "evidence": "denied, invalid, conflict, and unknown outcomes were held with public remediation and unchanged controls; see run-2026-09-25/v048-live-176b4654.log.gz and v048-security-176b4654.log.gz" },
-    { "id": "T48.10", "status": "passed", "evidence": "v3 live receipts reported null resulting_publication_revision; every applied case remained open and unresolved while control receipts correlated; see run-2026-09-25/v048-live-176b4654.log.gz" },
-    { "id": "T48.11", "status": "passed", "evidence": "current-source privilege checks rejected human decision, private MDM, refresh, and rebuild APIs; see run-2026-09-25/v048-security-176b4654.log.gz" },
-    { "id": "T48.12", "status": "passed", "evidence": "current-source populated restore preserved two exact receipts and reconciled stale database and worker OIDs; see run-2026-09-25/v048-restore-176b4654.log.gz" }
+    {
+      "id": "T48.01",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.02",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.03",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.04",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.05",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.06",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.07",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.08",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.09",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.10",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-live.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.11",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-security.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    },
+    {
+      "id": "T48.12",
+      "status": "passed",
+      "evidence": "Existing named behavioral assertions rerun with SQL 0.46.1; see run-2026-10-02/v0.48-restore.log.gz. This test result does not refresh P2P proof or owner sign-off."
+    }
   ],
   "pending_release_approvals": [],
   "release_approvals": [
-    { "id": "mdm_m2_contract_approval", "status": "approved", "evidence": "Issue owner grove approved selecting MDM-STEWARDSHIP/1 v3 for this candidate on 2026-09-25; contract SHA-256 fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe" },
-    { "id": "retention_horizon", "status": "approved", "evidence": "MDM-STEWARDSHIP-1-v3.json SHA-256 fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe is approved by both owners and requires no automatic deletion of request bodies or receipts in v1" }
+    {
+      "id": "mdm_m2_contract_approval",
+      "status": "approved",
+      "evidence": "Issue owner grove approved selecting MDM-STEWARDSHIP/1 v3 for this candidate on 2026-09-25; contract SHA-256 fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe"
+    },
+    {
+      "id": "retention_horizon",
+      "status": "approved",
+      "evidence": "MDM-STEWARDSHIP-1-v3.json SHA-256 fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe is approved by both owners and requires no automatic deletion of request bodies or receipts in v1"
+    }
   ],
   "candidate": {
-    "base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
-    "head": "d73f03ea18d06d10891ea352d743eedbb0e6bf2f",
-    "source_snapshot_sha256": "8cac1c3881ff98f45e91d14cf304cb6c0012a5200fae067c3c0336461665fb33",
+    "base": "c9c20778ec3b9e4783e71688678d24ca91958716",
+    "head": "e8b4197d331e2fb9976bb7fb4a7b4be4b087bbc0",
     "source_plan": "plans/v0.48.0.md",
-    "identity_note": "Current release source snapshot is based on PR #6 source head d73f03ea18d06d10891ea352d743eedbb0e6bf2f plus the repaired seven-file source/test overlay and the 2026-09-26 release-gate-only workflow correction; its SHA-256 is 8cac1c3881ff98f45e91d14cf304cb6c0012a5200fae067c3c0336461665fb33. Issue #7 contract v5 records owner sign-off for runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1 against base 678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5; the 2026-09-26 user instruction authorized this workflow-only release-gate delta and retag. T48.01-T48.12 live qualification remains recorded against tested runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1, with runtime and test files unchanged; prior snapshot 9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21 remains recorded separately."
+    "identity_note": "PR #9 maintenance runtime at 6ccf2e442960649ba6f39b31b8825f8ce554a0c2; e8b4197 changes only the documentation audit. This source fingerprint adds the scoped evidence/workflow overlay. The retained compiled runtime inputs are unchanged; fresh fixtures are mounted from the candidate checkout. No previous owner sign-off applies to this fingerprint.",
+    "source_snapshot_sha256": "0937390e43211d6994bbb296d32ef61d204551e16f59f4ba25ae557e7cff1cab"
   },
   "runtime": {
     "postgresql": "18.4",
-    "pg_react_extension": "0.46.0",
+    "pg_react_extension": "0.46.1",
     "pg_mdm_extension": "0.14.0",
     "pg_trickle_extension": "0.108.0",
-    "qualification_status": "candidate_qualified_owner_signed",
-    "docker_image_id": "sha256:f0b19f8c3d7f94373c9e4ffe408fbc4b01bf484152d358bc04b366e02e571866"
-  },
-  "qualification_run": {
-    "date": "2026-09-25",
-    "tested_source_snapshot_sha256": "176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1",
-    "candidate_snapshot_archive": "run-2026-09-25/candidate-snapshot-workflow-fix.tar",
-    "candidate_snapshot_archive_sha256": "707fd54b78c0782d0c70ec396447c0d4e2a0fe296415c722254af2624c8effc3",
-    "image_id": "sha256:f0b19f8c3d7f94373c9e4ffe408fbc4b01bf484152d358bc04b366e02e571866",
-    "mdm_base_image_id": "sha256:45b99615f7d47706dd2a0c512caa5e4ddba23b0fcb060ca65afb8462a2bf7221",
-    "build_command": "rtk docker build --quiet -f tests/integrations/pg-mdm/Dockerfile.v0.48 -t pg-react:pr6-v048-176b4654-exact .",
-    "container_command": "rtk docker run --detach --rm --name pgreact-v048-pr6-requal-176b4654-exact --cpus=2 --memory=6g --publish 55465:5432 --env POSTGRES_PASSWORD=qualification pg-react:pr6-v048-176b4654-exact postgres -c shared_preload_libraries=pg_trickle,pg_react -c pg_trickle.enabled=off -c pg_trickle.cdc_mode=trigger -c pg_trickle.differential_max_change_ratio=1.0",
-    "bootstrap_commands": [
-      "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d postgres -f /tests/e2e.sql",
-      "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d postgres -f /tests/e2e_policy.sql",
-      "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -c \"CREATE EXTENSION pg_react VERSION '0.46.0';\"",
-      "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.47-live-setup.sql",
-      "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/integrations/pg-mdm/sql/policy-inputs.sql",
-      "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/integrations/pg-mdm/sql/routing.sql",
-      "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/integrations/pg-mdm/sql/deadline-preview.sql",
-      "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/integrations/pg-mdm/sql/comparison.sql"
-    ],
-    "resource_limits": {
-      "container_cpu_max": "200000 100000 (2 CPUs)",
-      "container_memory_max_bytes": 6442450944,
-      "container_memory_peak_bytes": 632078336,
-      "docker_host": "Docker Desktop LinuxKit 7.0.12-linuxkit aarch64",
-      "docker_host_cpu_count": 10,
-      "docker_host_memory_bytes": 8319504384
-    },
-    "prerequisite": {
-      "command": "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.47-live.sql",
-      "exit_code": 0,
-      "expected": "v0.47 live MDM policy prerequisite passes",
-      "actual": "v0.47 live MDM policy package passed",
-      "log": "run-2026-09-25/v047-live-176b4654.log.gz",
-      "log_sha256": "0c612b4dc94584eebd3213d95b6ad7c9d617d2154cb0b845af44dfd52c73a864"
-    },
-    "failure_record": {
-      "final_run_test_assertion_failures": 0,
-      "setup_retries": "run-2026-09-25/qualification-retries.md",
-      "injected_failure_cases": [
-        { "id": "T48.04", "expected": "post-submit error rolls back MDM state and React bookkeeping", "actual": "request, attempt, receipt, and control state returned to exact pre-call values", "status": "passed", "log": "run-2026-09-25/v048-live-176b4654.log.gz" },
-        { "id": "T48.05", "expected": "ambiguous commit replay returns one stable receipt/control", "actual": "disconnect replay returned the original receipt without a second control", "status": "passed", "log": "run-2026-09-25/v048-live-176b4654.log.gz" },
-        { "id": "T48.06", "expected": "concurrent human edit cannot be overwritten by stale work", "actual": "STALE_CASE preserved the human control and reevaluated fresh work", "status": "passed", "log": "run-2026-09-25/v048-live-176b4654.log.gz" },
-        { "id": "T48.07", "expected": "pause/replacement bars old binding work", "actual": "pause retained a no-change receipt and replacement withdrew old candidates", "status": "passed", "log": "run-2026-09-25/v048-live-176b4654.log.gz" },
-        { "id": "T48.08", "expected": "stale work is terminal and fresh facts create bounded new work", "actual": "old request remained unchanged and fresh action facts created a new request/key", "status": "passed", "log": "run-2026-09-25/v048-live-176b4654.log.gz" },
-        { "id": "T48.09", "expected": "denied/invalid/unknown outcomes stop without unsafe retry or control change", "actual": "outcomes were held with public remediation and unchanged controls", "status": "passed", "log": "run-2026-09-25/v048-live-176b4654.log.gz" }
-      ]
-    },
-    "artifacts": [
-      { "path": "run-2026-09-25/candidate-snapshot.tar", "sha256": "762389923899b2934110101a6da6841e536bdbe19b3597fed05c91814336e95a" },
-      { "path": "run-2026-09-25/candidate-snapshot-workflow-fix.tar", "sha256": "707fd54b78c0782d0c70ec396447c0d4e2a0fe296415c722254af2624c8effc3" },
-      { "path": "run-2026-09-25/qualification-retries.md", "sha256": "43bbaca82da2f4941ecf97517630a4ad194882e5048bc27606e53237a43c6dcc" },
-      { "path": "run-2026-09-25/v047-live.log", "sha256": "0c612b4dc94584eebd3213d95b6ad7c9d617d2154cb0b845af44dfd52c73a864" },
-      { "path": "run-2026-09-25/v048-codec.log", "sha256": "408e5c6c52839c33031796deb3d300e5fba304eba805f9d456697ab9a1708183" },
-      { "path": "run-2026-09-25/v048-live.log", "sha256": "3a7a1d0cdf6b2846edfbf2468adfa492cf65d1cb60d4525adbf87ca4b668ac99" },
-      { "path": "run-2026-09-25/v048-security.log", "sha256": "f5e03572f35215a25baf0f1aaf565efe20978c14cc0c9ceaaa764a97777627b2" },
-      { "path": "run-2026-09-25/v048-restore.log", "sha256": "74c1b3110ca254442fd4a933980c7cda160b794d15d8673b59c697fde06ae15c" },
-      { "path": "run-2026-09-25/v048-admission.log", "sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" },
-      { "path": "run-2026-09-25/v048-admission-recheck.log", "sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9" },
-      { "path": "run-2026-09-25/v047-live-176b4654.log.gz", "sha256": "4904e40f7d20b13cf790964dff79fffcc67c301266919b51a45195cbfbadf5d1" },
-      { "path": "run-2026-09-25/v048-codec-176b4654.log.gz", "sha256": "353ec5718d38c2508ac7ea9e2adcd38360ce6ffe01e0af1953f2232fc0780a04" },
-      { "path": "run-2026-09-25/v048-live-176b4654.log.gz", "sha256": "fdb73a9c647b741bf53d633d59ff956705c86fd08c4fafa17aac6ba7a7197bd3" },
-      { "path": "run-2026-09-25/v048-security-176b4654.log.gz", "sha256": "d80f65746d1bd336af3e7e46e6c45e98511a27dc4176c3d71b5f51c2a7d56c27" },
-      { "path": "run-2026-09-25/v048-restore-176b4654.log.gz", "sha256": "ae3f664e1b62e04965f805e4e3144fbc33e845b6ae496fcf891c14543c5c4520" },
-      { "path": "run-2026-09-25/v048-admission-176b4654.log.gz", "sha256": "3e80f8726163313148dd68a35d48c6eb34a5179801a256676bae71a8a054fafa" }
+    "qualification_status": "candidate_tested_pending_acceptance",
+    "docker_image_id": "sha256:8cac118a1c52b96607be40a51900fdec0b5a96bd8cb1ecad9a85df920bbd8c47",
+    "pg_trickle_source": "local MAINTAIN candidate; not released",
+    "pg_trickle_patch_sha256": "b6e9555f9ab20baab1078731f88757b8eec31351045601f7dbb5cbceca754400",
+    "library_sha256": [
+      "a52660fa33fb2abe4606104fd1e1d3e817e5951763bdd0b90f2666ca4fc92340  /usr/lib/postgresql/18/lib/pg_react.so",
+      "c944c6c6e2010bd22833a46eb5d04a1801d7dcc8f8976320b106d3d21ecf05e8  /usr/lib/postgresql/18/lib/pg_mdm.so",
+      "bf70366a3716040b9ca2156a8f7945976b500c679191e7e667bc2056c19ee606  /usr/lib/postgresql/18/lib/pg_trickle.so"
     ]
   },
+  "qualification_run": {
+    "date": "2026-10-02",
+    "image_id": "sha256:8cac118a1c52b96607be40a51900fdec0b5a96bd8cb1ecad9a85df920bbd8c47",
+    "command": "python3 qualify.py CANDIDATE_CHECKOUT OUTPUT_DIRECTORY",
+    "environment": {
+      "postgresql": "18.4 (Debian 18.4-1.pgdg12+1)",
+      "extensions": {
+        "plpgsql": "1.0",
+        "pg_mdm": "0.14.0",
+        "pg_trickle": "0.108.0",
+        "pg_react": "0.46.1"
+      }
+    },
+    "artifacts": [
+      {
+        "path": "run-2026-09-25/manifest.json",
+        "sha256": "844780a9f5583b1c8fbac7a9c421dc7336540110d8299d04a4e2413d8ca06d36"
+      },
+      {
+        "path": "run-2026-10-02/mdm-bootstrap.log.gz",
+        "sha256": "84dd52722b173fe8b9473372cf1aa4ed21950196f5973afa52b215796b9c3cba"
+      },
+      {
+        "path": "run-2026-10-02/mdm-policy-fixtures.log.gz",
+        "sha256": "8354dd086b72b3929b7090ae9f56f19474d9ad12c19719c7544bc29e30dd5ffc"
+      },
+      {
+        "path": "run-2026-10-02/v0.47-live-setup.log.gz",
+        "sha256": "5c43161456145c7c8b0165813f500efa2e9b7c9056e0cfa75afe20ab7f81d22f"
+      },
+      {
+        "path": "run-2026-10-02/v0.47-live.log.gz",
+        "sha256": "1f9edd921c61a5185c0612c51eb00dc191920878f55a80bb3d1dff34dd3237d4"
+      },
+      {
+        "path": "run-2026-10-02/v0.48-codec.log.gz",
+        "sha256": "90fdda17de1ae31aa6de0e2d56596535546b0eb45d04229e22d031f6abdee383"
+      },
+      {
+        "path": "run-2026-10-02/v0.48-live.log.gz",
+        "sha256": "814a8f6b410e02a41108d022676d5dcd5a7bc9b087dc160f7f2c0912eeec75a8"
+      },
+      {
+        "path": "run-2026-10-02/v0.48-security.log.gz",
+        "sha256": "c816143083705c017300930de2d09e4eb2b33a9996d03392dd5362a223254694"
+      },
+      {
+        "path": "run-2026-10-02/v0.48-restore.log.gz",
+        "sha256": "e6d3e75aa3b6a5714a65d244246f4eae5674685d4dd7f348a6790352adb5b53b"
+      },
+      {
+        "path": "run-2026-10-02/v0.48-admission.log.gz",
+        "sha256": "c2981b915c1fecab8ebe99a8080ac629f3f326ea811ae2874670461c30d646f2"
+      },
+      {
+        "path": "run-2026-10-02/observations.json",
+        "sha256": "a98dbdb41f52d64ac2dce143871760b187a156058d320080ed0a9344bf2aedc7"
+      },
+      {
+        "path": "run-2026-10-02/qualify.py",
+        "sha256": "77f1cffafdb05941dd0d9e110fc7a87da4605b42553f4b8bd3852d33de646923"
+      },
+      {
+        "path": "run-2026-10-02/Dockerfile",
+        "sha256": "3adcad7881251d4b0d8a9959acb1a08dc72b96e443fa03313037f3dc3b7b492c"
+      },
+      {
+        "path": "run-2026-10-02/source-snapshot.tar.gz",
+        "sha256": "e48ebf8abe5841709fe2f007975a986558d72c09ce0d85a252be46e6da0e82cc"
+      }
+    ],
+    "note": "Disposed network-isolated container; no fixture/assertion skipped. Runtime uses the approved local upstream candidate; release clearance is not claimed. The first temporary-run attempt passed live/security but used the wrong restore-helper path; this complete second run used the existing packaged helper."
+  },
   "prior_qualification": {
-    "tested_source_snapshot_sha256": "9d38fc79c7278a94e3c560261e57f48fa7d8f52066c26aff92ad0a06a657ec21",
-    "candidate_snapshot_archive": "run-2026-09-25/candidate-snapshot.tar",
-    "candidate_snapshot_archive_sha256": "762389923899b2934110101a6da6841e536bdbe19b3597fed05c91814336e95a",
-    "image_id": "sha256:44c0242a6b00e0934092ff2bda93b289a836b8d1712f4d149b4008b7bfcbfaa7"
+    "manifest": "run-2026-09-25/manifest.json",
+    "manifest_sha256": "844780a9f5583b1c8fbac7a9c421dc7336540110d8299d04a4e2413d8ca06d36",
+    "note": "Historical source, approval, review, artifact, and test identities remain in that exact unchanged manifest."
   },
   "candidate_acceptance": {
-    "status": "candidate_owner_signed",
-    "contract_revision": "v5",
-    "source_snapshot_sha256": "176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1",
-    "comparison_base": "678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5",
-    "approval_comment_url": "https://github.com/trickle-labs/pg-react/issues/7#issuecomment-5839165372",
-    "approval_comment_sha256": "14fe55cfc895cbf61e6bff961c26ab9f55c857384fdfeba9bb25ee40ae083abe"
+    "status": "pending",
+    "contract_revision": "issue-8-core-claim-maintenance v4",
+    "comparison_base": "c9c20778ec3b9e4783e71688678d24ca91958716",
+    "note": "Fresh full /prove and review are required for the repaired candidate; /fix-pr does not issue acceptance."
   },
   "independent_review": {
-    "status": "waived",
-    "reviewer": "grove",
-    "decision": "issue owner approved the runtime source snapshot under issue #7 contract v5; the 2026-09-26 user instruction authorized this release-gate-only workflow delta and retag; independent review remains waived for this solo-maintainer release",
-    "candidate_source_snapshot_sha256": "8cac1c3881ff98f45e91d14cf304cb6c0012a5200fae067c3c0336461665fb33",
-    "reason": "Issue #7 contract v5 records the issue owner's explicit sign-off for runtime snapshot 176b4654bd47803f396cdd509140de342c379b5ba5a6bf33d574db7878ba9bf1 against base 678e92d6a0f4b23d5f0d36c0829ff9b898ad51e5; the 2026-09-26 instruction authorizes the workflow-only release-gate delta at candidate fingerprint 8cac1c3881ff98f45e91d14cf304cb6c0012a5200fae067c3c0336461665fb33. Product/runtime and test files are unchanged. The waiver applies only to independent review for this solo-maintainer release."
+    "status": "pending",
+    "reason": "Prior review waiver is historical and applies only to its recorded source snapshot."
   },
   "tests": [
-    { "id": "codec", "status": "passed", "command": "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-codec.sql", "expected": "canonical bytes, digest, request key, body, and retry identity match fixed vectors", "actual": "exit 0; v0.48 canonical digest, request-key, body, and retry checks: PASS", "log": "run-2026-09-25/v048-codec-176b4654.log.gz", "log_sha256": "353ec5718d38c2508ac7ea9e2adcd38360ce6ffe01e0af1953f2232fc0780a04" },
-    { "id": "live_worker", "status": "passed", "command": "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-live.sql", "expected": "all v0.48 live assertions and the populated upgrade pass on the repaired candidate", "actual": "exit 0; adjacent upgrade, recovery, outcome, retry, worker action, and receipt assertions passed", "log": "run-2026-09-25/v048-live-176b4654.log.gz", "log_sha256": "fdb73a9c647b741bf53d633d59ff956705c86fd08c4fafa17aac6ba7a7197bd3" },
-    { "id": "restore", "status": "passed", "command": "rtk docker exec --env MDM_HELPER_CONFIG=/workspace/tests/integrations/pg-mdm/pg-mdm-configure-helper.sql pgreact-v048-pr6-requal-176b4654-exact sh /workspace/tests/integrations/pg-mdm/v0.48-restore.sh", "expected": "logical restore preserves exact request/receipt correlation and reconciles stale database and worker OIDs", "actual": "exit 0; v0.48 logical restore and OID reconciliation passed", "log": "run-2026-09-25/v048-restore-176b4654.log.gz", "log_sha256": "ae3f664e1b62e04965f805e4e3144fbc33e845b6ae496fcf891c14543c5c4520" },
-    { "id": "security", "status": "passed", "command": "rtk docker exec pgreact-v048-pr6-requal-176b4654-exact psql -Xq -v ON_ERROR_STOP=1 -U postgres -d foundation -f /workspace/tests/integrations/pg-mdm/v0.48-security.sql", "expected": "worker authority restrictions, retained request/attempt rows, and unchanged denied receipt are asserted", "actual": "exit 0; worker privilege/retry and indefinite retention assertions passed", "log": "run-2026-09-25/v048-security-176b4654.log.gz", "log_sha256": "d80f65746d1bd336af3e7e46e6c45e98511a27dc4176c3d71b5f51c2a7d56c27" },
-    { "id": "missing_mdm_admission", "status": "passed", "command": "rtk docker exec --user postgres pgreact-v048-pr6-requal-176b4654-exact sh /workspace/tests/integrations/pg-mdm/v0.48-admission.sh", "expected": "deployment fails before effects when mdm_steward is absent", "actual": "exit 0; v0.48 missing-MDM admission rejected before effects: PASS on image sha256:f0b19f8c3d7f94373c9e4ffe408fbc4b01bf484152d358bc04b366e02e571866", "log": "run-2026-09-25/v048-admission-176b4654.log.gz", "log_sha256": "3e80f8726163313148dd68a35d48c6eb34a5179801a256676bae71a8a054fafa" }
+    {
+      "id": "codec",
+      "status": "passed",
+      "command": "docker exec pgreact-pr9-0deaeadafda9 psql -Xq -U postgres -d foundation -v ON_ERROR_STOP=1 -f /work/tests/integrations/pg-mdm/v0.48-codec.sql",
+      "expected": "canonical bytes, digest, request key, body, and retry identity match fixed vectors",
+      "actual": "exit 0; all existing behavioral assertions passed",
+      "log": "run-2026-10-02/v0.48-codec.log.gz",
+      "log_sha256": "90fdda17de1ae31aa6de0e2d56596535546b0eb45d04229e22d031f6abdee383"
+    },
+    {
+      "id": "live_worker",
+      "status": "passed",
+      "command": "docker exec pgreact-pr9-0deaeadafda9 psql -Xq -U postgres -d foundation -v ON_ERROR_STOP=1 -f /work/tests/integrations/pg-mdm/v0.48-live.sql",
+      "expected": "all v0.48 live assertions and the populated upgrade pass on the repaired candidate",
+      "actual": "exit 0; all existing behavioral assertions passed",
+      "log": "run-2026-10-02/v0.48-live.log.gz",
+      "log_sha256": "814a8f6b410e02a41108d022676d5dcd5a7bc9b087dc160f7f2c0912eeec75a8"
+    },
+    {
+      "id": "restore",
+      "status": "passed",
+      "command": "docker exec pgreact-pr9-0deaeadafda9 env MDM_HELPER_CONFIG=/workspace/tests/integrations/pg-mdm/pg-mdm-configure-helper.sql sh /work/tests/integrations/pg-mdm/v0.48-restore.sh",
+      "expected": "logical restore preserves exact request/receipt correlation and reconciles stale database and worker OIDs",
+      "actual": "exit 0; all existing behavioral assertions passed",
+      "log": "run-2026-10-02/v0.48-restore.log.gz",
+      "log_sha256": "e6d3e75aa3b6a5714a65d244246f4eae5674685d4dd7f348a6790352adb5b53b"
+    },
+    {
+      "id": "security",
+      "status": "passed",
+      "command": "docker exec pgreact-pr9-0deaeadafda9 psql -Xq -U postgres -d foundation -v ON_ERROR_STOP=1 -f /work/tests/integrations/pg-mdm/v0.48-security.sql",
+      "expected": "worker authority restrictions, retained request/attempt rows, and unchanged denied receipt are asserted",
+      "actual": "exit 0; all existing behavioral assertions passed",
+      "log": "run-2026-10-02/v0.48-security.log.gz",
+      "log_sha256": "c816143083705c017300930de2d09e4eb2b33a9996d03392dd5362a223254694"
+    },
+    {
+      "id": "missing_mdm_admission",
+      "status": "passed",
+      "command": "docker exec pgreact-pr9-0deaeadafda9 sh /work/tests/integrations/pg-mdm/v0.48-admission.sh",
+      "expected": "deployment fails before effects when mdm_steward is absent",
+      "actual": "exit 0; all existing behavioral assertions passed",
+      "log": "run-2026-10-02/v0.48-admission.log.gz",
+      "log_sha256": "c2981b915c1fecab8ebe99a8080ac629f3f326ea811ae2874670461c30d646f2"
+    }
   ],
   "source_sha256": {
-    ".github/workflows/v0.48.0-release.yml": "3febdc9a6b39e022d661d609d5ec2b144e4bdc6808018bd8ac43fe2609ce6395",
+    ".github/workflows/v0.48.0-release.yml": "b1c962d788814fec7314432829216e22ad8741e39287c2afb92db2b8c9874cfb",
+    "Cargo.lock": "c5315027de398cb99fc7cc824b3cdf779e5832a38fea8142924be2eb71052ad6",
+    "Cargo.toml": "9ece252ef05fdbcf9d86bb7f7d0249f394329e00c861c2887e44d4397d35e5b3",
     "contracts/MDM-STEWARDSHIP-1-fixture.json": "900f365533bab13480fcb88ab8e8b7956beb4f14a8cfc92cd46770b2e26ef3e4",
     "contracts/MDM-STEWARDSHIP-1-v3.json": "fd6f5e6ceb7c65fc93924c004a24f348e4296f2d83e83ce4e82cea6493e77efe",
+    "docker/00-pg-trickle.sql": "5e1d4307b4b170b530cdfd9d3fa7ddcae6b68d8a69178a18f380f7e450e74651",
     "docs/v0.48.0-release-notes.md": "06b3091073fc03b3b2b48add25b32505cfe4f9e8875742cc271a9c6563cd4d78",
     "integrations/pg-mdm/sql/comparison.sql": "c7a0fdb7c552dbf632a7ca14ebb4a045d4c1bbc5406fe99d2cd634d0153a4a43",
     "integrations/pg-mdm/sql/deadline-preview.sql": "d9c837597f45974704e939bcd14526adf1b2917b4845024caa22e29dc94c86d8",
@@ -142,19 +249,31 @@
     "integrations/pg-mdm/sql/request-store.sql": "0ae7dc835716bd9a799b5d9031b9790fddf4235f1a2cb634fd4b5021ccd39a98",
     "integrations/pg-mdm/sql/routing.sql": "fde81cb7e90610084d4ab8be0b793be28a634bc98aa809aed5475bc4573a9662",
     "integrations/pg-mdm/sql/typed-flow.sql": "b53646d0b62e31c2b834c0325acb8be9418ada4808017a2c8579ad45866c3bf8",
+    "pg_react.control": "684f15baa751a97717fe686496a9e809a4f04c73a38a9d21fe3e4ef49e84ff6a",
     "plans/v0.48.0.md": "c674ae1483c1d41063c274e902a38aae1d3a6f6ddb2f5f92e43d95f45bbde323",
+    "sql/current/assembly.txt": "a82631d61fbd4b461c0b453268d3bae126f88c3b85724358d706a26889737674",
+    "sql/current/claim.sql": "c8862579098fe0105337520fcb0dd0eb3afea0e800e088e548961f8b97a49380",
+    "sql/current/worker-grants.sql": "2a8749ec7bcda5df27f5a47c7b0f592ec16f4e091678ddded992ebe22a651f34",
+    "sql/pg_react--0.46.0--0.46.1.sql": "a974ae86e2b2e8382be5262c296c695da1315ecb9070ea1b9068f808a5f7ecef",
+    "sql/pg_react--0.46.1.sql": "5d711ab409648994776128c74cf0ecc549db15c9b620953444b18fe05d4ea812",
+    "src/identity.rs": "522d609495853348ff06379e53b421779d4e524ac4d970e310462ba89fd0271e",
+    "src/lib.rs": "0b8f6183fb21b4e612e6fae6e90248240b0049988b41d77c518ec0b17c0b45d9",
+    "src/lifecycle.rs": "0b5c16b35c093ba0345f322f9e180da8fc69a4396079821ccc50e4f6ffabe52a",
+    "src/managed.rs": "20c65190145e821c9c4f102c25f64a60d2fbfe355c36349504bf2addb8d4a998",
+    "src/oracle.rs": "b9b5dcafe6273341f75ad8670f14174b77e2deaa9dc51e78328d7d4e83ab565d",
+    "src/rewrite.rs": "58c59523be2a68e049c8538c365a4a71b79dcb7d29a21e698afa737c682c9370",
+    "tests/integrations/pg-mdm/Dockerfile.v0.48": "32eafa82f52effbbbd8a55f1c9951f2a208029ca61f8c39bed26e719b3278a51",
     "tests/integrations/pg-mdm/v0.47-live-setup.sql": "c9f727696fef3ffb39b291f6f8be293efdc92ecdbdd4d78f58fe7a3cd7b0cc7d",
     "tests/integrations/pg-mdm/v0.47-live.sql": "2ec1de6bcbcdbf19766ad3806cd1118ca6d4a28d1a1d97dbe67be8104b2381c9",
-    "tests/integrations/pg-mdm/v0.48-codec.sql": "ef250594a0d9441007253023dfe25d37911d093c713b0d9dc60193e7d2e8653c",
-    "tests/integrations/pg-mdm/Dockerfile.v0.48": "09aa8f9324aedf3ccc5a5e3a5f7aea6fcb45007fc1ea18f3819d53fdab1a6f3f",
     "tests/integrations/pg-mdm/v0.48-adjacent-upgrade.sql": "ca84ce45865c9d2a1cf037d9d67d421bda3f8cbbcaf24d4480dc215021cd1b8f",
-    "tests/integrations/pg-mdm/v0.48-live.sql": "72b7b7f623039882abdb11e1f59d92c915f3da70b9bded89de6d22de04a54725",
-    "tests/integrations/pg-mdm/v0.48-security.sql": "3f91447d0ebec47dcccbd68927a1f460ad2d17d1813349711374ed7da87664ea",
     "tests/integrations/pg-mdm/v0.48-admission.sh": "252caa8d861a79cb97b85e07628aa0c380beb037f360fcfb740f64643fcdc68c",
+    "tests/integrations/pg-mdm/v0.48-codec.sql": "ef250594a0d9441007253023dfe25d37911d093c713b0d9dc60193e7d2e8653c",
+    "tests/integrations/pg-mdm/v0.48-live.sql": "72b7b7f623039882abdb11e1f59d92c915f3da70b9bded89de6d22de04a54725",
     "tests/integrations/pg-mdm/v0.48-restore-prepare.sql": "7859b72ed6de1d4b0d5edcd3e28e8c7527c978f6b4d9b14b5042af4752060e26",
     "tests/integrations/pg-mdm/v0.48-restore-regrant.sql": "52d8e987020f250484c63dfe7453a8c42014c81ca2fbd8ec9aeedc93a985b96d",
-    "tests/integrations/pg-mdm/v0.48-restore.sql": "25c76cae54d0b16fe2e26e3890dda59ee93cb4b4b0ebaed3869201c084502845",
     "tests/integrations/pg-mdm/v0.48-restore.sh": "88643fdd9c1d1625dad7fd1aa9111caba8656915c01e4de1714368c5793eae7e",
+    "tests/integrations/pg-mdm/v0.48-restore.sql": "25c76cae54d0b16fe2e26e3890dda59ee93cb4b4b0ebaed3869201c084502845",
+    "tests/integrations/pg-mdm/v0.48-security.sql": "054da4e498cc376f9dcfe96ab0a1d25afaa9233ad70c6bf43bc1938eab5e96d0",
     "tests/integrations/pg-mdm/v0.48-worker-role-create.sql": "0546f589504cf0c3ae98bf6190e47a35f354c704c107b152edddb178b9509851",
     "tests/integrations/pg-mdm/v0.48-worker-role-detach.sql": "0a1fe416a89a03043b62cf8b48e6c38454bc16f55e7fedfe1f69dfc18004f800",
     "tests/mdm_stewardship_contract.py": "014e96bef8c976d6d436eaeb420681729bd6aa70c9dd56c8269315c9120f8e2a"

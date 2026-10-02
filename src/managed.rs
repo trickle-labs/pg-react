@@ -18,6 +18,7 @@ pub fn is_compatible_extension_version(version: &str) -> bool {
         || version == "0.44.0"
         || version == "0.45.0"
         || version == "0.46.0"
+        || version == "0.46.1"
         || version == "1.0.0"
     {
         return true;
@@ -145,15 +146,43 @@ pub extern "C-unwind" fn pg_react_managed_main(_arg: pg_sys::Datum) {
             unsafe { pg_sys::ProcessConfigFile(pg_sys::GucContext::PGC_SIGHUP) };
         }
         BackgroundWorker::transaction(|| {
+            assert_eq!(
+                Spi::get_one::<bool>("SELECT session_user = current_user")
+                    .expect("check managed worker login identity"),
+                Some(true),
+                "managed worker must begin each cycle as its configured login",
+            );
             let version = Spi::get_one::<String>(
                 "SELECT extversion FROM pg_extension WHERE extname = 'pg_react'",
             )
             .expect("query pg_react extension version");
-            if let Some(v) = version {
-                if is_compatible_extension_version(&v) {
-                    Spi::run("SELECT pgreact_api.managed_cycle()")
-                        .expect("run pg-react managed cycle");
-                }
+            if let Some(v) = version
+                && is_compatible_extension_version(&v)
+            {
+                let worker_role = Spi::get_one::<String>(
+                        r#"SELECT CASE WHEN count(DISTINCT candidate.oid) = 1
+                                  THEN max(pg_catalog.quote_ident(candidate.rolname)) END
+                           FROM pg_catalog.pg_proc AS proc
+                           CROSS JOIN LATERAL pg_catalog.aclexplode(
+                               COALESCE(proc.proacl, pg_catalog.acldefault('f', proc.proowner))) AS access
+                           JOIN pg_catalog.pg_roles AS candidate ON candidate.oid = access.grantee
+                           WHERE proc.oid = 'pgreact_api.managed_cycle()'::pg_catalog.regprocedure
+                             AND access.privilege_type = 'EXECUTE'
+                             AND access.grantee NOT IN (0, proc.proowner)
+                             AND pg_catalog.pg_has_role(session_user, candidate.oid, 'SET')"#,
+                    )
+                    .expect("look up configured managed worker role")
+                    .expect("managed worker role must be a unique SET-capable function grantee");
+                Spi::run(&format!("SET LOCAL ROLE {worker_role}"))
+                    .expect("assume configured managed worker role");
+                Spi::run("SELECT pgreact_api.managed_cycle()").expect("run pg-react managed cycle");
+                Spi::run("RESET ROLE").expect("restore managed worker login role");
+                assert_eq!(
+                    Spi::get_one::<bool>("SELECT session_user = current_user")
+                        .expect("check restored managed worker login identity"),
+                    Some(true),
+                    "managed cycle must restore its configured login role",
+                );
             }
         });
         if !BackgroundWorker::wait_latch(Some(Duration::from_millis(POLL_INTERVAL_MS.get() as u64)))
@@ -189,6 +218,8 @@ mod tests {
         assert!(is_compatible_extension_version("0.44.0"));
         assert!(is_compatible_extension_version("0.45.0"));
         assert!(is_compatible_extension_version("0.46.0"));
+        assert!(is_compatible_extension_version("0.46.1"));
+        assert!(!is_compatible_extension_version("0.46.2"));
         assert!(is_compatible_extension_version("1.0.0-rc.1"));
         assert!(is_compatible_extension_version("1.0.0-rc.2"));
         assert!(is_compatible_extension_version("1.0.0-rc.42"));

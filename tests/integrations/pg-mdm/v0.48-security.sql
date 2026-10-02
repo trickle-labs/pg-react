@@ -68,7 +68,8 @@ BEGIN
         JOIN pg_catalog.pg_namespace AS namespace
           ON namespace.oid = procedure.pronamespace
         WHERE namespace.nspname = 'pgreact_mdm'
-          AND pg_catalog.pg_get_functiondef(procedure.oid)
+          AND CASE WHEN procedure.prokind <> 'a'
+              THEN pg_catalog.pg_get_functiondef(procedure.oid) END
               ~* '(dblink|http|curl|socket|lo_import|lo_export)') THEN
         RAISE EXCEPTION 'adapter function definitions reference a network or external transfer API';
     END IF;
