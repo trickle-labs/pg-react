@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cp target/release/libpg_react.so /build/libpg_react.so
 
 FROM pg_mdm
-ENV PG_REACT_INIT_VERSION=0.46.0
+ENV PG_REACT_INIT_VERSION=0.46.1
 COPY pg_react.control /usr/share/postgresql/18/extension/pg_react.control
 COPY sql/ /usr/share/postgresql/18/extension/
 COPY --from=builder /build/libpg_react.so /usr/lib/postgresql/18/lib/pg_react.so
