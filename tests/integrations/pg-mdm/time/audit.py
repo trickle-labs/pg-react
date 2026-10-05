@@ -133,6 +133,20 @@ def main():
         sql("CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react", "s1_boundary")
         fixture("sample-boundaries", "/work/tests/integrations/pg-mdm/time/boundaries.sql", "s1_boundary")
         fixture("idle-setup", "/work/tests/integrations/pg-mdm/time/idle.sql", "s1_idle")
+        observations["registered_s1_rules"] = json.loads(sql(
+            "SELECT COALESCE(jsonb_agg(jsonb_build_object('rule_name',r.rule_name,'rule_id',r.rule_id,"
+            "'rule_version_id',v.rule_version_id,'match_name',v.match_name) ORDER BY r.rule_name),'[]') "
+            "FROM pgreact_internal.rules r JOIN pgreact_internal.rule_versions v USING(rule_id) "
+            "WHERE r.rule_name IN ('s1-callback-failure','s1-future-idle')"))
+        observations["callback_failure_rule_ids"] = json.loads(sql(
+            "SELECT COALESCE(jsonb_agg(to_jsonb(f) ORDER BY rule_id),'[]') "
+            "FROM s1_audit.callback_failure_rules f"))
+        assert [row["rule_name"] for row in observations["registered_s1_rules"]] == [
+            "s1-callback-failure", "s1-future-idle"], observations["registered_s1_rules"]
+        assert len(observations["callback_failure_rule_ids"]) == 1, observations["callback_failure_rule_ids"]
+        assert observations["callback_failure_rule_ids"][0]["rule_id"] == next(
+            row["rule_id"] for row in observations["registered_s1_rules"]
+            if row["rule_name"] == "s1-callback-failure")
         observations["installed_extensions"] = json.loads(sql(
             "SELECT jsonb_agg(jsonb_build_object('name',extname,'version',extversion) ORDER BY extname) "
             "FROM pg_extension"))
@@ -195,7 +209,8 @@ def main():
                     datetime.datetime.now(datetime.timezone.utc) >= deadline:
                 break
             failed = sql("SELECT EXISTS (SELECT 1 FROM pgreact.attempts "
-                         "WHERE name='s1-future-idle' AND status='FAILED')")
+                         "WHERE name='s1-future-idle' AND status='FAILED' "
+                         "AND error_message <> 'injected registered S1 callback failure')")
             if failed == "t" and datetime.datetime.now(datetime.timezone.utc) >= deadline:
                 break
             time.sleep(0.2)
@@ -314,28 +329,75 @@ def main():
         retained_receipts = json.loads(sql("SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
                                           "FROM mdm_steward.policy_receipts_v1 r"))
         assert retained_receipts == observations["mdm_entry_receipts"] + [expected_receipt]
-        sql("ALTER SYSTEM SET pg_react.databases = ''")
-        command("docker", "restart", container)
+        failure_attempts = []
         end = time.monotonic() + 30
         while time.monotonic() < end:
-            ready = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
-                                   capture_output=True)
-            if not ready.returncode:
+            failure_attempts = json.loads(sql(
+                "SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY execution_id),'[]') "
+                "FROM pgreact.attempts a WHERE name='s1-callback-failure'"))
+            if failure_attempts:
                 break
             time.sleep(0.2)
-        assert not ready.returncode, "PostgreSQL did not restart for the role-reset failure check"
-        sql("CREATE OR REPLACE FUNCTION pgreact_api.managed_cycle() RETURNS jsonb "
-            "LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,pg_temp "
-            "AS $audit$ BEGIN RAISE EXCEPTION 'injected managed cycle failure'; END $audit$")
-        failure = subprocess.run(["docker", "exec", container, "psql", "-XAtq", "-U",
-            "mdm_s1_runtime", "-d", "s1_idle", "-f",
-            "/workspace/tests/integrations/pg-mdm/time/role-reset-on-error.sql"],
-            capture_output=True, text=True, timeout=30)
-        assert failure.returncode == 0, failure.stderr
-        assert failure.stdout == "mdm_s1_runtime|mdm_s1_runtime\n", failure.stdout
-        assert "injected managed cycle failure" in failure.stderr, failure.stderr
-        observations["callback_error_reset"] = {"exit": failure.returncode,
-            "stdout": failure.stdout, "error_observed": "injected managed cycle failure" in failure.stderr}
+        observations["all_s1_work"] = json.loads(sql(
+            "SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY work_id),'[]') "
+            "FROM pgreact.work w WHERE name IN ('s1-callback-failure','s1-future-idle')"))
+        observations["all_s1_attempts"] = json.loads(sql(
+            "SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY execution_id),'[]') "
+            "FROM pgreact.attempts a WHERE name IN ('s1-callback-failure','s1-future-idle')"))
+        assert len(failure_attempts) == 1, failure_attempts
+        callback_failure = "injected registered S1 callback failure"
+        assert {key: failure_attempts[0][key] for key in
+                ("attempt_no", "status", "error_code", "error_message", "event_kind", "name")} == {
+                    "attempt_no": 1, "status": "FAILED", "error_code": "P0001",
+                    "error_message": callback_failure,
+                    "event_kind": "ACTIVATE", "name": "s1-callback-failure"}, failure_attempts
+        failure_work = json.loads(sql(
+            "SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY work_id),'[]') "
+            "FROM pgreact.work w WHERE name='s1-callback-failure'"))
+        assert [{key: row[key] for key in ("kind", "name", "version", "state", "claimable")}
+                for row in failure_work] == [{"kind": "rule", "name": "s1-callback-failure",
+                    "version": "1", "state": "FAILED", "claimable": False}], failure_work
+        callback_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+        failure_finished = timestamp(failure_attempts[0]["finished_at"])
+        after_error_cycle = failure_finished + datetime.timedelta(seconds=1.5)
+        end = time.monotonic() + 30
+        while time.monotonic() < end:
+            callback_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            heartbeat = timestamp(callback_status["process"]["heartbeat_at"])
+            if callback_status["process"]["state"] == "ready" and heartbeat > after_error_cycle:
+                break
+            time.sleep(0.2)
+        assert callback_status["process"]["state"] == "ready", callback_status
+        assert timestamp(callback_status["process"]["heartbeat_at"]) > after_error_cycle, callback_status
+        logs = subprocess.run(["docker", "logs", "--tail", "1000", container],
+                              capture_output=True, text=True, timeout=30)
+        assert not logs.returncode, logs.stderr
+        worker_logs = logs.stdout + logs.stderr
+        callback_identity = ("registered-S1 callback entry rule_id=" +
+                             observations["callback_failure_rule_ids"][0]["rule_id"] +
+                             " session_user=mdm_s1_runtime "
+                             "current_user=mdm_s1_runner")
+        identity_at = worker_logs.find(callback_identity)
+        assert failure_attempts[0]["error_message"] == callback_failure, failure_attempts
+        assert identity_at >= 0, worker_logs
+        assert "managed worker must begin each cycle as its configured login" not in worker_logs, worker_logs
+        assert "managed cycle must restore its configured login role" not in worker_logs, worker_logs
+        assert cases() == actual
+        assert json.loads(sql("SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
+                              "FROM mdm_steward.policy_receipts_v1 r")) == retained_receipts
+        assert json.loads(sql("SELECT jsonb_agg(to_jsonb(s) ORDER BY s.id) "
+                              "FROM public.policy_qualification_source s")) == source
+        assert json.loads(sql("SELECT jsonb_agg(to_jsonb(s) ORDER BY s.case_key) "
+                              "FROM s1_audit.source s")) == temporal_source
+        observations["callback_error_reset"] = {"managed_worker": True,
+            "failed_registered_callback": "s1_audit.deliver(pgreact.activation_context,s1_audit.candidate)",
+            "failure_attempts": failure_attempts, "failure_work": failure_work,
+            "callback_identity": callback_identity, "post_error_managed_status": callback_status,
+            "subsequent_cycle_after_error": True,
+            "worker_role_identity": {"actor": receipt["actor"],
+                "selected_role_name": receipt["selected_role_name"],
+                "session_role_name": receipt["session_role_name"]},
+            "public_state_unchanged": True, "transaction_path": "BackgroundWorker::transaction"}
         observations["checks"].append({"name": "callback-error-role-reset", "result": "passed"})
         assert json.loads(sql("SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
                               "FROM mdm_steward.policy_receipts_v1 r")) == retained_receipts
@@ -386,7 +448,7 @@ def main():
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "owner-confirmed complete escalation fixtures",
                                              "signed numeric operating envelope"]
-        print("PASS: future idle deadline -> actual MDM receipt; complete case/source vectors", flush=True)
+        print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
     except BaseException as error:
         observations["failure"] = str(error)
         if created:

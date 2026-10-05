@@ -58,6 +58,8 @@ RESET ROLE;
 RESET SESSION AUTHORIZATION;
 SELECT pgreact_mdm.sync_intent_case_identities();
 
+CREATE TABLE s1_audit.callback_failure_rules (rule_id uuid PRIMARY KEY);
+GRANT SELECT ON s1_audit.callback_failure_rules TO mdm_s1_runner;
 CREATE FUNCTION s1_audit.deliver(
     context pgreact.activation_context, candidate s1_audit.candidate
 )
@@ -65,6 +67,12 @@ RETURNS void LANGUAGE plpgsql SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp AS $callback$
 DECLARE current_case pgreact_mdm.intent_deployer_policy_cases_v1;
 BEGIN
+    RAISE WARNING 'registered-S1 callback entry rule_id=% session_user=% current_user=%',
+        ($1).rule_id, session_user, current_user;
+    IF EXISTS (SELECT 1 FROM s1_audit.callback_failure_rules AS failure_rule
+               WHERE failure_rule.rule_id = ($1).rule_id) THEN
+        RAISE EXCEPTION 'injected registered S1 callback failure';
+    END IF;
     SELECT policy_case.* INTO STRICT current_case
     FROM pgreact_mdm.intent_deployer_policy_cases_v1 AS policy_case
     WHERE policy_case.case_key = ($2).case_key;
@@ -147,3 +155,12 @@ BEGIN
     END IF;
 END
 $before$;
+SET SESSION AUTHORIZATION mdm_s1_runner;
+SELECT pgreact_api.author_deadline_rule(
+    's1-callback-failure', 's1_audit.candidate'::regclass,
+    'case_key', 'deadline', 'COMMAND',
+    's1_audit.deliver(pgreact.activation_context,s1_audit.candidate)');
+RESET SESSION AUTHORIZATION;
+INSERT INTO s1_audit.callback_failure_rules
+SELECT rule.rule_id FROM pgreact_internal.rules AS rule
+WHERE rule.rule_name = 's1-callback-failure';
