@@ -1,5 +1,6 @@
 /target
 /.pgrx
+/.p2p/
 /postgres-data
 .DS_Store
 

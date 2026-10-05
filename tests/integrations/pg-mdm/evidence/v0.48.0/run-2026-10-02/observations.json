@@ -1,0 +1,194 @@
+{
+  "image_id": "sha256:8cac118a1c52b96607be40a51900fdec0b5a96bd8cb1ecad9a85df920bbd8c47",
+  "checks": [
+    {
+      "name": "mdm-bootstrap",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "psql",
+        "-Xq",
+        "-U",
+        "postgres",
+        "-d",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tests/e2e.sql"
+      ],
+      "log": "mdm-bootstrap.log",
+      "sha256": "aa41da758a432bc4c37d7fbd347246ace480af1d9a1275b98bb293362b205141"
+    },
+    {
+      "name": "mdm-policy-fixtures",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "psql",
+        "-Xq",
+        "-U",
+        "postgres",
+        "-d",
+        "foundation",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/tests/e2e_policy.sql"
+      ],
+      "log": "mdm-policy-fixtures.log",
+      "sha256": "a03fc9636e7079a44d8d73979d7249f329f9b537f0fd5e88496c72d760deb278"
+    },
+    {
+      "name": "v0.47-live-setup",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "psql",
+        "-Xq",
+        "-U",
+        "postgres",
+        "-d",
+        "foundation",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/work/tests/integrations/pg-mdm/v0.47-live-setup.sql"
+      ],
+      "log": "v0.47-live-setup.log",
+      "sha256": "c3968cb152aa9b8a77509b36f11dfd60cb2593e5456cd1a42a215250d4ebf174"
+    },
+    {
+      "name": "v0.47-live",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "psql",
+        "-Xq",
+        "-U",
+        "postgres",
+        "-d",
+        "foundation",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/work/tests/integrations/pg-mdm/v0.47-live.sql"
+      ],
+      "log": "v0.47-live.log",
+      "sha256": "3a40b1dc5e880708b494cd918bb387f24013603115270310df80f74a9b108eb5"
+    },
+    {
+      "name": "v0.48-codec",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "psql",
+        "-Xq",
+        "-U",
+        "postgres",
+        "-d",
+        "foundation",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/work/tests/integrations/pg-mdm/v0.48-codec.sql"
+      ],
+      "log": "v0.48-codec.log",
+      "sha256": "7470dc6562bd4ce6f97f3f308d4ee07fe7e0422e365d243c064d496e02bd2947"
+    },
+    {
+      "name": "v0.48-live",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "psql",
+        "-Xq",
+        "-U",
+        "postgres",
+        "-d",
+        "foundation",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/work/tests/integrations/pg-mdm/v0.48-live.sql"
+      ],
+      "log": "v0.48-live.log",
+      "sha256": "d52d2782e66fff9d45593e9f49d93263a0c9601857354ac8b907238165a104a1"
+    },
+    {
+      "name": "v0.48-security",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "psql",
+        "-Xq",
+        "-U",
+        "postgres",
+        "-d",
+        "foundation",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-f",
+        "/work/tests/integrations/pg-mdm/v0.48-security.sql"
+      ],
+      "log": "v0.48-security.log",
+      "sha256": "f5e03572f35215a25baf0f1aaf565efe20978c14cc0c9ceaaa764a97777627b2"
+    },
+    {
+      "name": "v0.48-restore",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "env",
+        "MDM_HELPER_CONFIG=/workspace/tests/integrations/pg-mdm/pg-mdm-configure-helper.sql",
+        "sh",
+        "/work/tests/integrations/pg-mdm/v0.48-restore.sh"
+      ],
+      "log": "v0.48-restore.log",
+      "sha256": "ba0b8d23aa3967a806113cc828bf902a71cb898b2dec9a5918fb38312abe09d8"
+    },
+    {
+      "name": "v0.48-admission",
+      "status": "passed",
+      "command": [
+        "docker",
+        "exec",
+        "pgreact-pr9-0deaeadafda9",
+        "sh",
+        "/work/tests/integrations/pg-mdm/v0.48-admission.sh"
+      ],
+      "log": "v0.48-admission.log",
+      "sha256": "a1d995f8b0f924c7b6c72f92492b358cf0c7cea7b66e0805677a7d913d00e1c9"
+    }
+  ],
+  "runtime": {
+    "postgresql": "18.4 (Debian 18.4-1.pgdg12+1)",
+    "extensions": {
+      "plpgsql": "1.0",
+      "pg_mdm": "0.14.0",
+      "pg_trickle": "0.108.0",
+      "pg_react": "0.46.1"
+    }
+  },
+  "library_sha256": [
+    "a52660fa33fb2abe4606104fd1e1d3e817e5951763bdd0b90f2666ca4fc92340  /usr/lib/postgresql/18/lib/pg_react.so",
+    "c944c6c6e2010bd22833a46eb5d04a1801d7dcc8f8976320b106d3d21ecf05e8  /usr/lib/postgresql/18/lib/pg_mdm.so",
+    "bf70366a3716040b9ca2156a8f7945976b500c679191e7e667bc2056c19ee606  /usr/lib/postgresql/18/lib/pg_trickle.so"
+  ]
+}

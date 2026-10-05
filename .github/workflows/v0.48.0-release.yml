@@ -136,7 +136,7 @@ jobs:
               (.pending_release_approvals | sort) and
             all(.release_approvals[]; .status == "approved" or .status == "pending") and
             .runtime.postgresql == "18.4" and
-            .runtime.pg_react_extension == "0.46.0" and
+            .runtime.pg_react_extension == "0.46.1" and
             .runtime.pg_mdm_extension == "0.14.0" and
             .runtime.pg_trickle_extension == "0.108.0" and
             ([.tests[].id] | sort) == ["codec", "live_worker", "missing_mdm_admission", "restore", "security"] and
@@ -156,9 +156,9 @@ jobs:
             tests/integrations/pg-mdm/evidence/v0.48.0/manifest.json \
             > v0.48.0-release-evidence/qualification.SHA256SUMS
           sha256sum --check v0.48.0-release-evidence/qualification.SHA256SUMS
-          mkdir -p v0.48.0-release-evidence/qualification/2026-09-25
-          cp -R tests/integrations/pg-mdm/evidence/v0.48.0/run-2026-09-25/. \
-            v0.48.0-release-evidence/qualification/2026-09-25/
+          mkdir -p v0.48.0-release-evidence/qualification/2026-10-02
+          cp -R tests/integrations/pg-mdm/evidence/v0.48.0/run-2026-10-02/. \
+            v0.48.0-release-evidence/qualification/2026-10-02/
           cp tests/integrations/pg-mdm/evidence/v0.48.0.md \
             v0.48.0-release-evidence/live-qualification.md
           jq --arg event "$GITHUB_EVENT_NAME" '

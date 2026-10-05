@@ -1,5 +1,7 @@
 ARG PG_MDM_IMAGE=pg_mdm:0.14.0-e2e
 
+FROM pg_trickle_e2e:issue-8-maintain AS upstream_patch
+
 FROM ${PG_MDM_IMAGE} AS pg_mdm
 
 FROM ghcr.io/trickle-labs/pg-trickle/builder@sha256:8d0446c21ab3273b55c045a39c49120e9d7cde8e970954c3f81e7bee194fad95 AS builder
@@ -21,6 +23,7 @@ COPY integrations/pg-mdm/ /workspace/integrations/pg-mdm/
 COPY showcase/mdm-stewardship/ /workspace/showcase/mdm-stewardship/
 COPY tests/integrations/pg-mdm/ /workspace/tests/integrations/pg-mdm/
 COPY --from=pg_mdm /sql/configure_helper.sql /workspace/tests/integrations/pg-mdm/pg-mdm-configure-helper.sql
+COPY --from=upstream_patch /usr/lib/postgresql/18/lib/pg_trickle.so /usr/lib/postgresql/18/lib/pg_trickle.so
 USER root
 RUN echo "shared_preload_libraries = 'pg_trickle,pg_react'" >> /usr/share/postgresql/postgresql.conf.sample
 USER postgres
