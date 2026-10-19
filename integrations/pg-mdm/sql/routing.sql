@@ -1,7 +1,8 @@
 CREATE OR REPLACE FUNCTION pgreact_mdm.route_cases(
     source_relation regclass,
     target_revision text,
-    target_entity text
+    target_entity text,
+    captured_at timestamptz
 )
 RETURNS TABLE(
     case_key bigint,
@@ -23,6 +24,9 @@ AS $function$
 DECLARE
     package jsonb;
 BEGIN
+    IF captured_at IS NULL OR NOT isfinite(captured_at) THEN
+        RAISE EXCEPTION 'MDM_ROUTE_CAPTURE: captured_at must be finite and non-null';
+    END IF;
     PERFORM pgreact_mdm.assert_source(source_relation);
     IF pgreact_mdm.validate_inputs(source_relation) ->> 'state' <> 'valid' THEN
         RAISE EXCEPTION 'MDM_INPUT_INVALID: %',
@@ -104,8 +108,8 @@ BEGIN
                        WHEN s.case_key IS NULL THEN 'NO_CANDIDATE'
                        WHEN s.best_count > 1 THEN 'AMBIGUOUS'
                        WHEN s.best_action = 'ESCALATE'
-                        AND (c.due_at IS NULL OR c.due_at > statement_timestamp()
-                             OR s.best_level <> c.escalation_level + 1) THEN 'INELIGIBLE'
+                        AND (c.due_at IS NULL OR c.due_at > $4
+                             OR s.best_level::bigint <> c.escalation_level::bigint + 1) THEN 'INELIGIBLE'
                        WHEN s.best_action = 'ESCALATE' THEN 'WINNER'
                        WHEN c.manual_assignment_protected THEN 'PROTECTED'
                        WHEN c.assigned_queue IS NOT DISTINCT FROM s.best_queue THEN 'NO_OP'
@@ -146,8 +150,33 @@ BEGIN
         JOIN decided AS d USING (case_key)
         ORDER BY c.case_key
     $query$, source_relation)
-    USING package, target_revision, target_entity;
+    USING package, target_revision, target_entity, captured_at;
 END
+$function$;
+
+CREATE OR REPLACE FUNCTION pgreact_mdm.route_cases(
+    source_relation regclass,
+    target_revision text,
+    target_entity text
+)
+RETURNS TABLE(
+    case_key bigint,
+    review_id uuid,
+    policy_revision text,
+    reason_code text,
+    current_queue name,
+    selected_queue name,
+    decision text,
+    action text,
+    priority integer,
+    competitors jsonb,
+    explanation jsonb
+)
+LANGUAGE SQL
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $function$
+    SELECT * FROM pgreact_mdm.route_cases($1, $2, $3, statement_timestamp())
 $function$;
 
 CREATE OR REPLACE FUNCTION pgreact_mdm.route_cases(
@@ -178,3 +207,5 @@ COMMENT ON FUNCTION pgreact_mdm.route_cases(regclass, text, text) IS
     'v0.47 deterministic MDM routing explanation; ties are ambiguous and never lexical winners';
 COMMENT ON FUNCTION pgreact_mdm.route_cases(regclass, text) IS
     'v0.47 deterministic routing across the complete supplied policy relation';
+COMMENT ON FUNCTION pgreact_mdm.route_cases(regclass, text, text, timestamptz) IS
+    'Explicit-time routing; due_at <= captured_at permits only the configured next escalation level. This read does not authorize MDM delivery.';

@@ -390,4 +390,6 @@ BEGIN
 END
 $$;
 
+\ir time/routing.sql
+
 SELECT 'v0.47 read-only policy package passed' AS result;

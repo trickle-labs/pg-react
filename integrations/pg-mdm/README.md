@@ -37,10 +37,21 @@ The public seams are:
   publication and `pgreact_mdm.policy_document(policy_revision)` for review.
 - `pgreact_mdm.route_cases(source_relation, policy_revision[, entity_name])`
   for winner, ambiguity, no-candidate, protection, and no-op explanations.
+- `pgreact_mdm.route_cases(source_relation, policy_revision, entity_name, captured_at)`
+  for the same read at one explicit finite database-time sample (`NULL` entity
+  selects all entities). Equality with `due_at` counts as due. The existing
+  overloads sample `statement_timestamp()` once; population comparison uses its
+  supplied `captured_at` for both routing and deadline proposals.
 - `pgreact_mdm.deadline_preview(source_relation, policy_revision, captured_at[, entity_name])`
   for explicit-time deadline proposals.
 - `pgreact_mdm.compare_population(...)` for complete or partial bounded
   comparisons with an explicit coverage manifest.
+
+The explicit-time routing read is preparatory work for
+[managed bounded escalation #11](https://github.com/trickle-labs/pg-react/issues/11). It does not
+register a managed escalation policy or certify delivery. The
+[implementation status](../../docs/v0.49-issue-11-status.md) records the
+owner-confirmed semantics and the unresolved MDM fixture evidence gate.
 
 After the core extension is installed, load `typed-flow.sql` and pass the
 returned `pgreact_api.declaration` to `pgreact.validate`, `pgreact.preview`,
