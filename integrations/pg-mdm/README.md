@@ -51,7 +51,8 @@ The explicit-time routing read is preparatory work for
 [managed bounded escalation #11](https://github.com/trickle-labs/pg-react/issues/11). It does not
 register a managed escalation policy or certify delivery. The
 [implementation status](../../docs/v0.49-issue-11-status.md) records the
-owner-confirmed semantics and the unresolved MDM fixture evidence gate.
+owner-confirmed semantics, satisfied MDM fixture prerequisite, and remaining
+managed-runtime gates.
 
 After the core extension is installed, load `typed-flow.sql` and pass the
 returned `pgreact_api.declaration` to `pgreact.validate`, `pgreact.preview`,

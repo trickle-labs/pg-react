@@ -2,6 +2,7 @@
 """Run the S1 entry audit in one disposable joint-stack container."""
 import copy
 import datetime
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -53,8 +54,18 @@ def main():
                               "FROM mdm_steward.policy_cases_v1 c"))
 
     try:
+        observations["react_revision"] = command("git", "-C", str(root), "rev-parse", "HEAD").strip()
+        observations["source_sha256"] = {
+            str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(set(root.glob("src/*.rs")) | set(root.glob("integrations/pg-mdm/sql/*.sql")) |
+                               set((root / "tests/integrations/pg-mdm/time").glob("*")) |
+                               {root / "sql/pg_react--0.46.1.sql", root / "pg_react.control"})
+            if path.is_file()
+        }
         observations["image_id"] = command("docker", "image", "inspect", image,
                                            "--format", "{{.Id}}").strip()
+        observations["image_labels"] = json.loads(command(
+            "docker", "image", "inspect", image, "--format", "{{json .Config.Labels}}"))
         command("docker", "run", "--detach", "--name", container, "--network", "none",
                 "--env", "POSTGRES_HOST_AUTH_METHOD=trust", "--volume", str(root) + ":/work:ro",
                 image, "postgres", "-c", "shared_preload_libraries=pg_trickle,pg_react",
@@ -69,7 +80,9 @@ def main():
             time.sleep(1)
         else:
             raise RuntimeError("PostgreSQL readiness exceeded 60 seconds")
-        fixture("mdm-bootstrap", "/tests/e2e.sql", "postgres")
+        producer_archive = (observations["image_labels"] or {}).get("pg_trickle.source_archive_sha256")
+        fixture("mdm-bootstrap", "/tests/e2e.sql", "postgres",
+                ("-v", "producer_artifact_sha256=" + producer_archive) if producer_archive else ())
         fixture("mdm-policy-fixtures", "/tests/e2e_policy.sql")
         observations["mdm_entry_cases"] = json.loads(sql(
             "SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key) FROM mdm_steward.policy_cases_v1 c", "foundation"))
@@ -93,6 +106,67 @@ def main():
         for database in ("foundation", "s1_idle"):
             version = "0.46.0" if maintenance and database == "foundation" else "0.46.1"
             sql("CREATE EXTENSION pg_react VERSION '{}'".format(version), database)
+        entry = json.loads(sql("SELECT pgreact_api.managed_cycle()"))
+        observations["runtime_entry"] = entry
+        if entry["state"] == "blocked":
+            for name in ("v0.47", "v0.48-codec"):
+                fixture(name, "/work/tests/integrations/pg-mdm/" + name + ".sql", "postgres")
+            fixture("runtime-gate", "/work/tests/integrations/pg-mdm/time/runtime-gate.sql", "s1_idle")
+            observations["runtime_gate"] = json.loads(sql("SELECT vector FROM s1_runtime_gate.evidence"))
+            before = cases()
+            receipts_before = json.loads(sql(
+                "SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) FROM mdm_steward.policy_receipts_v1 r"))
+            source_before = json.loads(sql(
+                "SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM public.policy_qualification_source s"))
+            temporal_source = json.loads(sql("SELECT jsonb_agg(to_jsonb(s) ORDER BY case_key) FROM s1_runtime_gate.source s"))
+            deadline = timestamp(temporal_source[0]["due_at"])
+            for role in ("author", "operator", "worker", "reader", "advanced_reader"):
+                sql("CREATE ROLE s1_gate_" + role + " LOGIN NOSUPERUSER NOBYPASSRLS")
+            sql("SELECT pgreact_api.configure_roles('s1_gate_author','s1_gate_operator',"
+                "'s1_gate_worker','s1_gate_reader','s1_gate_advanced_reader')")
+            sql("ALTER SYSTEM SET pg_react.databases = 's1_idle'")
+            sql("ALTER SYSTEM SET pg_react.worker_role = 's1_gate_worker'")
+            command("docker", "restart", container)
+            end = time.monotonic() + 30
+            while time.monotonic() < end:
+                ready = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"], capture_output=True)
+                if not ready.returncode:
+                    status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+                    process = status.get("process") or {}
+                    if process.get("state") == "error" and timestamp(process["heartbeat_at"]) >= deadline:
+                        break
+                time.sleep(0.2)
+            else:
+                raise AssertionError("managed worker did not expose the gate after the idle deadline within 30 seconds")
+            assert process["detail"] == "pg_trickle compatibility blocked: " + sql(
+                "SELECT (vector #> '{cycle,compatibility}')::text FROM s1_runtime_gate.evidence"), status
+            assert {key: value for key, value in status.items() if key != "process"} == {
+                "contract_version": 5, "database": "s1_idle", "configured": True}, status
+            assert {key: value for key, value in process.items() if key not in
+                    ("pid", "started_at", "heartbeat_at", "detail")} == {
+                "state": "error", "protocol": 2, "pending_jobs": 0, "processed_jobs": 0}, process
+            assert sql("SELECT usename FROM pg_stat_activity WHERE pid=" + str(process["pid"])) == "s1_gate_worker"
+            assert cases() == before
+            assert json.loads(sql("SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
+                                  "FROM mdm_steward.policy_receipts_v1 r")) == receipts_before
+            assert json.loads(sql("SELECT jsonb_agg(to_jsonb(s) ORDER BY id) "
+                                  "FROM public.policy_qualification_source s")) == source_before
+            assert json.loads(sql("SELECT jsonb_agg(to_jsonb(s) ORDER BY case_key) "
+                                  "FROM s1_runtime_gate.source s")) == temporal_source
+            public_state = json.loads(sql("SELECT jsonb_build_object("
+                "'rules',(SELECT COALESCE(jsonb_agg(to_jsonb(r)),'[]') FROM pgreact.rules r),"
+                "'work',(SELECT COALESCE(jsonb_agg(to_jsonb(w)),'[]') FROM pgreact.work w),"
+                "'attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a)),'[]') FROM pgreact.attempts a))"))
+            assert public_state == {"rules": [], "work": [], "attempts": []}, public_state
+            observations.update(entry_decision="STOP", managed_status=status, public_state=public_state,
+                cases_before=before, cases_actual=cases(), receipts=receipts_before,
+                business_source=source_before, temporal_source=temporal_source, idle_case_delivered=False,
+                stop_reason="The MDM-qualified pg_trickle 0.108.3 producer is rejected by React's exact-0.108.0 admission guard; public temporal registration and managed dispatch are unavailable on this joint profile.",
+                conditional_work_not_performed=["managed escalation implementation", "idle MDM delivery acceptance",
+                    "bounded progression/recovery/concurrency acceptance", "numeric operating envelope"])
+            observations["checks"].append({"name": "managed-runtime-compatibility-stop", "result": "confirmed"})
+            print("STOP: public registration and actual managed worker reject the MDM-qualified producer; no control or receipt changes", flush=True)
+            return
         for name in ("v0.47", "v0.47-typed", "v0.48-codec"):
             fixture(name, "/work/tests/integrations/pg-mdm/" + name + ".sql", "postgres")
         for name in ("v0.47-live-setup", "v0.47-live", "v0.48-codec", "v0.48-live", "v0.48-security"):
@@ -446,8 +520,7 @@ def main():
                             deadline_history=json.loads(sql("SELECT pgreact_api.deadline_history('s1-future-idle')")))
         observations["checks"].append({"name": "future-idle-mdm-receipt", "result": "passed"})
         observations["entry_decision"] = "INPUT_BLOCKED"
-        observations["remaining_inputs"] = ["1000-case/churn workload measurements", "owner-confirmed complete escalation fixtures",
-                                             "signed numeric operating envelope"]
+        observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
     except BaseException as error:
         observations["failure"] = str(error)
