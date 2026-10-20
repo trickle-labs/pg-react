@@ -520,6 +520,70 @@ def main():
                 "session_role_name": receipt["session_role_name"]},
             "public_state_unchanged": True, "transaction_path": "BackgroundWorker::transaction"}
         observations["checks"].append({"name": "callback-error-role-reset", "result": "passed"})
+        # A receipt after one idle deadline is not sufficient: the real worker
+        # must remain quiescent across *later* managed ticks. Preserve the full
+        # durable control, request, receipt and worker-effect vectors while
+        # allowing the process heartbeat and observational clock to advance.
+        quiescence_sql = (
+            "SELECT jsonb_build_object("
+            "'cases',(SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY case_key),'[]') "
+            "FROM mdm_steward.policy_cases_v1 c),"
+            "'mdm_receipts',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id),'[]') "
+            "FROM mdm_steward.policy_receipts_v1 r),"
+            "'intent_requests',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id,request_key),'[]') "
+            "FROM pgreact_mdm.intent_requests r),"
+            "'intent_attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY episode_id,attempt_no),'[]') "
+            "FROM pgreact_mdm.intent_attempts a),"
+            "'rule_work',(SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY work_id),'[]') "
+            "FROM pgreact.work w WHERE name='s1-future-idle'),"
+            "'rule_attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY execution_id),'[]') "
+            "FROM pgreact.attempts a WHERE name='s1-future-idle'),"
+            "'business_source',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY id),'[]') "
+            "FROM public.policy_qualification_source s),"
+            "'technical_source',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY case_key),'[]') "
+            "FROM s1_audit.source s))"
+        )
+        quiescence_before = json.loads(sql(quiescence_sql))
+        saved_requests = [
+            row for row in quiescence_before["intent_requests"]
+            if row["policy_revision"] == "s1-idle-feasibility" and row["case_key"] == case_key
+        ]
+        saved_attempts = [
+            row for row in quiescence_before["intent_attempts"]
+            if row["work_ref"] == expected_body["work_ref"]
+        ]
+        assert len(saved_requests) == len(saved_attempts) == 1, (saved_requests, saved_attempts)
+        assert quiescence_before["cases"] == expected
+        assert quiescence_before["mdm_receipts"] == retained_receipts
+        assert quiescence_before["business_source"] == source
+        assert quiescence_before["technical_source"] == temporal_source
+        assert quiescence_before["rule_work"] == work
+        assert quiescence_before["rule_attempts"] == attempts
+
+        quiet_first_heartbeat = timestamp(callback_status["process"]["heartbeat_at"])
+        quiet_deadline = quiet_first_heartbeat + datetime.timedelta(seconds=2)
+        end = time.monotonic() + 30
+        while time.monotonic() < end:
+            later_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = later_status.get("process") or {}
+            heartbeat_value = process.get("heartbeat_at")
+            if process.get("state") == "ready" and heartbeat_value and timestamp(heartbeat_value) > quiet_deadline:
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("managed worker did not complete later idle cycles")
+        quiescence_after = json.loads(sql(quiescence_sql))
+        assert quiescence_after == quiescence_before, {
+            "before": quiescence_before, "after": quiescence_after
+        }
+        observations["later_idle_cycles"] = {
+            "first_heartbeat_at": quiet_first_heartbeat.isoformat(),
+            "later_heartbeat_at": heartbeat_value,
+            "exact_state_before": quiescence_before,
+            "exact_state_after": quiescence_after,
+            "unchanged": True,
+        }
+        observations["checks"].append({"name": "post-delivery-idle-quiescence", "result": "passed"})
         assert json.loads(sql("SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
                               "FROM mdm_steward.policy_receipts_v1 r")) == retained_receipts
         sql("CREATE ROLE mdm_s1_runtime_no_set LOGIN")
