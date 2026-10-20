@@ -931,6 +931,20 @@ def main():
             "new_exact_receipts": expected_receipts,
         }
         observations["checks"].append({"name": "concurrent-cross-key-denials", "result": "passed"})
+        # A subsequent human edit advances only the case action revision.
+        # Captured pre-edit tokens must be rejected as stale, while current
+        # tokens for the previously automated-applied level must be denied by
+        # retained MDM occurrence history. Exact immutable React work and
+        # public source vectors are asserted by the SQL fixture.
+        fixture("human-stale-after-concurrency",
+                "/work/tests/integrations/pg-mdm/time/human-stale-after-concurrency.sql",
+                "s1_idle")
+        stale_human = json.loads(sql("SELECT vector FROM s1_stale.evidence"))
+        assert stale_human["exact"] and stale_human["unchanged_adapter_and_sources"], stale_human
+        observations["stale_after_human_edit"] = stale_human
+        observations["checks"].append({
+            "name": "stale-vs-current-human-token", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
