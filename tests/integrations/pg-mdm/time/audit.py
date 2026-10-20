@@ -584,6 +584,66 @@ def main():
             "unchanged": True,
         }
         observations["checks"].append({"name": "post-delivery-idle-quiescence", "result": "passed"})
+        # A normal PostgreSQL restart must not turn an already delivered
+        # escalation into another control. Validate a *new postmaster* and
+        # a resumed ordinary managed worker, not just pg_isready.
+        before_restart_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+        before_restart_state = quiescence_after
+        before_restart_heartbeat = timestamp(later_status["process"]["heartbeat_at"])
+        command("docker", "restart", container)
+        end = time.monotonic() + 60
+        restart_status = None
+        restart_postmaster = None
+        while time.monotonic() < end:
+            ready = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
+                                   capture_output=True)
+            if ready.returncode:
+                time.sleep(0.2)
+                continue
+            restart_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            restart_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = restart_status.get("process") or {}
+            heartbeat = process.get("heartbeat_at")
+            if (restart_postmaster > before_restart_postmaster
+                    and process.get("state") == "ready" and heartbeat
+                    and timestamp(heartbeat) > before_restart_heartbeat):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({
+                "error": "managed worker did not resume after a new PostgreSQL postmaster",
+                "old_postmaster": before_restart_postmaster.isoformat(),
+                "postmaster": str(restart_postmaster), "status": restart_status,
+            })
+        # Wait for more than one post-restart managed cycle, so a lazy replay
+        # is observed before we assert unchanged durable state.
+        resumed_heartbeat = timestamp(restart_status["process"]["heartbeat_at"])
+        end = time.monotonic() + 30
+        while time.monotonic() < end:
+            restart_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = restart_status.get("process") or {}
+            heartbeat = process.get("heartbeat_at")
+            if (process.get("state") == "ready" and heartbeat
+                    and timestamp(heartbeat) > resumed_heartbeat + datetime.timedelta(seconds=2)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("managed worker stopped advancing after restart")
+        after_restart_state = json.loads(sql(quiescence_sql))
+        assert after_restart_state == before_restart_state, {
+            "error": "recovered managed worker recreated an already delivered effect",
+            "before": before_restart_state, "after": after_restart_state,
+        }
+        observations["post_delivery_restart"] = {
+            "postmaster_before": before_restart_postmaster.isoformat(),
+            "postmaster_after": restart_postmaster.isoformat(),
+            "heartbeat_before": before_restart_heartbeat.isoformat(),
+            "heartbeat_after": heartbeat,
+            "exact_state_before": before_restart_state,
+            "exact_state_after": after_restart_state,
+            "unchanged": True,
+        }
+        observations["checks"].append({"name": "post-delivery-restart-no-replay", "result": "passed"})
         assert json.loads(sql("SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
                               "FROM mdm_steward.policy_receipts_v1 r")) == retained_receipts
         sql("CREATE ROLE mdm_s1_runtime_no_set LOGIN")
