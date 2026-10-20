@@ -1087,6 +1087,21 @@ def main():
         observations["checks"].append({
             "name": "post-recurrence-restart-no-replay", "result": "passed"
         })
+        # A permitted second level does not imply authorization to move to
+        # level 3: enforce the exact active MDM binding's maximum, after the
+        # true recurrence and its cold-restart proof. This invokes MDM's
+        # authenticated worker entrypoint; it does not synthesize React work.
+        fixture("recurrence-maximum",
+                "/work/tests/integrations/pg-mdm/time/recurrence-maximum.sql",
+                "s1_idle")
+        maximum = json.loads(sql("SELECT vector FROM s1_maximum.evidence"))
+        assert maximum["exact"] and maximum["state_unchanged"], maximum
+        assert maximum["binding_maximum"] == 2, maximum
+        assert maximum["case_key"] == recurrence["new_case_key"], maximum
+        observations["recurrence_maximum"] = maximum
+        observations["checks"].append({
+            "name": "recurrence-max-level-denial", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
