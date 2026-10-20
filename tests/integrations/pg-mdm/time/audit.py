@@ -1146,6 +1146,75 @@ def main():
         observations["checks"].append({
             "name": "post-maximum-managed-quiescence", "result": "passed"
         })
+        # Recovery after a terminal limit denial: the original applied
+        # recurrence receipt and the denied attempt must both survive another
+        # postmaster epoch, with no fresh work emitted by the ordinary worker.
+        max_restart_before = json.loads(sql(quiescence_sql))
+        max_start_before = timestamp(sql("SELECT pg_postmaster_start_time()"))
+        max_heartbeat_before = timestamp(heartbeat)
+        command("docker", "restart", container)
+        end = time.monotonic() + 60
+        max_restart_status = None
+        max_start_after = None
+        while time.monotonic() < end:
+            ready = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
+                                   capture_output=True)
+            if ready.returncode:
+                time.sleep(0.2)
+                continue
+            max_start_after = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            max_restart_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            proc = max_restart_status.get("process") or {}
+            hb = proc.get("heartbeat_at")
+            if (max_start_after > max_start_before
+                    and proc.get("state") == "ready" and hb
+                    and timestamp(hb) > max_heartbeat_before):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({
+                "error": "worker unavailable after maximum-denial restart",
+                "old_start": max_start_before.isoformat(),
+                "new_start": str(max_start_after),
+                "status": max_restart_status,
+            })
+        max_resumed = timestamp(max_restart_status["process"]["heartbeat_at"])
+        end = time.monotonic() + 35
+        while time.monotonic() < end:
+            max_restart_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            proc = max_restart_status.get("process") or {}
+            hb = proc.get("heartbeat_at")
+            if (proc.get("state") == "ready" and hb
+                    and timestamp(hb) > max_resumed + datetime.timedelta(seconds=3)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("worker did not complete post-denial restart cycles")
+        max_restart_after = json.loads(sql(quiescence_sql))
+        assert max_restart_after == max_restart_before, {
+            "error": "restart replayed or altered terminal maximum denial",
+            "before": max_restart_before, "after": max_restart_after,
+        }
+        assert sum(r["case_key"] == recurrence["new_case_key"]
+                   and r["outcome"] == "APPLIED_CONTROL"
+                   and r["action"] == "ESCALATE"
+                   for r in max_restart_after["mdm_receipts"]) == 1
+        assert sum(r["case_key"] == recurrence["new_case_key"]
+                   and r["outcome"] == "LIMIT_EXCEEDED"
+                   and r["reason_code"] == "ESCALATION_LIMIT"
+                   for r in max_restart_after["mdm_receipts"]) == 1
+        observations["post_maximum_restart"] = {
+            "postmaster_before": max_start_before.isoformat(),
+            "postmaster_after": max_start_after.isoformat(),
+            "first_resumed_heartbeat": max_resumed.isoformat(),
+            "later_heartbeat": hb,
+            "full_before": max_restart_before,
+            "full_after": max_restart_after,
+            "unchanged": True,
+        }
+        observations["checks"].append({
+            "name": "post-maximum-restart-no-replay", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
