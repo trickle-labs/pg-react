@@ -1102,6 +1102,50 @@ def main():
         observations["checks"].append({
             "name": "recurrence-max-level-denial", "result": "passed"
         })
+        # The bound's terminal denial must not create another MDM control
+        # when the ordinary managed worker continues to poll. Require
+        # observable worker progress rather than sleeping and assuming it.
+        max_before = json.loads(sql(quiescence_sql))
+        max_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+        max_worker = max_status.get("process") or {}
+        assert max_worker.get("state") == "ready" and max_worker.get("heartbeat_at"), max_status
+        max_heartbeat = timestamp(max_worker["heartbeat_at"])
+        deadline = time.monotonic() + 35
+        max_last = None
+        while time.monotonic() < deadline:
+            max_last = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = max_last.get("process") or {}
+            heartbeat = process.get("heartbeat_at")
+            if (process.get("state") == "ready" and heartbeat
+                    and timestamp(heartbeat) > max_heartbeat + datetime.timedelta(seconds=3)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({"error": "worker stalled after maximum-level denial",
+                                  "before": max_status, "after": max_last})
+        max_after = json.loads(sql(quiescence_sql))
+        assert max_after == max_before, {
+            "error": "maximum-level denial caused delayed managed effects",
+            "before": max_before, "after": max_after,
+        }
+        assert sum(row["case_key"] == recurrence["new_case_key"]
+                   and row["outcome"] == "APPLIED_CONTROL"
+                   and row["action"] == "ESCALATE"
+                   for row in max_after["mdm_receipts"]) == 1
+        assert sum(row["case_key"] == recurrence["new_case_key"]
+                   and row["outcome"] == "LIMIT_EXCEEDED"
+                   and row["reason_code"] == "ESCALATION_LIMIT"
+                   for row in max_after["mdm_receipts"]) == 1
+        observations["post_maximum_managed_quiescence"] = {
+            "heartbeat_before": max_heartbeat.isoformat(),
+            "heartbeat_after": heartbeat,
+            "full_before": max_before,
+            "full_after": max_after,
+            "unchanged": True,
+        }
+        observations["checks"].append({
+            "name": "post-maximum-managed-quiescence", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
