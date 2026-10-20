@@ -945,6 +945,34 @@ def main():
         observations["checks"].append({
             "name": "stale-vs-current-human-token", "result": "passed"
         })
+
+        # Reuse MDM's real resolution/publication recurrence fixture, where
+        # the same issue_key was reopened as a different case_key. The original
+        # applied-level history must remain scoped to its own occurrence, not
+        # block a permitted first level-2 application in the new occurrence.
+        # This test invokes the real MDM human/worker APIs: it does not claim
+        # React's ordinary managed worker discovered the new case.
+        before_recurrence = json.loads(sql(quiescence_sql))
+        fixture("recurrence-independent",
+                "/work/tests/integrations/pg-mdm/time/recurrence-independent.sql",
+                "s1_idle")
+        recurrence = json.loads(sql("SELECT vector FROM s1_recurrence.evidence"))
+        assert recurrence["exact"] and recurrence["old_receipts_unchanged"], recurrence
+        assert recurrence["old_case_key"] != recurrence["new_case_key"], recurrence
+        after_recurrence = json.loads(sql(quiescence_sql))
+        for category in ("intent_requests", "intent_attempts",
+                         "rule_work", "rule_attempts",
+                         "business_source", "technical_source"):
+            assert after_recurrence[category] == before_recurrence[category], category
+        assert len(after_recurrence["mdm_receipts"]) == len(before_recurrence["mdm_receipts"]) + 1
+        assert len(after_recurrence["cases"]) == len(before_recurrence["cases"])
+        assert all(before == after for before, after in zip(
+            before_recurrence["cases"], after_recurrence["cases"])
+            if before["case_key"] != recurrence["new_case_key"])
+        observations["recurrence_independent"] = recurrence
+        observations["checks"].append({
+            "name": "recurrence-new-occurrence", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
