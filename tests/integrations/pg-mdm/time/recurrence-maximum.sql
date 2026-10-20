@@ -87,7 +87,10 @@ SELECT :'limited_outcome'='LIMIT_EXCEEDED'
   AND :'limited_outcome'=:'replay_outcome'
   AND :'limited_reason_code'=:'replay_reason_code'
   AND :'limited_control'::jsonb=:'replay_control'::jsonb
-  AND :'limited_resulting_publication_revision' IS NULL
+  AND (SELECT resulting_publication_revision IS NULL
+       FROM mdm_steward.policy_receipts_v1
+       WHERE binding_id=:'binding_binding_id'::uuid
+         AND request_key=decode(repeat('fb',32),'hex'))
   AND (SELECT to_jsonb(c)=:'current_case_state'::jsonb
        FROM mdm_steward.policy_cases_v1 c WHERE case_key=:target_case_key)
   AND (SELECT vector FROM s1_maximum.before_cases)=
