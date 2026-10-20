@@ -43,8 +43,13 @@ def main():
 
     def fixture(name, file, database="foundation", variables=()):
         started = time.monotonic()
-        result = command("docker", "exec", container, "psql", "-XAtq", "-U",
-                         "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", *variables, "-f", file)
+        try:
+            result = command("docker", "exec", container, "psql", "-XAtq", "-U",
+                             "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", *variables, "-f", file)
+        except RuntimeError as error:
+            (output / (name + ".log")).write_text(str(error))
+            observations["checks"].append({"name": name, "result": "failed"})
+            raise
         (output / (name + ".log")).write_text(result)
         observations["checks"].append({"name": name, "result": "passed",
                                        "seconds": time.monotonic() - started})
@@ -247,7 +252,8 @@ def main():
         command("docker", "exec", container, "createdb", "-U", "postgres", "s1_boundary")
         sql("CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react", "s1_boundary")
         fixture("sample-boundaries", "/work/tests/integrations/pg-mdm/time/boundaries.sql", "s1_boundary")
-        fixture("idle-setup", "/work/tests/integrations/pg-mdm/time/idle.sql", "s1_idle")
+        fixture("idle-setup", "/work/tests/integrations/pg-mdm/time/idle.sql", "s1_idle",
+                ("-v", "VERBOSITY=verbose"))
         observations["registered_s1_rules"] = json.loads(sql(
             "SELECT COALESCE(jsonb_agg(jsonb_build_object('rule_name',r.rule_name,'rule_id',r.rule_id,"
             "'rule_version_id',v.rule_version_id,'match_name',v.match_name) ORDER BY r.rule_name),'[]') "
@@ -566,6 +572,16 @@ def main():
     except BaseException as error:
         observations["failure"] = str(error)
         if created:
+            if (observations["checks"] and observations["checks"][-1] == {"name": "idle-setup", "result": "failed"}
+                    and sql("SELECT to_regclass('s1_audit.before_registration') IS NOT NULL") == "t"):
+                before = json.loads(sql("SELECT vector FROM s1_audit.before_registration"))
+                after = json.loads(sql("SELECT s1_audit.registration_state()"))
+                observations.update(entry_decision="STOP", registration_before=before,
+                    registration_after=after, registration_state_unchanged=before == after,
+                    idle_case_delivered=False,
+                    stop_reason="Direct authorized MDM-source deadline registration fails inside pgtrickle.create_stream_table; the successful technical-source idle proof does not qualify this source path.",
+                    conditional_work_not_performed=["typed managed temporal registration implementation",
+                        "bounded catch-up", "deduplication convergence", "diagnostics/recovery/concurrency acceptance"])
             logs = subprocess.run(["docker", "logs", "--tail", "100", container],
                                   capture_output=True, text=True, timeout=30)
             observations["failure_logs"] = logs.stdout + logs.stderr

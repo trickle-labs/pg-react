@@ -25,7 +25,10 @@ CREATE TABLE s1_audit.source (
     case_key bigint PRIMARY KEY,
     deadline timestamptz NOT NULL
 );
-CREATE VIEW s1_audit.candidate AS SELECT case_key, deadline FROM s1_audit.source;
+CREATE VIEW s1_audit.candidate AS
+SELECT policy_case.case_key, policy_case.due_at AS deadline
+FROM pgreact_mdm.intent_deployer_policy_cases_v1 AS policy_case
+JOIN s1_audit.source AS selected_case USING (case_key);
 GRANT USAGE, CREATE ON SCHEMA s1_audit TO mdm_s1_runner;
 GRANT SELECT ON s1_audit.source, s1_audit.candidate TO mdm_s1_runner;
 ALTER VIEW s1_audit.candidate OWNER TO mdm_s1_runner;
@@ -84,6 +87,19 @@ ALTER FUNCTION s1_audit.deliver(pgreact.activation_context, s1_audit.candidate)
 REVOKE CREATE ON SCHEMA s1_audit FROM mdm_s1_runner;
 REVOKE ALL ON FUNCTION s1_audit.deliver(
     pgreact.activation_context, s1_audit.candidate) FROM PUBLIC;
+CREATE FUNCTION s1_audit.registration_state() RETURNS jsonb
+LANGUAGE sql STABLE AS $state$
+    SELECT jsonb_build_object(
+        'cases',(SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key) FROM mdm_steward.policy_cases_v1 c),
+        'receipts',(SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) FROM mdm_steward.policy_receipts_v1 r),
+        'business_source',(SELECT jsonb_agg(to_jsonb(s) ORDER BY id) FROM public.policy_qualification_source s),
+        'technical_source',(SELECT jsonb_agg(to_jsonb(s) ORDER BY case_key) FROM s1_audit.source s),
+        'rules',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY to_jsonb(r)::text),'[]') FROM pgreact.rules r),
+        'work',(SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY to_jsonb(w)::text),'[]') FROM pgreact.work w),
+        'attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY to_jsonb(a)::text),'[]') FROM pgreact.attempts a),
+        'source_definition',pg_get_viewdef('s1_audit.candidate'::regclass,true))
+$state$;
+CREATE TABLE s1_audit.before_registration AS SELECT s1_audit.registration_state() AS vector;
 SET SESSION AUTHORIZATION mdm_s1_runner;
 SELECT pgreact_api.author_deadline_rule(
     's1-future-idle', 's1_audit.candidate'::regclass,
