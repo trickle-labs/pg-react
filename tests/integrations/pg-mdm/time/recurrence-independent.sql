@@ -37,6 +37,7 @@ WHERE prior.entity_name = 'policy_qualification'
 SELECT :occurrence_old_key <> :occurrence_new_key
    AND :occurrence_old_occurrence = 1
    AND :occurrence_new_occurrence = 2
+   AND :occurrence_new_key <> (SELECT case_key FROM s1_audit.source)
    AND :occurrence_action_revision > 0
    AND (SELECT count(*) = 1 FROM mdm_steward.policy_cases_v1
         WHERE case_key = :occurrence_old_key AND status = 'resolved')
@@ -92,7 +93,7 @@ FROM mdm_steward.policy_cases_v1 c WHERE c.case_key = :occurrence_new_key
 SELECT :prepared_action_revision = :occurrence_action_revision + 1
    AND :'prepared_full_case'::jsonb =
        (SELECT vector FROM s1_recurrence.before_new)
-       || jsonb_build_object('due_at',:'prepared_due_at',
+       || jsonb_build_object('due_at',:'prepared_due_at'::timestamptz,
           'escalation_level',1,'action_revision',:prepared_action_revision)
    AND :'prepared_due_at'::timestamptz <= pg_catalog.statement_timestamp()
    AS recurrence_prepared_exact_ok
