@@ -704,6 +704,67 @@ def main():
         observations["receipts_after_human_reduction"] = json.loads(sql(
             "SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
             "FROM mdm_steward.policy_receipts_v1 r"))
+
+        # After the human reduced level 2 -> 1 and MDM retained its two
+        # terminal cross-key denials, put the legitimate managed login back in
+        # service. A new worker must not manufacture any additional control,
+        # receipt, immutable request/attempt, work, or source changes merely
+        # because that previously applied level is again visible as next.
+        human_quiet_before = json.loads(sql(quiescence_sql))
+        assert human_quiet_before["cases"] == observations["cases_after_human_reduction"]
+        assert human_quiet_before["mdm_receipts"] == observations["receipts_after_human_reduction"]
+        assert human_quiet_before["business_source"] == source
+        assert human_quiet_before["technical_source"] == temporal_source
+        sql("ALTER SYSTEM SET pg_react.worker_role = 'mdm_s1_runtime'")
+        postmaster_before_human = timestamp(sql("SELECT pg_postmaster_start_time()"))
+        command("docker", "restart", container)
+        end = time.monotonic() + 60
+        human_worker_status = None
+        human_postmaster = None
+        while time.monotonic() < end:
+            ready = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
+                                   capture_output=True)
+            if ready.returncode:
+                time.sleep(0.2)
+                continue
+            human_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            human_worker_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            worker = human_worker_status.get("process") or {}
+            if (human_postmaster > postmaster_before_human
+                    and worker.get("state") == "ready" and worker.get("heartbeat_at")):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({
+                "error": "authenticated managed worker did not resume after human reduction",
+                "status": human_worker_status, "postmaster": str(human_postmaster)
+            })
+        human_heartbeat_first = timestamp(human_worker_status["process"]["heartbeat_at"])
+        end = time.monotonic() + 30
+        while time.monotonic() < end:
+            human_worker_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            worker = human_worker_status.get("process") or {}
+            heartbeat = worker.get("heartbeat_at")
+            if (worker.get("state") == "ready" and heartbeat
+                    and timestamp(heartbeat) > human_heartbeat_first + datetime.timedelta(seconds=3)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("managed worker did not advance after human reduction")
+        human_quiet_after = json.loads(sql(quiescence_sql))
+        assert human_quiet_after == human_quiet_before, {
+            "error": "human-reduced occurrence generated another durable effect",
+            "before": human_quiet_before, "after": human_quiet_after
+        }
+        observations["post_human_managed_convergence"] = {
+            "postmaster": human_postmaster.isoformat(),
+            "heartbeat_first": human_heartbeat_first.isoformat(),
+            "heartbeat_after": heartbeat,
+            "complete_before": human_quiet_before,
+            "complete_after": human_quiet_after,
+            "unchanged": True,
+        }
+        observations["checks"].append({"name": "post-human-managed-convergence", "result": "passed"})
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
