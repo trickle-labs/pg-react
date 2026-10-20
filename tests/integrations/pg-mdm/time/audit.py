@@ -973,6 +973,47 @@ def main():
         observations["checks"].append({
             "name": "recurrence-new-occurrence", "result": "passed"
         })
+        # After the real recurrence's authorized MDM control, keep the
+        # ordinary managed worker running. Because the enrolled React rule
+        # selects a different case_key, a subsequent managed poll must neither
+        # replay the new occurrence nor mutate unrelated old cases/sources.
+        # This is an observation-only quiescence test, not proof that the
+        # React scheduler autonomously enrolls every new MDM occurrence.
+        recurrence_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+        process = recurrence_status.get("process") or {}
+        assert process.get("state") == "ready" and process.get("heartbeat_at"), recurrence_status
+        recurrence_heartbeat = timestamp(process["heartbeat_at"])
+        end = time.monotonic() + 35
+        observed_status = None
+        while time.monotonic() < end:
+            observed_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = observed_status.get("process") or {}
+            observed_heartbeat = process.get("heartbeat_at")
+            if (process.get("state") == "ready" and observed_heartbeat
+                    and timestamp(observed_heartbeat) >
+                    recurrence_heartbeat + datetime.timedelta(seconds=3)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({
+                "error": "managed worker did not complete post-recurrence cycles",
+                "initial": recurrence_status, "last": observed_status
+            })
+        after_recurrence_cycles = json.loads(sql(quiescence_sql))
+        assert after_recurrence_cycles == after_recurrence, {
+            "error": "post-recurrence managed cycle changed durable state",
+            "before": after_recurrence, "after": after_recurrence_cycles
+        }
+        observations["post_recurrence_worker_quiescence"] = {
+            "heartbeat_before": recurrence_heartbeat.isoformat(),
+            "heartbeat_after": observed_heartbeat,
+            "full_before": after_recurrence,
+            "full_after": after_recurrence_cycles,
+            "unchanged": True
+        }
+        observations["checks"].append({
+            "name": "post-recurrence-worker-quiescence", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
