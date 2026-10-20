@@ -690,6 +690,20 @@ def main():
                             managed_status=json.loads(sql("SELECT pgreact_api.managed_status()")),
                             deadline_history=json.loads(sql("SELECT pgreact_api.deadline_history('s1-future-idle')")))
         observations["checks"].append({"name": "future-idle-mdm-receipt", "result": "passed"})
+        # Separate authority-level regression after the proven worker delivery,
+        # restart and privilege tests. This intentionally changes only the
+        # MDM case via its authorized human API, then sends two *new* keys
+        # through the authenticated worker interface. It does not claim that
+        # React emitted those independent work items.
+        fixture("human-reduction-crosskey",
+                "/work/tests/integrations/pg-mdm/time/human-reduction-crosskey.sql", "s1_idle")
+        cross_key = json.loads(sql("SELECT vector FROM s1_cross_key.evidence"))
+        assert cross_key["exact"] and len(cross_key["denial_receipts"]) == 2, cross_key
+        observations["human_reduction_crosskey"] = cross_key
+        observations["cases_after_human_reduction"] = cases()
+        observations["receipts_after_human_reduction"] = json.loads(sql(
+            "SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
+            "FROM mdm_steward.policy_receipts_v1 r"))
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
