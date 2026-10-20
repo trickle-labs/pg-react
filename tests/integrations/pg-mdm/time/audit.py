@@ -14,8 +14,9 @@ import uuid
 def main():
     image, output = sys.argv[1:3]
     maintenance = sys.argv[3:] == ["--maintenance"]
-    if sys.argv[3:] and not maintenance:
-        raise ValueError("only --maintenance is supported after IMAGE OUTPUT")
+    compatibility_only = sys.argv[3:] == ["--compatibility"]
+    if sys.argv[3:] and not (maintenance or compatibility_only):
+        raise ValueError("only --maintenance or --compatibility is supported after IMAGE OUTPUT")
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     root = Path(__file__).resolve().parents[4]
@@ -70,7 +71,8 @@ def main():
                 "--env", "POSTGRES_HOST_AUTH_METHOD=trust", "--volume", str(root) + ":/work:ro",
                 image, "postgres", "-c", "shared_preload_libraries=pg_trickle,pg_react",
                 "-c", "pg_trickle.enabled=off", "-c", "pg_trickle.cdc_mode=trigger",
-                "-c", "pg_trickle.differential_max_change_ratio=1.0")
+                "-c", "pg_trickle.differential_max_change_ratio=1.0",
+                "-c", "default_transaction_isolation=read committed")
         created = True
         for _ in range(60):
             result = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
@@ -80,6 +82,40 @@ def main():
             time.sleep(1)
         else:
             raise RuntimeError("PostgreSQL readiness exceeded 60 seconds")
+        command("docker", "exec", container, "createdb", "-U", "postgres", "s1_compatibility")
+        sql("CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react", "s1_compatibility")
+        observations["installed_profile"] = json.loads(sql(
+            "SELECT jsonb_build_object('postgresql',version(),'extensions',"
+            "(SELECT jsonb_object_agg(extname,extversion) FROM pg_extension),"
+            "'settings',(SELECT jsonb_object_agg(name,setting) FROM pg_settings WHERE name IN "
+            "('pg_trickle.enabled','pg_trickle.cdc_mode','pg_trickle.differential_max_change_ratio',"
+            "'default_transaction_isolation','transaction_isolation','shared_preload_libraries')),"
+            "'compatibility',pgreact_internal.pgtrickle_integration_status())", "s1_compatibility"))
+        fixture("compatibility", "/work/tests/integrations/pg-mdm/time/compatibility.sql", "s1_compatibility")
+        command("docker", "exec", container, "createdb", "-U", "postgres", "s1_compatibility_upgrade")
+        sql("CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react VERSION '0.46.0'; "
+            "ALTER EXTENSION pg_react UPDATE TO '0.46.1'", "s1_compatibility_upgrade")
+        callable_query = (
+            "SELECT jsonb_agg(jsonb_build_object('identity',p.oid::regprocedure::text,"
+            "'owner',pg_get_userbyid(p.proowner),'acl',p.proacl::text,"
+            "'definition',pg_get_functiondef(p.oid)) ORDER BY p.oid::regprocedure::text) "
+            "FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace "
+            "WHERE n.nspname IN ('pgreact_internal','pgreact_api','pgreact') "
+            "AND p.proname IN ('pgtrickle_capability_report','pgtrickle_integration_status',"
+            "'require_pgtrickle_runtime','pgtrickle_health_findings','assert_m0_compatibility',"
+            "'managed_cycle','doctor','health_check')")
+        fresh = json.loads(sql(callable_query, "s1_compatibility"))
+        upgraded = json.loads(sql(callable_query, "s1_compatibility_upgrade"))
+        assert fresh == upgraded, "fresh/adjacent-upgrade compatibility definitions or privileges differ"
+        assert json.loads(sql("SELECT pgreact_internal.pgtrickle_integration_status()",
+            "s1_compatibility_upgrade")) == observations["installed_profile"]["compatibility"]
+        observations["compatibility_callables"] = fresh
+        observations["checks"].append({"name": "fresh-adjacent-upgrade-compatibility", "result": "passed"})
+        print("PASS: fresh/adjacent-upgrade compatibility and callable privileges", flush=True)
+        if compatibility_only:
+            observations["entry_decision"] = "ADMISSION_ONLY"
+            return
+        fixture("refresh-permission", "/work/tests/integrations/pg-mdm/time/refresh-permission.sql", "s1_compatibility")
         producer_archive = (observations["image_labels"] or {}).get("pg_trickle.source_archive_sha256")
         fixture("mdm-bootstrap", "/tests/e2e.sql", "postgres",
                 ("-v", "producer_artifact_sha256=" + producer_archive) if producer_archive else ())
@@ -88,6 +124,10 @@ def main():
             "SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key) FROM mdm_steward.policy_cases_v1 c", "foundation"))
         observations["mdm_entry_receipts"] = json.loads(sql(
             "SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) FROM mdm_steward.policy_receipts_v1 r", "foundation"))
+        observations["mdm_fixture_cases"] = observations["mdm_entry_cases"]
+        fixture("idle-seed", "/work/tests/integrations/pg-mdm/time/idle-seed.sql")
+        observations["mdm_entry_cases"] = json.loads(sql(
+            "SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key) FROM mdm_steward.policy_cases_v1 c", "foundation"))
         observations["fixture_sha256"] = command("docker", "exec", container, "sha256sum",
             "/tests/e2e.sql", "/tests/e2e_policy.sql", "/usr/lib/postgresql/18/lib/pg_react.so",
             "/usr/lib/postgresql/18/lib/pg_mdm.so", "/usr/lib/postgresql/18/lib/pg_trickle.so").splitlines()
@@ -167,6 +207,7 @@ def main():
             observations["checks"].append({"name": "managed-runtime-compatibility-stop", "result": "confirmed"})
             print("STOP: public registration and actual managed worker reject the MDM-qualified producer; no control or receipt changes", flush=True)
             return
+        sql("CREATE EXTENSION IF NOT EXISTS pg_trickle; CREATE EXTENSION IF NOT EXISTS pg_react", "postgres")
         for name in ("v0.47", "v0.47-typed", "v0.48-codec"):
             fixture(name, "/work/tests/integrations/pg-mdm/" + name + ".sql", "postgres")
         for name in ("v0.47-live-setup", "v0.47-live", "v0.48-codec", "v0.48-live", "v0.48-security"):
@@ -201,7 +242,7 @@ def main():
                     "claim_maintenance.result r", database))
             assert observations["maintenance"]["core_claim"]["after"]["api"] == observations["maintenance"]["core_upgrade"]["after"]["api"], "fresh/upgrade public callable inventories differ"
         command("docker", "exec", "--user", "postgres", container, "sh",
-                "/work/tests/integrations/pg-mdm/v0.48-admission.sh", "s1_missing_mdm")
+                "/work/tests/integrations/pg-mdm/v0.48-admission.sh", "s1_missing_mdm", "current")
         observations["checks"].append({"name": "missing-mdm-admission", "result": "passed"})
         command("docker", "exec", container, "createdb", "-U", "postgres", "s1_boundary")
         sql("CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react", "s1_boundary")

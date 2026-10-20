@@ -1,0 +1,44 @@
+name: Pinned producer compatibility
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mdm_pinned_producer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: trickle-labs/pg-mdm
+          ref: 06471e647ee54a80973fb5ad6709830f9955dbff
+          path: .producer/mdm
+      - name: Build the exact MDM-pinned producer
+        run: |
+          mkdir producer-evidence
+          docker build -f .producer/mdm/tests/Dockerfile.e2e \
+            --build-arg PG_MDM_SOURCE_REVISION=06471e647ee54a80973fb5ad6709830f9955dbff \
+            --label pg_trickle.source_revision=d8bb8eb5d45c5c9982e173e88914037433a1ee05 \
+            --label pg_trickle.source_archive_sha256=b8d4c59ca3770c305659255e09adde303b4d220228392c415ae363aa7be0a2da \
+            -t pgreact:mdm-pinned .producer/mdm > producer-evidence/mdm-build.log 2>&1
+      - name: Build React on the pinned producer
+        run: |
+          docker build -f tests/integrations/pg-mdm/Dockerfile.v0.48 \
+            --build-arg PG_MDM_IMAGE=pgreact:mdm-pinned \
+            -t pgreact:producer-compatibility . > producer-evidence/react-build.log 2>&1
+      - name: Qualify admission, refresh permissions and actual idle delivery
+        run: |
+          python3 tests/integrations/pg-mdm/time/audit.py pgreact:producer-compatibility producer-evidence/runtime
+          python3 -c 'import json; o=json.load(open("producer-evidence/runtime/observations.json")); assert {"name":"future-idle-mdm-receipt","result":"passed"} in o["checks"], o.get("stop_reason",o["entry_decision"])'
+      - name: Retain exact image identity
+        if: always()
+        run: docker image inspect pgreact:mdm-pinned pgreact:producer-compatibility > producer-evidence/images.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
+        with:
+          name: pinned-producer-compatibility
+          path: producer-evidence/
