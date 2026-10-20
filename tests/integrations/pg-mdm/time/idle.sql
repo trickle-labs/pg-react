@@ -28,7 +28,8 @@ CREATE TABLE s1_audit.source (
 CREATE VIEW s1_audit.candidate AS
 SELECT policy_case.case_key, policy_case.due_at AS deadline
 FROM pgreact_mdm.intent_deployer_policy_cases_v1 AS policy_case
-JOIN s1_audit.source AS selected_case USING (case_key);
+-- shortcut: the pinned producer drops USING while expanding nested views; use ON until that path qualifies.
+JOIN s1_audit.source AS selected_case ON selected_case.case_key = policy_case.case_key;
 GRANT USAGE, CREATE ON SCHEMA s1_audit TO mdm_s1_runner;
 GRANT SELECT ON s1_audit.source, s1_audit.candidate TO mdm_s1_runner;
 ALTER VIEW s1_audit.candidate OWNER TO mdm_s1_runner;
