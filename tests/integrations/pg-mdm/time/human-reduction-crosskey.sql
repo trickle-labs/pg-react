@@ -27,6 +27,25 @@ FROM pgreact_mdm.policy_intent_bindings AS b
 WHERE b.policy_revision = 's1-idle-feasibility' AND b.enabled
 \gset bound_
 
+-- Capture the entire canonical *original applied request* before the human edit.
+-- A same-key retry must replay the APPLIED_CONTROL receipt even after the
+-- current level is manually lowered; no new case effect is permitted.
+SELECT r.binding_id::text AS binding_id,
+       (r.request_body->'arguments')::text AS arguments,
+       (r.request_body->>'expected_review_version')::bigint AS review_version,
+       (r.request_body->>'expected_definition_version')::bigint AS definition_version,
+       (r.request_body->>'expected_publication_revision')::bigint AS publication_revision,
+       (r.request_body->>'expected_stewardship_epoch')::bigint AS stewardship_epoch,
+       (r.request_body->>'expected_action_revision')::bigint AS action_revision,
+       r.request_body->>'expected_evidence_basis_digest' AS evidence_digest,
+       r.request_body->>'expected_policy_digest' AS policy_digest,
+       r.request_body->>'policy_revision' AS policy_revision,
+       r.request_body->>'evaluation_ref' AS evaluation_ref,
+       r.request_body->>'work_ref' AS work_ref
+FROM mdm_steward.policy_receipts_v1 r
+WHERE r.receipt_id = :'applied_applied_receipt_id'::uuid
+\gset original_
+
 SELECT :prior_case_key = :applied_case_key
    AND :prior_escalation_level = 2
    AND :prior_action_revision > 0
@@ -114,6 +133,19 @@ FROM mdm_steward.submit_policy_intent(
     's1-idle-feasibility', 'cross-key-ec', 'cross-key-work-ec'
 )
 \gset replay_ec_
+SELECT receipt_id, outcome, reason_code, case_key, action_revision, control
+FROM mdm_steward.submit_policy_intent(
+    :'original_binding_id'::uuid,
+    pg_catalog.decode(:'applied_applied_request_key', 'hex'),
+    :prior_case_key, 'ESCALATE', :'original_arguments'::jsonb,
+    :original_review_version, :original_definition_version,
+    :original_publication_revision, :original_stewardship_epoch,
+    pg_catalog.decode(:'original_evidence_digest', 'hex'),
+    :original_action_revision,
+    pg_catalog.decode(:'original_policy_digest', 'hex'),
+    :'original_policy_revision', :'original_evaluation_ref', :'original_work_ref'
+)
+\gset replay_applied_
 RESET ROLE;
 RESET SESSION AUTHORIZATION;
 
@@ -127,6 +159,13 @@ SELECT :'denied_ec_outcome' = 'ACTION_DENIED'
    AND :denied_ed_action_revision = :lowered_action_revision
    AND :'denied_ec_receipt_id'::uuid <> :'denied_ed_receipt_id'::uuid
    AND :'denied_ec_receipt_id'::uuid = :'replay_ec_receipt_id'::uuid
+   AND :'replay_applied_receipt_id'::uuid = :'applied_applied_receipt_id'::uuid
+   AND :'replay_applied_outcome' = 'APPLIED_CONTROL'
+   AND :'replay_applied_reason_code' = 'CONTROL_APPLIED'
+   AND :replay_applied_case_key = :prior_case_key
+   AND :replay_applied_action_revision = :prior_action_revision
+   AND (:'replay_applied_control'::jsonb ->> 'escalation_level') = '2'
+   AND (:'replay_applied_control'::jsonb ->> 'due_at') = :'prior_due_at'
    AND :'denied_ec_outcome' = :'replay_ec_outcome'
    AND :'denied_ec_reason_code' = :'replay_ec_reason_code'
    AND :'denied_ec_control'::jsonb = :'replay_ec_control'::jsonb
@@ -196,6 +235,7 @@ SELECT pg_catalog.jsonb_build_object(
               pg_catalog.decode(pg_catalog.repeat('ec',32),'hex'),
               pg_catalog.decode(pg_catalog.repeat('ed',32),'hex'))),
     'replayed_receipt_id', :'replay_ec_receipt_id',
+    'replayed_original_applied_receipt_id', :'replay_applied_receipt_id',
     'exact', true
 ) AS vector;
-\echo PASS: human level reduction, two distinct fresh keys denied, original applied receipt retained, same-key replay exact
+\echo PASS: human level reduction, two fresh keys denied, original applied receipt replayed after edit, denial replay exact
