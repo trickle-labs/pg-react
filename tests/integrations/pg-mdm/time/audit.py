@@ -1014,6 +1014,79 @@ def main():
         observations["checks"].append({
             "name": "post-recurrence-worker-quiescence", "result": "passed"
         })
+
+        # A cold PostgreSQL restart after the genuine recurrence must retain
+        # BOTH occurrence populations and the newly applied exact MDM receipt.
+        # Observe a different postmaster and multiple resumed managed-worker
+        # cycles, then compare the entire durable state, not just counts.
+        before_recurrence_restart = json.loads(sql(quiescence_sql))
+        old_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+        old_heartbeat = timestamp(observed_heartbeat)
+        command("docker", "restart", container)
+        restart_end = time.monotonic() + 60
+        restarted_status = None
+        new_postmaster = None
+        while time.monotonic() < restart_end:
+            readiness = subprocess.run(
+                ["docker", "exec", container, "pg_isready", "-U", "postgres"],
+                capture_output=True)
+            if readiness.returncode:
+                time.sleep(0.2)
+                continue
+            new_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            restarted_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = restarted_status.get("process") or {}
+            heartbeat = process.get("heartbeat_at")
+            if (new_postmaster > old_postmaster
+                    and process.get("state") == "ready" and heartbeat
+                    and timestamp(heartbeat) > old_heartbeat):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({
+                "error": "managed worker failed to resume after recurrence restart",
+                "old_postmaster": old_postmaster.isoformat(),
+                "new_postmaster": str(new_postmaster),
+                "status": restarted_status,
+            })
+        resumed_at = timestamp(restarted_status["process"]["heartbeat_at"])
+        restart_end = time.monotonic() + 35
+        while time.monotonic() < restart_end:
+            restarted_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = restarted_status.get("process") or {}
+            heartbeat = process.get("heartbeat_at")
+            if (process.get("state") == "ready" and heartbeat
+                    and timestamp(heartbeat) > resumed_at + datetime.timedelta(seconds=3)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("managed worker did not complete later cycles after recurrence restart")
+        after_recurrence_restart = json.loads(sql(quiescence_sql))
+        assert after_recurrence_restart == before_recurrence_restart, {
+            "error": "recurrence history or worker effects changed after restart",
+            "before": before_recurrence_restart,
+            "after": after_recurrence_restart,
+        }
+        assert any(case["case_key"] == recurrence["old_case_key"]
+                   for case in after_recurrence_restart["cases"])
+        assert any(case["case_key"] == recurrence["new_case_key"]
+                   and case["escalation_level"] == 2
+                   for case in after_recurrence_restart["cases"])
+        assert sum(r["case_key"] == recurrence["new_case_key"]
+                   and r["action"] == "ESCALATE" and r["outcome"] == "APPLIED_CONTROL"
+                   for r in after_recurrence_restart["mdm_receipts"]) == 1
+        observations["post_recurrence_restart"] = {
+            "old_postmaster": old_postmaster.isoformat(),
+            "new_postmaster": new_postmaster.isoformat(),
+            "first_resumed_heartbeat": resumed_at.isoformat(),
+            "later_heartbeat": heartbeat,
+            "full_before": before_recurrence_restart,
+            "full_after": after_recurrence_restart,
+            "unchanged": True,
+        }
+        observations["checks"].append({
+            "name": "post-recurrence-restart-no-replay", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
