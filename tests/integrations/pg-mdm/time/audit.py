@@ -765,6 +765,172 @@ def main():
             "unchanged": True,
         }
         observations["checks"].append({"name": "post-human-managed-convergence", "result": "passed"})
+
+        # Two distinct authenticated MDM worker requests must contend for the
+        # *same* case-row lock. Hold that row in an independent transaction,
+        # prove BOTH callers are waiting on PostgreSQL locks, then release it.
+        # This tests concurrency of the MDM authority, not React claim races.
+        # Reuse MDM's previously persisted canonical denial body/tokens rather
+        # than manufacturing fresh policy or revision values.
+        deny_template = cross_key["denial_receipts"][0]
+        assert all(row["reason_code"] == "ESCALATION_LEVEL_ALREADY_APPLIED"
+                   for row in cross_key["denial_receipts"])
+        assert deny_template["request_body"]["case_key"] == case_key
+        concurrent_before = json.loads(sql(quiescence_sql))
+
+        def sql_literal(value):
+            return "'" + str(value).replace("'", "''") + "'"
+
+        concurrent_requests = {}
+        worker_sessions = []
+        holder = None
+        observed_waits = []
+        try:
+            holder = subprocess.Popen([
+                "docker", "exec", "-i", container, "psql", "-XAtq", "-U", "postgres",
+                "-d", "s1_idle", "-v", "ON_ERROR_STOP=1"],
+                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True)
+            holder.stdin.write(
+                "SET application_name = 'react11-case-lock-holder';\n"
+                "BEGIN;\n"
+                f"SELECT case_key FROM mdm_steward.policy_cases_v1 "
+                f"WHERE case_key = {int(case_key)} FOR UPDATE;\n")
+            holder.stdin.flush()
+            end = time.monotonic() + 20
+            while time.monotonic() < end:
+                held = sql("SELECT count(*) FROM pg_stat_activity "
+                           "WHERE application_name = 'react11-case-lock-holder' "
+                           "AND state = 'idle in transaction'")
+                if held == "1":
+                    break
+                if holder.poll() is not None:
+                    raise AssertionError("concurrency lock holder exited before case lock")
+                time.sleep(0.1)
+            else:
+                raise AssertionError("concurrency lock holder did not acquire case row")
+
+            for suffix in ("ee", "ef"):
+                key_hex = suffix * 32
+                body = dict(deny_template["request_body"])
+                body["evaluation_ref"] = "concurrent-" + suffix
+                body["work_ref"] = "concurrent-work-" + suffix
+                concurrent_requests[suffix] = (key_hex, body)
+                statement = (
+                    "SET application_name = " + sql_literal("react11-worker-" + suffix) + "; "
+                    "SET SESSION AUTHORIZATION mdm_s1_runtime; "
+                    "SET ROLE pgreact_mdm_worker; "
+                    "SELECT row_to_json(result) FROM mdm_steward.submit_policy_intent("
+                    + sql_literal(deny_template["binding_id"]) + "::uuid, "
+                    + "decode(" + sql_literal(key_hex) + ", 'hex'), "
+                    + str(int(case_key)) + ", 'ESCALATE', "
+                    + sql_literal(json.dumps(body["arguments"])) + "::jsonb, "
+                    + ", ".join(str(int(body[k])) for k in (
+                        "expected_review_version", "expected_definition_version",
+                        "expected_publication_revision", "expected_stewardship_epoch"))
+                    + ", decode(" + sql_literal(body["expected_evidence_basis_digest"]) + ", 'hex'), "
+                    + str(int(body["expected_action_revision"])) + ", decode("
+                    + sql_literal(body["expected_policy_digest"]) + ", 'hex'), "
+                    + ", ".join(sql_literal(body[k]) for k in (
+                        "policy_revision", "evaluation_ref", "work_ref"))
+                    + ") AS result;"
+                )
+                worker_sessions.append((suffix, subprocess.Popen([
+                    "docker", "exec", container, "psql", "-XAtq", "-U", "postgres",
+                    "-d", "s1_idle", "-v", "ON_ERROR_STOP=1", "-c", statement],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)))
+
+            end = time.monotonic() + 25
+            while time.monotonic() < end:
+                observed_waits = json.loads(sql(
+                    "SELECT COALESCE(jsonb_agg(jsonb_build_object("
+                    "'app',application_name,'wait',wait_event_type) "
+                    "ORDER BY application_name),'[]') "
+                    "FROM pg_stat_activity "
+                    "WHERE application_name IN ('react11-worker-ee','react11-worker-ef')"))
+                if observed_waits == [
+                    {"app": "react11-worker-ee", "wait": "Lock"},
+                    {"app": "react11-worker-ef", "wait": "Lock"},
+                ]:
+                    break
+                if any(process.poll() is not None for _, process in worker_sessions):
+                    raise AssertionError({"error": "concurrent worker exited before lock barrier",
+                                          "observed": observed_waits})
+                time.sleep(0.1)
+            else:
+                raise AssertionError({"error": "both requests did not contend on case lock",
+                                      "observed": observed_waits})
+
+            holder.stdin.write("COMMIT;\n\\q\n")
+            holder.stdin.flush()
+            holder_stdout, holder_stderr = holder.communicate(timeout=20)
+            assert holder.returncode == 0, (holder_stdout, holder_stderr)
+            concurrent_responses = {}
+            for suffix, process in worker_sessions:
+                stdout, stderr = process.communicate(timeout=30)
+                assert process.returncode == 0, {"caller": suffix, "stderr": stderr}
+                concurrent_responses[suffix] = json.loads(stdout.strip())
+        finally:
+            for _, process in worker_sessions:
+                if process.poll() is None:
+                    process.kill()
+                    process.communicate(timeout=10)
+            if holder is not None and holder.poll() is None:
+                holder.kill()
+                holder.communicate(timeout=10)
+
+        concurrent_after = json.loads(sql(quiescence_sql))
+        for state_name, before_vector in concurrent_before.items():
+            if state_name != "mdm_receipts":
+                assert concurrent_after[state_name] == before_vector, {
+                    "state": state_name, "before": before_vector,
+                    "after": concurrent_after[state_name],
+                }
+        existing_ids = {r["receipt_id"] for r in concurrent_before["mdm_receipts"]}
+        new_receipts = [r for r in concurrent_after["mdm_receipts"]
+                        if r["receipt_id"] not in existing_ids]
+        assert len(new_receipts) == 2, new_receipts
+        assert [r for r in concurrent_after["mdm_receipts"]
+                if r["receipt_id"] in existing_ids] == concurrent_before["mdm_receipts"]
+        receipt_by_key = {r["request_key"]: r for r in new_receipts}
+        assert set(receipt_by_key) == {"\\x" + suffix * 32 for suffix in ("ee", "ef")}
+        expected_receipts = []
+        for suffix in ("ee", "ef"):
+            key_hex, body = concurrent_requests[suffix]
+            saved = receipt_by_key["\\x" + key_hex]
+            response = concurrent_responses[suffix]
+            assert response["receipt_id"] == saved["receipt_id"]
+            assert response["outcome"] == "ACTION_DENIED"
+            assert response["reason_code"] == "ESCALATION_LEVEL_ALREADY_APPLIED"
+            assert response["case_key"] == case_key
+            assert response["action_revision"] == body["expected_action_revision"]
+            assert response["control"] == saved["control"]
+            assert response["resulting_publication_revision"] is None
+            uuid.UUID(saved["receipt_id"])
+            assert timestamp(saved["created_at"]).tzinfo is not None
+            digest = sql("SELECT encode(pgreact_mdm.intent_request_digest("
+                         + sql_literal(json.dumps(body)) + "::jsonb),'hex')")
+            expected_saved = dict(deny_template)
+            expected_saved.update({
+                "receipt_id": saved["receipt_id"],
+                "created_at": saved["created_at"],
+                "request_key": "\\x" + key_hex,
+                "request_digest": "\\x" + digest,
+                "request_body": body,
+            })
+            assert saved == expected_saved, {"expected": expected_saved, "actual": saved}
+            expected_receipts.append(expected_saved)
+        assert concurrent_after["cases"] == human_quiet_before["cases"]
+        assert concurrent_after["business_source"] == source
+        assert concurrent_after["technical_source"] == temporal_source
+        observations["concurrent_cross_key_denials"] = {
+            "observed_lock_waits": observed_waits,
+            "responses": concurrent_responses,
+            "before": concurrent_before,
+            "after": concurrent_after,
+            "new_exact_receipts": expected_receipts,
+        }
+        observations["checks"].append({"name": "concurrent-cross-key-denials", "result": "passed"})
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
