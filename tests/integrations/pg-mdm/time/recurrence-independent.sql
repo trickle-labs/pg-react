@@ -35,12 +35,16 @@ WHERE prior.entity_name = 'policy_qualification'
 \gset occurrence_
 
 SELECT :occurrence_old_key <> :occurrence_new_key
+   AND :occurrence_new_key > :occurrence_old_key
    AND :occurrence_old_occurrence = 1
    AND :occurrence_new_occurrence = 2
    AND :occurrence_new_key <> (SELECT case_key FROM s1_audit.source)
    AND :occurrence_action_revision > 0
    AND (SELECT count(*) = 1 FROM mdm_steward.policy_cases_v1
         WHERE case_key = :occurrence_old_key AND status = 'resolved')
+   AND (SELECT count(*) = 0 FROM mdm_steward.policy_receipts_v1
+        WHERE case_key = :occurrence_new_key AND action = 'ESCALATE'
+          AND outcome = 'APPLIED_CONTROL' AND control->>'escalation_level' = '2')
    AS recurrence_precondition_ok
 \gset
 \if :recurrence_precondition_ok
@@ -103,8 +107,8 @@ SELECT :prepared_action_revision = :occurrence_action_revision + 1
 \quit 1
 \endif
 
--- The older occurrence's applied-level history must not deny the same
--- permitted level in a genuinely new occurrence with its own case_key.
+-- A genuinely new occurrence must be eligible independently of the
+-- prior resolved occurrence and must retain its own request identity.
 SET SESSION AUTHORIZATION mdm_s1_runtime;
 SET ROLE pgreact_mdm_worker;
 SELECT receipt_id,outcome,reason_code,case_key,action_revision,control,
@@ -180,7 +184,8 @@ SELECT :'applied_outcome'='APPLIED_CONTROL'
       AND resulting_publication_revision IS NULL
       AND control=:'applied_control'::jsonb
       AND action_revision=:applied_action_revision
-      AND octet_length(request_digest)=32)
+      AND octet_length(request_digest)=32
+      AND request_digest=pgreact_mdm.intent_request_digest(request_body))
       FROM mdm_steward.policy_receipts_v1
       WHERE binding_id=:'binding_id'::uuid
         AND request_key=decode(repeat('fa',32),'hex'))
