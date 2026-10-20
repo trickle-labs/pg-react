@@ -5,6 +5,11 @@ SET TIME ZONE 'UTC';
 -- publication, then reopened the *same issue_key* as occurrence 2.
 -- Use both actual MDM case keys, not a synthetic adapter or React generation.
 CREATE SCHEMA s1_recurrence;
+
+-- Upstream e2e_policy.sql intentionally DROPS its private e2e_policy_vars
+-- helper at the end. Only the MDM-owned public policy cases are authoritative
+-- after bootstrap, and those rows survive the foundation -> s1_idle clone.
+CREATE VIEW s1_recurrence.authoritative_pair AS
 SELECT prior.case_key AS old_key, prior.occurrence AS old_occurrence,
        successor.case_key AS new_key, successor.occurrence AS new_occurrence,
        pg_catalog.encode(prior.issue_key, 'hex') AS issue_digest,
@@ -19,19 +24,44 @@ SELECT prior.case_key AS old_key, prior.occurrence AS old_occurrence,
        COALESCE(successor.due_at::text,'') AS due_at,
        successor.manual_assignment_protected AS protected,
        pg_catalog.to_jsonb(successor)::text AS full_case
-FROM public.e2e_policy_vars AS fixture
-JOIN mdm_steward.policy_cases_v1 prior
-  ON prior.case_key = fixture.known_case_key
+FROM mdm_steward.policy_cases_v1 prior
 JOIN mdm_steward.policy_cases_v1 successor
   ON successor.entity_name = prior.entity_name
  AND successor.issue_key = prior.issue_key
  AND successor.occurrence = prior.occurrence + 1
 WHERE prior.entity_name = 'policy_qualification'
+  AND prior.occurrence = 1 AND successor.occurrence = 2
   AND prior.status = 'resolved'
+  AND prior.opened_at_source = 'publication'
   AND successor.status = 'open'
+  AND successor.case_key > prior.case_key
+  AND successor.review_id <> prior.review_id
   AND NOT successor.pending_stewardship
   AND successor.opened_at IS NOT NULL
-  AND 'ESCALATE' = ANY(successor.permitted_actions)
+  AND 'ESCALATE' = ANY(successor.permitted_actions);
+
+-- Do not silently choose one row if the MDM E2E population changes. No
+-- synthetic issue identity, human level, or case row is permitted here.
+DO $pair$
+DECLARE actual_count integer;
+BEGIN
+    SELECT count(*) INTO actual_count FROM s1_recurrence.authoritative_pair;
+    IF actual_count <> 1 THEN
+        RAISE EXCEPTION 'MDM_RECURRENCE_FIXTURE: expected one retained resolved/open occurrence pair, got %; public cases %',
+            actual_count,
+            (SELECT COALESCE(jsonb_agg(jsonb_build_object(
+                'case_key', c.case_key, 'occurrence', c.occurrence,
+                'issue_key', encode(c.issue_key, 'hex'),
+                'status', c.status, 'pending', c.pending_stewardship,
+                'opened_at_source', c.opened_at_source,
+                'permitted_actions', c.permitted_actions)
+                ORDER BY c.case_key), '[]'::jsonb)
+             FROM mdm_steward.policy_cases_v1 c
+             WHERE c.entity_name = 'policy_qualification');
+    END IF;
+END
+$pair$;
+SELECT * FROM s1_recurrence.authoritative_pair
 \gset occurrence_
 
 SELECT :occurrence_old_key <> :occurrence_new_key
