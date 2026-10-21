@@ -123,9 +123,12 @@ def main():
             time.sleep(0.2)
         restarted_at = datetime.datetime.now(datetime.timezone.utc)
         command("docker", "start", container)
-        deadline = time.monotonic() + 150
+        drain_start = time.monotonic()
+        deadline = drain_start + 150
         received = []
         status = None
+        receipt_progress = []
+        last_keys = set()
         while time.monotonic() < deadline:
             ready = subprocess.run(
                 ["docker", "exec", container, "pg_isready", "-U", "postgres"],
@@ -138,12 +141,33 @@ def main():
                 "FROM mdm_steward.policy_receipts_v1 r "
                 "WHERE r.request_body ->> 'policy_revision' = 's1-idle-feasibility'"))
             status = json.loads(sql("SELECT pgreact_api.managed_status()"))
-            assert len(received) <= 2, {"unexpected extra receipts": received}
+            keys = {row["case_key"] for row in received}
+            assert len(received) <= 2 and len(keys) == len(received), {
+                "unexpected duplicate or extra receipts": received}
+            assert keys <= set(selected), {"unexpected case admitted": received}
+            assert last_keys <= keys, {
+                "applied receipts disappeared during backlog drain": received,
+                "previous": sorted(last_keys)}
+            receipt_progress.append({
+                "elapsed_seconds": time.monotonic() - drain_start,
+                "completed_case_keys": sorted(keys),
+                "receipt_count": len(received),
+                "worker_state": (status.get("process") or {}).get("state"),
+                "pending_jobs": (status.get("process") or {}).get("pending_jobs"),
+                "processed_jobs": (status.get("process") or {}).get("processed_jobs"),
+            })
+            last_keys = keys
             if len(received) == 2:
                 break
             time.sleep(0.2)
         assert len(received) == 2, {"error": "two-case managed backlog did not drain",
-                                    "receipts": received, "status": status}
+                                    "receipts": received, "status": status,
+                                    "progress": receipt_progress}
+        drain_elapsed_seconds = time.monotonic() - drain_start
+        assert 0 < drain_elapsed_seconds <= 150, drain_elapsed_seconds
+        assert receipt_progress and receipt_progress[-1]["receipt_count"] == 2
+        assert all(sample["receipt_count"] in (0, 1, 2)
+                   for sample in receipt_progress), receipt_progress
         new_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
         assert new_postmaster > original_postmaster
         assert new_postmaster > max(selected.values()) and new_postmaster >= restarted_at
@@ -267,6 +291,8 @@ def main():
             "new_postmaster": new_postmaster.isoformat(),
             "post_drain_restart": next_postmaster.isoformat(),
             "configured_limits": settings,
+            "two_case_drain_seconds": drain_elapsed_seconds,
+            "observed_receipt_progress": receipt_progress,
             "two_receipts": received,
             "before": before_state,
             "after": actual,
