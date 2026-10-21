@@ -217,7 +217,7 @@ BEGIN
             IF NOT eligible THEN
                 oracle := oracle || '{"decision":"INELIGIBLE","action":null,"priority":null}'::jsonb
                     || jsonb_build_object('explanation',
-                        (oracle->'explanation' - 'escalation_level')
+                        ((oracle -> 'explanation') - 'escalation_level')
                         || '{"decision":"INELIGIBLE","reason":"case is not eligible for automation"}'::jsonb);
             END IF;
             expected := expected || jsonb_build_array(oracle);
