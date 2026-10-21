@@ -15,13 +15,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: trickle-labs/pg-mdm
-          ref: 1e9986ff01dc6fd2a31b4e31e8df8d6446135316
+          ref: 261bb419447bb2bbebd3bce5be514baa4ed3a1e4
           path: .producer/mdm
       - name: Assert exact MDM preview source identity
         run: |
           set -euo pipefail
           mkdir -p preview-evidence
-          test "$(git -C .producer/mdm rev-parse HEAD)" = "1e9986ff01dc6fd2a31b4e31e8df8d6446135316"
+          test "$(git -C .producer/mdm rev-parse HEAD)" = "261bb419447bb2bbebd3bce5be514baa4ed3a1e4"
           git -C .producer/mdm rev-parse HEAD > preview-evidence/mdm-source-revision.txt
           git rev-parse HEAD > preview-evidence/react-source-revision.txt
           sha256sum .producer/mdm/src/api/policy_intent.rs \
@@ -33,8 +33,8 @@ jobs:
         run: |
           set -euo pipefail
           docker build -f .producer/mdm/tests/Dockerfile.e2e \
-            --build-arg PG_MDM_SOURCE_REVISION=1e9986ff01dc6fd2a31b4e31e8df8d6446135316 \
-            --label mdm.preview_source_revision=1e9986ff01dc6fd2a31b4e31e8df8d6446135316 \
+            --build-arg PG_MDM_SOURCE_REVISION=261bb419447bb2bbebd3bce5be514baa4ed3a1e4 \
+            --label mdm.preview_source_revision=261bb419447bb2bbebd3bce5be514baa4ed3a1e4 \
             --label pg_trickle.source_revision=d8bb8eb5d45c5c9982e173e88914037433a1ee05 \
             --label pg_trickle.source_archive_sha256=b8d4c59ca3770c305659255e09adde303b4d220228392c415ae363aa7be0a2da \
             -t pgreact:mdm-stale-cas-preview .producer/mdm \
