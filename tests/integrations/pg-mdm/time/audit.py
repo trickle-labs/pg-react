@@ -16,8 +16,9 @@ def main():
     maintenance = sys.argv[3:] == ["--maintenance"]
     compatibility_only = sys.argv[3:] == ["--compatibility"]
     outage_mode = sys.argv[3:] == ["--outage"]
-    if sys.argv[3:] and not (maintenance or compatibility_only or outage_mode):
-        raise ValueError("only --maintenance, --compatibility or --outage is supported after IMAGE OUTPUT")
+    multi_outage = sys.argv[3:] == ["--multi-outage"]
+    if sys.argv[3:] and not (maintenance or compatibility_only or outage_mode or multi_outage):
+        raise ValueError("only --maintenance, --compatibility, --outage or --multi-outage is supported after IMAGE OUTPUT")
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     root = Path(__file__).resolve().parents[4]
@@ -59,6 +60,222 @@ def main():
     def cases():
         return json.loads(sql("SELECT jsonb_agg(to_jsonb(c) ORDER BY c.case_key) "
                               "FROM mdm_steward.policy_cases_v1 c"))
+
+    def qualify_two_case_outage(before, source, temporal_source):
+        # This bounded fixture intentionally exercises two distinct, real MDM
+        # occurrence identities. It is not a numerical S1 performance result.
+        selected = {row["case_key"]: timestamp(row["deadline"]) for row in temporal_source}
+        assert len(selected) == len(temporal_source) == 2, temporal_source
+        assert len({row["deadline"] for row in temporal_source}) == 2, temporal_source
+        assert all(t > datetime.datetime.now(datetime.timezone.utc)
+                   for t in selected.values()), temporal_source
+        original = {row["case_key"]: row for row in before}
+        assert set(selected) <= set(original)
+        expected = copy.deepcopy(before)
+        for row in expected:
+            if row["case_key"] in selected:
+                assert row["status"] == "open" and not row["pending_stewardship"], row
+                assert row["escalation_level"] == 1 and "ESCALATE" in row["permitted_actions"], row
+                assert timestamp(row["due_at"]) == selected[row["case_key"]], row
+                row["escalation_level"] = 2
+                row["action_revision"] += 1
+
+        state_query = (
+            "SELECT jsonb_build_object("
+            "'cases',(SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY case_key),'[]') FROM mdm_steward.policy_cases_v1 c),"
+            "'mdm_receipts',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id),'[]') FROM mdm_steward.policy_receipts_v1 r),"
+            "'intent_requests',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id,request_key),'[]') FROM pgreact_mdm.intent_requests r),"
+            "'intent_attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY episode_id,attempt_no),'[]') FROM pgreact_mdm.intent_attempts a),"
+            "'rule_work',(SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY work_id),'[]') FROM pgreact.work w WHERE name='s1-future-idle'),"
+            "'rule_attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY execution_id),'[]') FROM pgreact.attempts a WHERE name='s1-future-idle'),"
+            "'business',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY id),'[]') FROM public.policy_qualification_source s),"
+            "'technical',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY case_key),'[]') FROM s1_audit.source s))"
+        )
+        before_state = json.loads(sql(state_query))
+        assert before_state["cases"] == before and before_state["business"] == source
+        assert before_state["technical"] == temporal_source
+        assert not before_state["intent_requests"] and not before_state["intent_attempts"]
+        assert not before_state["rule_work"] and not before_state["rule_attempts"]
+        assert not [r for r in before_state["mdm_receipts"]
+                    if r["request_body"].get("policy_revision") == "s1-idle-feasibility"]
+        binding = json.loads(sql(
+            "SELECT jsonb_build_object('binding_id',binding_id,'binding_version',binding_version,"
+            "'policy_digest',encode(policy_digest,'hex')) FROM pgreact_mdm.policy_intent_bindings "
+            "WHERE policy_revision='s1-idle-feasibility' AND enabled"))
+        expected_controls = json.loads(sql(
+            "SELECT jsonb_agg(jsonb_build_object('case_key',c.case_key,'control',"
+            "jsonb_build_object('assigned_queue',c.assigned_queue,'due_at',c.due_at::text,"
+            "'escalation_level',2,'manual_assignment_protected',c.manual_assignment_protected))"
+            " ORDER BY c.case_key) FROM mdm_steward.policy_cases_v1 c "
+            "WHERE c.case_key IN (" + ",".join(str(k) for k in sorted(selected)) + ")"))
+        controls = {c["case_key"]: c["control"] for c in expected_controls}
+        original_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+        sql("ALTER SYSTEM SET pg_react.databases = 's1_idle'")
+        sql("ALTER SYSTEM SET pg_react.worker_role = 'mdm_s1_runtime'")
+        sql("ALTER SYSTEM SET pg_react.batch_size = '1'")
+        command("docker", "stop", "-t", "10", container)
+        stopped_at = datetime.datetime.now(datetime.timezone.utc)
+        assert stopped_at < min(selected.values()), {
+            "error": "PostgreSQL must stop before both deadlines",
+            "stopped_at": stopped_at.isoformat(), "deadlines": temporal_source}
+        assert command("docker", "inspect", "-f", "{{.State.Running}}", container).strip() == "false"
+        while datetime.datetime.now(datetime.timezone.utc) <= max(selected.values()) + datetime.timedelta(seconds=2):
+            time.sleep(0.2)
+        restarted_at = datetime.datetime.now(datetime.timezone.utc)
+        command("docker", "start", container)
+        deadline = time.monotonic() + 150
+        received = []
+        status = None
+        while time.monotonic() < deadline:
+            ready = subprocess.run(
+                ["docker", "exec", container, "pg_isready", "-U", "postgres"],
+                capture_output=True, timeout=15)
+            if ready.returncode:
+                time.sleep(0.2)
+                continue
+            received = json.loads(sql(
+                "SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY case_key,receipt_id),'[]') "
+                "FROM mdm_steward.policy_receipts_v1 r "
+                "WHERE r.request_body ->> 'policy_revision' = 's1-idle-feasibility'"))
+            status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            assert len(received) <= 2, {"unexpected extra receipts": received}
+            if len(received) == 2:
+                break
+            time.sleep(0.2)
+        assert len(received) == 2, {"error": "two-case managed backlog did not drain",
+                                    "receipts": received, "status": status}
+        new_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+        assert new_postmaster > original_postmaster
+        assert new_postmaster > max(selected.values()) and new_postmaster >= restarted_at
+
+        actual = json.loads(sql(state_query))
+        assert actual["cases"] == expected, {"expected": expected, "actual": actual["cases"]}
+        assert actual["business"] == source and actual["technical"] == temporal_source
+        assert len(actual["intent_requests"]) == len(actual["intent_attempts"]) == 2, actual
+        assert len(actual["rule_work"]) == len(actual["rule_attempts"]) == 2, actual
+        assert all(w["state"] == "COMPLETED" and not w["claimable"]
+                   for w in actual["rule_work"]), actual["rule_work"]
+        assert all(a["status"] == "COMPLETED" and a["attempt_no"] == 1
+                   and a["error_code"] is None
+                   for a in actual["rule_attempts"]), actual["rule_attempts"]
+        assert {r["case_key"] for r in received} == set(selected)
+        assert {r["case_key"] for r in actual["intent_requests"]} == set(selected)
+        assert len({r["request_key"] for r in received}) == 2
+        assert len({r["receipt_id"] for r in received}) == 2
+        requests = {r["case_key"]: r for r in actual["intent_requests"]}
+        attempts = {a["case_key"]: a for a in actual["intent_attempts"]}
+        assert set(attempts) == set(selected)
+        work_ids = {int(w["work_id"]) for w in actual["rule_work"]}
+        assert work_ids == {a["episode_id"] for a in actual["rule_attempts"]}
+        for receipt in received:
+            key = receipt["case_key"]
+            prior = original[key]
+            request = requests[key]
+            attempt = attempts[key]
+            body = receipt["request_body"]
+            assert receipt["action"] == "ESCALATE"
+            assert receipt["outcome"] == "APPLIED_CONTROL" and receipt["reason_code"] == "CONTROL_APPLIED"
+            assert receipt["actor"] == "pgreact_mdm_worker"
+            assert receipt["selected_role_name"] == "pgreact_mdm_worker"
+            assert receipt["session_role_name"] == "mdm_s1_runtime"
+            assert receipt["resulting_publication_revision"] is None
+            assert receipt["binding_id"] == binding["binding_id"]
+            assert receipt["binding_version"] == binding["binding_version"]
+            assert receipt["action_revision"] == prior["action_revision"] + 1
+            assert receipt["control"] == controls[key]
+            assert timestamp(receipt["created_at"]) >= new_postmaster >= selected[key]
+            assert body == request["request_body"] == attempt["request_body"]
+            assert set(body) == {
+                "action", "arguments", "case_key", "binding_id", "policy_revision",
+                "expected_policy_digest", "expected_evidence_basis_digest",
+                "evaluation_ref", "work_ref", "expected_review_version",
+                "expected_definition_version", "expected_publication_revision",
+                "expected_stewardship_epoch", "expected_action_revision"}
+            assert body["action"] == "ESCALATE" and body["arguments"] == {"level": 2}
+            assert body["case_key"] == key and body["binding_id"] == binding["binding_id"]
+            assert body["policy_revision"] == "s1-idle-feasibility"
+            assert body["expected_policy_digest"] == binding["policy_digest"]
+            assert body["expected_evidence_basis_digest"] == prior["evidence_basis_digest"][2:]
+            for field in ("review_version", "definition_version", "publication_revision",
+                          "stewardship_epoch", "action_revision"):
+                assert body["expected_" + field] == prior[field], (key, field, body)
+            assert body["evaluation_ref"].startswith("pgreact:")
+            assert body["work_ref"].startswith("pgreact:")
+            assert request["request_key"] == attempt["request_key"] == receipt["request_key"]
+            assert request["request_digest"] == attempt["request_digest"] == receipt["request_digest"]
+            assert request["lifecycle_generation"] == 1 and request["consequence_identity"] == "escalate_level_2"
+            assert attempt["receipt_id"] == receipt["receipt_id"]
+            assert attempt["outcome"] == "APPLIED_CONTROL" and attempt["reason_code"] == "CONTROL_APPLIED"
+            assert attempt["episode_id"] in work_ids
+            assert attempt["attempt_no"] == 1
+
+        settings = json.loads(sql(
+            "SELECT jsonb_object_agg(name,setting) FROM pg_settings WHERE name IN "
+            "('pg_react.poll_interval_ms','pg_react.batch_size','pg_react.max_pending_jobs')"))
+        assert settings["pg_react.batch_size"] == "1", settings
+        first_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+        heartbeat = timestamp(first_status["process"]["heartbeat_at"])
+        limit = time.monotonic() + 35
+        while time.monotonic() < limit:
+            later = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            current = later.get("process") or {}
+            if current.get("state") == "ready" and current.get("heartbeat_at") and (
+                    timestamp(current["heartbeat_at"]) > heartbeat + datetime.timedelta(seconds=2)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("managed worker did not continue through later backlog-drain cycles")
+        assert json.loads(sql(state_query)) == actual, "later managed cycles changed complete two-case vectors"
+        command("docker", "restart", container)
+        limit = time.monotonic() + 70
+        final_status = None
+        next_postmaster = None
+        while time.monotonic() < limit:
+            ready = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
+                                   capture_output=True, timeout=15)
+            if ready.returncode:
+                time.sleep(0.2)
+                continue
+            next_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            final_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = final_status.get("process") or {}
+            if (next_postmaster > new_postmaster and process.get("state") == "ready"
+                    and process.get("heartbeat_at")
+                    and timestamp(process["heartbeat_at"]) > timestamp(current["heartbeat_at"])):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({"error": "post-drain restart did not resume managed worker",
+                                  "status": final_status})
+        post_restart_first = timestamp(final_status["process"]["heartbeat_at"])
+        limit = time.monotonic() + 35
+        while time.monotonic() < limit:
+            final_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = final_status.get("process") or {}
+            if (process.get("state") == "ready" and process.get("heartbeat_at")
+                    and timestamp(process["heartbeat_at"]) > post_restart_first
+                    + datetime.timedelta(seconds=2)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("post-drain worker stopped advancing after cold restart")
+        assert json.loads(sql(state_query)) == actual, "post-restart replay mutated two-case vectors"
+        observations["multi_outage"] = {
+            "stopped_at": stopped_at.isoformat(),
+            "due_at": {str(k): t.isoformat() for k, t in sorted(selected.items())},
+            "restart_requested_at": restarted_at.isoformat(),
+            "new_postmaster": new_postmaster.isoformat(),
+            "post_drain_restart": next_postmaster.isoformat(),
+            "configured_limits": settings,
+            "two_receipts": received,
+            "before": before_state,
+            "after": actual,
+            "exact": True,
+            "no_replay_across_cycles_and_restart": True}
+        observations["checks"].append({
+            "name": "two-case-real-outage-drain-and-no-replay", "result": "passed"})
+        observations["entry_decision"] = "FOCUSED_TWO_CASE_OUTAGE_QUALIFIED"
+        print("PASS: two real overdue MDM cases drained after outage with batch_size=1 and no replay", flush=True)
 
     try:
         observations["react_revision"] = command("git", "-C", str(root), "rev-parse", "HEAD").strip()
@@ -254,7 +471,7 @@ def main():
         sql("CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react", "s1_boundary")
         fixture("sample-boundaries", "/work/tests/integrations/pg-mdm/time/boundaries.sql", "s1_boundary")
         fixture("idle-setup", "/work/tests/integrations/pg-mdm/time/idle.sql", "s1_idle",
-                ("-v", "VERBOSITY=verbose"))
+                ("-v", "multi=" + str(multi_outage).lower(), "-v", "VERBOSITY=verbose"))
         observations["registered_s1_rules"] = json.loads(sql(
             "SELECT COALESCE(jsonb_agg(jsonb_build_object('rule_name',r.rule_name,'rule_id',r.rule_id,"
             "'rule_version_id',v.rule_version_id,'match_name',v.match_name) ORDER BY r.rule_name),'[]') "
@@ -288,6 +505,9 @@ def main():
                                 "FROM public.policy_qualification_source s"))
         temporal_source = json.loads(sql("SELECT jsonb_agg(to_jsonb(s) ORDER BY s.case_key) "
                                          "FROM s1_audit.source s"))
+        if multi_outage:
+            qualify_two_case_outage(before, source, temporal_source)
+            return
         assert len(temporal_source) == 1, temporal_source
         case_key = temporal_source[0]["case_key"]
         deadline = timestamp(temporal_source[0]["deadline"])
