@@ -46,6 +46,12 @@ jobs:
         run: |
           python3 tests/integrations/pg-mdm/time/audit.py pgreact:producer-compatibility producer-evidence/runtime
           python3 -c 'import json; o=json.load(open("producer-evidence/runtime/observations.json")); passed={c["name"] for c in o["checks"] if c["result"]=="passed"}; assert {"future-idle-mdm-receipt","stale-operator-runtime-version"} <= passed, {"passed":passed,"failure":o.get("failure")}; assert o["stale_operator_runtime_version"]["exact"] and o["stale_operator_runtime_version"]["complete_state_unchanged"]'
+      - name: Qualify real downtime crossing an undelivered deadline
+        run: |
+          set -euo pipefail
+          python3 tests/integrations/pg-mdm/time/audit.py \
+            pgreact:producer-compatibility producer-evidence/outage-runtime --outage
+          python3 -c 'import json; o=json.load(open("producer-evidence/outage-runtime/observations.json")); names={c["name"] for c in o["checks"] if c["result"]=="passed"}; assert o["entry_decision"]=="FOCUSED_OUTAGE_QUALIFIED"; assert {"outage-deadline-catchup-single-case","future-idle-mdm-receipt","post-delivery-idle-quiescence","post-delivery-restart-no-replay"} <= names, names; assert o["outage_across_deadline"]["one_case_caught_up"]'
       - name: Record and compare inherited packaged shared libraries
         run: |
           set -euo pipefail

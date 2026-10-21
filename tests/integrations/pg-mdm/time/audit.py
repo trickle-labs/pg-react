@@ -15,8 +15,9 @@ def main():
     image, output = sys.argv[1:3]
     maintenance = sys.argv[3:] == ["--maintenance"]
     compatibility_only = sys.argv[3:] == ["--compatibility"]
-    if sys.argv[3:] and not (maintenance or compatibility_only):
-        raise ValueError("only --maintenance or --compatibility is supported after IMAGE OUTPUT")
+    outage_mode = sys.argv[3:] == ["--outage"]
+    if sys.argv[3:] and not (maintenance or compatibility_only or outage_mode):
+        raise ValueError("only --maintenance, --compatibility or --outage is supported after IMAGE OUTPUT")
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     root = Path(__file__).resolve().parents[4]
@@ -311,7 +312,49 @@ def main():
                             temporal_source=temporal_source, cases_expected=expected)
         sql("ALTER SYSTEM SET pg_react.databases = 's1_idle'")
         sql("ALTER SYSTEM SET pg_react.worker_role = 'mdm_s1_runtime'")
-        command("docker", "restart", container)
+        outage_before = None
+        if outage_mode:
+            # A genuine PostgreSQL outage starts before the *future* deadline,
+            # remains down while that deadline passes, and ends only after it.
+            # This is not a manual clock input, source update or worker tick.
+            outage_postmaster_before = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            outage_before = json.loads(sql(
+                "SELECT jsonb_build_object("
+                "'cases',(SELECT COALESCE(jsonb_agg(to_jsonb(c) ORDER BY case_key),'[]') FROM mdm_steward.policy_cases_v1 c),"
+                "'receipts',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id),'[]') FROM mdm_steward.policy_receipts_v1 r),"
+                "'requests',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id,request_key),'[]') FROM pgreact_mdm.intent_requests r),"
+                "'attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY episode_id,attempt_no),'[]') FROM pgreact_mdm.intent_attempts a),"
+                "'work',(SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY work_id),'[]') FROM pgreact.work w),"
+                "'business',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY id),'[]') FROM public.policy_qualification_source s),"
+                "'technical',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY case_key),'[]') FROM s1_audit.source s))"))
+            assert outage_before["cases"] == before
+            assert outage_before["business"] == source
+            assert outage_before["technical"] == temporal_source
+            assert not [r for r in outage_before["receipts"]
+                        if r["request_body"].get("policy_revision") == "s1-idle-feasibility"]
+            command("docker", "stop", "-t", "10", container)
+            stopped_at = datetime.datetime.now(datetime.timezone.utc)
+            assert stopped_at < deadline, {
+                "error": "PostgreSQL did not stop before the case was due",
+                "stopped_at": stopped_at.isoformat(), "deadline": deadline.isoformat()}
+            assert command("docker", "inspect", "-f", "{{.State.Running}}", container).strip() == "false"
+            # Wait for the due boundary while PostgreSQL is completely stopped.
+            # This sleep is a controlled outage stimulus, not the evidence of
+            # delivery; the later real worker receipt and complete vectors are.
+            while datetime.datetime.now(datetime.timezone.utc) <= deadline + datetime.timedelta(seconds=2):
+                time.sleep(0.2)
+            resumed_at = datetime.datetime.now(datetime.timezone.utc)
+            assert resumed_at > deadline
+            command("docker", "start", container)
+            observations["outage_across_deadline"] = {
+                "postmaster_before": outage_postmaster_before.isoformat(),
+                "stopped_at": stopped_at.isoformat(),
+                "deadline_at": deadline.isoformat(),
+                "resume_requested_at": resumed_at.isoformat(),
+                "complete_state_before": outage_before,
+            }
+        else:
+            command("docker", "restart", container)
         end = time.monotonic() + 120
         receipts = []
         while time.monotonic() < end:
@@ -392,6 +435,17 @@ def main():
         assert receipt["request_body"]["action"] == "ESCALATE" and receipt["request_body"]["arguments"] == {"level": 2}, receipts
         delivered_at = timestamp(receipt["created_at"])
         assert delivered_at >= deadline, receipts
+        if outage_mode:
+            postmaster_after = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            assert postmaster_after > outage_postmaster_before and postmaster_after > deadline
+            assert delivered_at >= postmaster_after >= resumed_at
+            observations["outage_across_deadline"].update({
+                "postmaster_after": postmaster_after.isoformat(),
+                "delivered_at": delivered_at.isoformat(),
+                "one_case_caught_up": True,
+            })
+            observations["checks"].append({
+                "name": "outage-deadline-catchup-single-case", "result": "passed"})
         actual = cases()
         assert actual == expected, {"expected": expected, "actual": actual}
         assert json.loads(sql("SELECT jsonb_agg(to_jsonb(s) ORDER BY s.id) "
@@ -644,6 +698,17 @@ def main():
             "unchanged": True,
         }
         observations["checks"].append({"name": "post-delivery-restart-no-replay", "result": "passed"})
+        if outage_mode:
+            # This branch already proved the complete canonical MDM receipt,
+            # actual action/case/source vector and worker role above. Record
+            # the normal proof marker before ending this focused outage run.
+            observations["checks"].append({
+                "name": "future-idle-mdm-receipt", "result": "passed"})
+            # Focused T49.06 proof: this run also checked post-delivery cycles
+            # and a second real restart without replay. The ordinary full
+            # audit runs separately to retain all later security/MDM vectors.
+            observations["entry_decision"] = "FOCUSED_OUTAGE_QUALIFIED"
+            return
         assert json.loads(sql("SELECT jsonb_agg(to_jsonb(r) ORDER BY created_at,receipt_id) "
                               "FROM mdm_steward.policy_receipts_v1 r")) == retained_receipts
         sql("CREATE ROLE mdm_s1_runtime_no_set LOGIN")
@@ -1403,7 +1468,6 @@ def main():
         observations["checks"].append({
             "name": "stale-operator-runtime-version", "result": "passed"
         })
-
         # The active binding and the exact rejected stale operator attempts
         # must survive another true PostgreSQL postmaster epoch. Observe
         # multiple resumed managed-worker cycles, then compare complete
