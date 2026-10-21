@@ -1227,6 +1227,88 @@ def main():
         observations["checks"].append({
             "name": "authorized-pause-barrier", "result": "passed"
         })
+        # The operator-owned paused binding must remain paused after a real
+        # PostgreSQL restart, and the enrolled worker must not manufacture
+        # new work or any MDM control while it resumes heartbeat cycles.
+        pause_before = json.loads(sql(quiescence_sql))
+        pause_binding_before = json.loads(sql(
+            "SELECT jsonb_build_object("
+            "'bindings',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_bindings b),"
+            "'runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_runtime r),"
+            "'mdm_runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM mdm_internal.policy_binding_runtime r))"))
+        assert all(b["binding_id"] != paused["binding_id"]
+                   for b in pause_binding_before["runtime"])
+        previous_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+        previous_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+        previous_heartbeat = timestamp(previous_status["process"]["heartbeat_at"])
+        command("docker", "restart", container)
+        until = time.monotonic() + 60
+        after_postmaster = None
+        resumed_status = None
+        while time.monotonic() < until:
+            probe = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
+                                   capture_output=True)
+            if probe.returncode:
+                time.sleep(0.2)
+                continue
+            after_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            resumed_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = resumed_status.get("process") or {}
+            new_heartbeat = process.get("heartbeat_at")
+            if (after_postmaster > previous_postmaster
+                    and process.get("state") == "ready" and new_heartbeat
+                    and timestamp(new_heartbeat) > previous_heartbeat):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({
+                "error": "managed worker did not resume after operator pause",
+                "before": previous_status, "after": resumed_status
+            })
+        first_resumed = timestamp(new_heartbeat)
+        until = time.monotonic() + 35
+        while time.monotonic() < until:
+            resumed_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = resumed_status.get("process") or {}
+            new_heartbeat = process.get("heartbeat_at")
+            if (process.get("state") == "ready" and new_heartbeat
+                    and timestamp(new_heartbeat) > first_resumed + datetime.timedelta(seconds=3)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("managed worker did not progress after paused-binding restart")
+        pause_after = json.loads(sql(quiescence_sql))
+        pause_binding_after = json.loads(sql(
+            "SELECT jsonb_build_object("
+            "'bindings',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_bindings b),"
+            "'runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_runtime r),"
+            "'mdm_runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM mdm_internal.policy_binding_runtime r))"))
+        assert pause_after == pause_before, {
+            "error": "paused binding generated an effect after cold restart",
+            "before": pause_before, "after": pause_after
+        }
+        assert pause_binding_after == pause_binding_before, {
+            "error": "binding runtime unexpectedly resumed after restart",
+            "before": pause_binding_before, "after": pause_binding_after
+        }
+        observations["post_pause_restart"] = {
+            "postmaster_before": previous_postmaster.isoformat(),
+            "postmaster_after": after_postmaster.isoformat(),
+            "heartbeat_first": first_resumed.isoformat(),
+            "heartbeat_later": new_heartbeat,
+            "full_before": pause_before, "full_after": pause_after,
+            "binding_before": pause_binding_before, "binding_after": pause_binding_after,
+            "unchanged": True,
+        }
+        observations["checks"].append({
+            "name": "paused-binding-restart-no-replay", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
