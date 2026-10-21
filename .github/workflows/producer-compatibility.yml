@@ -31,7 +31,7 @@ jobs:
             > producer-evidence/source-file-sha256.txt
       - name: Build the exact MDM-pinned producer
         run: |
-          mkdir producer-evidence
+          mkdir -p producer-evidence
           docker build -f .producer/mdm/tests/Dockerfile.e2e \
             --build-arg PG_MDM_SOURCE_REVISION=6ad23ca11cb956f264e93e46a6351d32ea4a1ca8 \
             --label pg_trickle.source_revision=d8bb8eb5d45c5c9982e173e88914037433a1ee05 \
