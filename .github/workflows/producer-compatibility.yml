@@ -57,7 +57,7 @@ jobs:
           set -euo pipefail
           python3 tests/integrations/pg-mdm/time/audit.py \
             pgreact:producer-compatibility producer-evidence/two-case-outage --multi-outage
-          python3 -c 'import json; o=json.load(open("producer-evidence/two-case-outage/observations.json")); checks={c["name"] for c in o["checks"] if c["result"]=="passed"}; assert o["entry_decision"]=="FOCUSED_TWO_CASE_OUTAGE_QUALIFIED", o.get("failure"); assert "two-case-real-outage-drain-and-no-replay" in checks, checks; e=o["multi_outage"]; assert e["exact"] and e["no_replay_across_cycles_and_restart"] and len(e["two_receipts"])==2 and e["configured_limits"]["pg_react.batch_size"]=="1"'
+          python3 -c 'import json; o=json.load(open("producer-evidence/two-case-outage/observations.json")); checks={c["name"] for c in o["checks"] if c["result"]=="passed"}; assert o["entry_decision"]=="FOCUSED_TWO_CASE_OUTAGE_QUALIFIED", o.get("failure"); assert "two-case-real-outage-drain-and-no-replay" in checks, checks; e=o["multi_outage"]; assert e["exact"] and e["no_replay_across_cycles_and_restart"] and len(e["two_receipts"])==2 and e["configured_limits"]["pg_react.batch_size"]=="1"; assert 0 < e["two_case_drain_seconds"] <= 150 and e["observed_receipt_progress"][-1]["receipt_count"]==2
       - name: Record and compare inherited packaged shared libraries
         run: |
           set -euo pipefail
