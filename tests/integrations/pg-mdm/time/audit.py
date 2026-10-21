@@ -16,8 +16,9 @@ def main():
     maintenance = sys.argv[3:] == ["--maintenance"]
     compatibility_only = sys.argv[3:] == ["--compatibility"]
     outage_mode = sys.argv[3:] == ["--outage"]
-    if sys.argv[3:] and not (maintenance or compatibility_only or outage_mode):
-        raise ValueError("only --maintenance, --compatibility or --outage is supported after IMAGE OUTPUT")
+    multi_outage = sys.argv[3:] == ["--multi-outage"]
+    if sys.argv[3:] and not (maintenance or compatibility_only or outage_mode or multi_outage):
+        raise ValueError("only --maintenance, --compatibility, --outage or --multi-outage is supported after IMAGE OUTPUT")
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     root = Path(__file__).resolve().parents[4]
@@ -254,7 +255,7 @@ def main():
         sql("CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react", "s1_boundary")
         fixture("sample-boundaries", "/work/tests/integrations/pg-mdm/time/boundaries.sql", "s1_boundary")
         fixture("idle-setup", "/work/tests/integrations/pg-mdm/time/idle.sql", "s1_idle",
-                ("-v", "VERBOSITY=verbose"))
+                ("-v", "multi=" + str(multi_outage).lower(), "-v", "VERBOSITY=verbose"))
         observations["registered_s1_rules"] = json.loads(sql(
             "SELECT COALESCE(jsonb_agg(jsonb_build_object('rule_name',r.rule_name,'rule_id',r.rule_id,"
             "'rule_version_id',v.rule_version_id,'match_name',v.match_name) ORDER BY r.rule_name),'[]') "
@@ -288,6 +289,9 @@ def main():
                                 "FROM public.policy_qualification_source s"))
         temporal_source = json.loads(sql("SELECT jsonb_agg(to_jsonb(s) ORDER BY s.case_key) "
                                          "FROM s1_audit.source s"))
+        if multi_outage:
+            qualify_two_case_outage(before, source, temporal_source)
+            return
         assert len(temporal_source) == 1, temporal_source
         case_key = temporal_source[0]["case_key"]
         deadline = timestamp(temporal_source[0]["deadline"])
