@@ -1309,6 +1309,82 @@ def main():
         observations["checks"].append({
             "name": "paused-binding-restart-no-replay", "result": "passed"
         })
+
+        # Reconcile only after cold-restart durability was established.
+        # An old paused request must retain its original BINDING_PAUSED
+        # receipt, while a NEW key observes the active binding's maximum.
+        fixture("resume-after-pause",
+                "/work/tests/integrations/pg-mdm/time/resume-after-pause.sql", "s1_idle")
+        resumed = json.loads(sql("SELECT vector FROM s1_resume.evidence"))
+        assert resumed["exact"] and resumed["cases_and_react_unchanged"], resumed
+        assert resumed["binding_id"] == paused["binding_id"], resumed
+        assert resumed["reactivated_runtime_version"] > resumed["paused_runtime_version"]
+        assert resumed["original_paused_receipt_id"] == resumed["replayed_paused_receipt_id"]
+        observations["resume_after_pause"] = resumed
+        observations["checks"].append({
+            "name": "authorized-pause-resume-immutable-receipts", "result": "passed"
+        })
+
+        # React's original enrolled single-case rule must not emit duplicate
+        # work when the binding becomes active again. Observe actual managed
+        # cycles (not just a delay) and compare complete durable state.
+        resumed_quiet_before = json.loads(sql(quiescence_sql))
+        resumed_runtime_before = json.loads(sql(
+            "SELECT jsonb_build_object("
+            "'bindings',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_bindings b),"
+            "'runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_runtime r),"
+            "'mdm_runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM mdm_internal.policy_binding_runtime r))"))
+        assert any(r["binding_id"] == resumed["binding_id"]
+                   and r["runtime_version"] == resumed["reactivated_runtime_version"]
+                   for r in resumed_runtime_before["runtime"]), resumed_runtime_before
+        resumed_worker = json.loads(sql("SELECT pgreact_api.managed_status()"))
+        process = resumed_worker.get("process") or {}
+        assert process.get("state") == "ready" and process.get("heartbeat_at"), resumed_worker
+        start_heartbeat = timestamp(process["heartbeat_at"])
+        until = time.monotonic() + 35
+        while time.monotonic() < until:
+            resumed_worker = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            process = resumed_worker.get("process") or {}
+            later_heartbeat = process.get("heartbeat_at")
+            if (process.get("state") == "ready" and later_heartbeat
+                    and timestamp(later_heartbeat) > start_heartbeat + datetime.timedelta(seconds=3)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({"error": "managed worker stalled after binding reconciliation",
+                                  "status": resumed_worker})
+        resumed_quiet_after = json.loads(sql(quiescence_sql))
+        resumed_runtime_after = json.loads(sql(
+            "SELECT jsonb_build_object("
+            "'bindings',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_bindings b),"
+            "'runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_runtime r),"
+            "'mdm_runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM mdm_internal.policy_binding_runtime r))"))
+        assert resumed_quiet_after == resumed_quiet_before, {
+            "error": "managed cycles after binding resume changed durable state",
+            "before": resumed_quiet_before, "after": resumed_quiet_after,
+        }
+        assert resumed_runtime_after == resumed_runtime_before, {
+            "error": "binding state changed on managed cycles after resume",
+            "before": resumed_runtime_before, "after": resumed_runtime_after,
+        }
+        observations["post_resume_managed_quiescence"] = {
+            "heartbeat_before": start_heartbeat.isoformat(),
+            "heartbeat_after": later_heartbeat,
+            "full_before": resumed_quiet_before,
+            "full_after": resumed_quiet_after,
+            "binding_before": resumed_runtime_before,
+            "binding_after": resumed_runtime_after,
+            "unchanged": True,
+        }
+        observations["checks"].append({
+            "name": "post-resume-managed-quiescence", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
