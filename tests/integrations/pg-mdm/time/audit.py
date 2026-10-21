@@ -1215,6 +1215,18 @@ def main():
         observations["checks"].append({
             "name": "post-maximum-restart-no-replay", "result": "passed"
         })
+        # The MDM entity owner explicitly pauses the binding; fresh worker
+        # requests must be denied by the MDM pause barrier even if their
+        # captured case tokens are current. This runs last to avoid
+        # weakening the earlier live-binding coverage.
+        fixture("pause-barrier", "/work/tests/integrations/pg-mdm/time/pause-barrier.sql",
+                "s1_idle")
+        paused = json.loads(sql("SELECT vector FROM s1_pause.evidence"))
+        assert paused["exact"] and paused["state_unchanged"], paused
+        observations["pause_barrier"] = paused
+        observations["checks"].append({
+            "name": "authorized-pause-barrier", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
