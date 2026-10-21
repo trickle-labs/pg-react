@@ -17,6 +17,18 @@ jobs:
           repository: trickle-labs/pg-mdm
           ref: 6ad23ca11cb956f264e93e46a6351d32ea4a1ca8
           path: .producer/mdm
+      - name: Record and enforce exact pinned MDM source identity
+        run: |
+          set -euo pipefail
+          mkdir -p producer-evidence
+          test "$(git -C .producer/mdm rev-parse HEAD)" = "6ad23ca11cb956f264e93e46a6351d32ea4a1ca8"
+          git -C .producer/mdm rev-parse HEAD > producer-evidence/mdm-source-revision.txt
+          git rev-parse HEAD > producer-evidence/react-source-revision.txt
+          (cd .producer/mdm && git archive --format=tar HEAD) | sha256sum > producer-evidence/mdm-source-archive-sha256.txt
+          sha256sum .producer/mdm/src/api/policy_intent.rs \
+            .producer/mdm/tests/e2e_policy.sql \
+            tests/integrations/pg-mdm/time/resume-stale-version.sql \
+            > producer-evidence/source-file-sha256.txt
       - name: Build the exact MDM-pinned producer
         run: |
           mkdir producer-evidence
@@ -33,10 +45,34 @@ jobs:
       - name: Qualify admission, refresh permissions and actual idle delivery
         run: |
           python3 tests/integrations/pg-mdm/time/audit.py pgreact:producer-compatibility producer-evidence/runtime
-          python3 -c 'import json; o=json.load(open("producer-evidence/runtime/observations.json")); assert {"name":"future-idle-mdm-receipt","result":"passed"} in o["checks"], o.get("stop_reason",o["entry_decision"])'
+          python3 -c 'import json; o=json.load(open("producer-evidence/runtime/observations.json")); passed={c["name"] for c in o["checks"] if c["result"]=="passed"}; assert {"future-idle-mdm-receipt","stale-operator-runtime-version"} <= passed, {"passed":passed,"failure":o.get("failure")}; assert o["stale_operator_runtime_version"]["exact"] and o["stale_operator_runtime_version"]["complete_state_unchanged"]'
+      - name: Record and compare inherited packaged shared libraries
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          : > producer-evidence/executable-sha256.txt
+          for profile in mdm-pinned producer-compatibility; do
+            container="$(docker create "pgreact:$profile")"
+            for module in pg_mdm pg_trickle; do
+              docker cp "$container:/usr/lib/postgresql/18/lib/$module.so" "$tmp/$profile-$module.so"
+              sha256sum "$tmp/$profile-$module.so" | sed "s#  $tmp/#  $profile/#" >> producer-evidence/executable-sha256.txt
+            done
+            if [ "$profile" = producer-compatibility ]; then
+              docker cp "$container:/usr/lib/postgresql/18/lib/pg_react.so" "$tmp/$profile-pg_react.so"
+              sha256sum "$tmp/$profile-pg_react.so" | sed "s#  $tmp/#  $profile/#" >> producer-evidence/executable-sha256.txt
+            fi
+            docker rm "$container" >/dev/null
+          done
+          for module in pg_mdm pg_trickle; do
+            cmp "$tmp/mdm-pinned-$module.so" "$tmp/producer-compatibility-$module.so"
+          done
       - name: Retain exact image identity
         if: always()
-        run: docker image inspect pgreact:mdm-pinned pgreact:producer-compatibility > producer-evidence/images.json
+        run: |
+          set -euo pipefail
+          docker image inspect pgreact:mdm-pinned pgreact:producer-compatibility > producer-evidence/images.json
+          sha256sum producer-evidence/*.txt producer-evidence/images.json > producer-evidence/identity-manifest-sha256.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
