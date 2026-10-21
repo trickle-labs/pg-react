@@ -699,6 +699,11 @@ def main():
         }
         observations["checks"].append({"name": "post-delivery-restart-no-replay", "result": "passed"})
         if outage_mode:
+            # This branch already proved the complete canonical MDM receipt,
+            # actual action/case/source vector and worker role above. Record
+            # the normal proof marker before ending this focused outage run.
+            observations["checks"].append({
+                "name": "future-idle-mdm-receipt", "result": "passed"})
             # Focused T49.06 proof: this run also checked post-delivery cycles
             # and a second real restart without replay. The ordinary full
             # audit runs separately to retain all later security/MDM vectors.
@@ -1462,6 +1467,97 @@ def main():
         observations["stale_operator_runtime_version"] = stale_version
         observations["checks"].append({
             "name": "stale-operator-runtime-version", "result": "passed"
+        })
+        # The active binding and the exact rejected stale operator attempts
+        # must survive another true PostgreSQL postmaster epoch. Observe
+        # multiple resumed managed-worker cycles, then compare complete
+        # persisted cases, receipts, runtime binding rows, and React/source
+        # work to rule out a delayed replay or binding-state regression.
+        final_before = json.loads(sql(quiescence_sql))
+        final_binding_before = json.loads(sql(
+            "SELECT jsonb_build_object("
+            "'bindings',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_bindings b),"
+            "'runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_runtime r),"
+            "'mdm_runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM mdm_internal.policy_binding_runtime r))"))
+        assert any(item["binding_id"] == resumed["binding_id"]
+                   and item["runtime_version"] == resumed["reactivated_runtime_version"]
+                   for item in final_binding_before["runtime"]), final_binding_before
+        final_start = timestamp(sql("SELECT pg_postmaster_start_time()"))
+        final_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
+        assert final_status["process"]["state"] == "ready", final_status
+        final_heartbeat = timestamp(final_status["process"]["heartbeat_at"])
+        command("docker", "restart", container)
+        end = time.monotonic() + 60
+        restarted = None
+        new_postmaster = None
+        while time.monotonic() < end:
+            probe = subprocess.run(
+                ["docker", "exec", container, "pg_isready", "-U", "postgres"],
+                capture_output=True)
+            if probe.returncode:
+                time.sleep(0.2)
+                continue
+            new_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
+            restarted = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            worker = restarted.get("process") or {}
+            heartbeat = worker.get("heartbeat_at")
+            if (new_postmaster > final_start and worker.get("state") == "ready"
+                    and heartbeat and timestamp(heartbeat) > final_heartbeat):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError({
+                "error": "resumed binding did not recover after restart",
+                "postmaster_before": final_start.isoformat(),
+                "postmaster_after": str(new_postmaster),
+                "status": restarted,
+            })
+        restart_heartbeat_first = timestamp(restarted["process"]["heartbeat_at"])
+        end = time.monotonic() + 35
+        while time.monotonic() < end:
+            restarted = json.loads(sql("SELECT pgreact_api.managed_status()"))
+            worker = restarted.get("process") or {}
+            heartbeat = worker.get("heartbeat_at")
+            if (worker.get("state") == "ready" and heartbeat
+                    and timestamp(heartbeat) > restart_heartbeat_first
+                    + datetime.timedelta(seconds=3)):
+                break
+            time.sleep(0.2)
+        else:
+            raise AssertionError("resumed binding worker did not complete later restart cycles")
+        final_after = json.loads(sql(quiescence_sql))
+        final_binding_after = json.loads(sql(
+            "SELECT jsonb_build_object("
+            "'bindings',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_bindings b),"
+            "'runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM pgreact_mdm.policy_intent_runtime r),"
+            "'mdm_runtime',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY binding_id),'[]')"
+            " FROM mdm_internal.policy_binding_runtime r))"))
+        assert final_after == final_before, {
+            "error": "post-resume restart replayed or changed durable state",
+            "before": final_before, "after": final_after,
+        }
+        assert final_binding_after == final_binding_before, {
+            "error": "post-resume restart changed binding version or state",
+            "before": final_binding_before, "after": final_binding_after,
+        }
+        observations["post_resume_restart"] = {
+            "postmaster_before": final_start.isoformat(),
+            "postmaster_after": new_postmaster.isoformat(),
+            "first_heartbeat": restart_heartbeat_first.isoformat(),
+            "later_heartbeat": heartbeat,
+            "full_before": final_before,
+            "full_after": final_after,
+            "bindings_before": final_binding_before,
+            "bindings_after": final_binding_after,
+            "unchanged": True,
+        }
+        observations["checks"].append({
+            "name": "post-resume-restart-no-replay", "result": "passed"
         })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
