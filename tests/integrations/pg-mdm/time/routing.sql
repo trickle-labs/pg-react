@@ -27,6 +27,8 @@ BEGIN
 END
 $reinstall$;
 
+-- Retain the original independent fixture rows for the three-case clock frontier check.
+CREATE TEMP TABLE v049_original_cases AS SELECT * FROM mdm_fixture.policy_cases_v1;
 DELETE FROM mdm_fixture.policy_cases_v1 WHERE case_key <> 1;
 UPDATE mdm_fixture.policy_cases_v1
 SET permitted_actions = ARRAY['ESCALATE'], due_at = '2099-10-02 00:00:00+00',
@@ -141,6 +143,101 @@ BEGIN
     END IF;
 END
 $test$;
+
+-- Three separate case identities evaluated at the exact same authoritative
+-- sampled time: one overdue, one due at equality, one not yet due.
+-- This is a deterministic case-coverage proof, not managed worker admissions.
+INSERT INTO mdm_fixture.policy_cases_v1
+SELECT * FROM v049_original_cases WHERE case_key IN (2, 7);
+UPDATE mdm_fixture.policy_cases_v1
+SET reason_code = 'POSSIBLE_DUPLICATE',
+    permitted_actions = ARRAY['ESCALATE']::text[],
+    assigned_queue = 'general'::name,
+    escalation_level = 0,
+    manual_assignment_protected = true,
+    status = 'open', pending_stewardship = false,
+    due_at = CASE case_key
+        WHEN 1 THEN '2099-10-01 23:59:59+00'::timestamptz
+        WHEN 2 THEN '2099-10-02 00:00:00+00'::timestamptz
+        WHEN 7 THEN '2099-10-02 00:00:01+00'::timestamptz
+    END
+WHERE case_key IN (1, 2, 7);
+
+DO $three_cases$
+DECLARE
+    frontier timestamptz := '2099-10-02 00:00:00+00';
+    sample timestamptz;
+    fixture record;
+    eligible boolean;
+    oracle jsonb;
+    expected jsonb;
+    actual jsonb;
+    before_cases jsonb;
+    after_cases jsonb;
+    -- Literal reviewed v0.49 case-1 output: the expected row does not
+    -- depend on any output returned by route_cases under test.
+    due_result jsonb := '{
+        "case_key":1,"review_id":"40000000-0000-4000-8000-000000000001",
+        "policy_revision":"v0.49-time","reason_code":"POSSIBLE_DUPLICATE",
+        "current_queue":"general","selected_queue":null,
+        "decision":"WINNER","action":"ESCALATE","priority":1,
+        "competitors":[{"reason_code":"POSSIBLE_DUPLICATE","entity_name":"customer","queue":null,"priority":1,"action":"ESCALATE","level":1}],
+        "explanation":{
+            "case_key":1,"review_id":"40000000-0000-4000-8000-000000000001",
+            "decision":"WINNER","selected_queue":null,"applicable":true,
+            "reason":"best allowed candidate","manual_assignment_protected":true,
+            "pending_stewardship":false,
+            "competitors":[{"reason_code":"POSSIBLE_DUPLICATE","entity_name":"customer","queue":null,"priority":1,"action":"ESCALATE","level":1}],
+            "escalation_level":1
+        }
+    }'::jsonb;
+BEGIN
+    SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key)
+    INTO before_cases FROM mdm_fixture.policy_cases_v1 c;
+    FOR sample IN SELECT unnest(ARRAY[
+        frontier - interval '1 microsecond',
+        frontier,
+        frontier + interval '1 second'
+    ]) LOOP
+        expected := '[]'::jsonb;
+        FOR fixture IN SELECT * FROM (VALUES
+            (1::bigint, '40000000-0000-4000-8000-000000000001'::uuid),
+            (2::bigint, '40000000-0000-4000-8000-000000000002'::uuid),
+            (7::bigint, '40000000-0000-4000-8000-000000000007'::uuid)
+        ) AS cases(case_key, review_id) ORDER BY case_key LOOP
+            oracle := jsonb_set(due_result, '{case_key}', to_jsonb(fixture.case_key));
+            oracle := jsonb_set(oracle, '{review_id}', to_jsonb(fixture.review_id));
+            oracle := jsonb_set(oracle, '{explanation,case_key}', to_jsonb(fixture.case_key));
+            oracle := jsonb_set(oracle, '{explanation,review_id}', to_jsonb(fixture.review_id));
+            eligible := CASE fixture.case_key
+                WHEN 1 THEN sample >= frontier - interval '1 second'
+                WHEN 2 THEN sample >= frontier
+                ELSE sample >= frontier + interval '1 second'
+            END;
+            IF NOT eligible THEN
+                oracle := oracle || '{"decision":"INELIGIBLE","action":null,"priority":null}'::jsonb
+                    || jsonb_build_object('explanation',
+                        ((oracle -> 'explanation') - 'escalation_level')
+                        || '{"decision":"INELIGIBLE","reason":"case is not eligible for automation"}'::jsonb);
+            END IF;
+            expected := expected || jsonb_build_array(oracle);
+        END LOOP;
+        SELECT jsonb_agg(to_jsonb(r) ORDER BY case_key) INTO actual
+        FROM pgreact_mdm.route_cases(
+            'mdm_fixture.policy_cases_v1', 'v0.49-time', 'customer', sample) AS r;
+        IF actual IS DISTINCT FROM expected THEN
+            RAISE EXCEPTION 'three-case sampled-time vector at %: expected %, actual %',
+                sample, expected, actual;
+        END IF;
+        SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key)
+        INTO after_cases FROM mdm_fixture.policy_cases_v1 c;
+        IF after_cases IS DISTINCT FROM before_cases THEN
+            RAISE EXCEPTION 'three-case sampled routing mutated business/MDM inputs: %',
+                after_cases;
+        END IF;
+    END LOOP;
+END
+$three_cases$;
 
 CREATE ROLE pgreact_time_reader NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
 GRANT USAGE ON SCHEMA pgreact_mdm, mdm_fixture TO pgreact_time_reader;
