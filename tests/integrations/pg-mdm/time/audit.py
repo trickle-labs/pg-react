@@ -1385,6 +1385,24 @@ def main():
         observations["checks"].append({
             "name": "post-resume-managed-quiescence", "result": "passed"
         })
+
+        # A second operator using the *old* paused runtime version must
+        # fail to pause OR resume the now-active binding. MDM's optimistic
+        # fence must leave all binding/runtime, case, receipt, React work
+        # and business/technical source vectors byte-for-byte unchanged.
+        fixture("resume-stale-version",
+                "/work/tests/integrations/pg-mdm/time/resume-stale-version.sql",
+                "s1_idle")
+        stale_version = json.loads(sql("SELECT vector FROM s1_stale_runtime.evidence"))
+        assert stale_version["exact"] and stale_version["complete_state_unchanged"], stale_version
+        assert stale_version["binding_id"] == resumed["binding_id"]
+        assert stale_version["old_version"] == resumed["paused_runtime_version"]
+        assert stale_version["active_version"] == resumed["reactivated_runtime_version"]
+        assert stale_version["errors"]["both_rejected"], stale_version
+        observations["stale_operator_runtime_version"] = stale_version
+        observations["checks"].append({
+            "name": "stale-operator-runtime-version", "result": "passed"
+        })
         observations["entry_decision"] = "INPUT_BLOCKED"
         observations["remaining_inputs"] = ["1000-case/churn workload measurements", "signed numeric operating envelope"]
         print("PASS: future idle deadline -> actual MDM receipt; registered callback failure and role reset; complete case/source vectors", flush=True)
