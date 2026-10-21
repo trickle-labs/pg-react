@@ -70,11 +70,37 @@ jobs:
           assert o['stale_operator_runtime_version']['complete_state_unchanged']
           print('PASS: repaired exact-source MDM preview; no release-pin adoption')
           PY
-      - name: Retain exact image and source evidence
+      - name: Retain exact image and executable identities
         if: always()
         run: |
+          set -euo pipefail
           docker image inspect pgreact:mdm-stale-cas-preview pgreact:stale-cas-preview \
-            > preview-evidence/images.json || true
+            > preview-evidence/images.json
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          : > preview-evidence/executable-sha256.txt
+          for profile in mdm-stale-cas-preview stale-cas-preview; do
+            image="pgreact:$profile"
+            container="$(docker create "$image")"
+            for module in pg_mdm pg_trickle; do
+              docker cp "$container:/usr/lib/postgresql/18/lib/$module.so" "$tmp/$profile-$module.so"
+              sha256sum "$tmp/$profile-$module.so" \
+                | sed "s#  $tmp/#  $profile/#" >> preview-evidence/executable-sha256.txt
+            done
+            if [ "$profile" = stale-cas-preview ]; then
+              docker cp "$container:/usr/lib/postgresql/18/lib/pg_react.so" "$tmp/$profile-pg_react.so"
+              sha256sum "$tmp/$profile-pg_react.so" \
+                | sed "s#  $tmp/#  $profile/#" >> preview-evidence/executable-sha256.txt
+            fi
+            docker rm "$container" >/dev/null
+          done
+          for module in pg_mdm pg_trickle; do
+            cmp "$tmp/mdm-stale-cas-preview-$module.so" "$tmp/stale-cas-preview-$module.so"
+          done
+          (cd .producer/mdm && git archive --format=tar HEAD) \
+            | sha256sum > preview-evidence/mdm-source-archive-sha256.txt
+          sha256sum preview-evidence/*.txt preview-evidence/images.json \
+            > preview-evidence/identity-manifest-sha256.txt
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
