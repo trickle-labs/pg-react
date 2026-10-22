@@ -220,10 +220,13 @@ def main():
         assert receipt_progress and receipt_progress[-1]["receipt_count"] == 2
         assert all(sample["receipt_count"] in (0, 1, 2)
                    for sample in receipt_progress), receipt_progress
-        # Polling is observational, so skipped heartbeats cannot be construed
-        # as a per-cycle sample. Compare only observed adjacent heartbeat
-        # epochs spaced by at most 1.5 poll intervals and retain the rest.
-        observed_cycle_steps = []
+        # Two status polls cannot establish one worker cycle. A background
+        # worker can complete several cycles, or update heartbeat twice within
+        # one cycle, between observations regardless of elapsed time. Preserve
+        # the measured cumulative-counter deltas without guessing a cycle
+        # identity. The numeric per-call bound is proved separately by the
+        # installed SQL call chain and the focused max_items=1 claim test.
+        observed_counter_intervals = []
         latest_heartbeat = None
         latest_processed = None
         for sample in receipt_progress:
@@ -236,23 +239,17 @@ def main():
                 elapsed = (parsed - latest_heartbeat).total_seconds()
                 delta = processed - latest_processed
                 assert delta >= 0, ("managed cumulative processed counter regressed", sample)
-                close_enough = elapsed <= 1.5
-                if close_enough:
-                    assert delta <= 1, {
-                        "error": "managed cycle processed more than batch_size=1",
-                        "last_heartbeat": latest_heartbeat.isoformat(),
-                        "heartbeat": hb, "previous_total": latest_processed,
-                        "new_total": processed}
-                observed_cycle_steps.append({
+                observed_counter_intervals.append({
                     "from_heartbeat": latest_heartbeat.isoformat(),
-                    "to_heartbeat": hb, "elapsed_seconds": elapsed,
+                    "to_heartbeat": hb,
+                    "elapsed_seconds": elapsed,
                     "processed_delta": delta,
-                    "single_cycle_observation": close_enough,
+                    "individual_cycle_attribution": False,
                 })
             if latest_heartbeat is None or parsed > latest_heartbeat:
                 latest_heartbeat = parsed
                 latest_processed = processed
-        observations["observed_cycle_steps"] = observed_cycle_steps
+        observations["observed_counter_intervals"] = observed_counter_intervals
         new_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
         assert new_postmaster > original_postmaster
         assert new_postmaster > max(selected.values()) and new_postmaster >= restarted_at
@@ -381,7 +378,7 @@ def main():
             "two_case_drain_seconds": drain_elapsed_seconds,
             "observed_receipt_progress": receipt_progress,
             "per_cycle_claim_bound": observations["installed_cycle_claim_bound"],
-            "observed_cycle_steps": observed_cycle_steps,
+            "observed_counter_intervals": observed_counter_intervals,
             "two_receipts": received,
             "before": before_state,
             "after": actual,
