@@ -109,6 +109,42 @@ def main():
             " ORDER BY c.case_key) FROM mdm_steward.policy_cases_v1 c "
             "WHERE c.case_key IN (" + ",".join(str(k) for k in sorted(selected)) + ")"))
         controls = {c["case_key"]: c["control"] for c in expected_controls}
+        # Prove the actual installed managed worker consumes the *same*
+        # numeric claim bound tested by the public one-item claim fixture.
+        # batch_size alone is not evidence; the installed body must feed it
+        # to the claim API, which in turn must enforce max_items.
+        managed_definition = sql(
+            "SELECT pg_get_functiondef("
+            "'pgreact_internal.managed_cycle(integer)'::regprocedure)")
+        claim_definition = sql(
+            "SELECT pg_get_functiondef("
+            "'pgreact.claim(text,integer,interval,text[])'::regprocedure)")
+        normalized_managed = " ".join(managed_definition.split())
+        normalized_claim = " ".join(claim_definition.split())
+        assert "batch_limit integer := current_setting('pg_react.batch_size')::integer" in normalized_managed, (
+            "deployed managed cycle does not read the configured batch claim limit")
+        assert "pgreact_api.claim(worker, batch_limit, interval '60 seconds')" in normalized_managed, (
+            "deployed worker no longer passes the batch limit to the public claim API")
+        assert "processed := processed + 1" in normalized_managed, (
+            "deployed managed cycle no longer counts each claimed execution")
+        assert "EXIT WHEN count_claimed >= max_items" in normalized_claim, (
+            "deployed public claim no longer stops at its requested numeric bound")
+        assert "IF max_items NOT BETWEEN 1 AND claim_limit" in normalized_claim, (
+            "deployed public claim no longer checks the operational bound")
+        claim_limit = int(sql(
+            "SELECT max_claims FROM pgreact_internal.operational_settings"))
+        assert claim_limit >= 1, claim_limit
+        observations["installed_cycle_claim_bound"] = {
+            "managed_function": "pgreact_internal.managed_cycle(integer)",
+            "managed_definition_sha256": hashlib.sha256(
+                managed_definition.encode()).hexdigest(),
+            "claim_function": "pgreact.claim(text,integer,interval,text[])",
+            "claim_definition_sha256": hashlib.sha256(
+                claim_definition.encode()).hexdigest(),
+            "per_cycle_configured_claim_limit": 1,
+            "public_operational_max_claims": claim_limit,
+            "managed_to_claim_bound_verified": True,
+        }
         original_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
         sql("ALTER SYSTEM SET pg_react.databases = 's1_idle'")
         sql("ALTER SYSTEM SET pg_react.worker_role = 'mdm_s1_runtime'")
@@ -155,6 +191,7 @@ def main():
                 "worker_state": (status.get("process") or {}).get("state"),
                 "pending_jobs": (status.get("process") or {}).get("pending_jobs"),
                 "processed_jobs": (status.get("process") or {}).get("processed_jobs"),
+                "heartbeat_at": (status.get("process") or {}).get("heartbeat_at"),
             })
             last_keys = keys
             if len(received) == 2:
@@ -168,6 +205,39 @@ def main():
         assert receipt_progress and receipt_progress[-1]["receipt_count"] == 2
         assert all(sample["receipt_count"] in (0, 1, 2)
                    for sample in receipt_progress), receipt_progress
+        # Polling is observational, so skipped heartbeats cannot be construed
+        # as a per-cycle sample. Compare only observed adjacent heartbeat
+        # epochs spaced by at most 1.5 poll intervals and retain the rest.
+        observed_cycle_steps = []
+        latest_heartbeat = None
+        latest_processed = None
+        for sample in receipt_progress:
+            hb = sample["heartbeat_at"]
+            processed = sample["processed_jobs"]
+            if hb is None or processed is None:
+                continue
+            parsed = timestamp(hb)
+            if latest_heartbeat is not None and parsed > latest_heartbeat:
+                elapsed = (parsed - latest_heartbeat).total_seconds()
+                delta = processed - latest_processed
+                assert delta >= 0, ("managed cumulative processed counter regressed", sample)
+                close_enough = elapsed <= 1.5
+                if close_enough:
+                    assert delta <= 1, {
+                        "error": "managed cycle processed more than batch_size=1",
+                        "last_heartbeat": latest_heartbeat.isoformat(),
+                        "heartbeat": hb, "previous_total": latest_processed,
+                        "new_total": processed}
+                observed_cycle_steps.append({
+                    "from_heartbeat": latest_heartbeat.isoformat(),
+                    "to_heartbeat": hb, "elapsed_seconds": elapsed,
+                    "processed_delta": delta,
+                    "single_cycle_observation": close_enough,
+                })
+            if latest_heartbeat is None or parsed > latest_heartbeat:
+                latest_heartbeat = parsed
+                latest_processed = processed
+        observations["observed_cycle_steps"] = observed_cycle_steps
         new_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
         assert new_postmaster > original_postmaster
         assert new_postmaster > max(selected.values()) and new_postmaster >= restarted_at
@@ -293,6 +363,8 @@ def main():
             "configured_limits": settings,
             "two_case_drain_seconds": drain_elapsed_seconds,
             "observed_receipt_progress": receipt_progress,
+            "per_cycle_claim_bound": observations["installed_cycle_claim_bound"],
+            "observed_cycle_steps": observed_cycle_steps,
             "two_receipts": received,
             "before": before_state,
             "after": actual,
