@@ -109,24 +109,35 @@ def main():
             " ORDER BY c.case_key) FROM mdm_steward.policy_cases_v1 c "
             "WHERE c.case_key IN (" + ",".join(str(k) for k in sorted(selected)) + ")"))
         controls = {c["case_key"]: c["control"] for c in expected_controls}
-        # Prove the actual installed managed worker consumes the *same*
-        # numeric claim bound tested by the public one-item claim fixture.
-        # batch_size alone is not evidence; the installed body must feed it
-        # to the claim API, which in turn must enforce max_items.
+        # The installed compatibility gate delegates to the bound-carrying
+        # managed worker; inspect both deployed definitions and the public
+        # claim implementation rather than assuming a direct GUC read.
         managed_definition = sql(
             "SELECT pg_get_functiondef("
             "'pgreact_internal.managed_cycle(integer)'::regprocedure)")
+        worker_definition = sql(
+            "SELECT pg_get_functiondef("
+            "'pgreact_internal.managed_cycle_m44(integer)'::regprocedure)")
         claim_definition = sql(
             "SELECT pg_get_functiondef("
             "'pgreact.claim(text,integer,interval,text[])'::regprocedure)")
         normalized_managed = " ".join(managed_definition.split())
+        normalized_worker = " ".join(worker_definition.split())
         normalized_claim = " ".join(claim_definition.split())
-        assert "batch_limit integer := current_setting('pg_react.batch_size')::integer" in normalized_managed, (
-            "deployed managed cycle does not read the configured batch claim limit")
-        assert "pgreact_api.claim(worker, batch_limit, interval '60 seconds')" in normalized_managed, (
-            "deployed worker no longer passes the batch limit to the public claim API")
-        assert "processed := processed + 1" in normalized_managed, (
-            "deployed managed cycle no longer counts each claimed execution")
+        assert "RETURN pgreact_internal.managed_cycle_m44(process_pid)" in normalized_managed, (
+            "deployed compatibility gate no longer reaches the bounded managed worker")
+        assert "batch_limit integer := current_setting('pg_react.batch_size')::integer" in normalized_worker, (
+            "deployed managed worker does not read the configured batch claim limit")
+        assert "claim_limit integer := least(batch_limit, 100)" in normalized_worker, (
+            "deployed managed worker no longer derives the bounded claim size")
+        assert "pgreact_api.claim(worker, claim_limit, interval '60 seconds')" in normalized_worker, (
+            "deployed worker no longer forwards the derived claim limit")
+        assert "processed := processed + 1" in normalized_worker, (
+            "deployed managed worker no longer counts each claimed execution")
+        assert "processed_jobs = processed_jobs + processed" in normalized_worker, (
+            "deployed worker no longer persists cumulative processed counts")
+        assert "count_claimed := count_claimed + 1" in normalized_claim, (
+            "deployed public claim no longer increments its claim count")
         assert "EXIT WHEN count_claimed >= max_items" in normalized_claim, (
             "deployed public claim no longer stops at its requested numeric bound")
         assert "IF max_items NOT BETWEEN 1 AND claim_limit" in normalized_claim, (
@@ -138,6 +149,10 @@ def main():
             "managed_function": "pgreact_internal.managed_cycle(integer)",
             "managed_definition_sha256": hashlib.sha256(
                 managed_definition.encode()).hexdigest(),
+            "bound_carrying_function": "pgreact_internal.managed_cycle_m44(integer)",
+            "bound_carrying_definition_sha256": hashlib.sha256(
+                worker_definition.encode()).hexdigest(),
+            "forwarded_claim_limit_expression": "least(batch_limit, 100)",
             "claim_function": "pgreact.claim(text,integer,interval,text[])",
             "claim_definition_sha256": hashlib.sha256(
                 claim_definition.encode()).hexdigest(),
@@ -307,6 +322,8 @@ def main():
             "SELECT jsonb_object_agg(name,setting) FROM pg_settings WHERE name IN "
             "('pg_react.poll_interval_ms','pg_react.batch_size','pg_react.max_pending_jobs')"))
         assert settings["pg_react.batch_size"] == "1", settings
+        assert int(settings["pg_react.batch_size"]) <= claim_limit, (
+            "managed batch exceeds operational max_claims", settings, claim_limit)
         first_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
         heartbeat = timestamp(first_status["process"]["heartbeat_at"])
         limit = time.monotonic() + 35
