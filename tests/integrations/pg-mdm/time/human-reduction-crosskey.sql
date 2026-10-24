@@ -81,6 +81,30 @@ FROM mdm_steward.policy_cases_v1 AS c
 WHERE c.case_key = :prior_case_key
 \gset lowered_case_
 
+SELECT pg_catalog.count(*) = 1 AND pg_catalog.bool_and(
+           inspection.policy_revision = 's1-idle-feasibility'
+           AND inspection.policy_digest = :'bound_policy_digest'
+           AND inspection.binding_version = :bound_binding_version
+           AND inspection.action = 'ESCALATE'
+           AND inspection.delivery_outcome = 'APPLIED_CONTROL'
+           AND inspection.mdm_receipt_id = :'applied_applied_receipt_id'::uuid
+           AND inspection.mdm_outcome = 'APPLIED_CONTROL'
+           AND inspection.requested_escalation_level = 2
+           AND inspection.applied_escalation_level = 2
+           AND inspection.current_escalation_level = 1
+           AND inspection.current_due_at = :'prior_due_at'::timestamptz
+           AND inspection.current_case_status = 'open'
+           AND inspection.current_manual_assignment_protected = :'prior_manual_assignment_protected'::boolean
+           AND inspection.current_pending_stewardship = false
+           AND inspection.remediation_state = 'NONE') AS applied_inspection_exact_ok
+FROM pgreact_mdm.delivery_inspection_v1 AS inspection
+WHERE inspection.mdm_receipt_id = :'applied_applied_receipt_id'::uuid
+\gset
+\if :applied_inspection_exact_ok
+\else
+\quit 1
+\endif
+
 SELECT :lowered_action_revision = :prior_action_revision + 1
    AND (SELECT pg_catalog.to_jsonb(c)
         FROM mdm_steward.policy_cases_v1 AS c WHERE c.case_key = :prior_case_key)
