@@ -58,22 +58,31 @@ DECLARE
             "reason":"best allowed candidate","manual_assignment_protected":true,
             "pending_stewardship":false,
             "competitors":[{"reason_code":"POSSIBLE_DUPLICATE","entity_name":"customer","queue":null,"priority":1,"action":"ESCALATE","level":1}],
-            "escalation_level":1
+            "escalation_level":1,
+            "captured_at":"2099-10-02T00:00:00+00:00",
+            "due_at":"2099-10-02T00:00:00+00:00",
+            "deadline_due":true,
+            "current_escalation_level":0,
+            "requested_escalation_level":1
         }
     }'::jsonb;
     not_due_result jsonb;
+    max_level_result jsonb;
+    sample_result jsonb;
 BEGIN
     not_due_result := due_result || '{"decision":"INELIGIBLE","action":null,"priority":null}'::jsonb
         || jsonb_build_object('explanation',
             ((due_result -> 'explanation') - 'escalation_level')
-            || '{"decision":"INELIGIBLE","reason":"case is not eligible for automation"}'::jsonb);
+            || '{"decision":"INELIGIBLE","reason":"deadline has not been reached","deadline_due":false}'::jsonb);
     SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key) INTO source_before
     FROM mdm_fixture.policy_cases_v1 AS c;
     FOREACH sample IN ARRAY ARRAY[
         due - interval '1 microsecond', due, due + interval '1 microsecond',
         '2099-10-01 17:00:00-07'::timestamptz, due, due - interval '1 microsecond'
     ] LOOP
-        expected := jsonb_build_array(CASE WHEN sample < due THEN not_due_result ELSE due_result END);
+        sample_result := CASE WHEN sample < due THEN not_due_result ELSE due_result END;
+        expected := jsonb_build_array(jsonb_set(sample_result,
+            '{explanation,captured_at}', to_jsonb(sample), true));
         SELECT jsonb_agg(to_jsonb(r) ORDER BY case_key) INTO actual
         FROM pgreact_mdm.route_cases(
             'mdm_fixture.policy_cases_v1', 'v0.49-time', 'customer', sample) AS r;
@@ -83,15 +92,18 @@ BEGIN
     END LOOP;
 
     -- Both legacy signatures retain their complete result shape and statement-time semantics.
-    SELECT jsonb_agg(to_jsonb(r) ORDER BY case_key) INTO actual
+    SELECT jsonb_agg(jsonb_set(to_jsonb(r), '{explanation,captured_at}', 'null'::jsonb)
+                     ORDER BY case_key) INTO actual
     FROM pgreact_mdm.route_cases('mdm_fixture.policy_cases_v1', 'v0.49-time') AS r;
-    SELECT jsonb_agg(to_jsonb(r) ORDER BY case_key) INTO expected
+    SELECT jsonb_agg(jsonb_set(to_jsonb(r), '{explanation,captured_at}', 'null'::jsonb)
+                     ORDER BY case_key) INTO expected
     FROM pgreact_mdm.route_cases(
         'mdm_fixture.policy_cases_v1', 'v0.49-time', NULL::text, statement_timestamp()) AS r;
     IF actual IS DISTINCT FROM expected THEN
         RAISE EXCEPTION 'legacy all-entity route vector changed: %', actual;
     END IF;
-    SELECT jsonb_agg(to_jsonb(r) ORDER BY case_key) INTO actual
+    SELECT jsonb_agg(jsonb_set(to_jsonb(r), '{explanation,captured_at}', 'null'::jsonb)
+                     ORDER BY case_key) INTO actual
     FROM pgreact_mdm.route_cases('mdm_fixture.policy_cases_v1', 'v0.49-time', 'customer') AS r;
     IF actual IS DISTINCT FROM expected THEN
         RAISE EXCEPTION 'legacy entity route vector changed: %', actual;
@@ -136,10 +148,50 @@ BEGIN
 
     -- Already-reached levels remain ineligible, including the largest valid integer.
     UPDATE mdm_fixture.policy_cases_v1 SET escalation_level = 2147483647;
+    max_level_result := due_result || '{"decision":"INELIGIBLE","action":null,"priority":null}'::jsonb
+        || jsonb_build_object('explanation',
+            ((due_result -> 'explanation') - 'escalation_level')
+            || '{"decision":"INELIGIBLE","reason":"requested level is not the next permitted level"}'::jsonb);
+    max_level_result := jsonb_set(max_level_result,
+        '{explanation,current_escalation_level}', to_jsonb(2147483647), true);
     SELECT jsonb_agg(to_jsonb(r) ORDER BY case_key) INTO actual
     FROM pgreact_mdm.route_cases('mdm_fixture.policy_cases_v1', 'v0.49-time', 'customer', due) AS r;
-    IF actual IS DISTINCT FROM jsonb_build_array(not_due_result) THEN
+    IF actual IS DISTINCT FROM jsonb_build_array(max_level_result) THEN
         RAISE EXCEPTION 'maximum current level vector: %', actual;
+    END IF;
+
+    PERFORM pgreact_mdm.publish_package('v0.49-diagnostics', '{
+        "deadline":{"duration_seconds":3600,"min_seconds":60,"max_seconds":86400,"replace_existing_deadline":false},
+        "routes":[{"entity_name":"customer","reason_code":"POSSIBLE_DUPLICATE","queue":"priority_review","priority":1}]
+    }'::jsonb);
+    UPDATE mdm_fixture.policy_cases_v1
+    SET escalation_level = 0, manual_assignment_protected = true,
+        permitted_actions = ARRAY['ASSIGN_QUEUE']::text[];
+    SELECT r.explanation INTO actual
+    FROM pgreact_mdm.route_cases('mdm_fixture.policy_cases_v1', 'v0.49-diagnostics', 'customer', due) AS r;
+    expected := jsonb_build_object(
+        'case_key', 1, 'review_id', '40000000-0000-4000-8000-000000000001'::uuid,
+        'decision', 'PROTECTED', 'selected_queue', NULL, 'applicable', true,
+        'reason', 'manual assignment is protected', 'captured_at', due,
+        'due_at', due, 'deadline_due', true, 'current_escalation_level', 0,
+        'requested_escalation_level', NULL, 'manual_assignment_protected', true,
+        'pending_stewardship', false,
+        'competitors', jsonb_build_array(jsonb_build_object(
+            'reason_code', 'POSSIBLE_DUPLICATE', 'entity_name', 'customer',
+            'queue', 'priority_review', 'priority', 1, 'action', 'ASSIGN_QUEUE')));
+    IF actual IS DISTINCT FROM expected THEN
+        RAISE EXCEPTION 'protected route explanation: expected %, got %', expected, actual;
+    END IF;
+
+    UPDATE mdm_fixture.policy_cases_v1
+    SET manual_assignment_protected = false, assigned_queue = 'priority_review';
+    SELECT r.explanation INTO actual
+    FROM pgreact_mdm.route_cases('mdm_fixture.policy_cases_v1', 'v0.49-diagnostics', 'customer', due) AS r;
+    expected := jsonb_set(expected, '{decision}', '"NO_OP"'::jsonb);
+    expected := jsonb_set(expected, '{reason}', '"selected queue matches current queue"'::jsonb);
+    expected := jsonb_set(expected, '{manual_assignment_protected}', 'false'::jsonb);
+    IF actual IS DISTINCT FROM expected THEN
+        RAISE EXCEPTION 'no-op route explanation: expected %, got %', expected, actual;
     END IF;
 END
 $test$;
@@ -188,9 +240,15 @@ DECLARE
             "reason":"best allowed candidate","manual_assignment_protected":true,
             "pending_stewardship":false,
             "competitors":[{"reason_code":"POSSIBLE_DUPLICATE","entity_name":"customer","queue":null,"priority":1,"action":"ESCALATE","level":1}],
-            "escalation_level":1
+            "escalation_level":1,
+            "captured_at":"2099-10-02T00:00:00+00:00",
+            "due_at":"2099-10-01T23:59:59+00:00",
+            "deadline_due":true,
+            "current_escalation_level":0,
+            "requested_escalation_level":1
         }
     }'::jsonb;
+    fixture_due timestamptz;
 BEGIN
     SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key)
     INTO before_cases FROM mdm_fixture.policy_cases_v1 c;
@@ -209,16 +267,19 @@ BEGIN
             oracle := jsonb_set(oracle, '{review_id}', to_jsonb(fixture.review_id));
             oracle := jsonb_set(oracle, '{explanation,case_key}', to_jsonb(fixture.case_key));
             oracle := jsonb_set(oracle, '{explanation,review_id}', to_jsonb(fixture.review_id));
-            eligible := CASE fixture.case_key
-                WHEN 1 THEN sample >= frontier - interval '1 second'
-                WHEN 2 THEN sample >= frontier
-                ELSE sample >= frontier + interval '1 second'
+            fixture_due := CASE fixture.case_key
+                WHEN 1 THEN frontier - interval '1 second'
+                WHEN 2 THEN frontier
+                ELSE frontier + interval '1 second'
             END;
+            oracle := jsonb_set(oracle, '{explanation,captured_at}', to_jsonb(sample));
+            oracle := jsonb_set(oracle, '{explanation,due_at}', to_jsonb(fixture_due));
+            eligible := sample >= fixture_due;
             IF NOT eligible THEN
                 oracle := oracle || '{"decision":"INELIGIBLE","action":null,"priority":null}'::jsonb
                     || jsonb_build_object('explanation',
                         ((oracle -> 'explanation') - 'escalation_level')
-                        || '{"decision":"INELIGIBLE","reason":"case is not eligible for automation"}'::jsonb);
+                        || '{"decision":"INELIGIBLE","reason":"deadline has not been reached","deadline_due":false}'::jsonb);
             END IF;
             expected := expected || jsonb_build_array(oracle);
         END LOOP;
