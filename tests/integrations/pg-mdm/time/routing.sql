@@ -165,7 +165,8 @@ BEGIN
         "routes":[{"entity_name":"customer","reason_code":"POSSIBLE_DUPLICATE","queue":"priority_review","priority":1}]
     }'::jsonb);
     UPDATE mdm_fixture.policy_cases_v1
-    SET escalation_level = 0, manual_assignment_protected = true;
+    SET escalation_level = 0, manual_assignment_protected = true,
+        permitted_actions = ARRAY['ASSIGN_QUEUE']::text[];
     SELECT r.explanation INTO actual
     FROM pgreact_mdm.route_cases('mdm_fixture.policy_cases_v1', 'v0.49-diagnostics', 'customer', due) AS r;
     expected := jsonb_build_object(
