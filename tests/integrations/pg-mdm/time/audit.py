@@ -109,6 +109,57 @@ def main():
             " ORDER BY c.case_key) FROM mdm_steward.policy_cases_v1 c "
             "WHERE c.case_key IN (" + ",".join(str(k) for k in sorted(selected)) + ")"))
         controls = {c["case_key"]: c["control"] for c in expected_controls}
+        # The installed compatibility gate delegates to the bound-carrying
+        # managed worker; inspect both deployed definitions and the public
+        # claim implementation rather than assuming a direct GUC read.
+        managed_definition = sql(
+            "SELECT pg_get_functiondef("
+            "'pgreact_internal.managed_cycle(integer)'::regprocedure)")
+        worker_definition = sql(
+            "SELECT pg_get_functiondef("
+            "'pgreact_internal.managed_cycle_m44(integer)'::regprocedure)")
+        claim_definition = sql(
+            "SELECT pg_get_functiondef("
+            "'pgreact.claim(text,integer,interval,text[])'::regprocedure)")
+        normalized_managed = " ".join(managed_definition.split())
+        normalized_worker = " ".join(worker_definition.split())
+        normalized_claim = " ".join(claim_definition.split())
+        assert "RETURN pgreact_internal.managed_cycle_m44(process_pid)" in normalized_managed, (
+            "deployed compatibility gate no longer reaches the bounded managed worker")
+        assert "batch_limit integer := current_setting('pg_react.batch_size')::integer" in normalized_worker, (
+            "deployed managed worker does not read the configured batch claim limit")
+        assert "claim_limit integer := least(batch_limit, 100)" in normalized_worker, (
+            "deployed managed worker no longer derives the bounded claim size")
+        assert "pgreact_api.claim(worker, claim_limit, interval '60 seconds')" in normalized_worker, (
+            "deployed worker no longer forwards the derived claim limit")
+        assert "processed := processed + 1" in normalized_worker, (
+            "deployed managed worker no longer counts each claimed execution")
+        assert "processed_jobs = processed_jobs + processed" in normalized_worker, (
+            "deployed worker no longer persists cumulative processed counts")
+        assert "count_claimed := count_claimed + 1" in normalized_claim, (
+            "deployed public claim no longer increments its claim count")
+        assert "EXIT WHEN count_claimed >= max_items" in normalized_claim, (
+            "deployed public claim no longer stops at its requested numeric bound")
+        assert "IF max_items NOT BETWEEN 1 AND claim_limit" in normalized_claim, (
+            "deployed public claim no longer checks the operational bound")
+        claim_limit = int(sql(
+            "SELECT max_claims FROM pgreact_internal.operational_settings"))
+        assert claim_limit >= 1, claim_limit
+        observations["installed_cycle_claim_bound"] = {
+            "managed_function": "pgreact_internal.managed_cycle(integer)",
+            "managed_definition_sha256": hashlib.sha256(
+                managed_definition.encode()).hexdigest(),
+            "bound_carrying_function": "pgreact_internal.managed_cycle_m44(integer)",
+            "bound_carrying_definition_sha256": hashlib.sha256(
+                worker_definition.encode()).hexdigest(),
+            "forwarded_claim_limit_expression": "least(batch_limit, 100)",
+            "claim_function": "pgreact.claim(text,integer,interval,text[])",
+            "claim_definition_sha256": hashlib.sha256(
+                claim_definition.encode()).hexdigest(),
+            "per_cycle_configured_claim_limit": 1,
+            "public_operational_max_claims": claim_limit,
+            "managed_to_claim_bound_verified": True,
+        }
         original_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
         sql("ALTER SYSTEM SET pg_react.databases = 's1_idle'")
         sql("ALTER SYSTEM SET pg_react.worker_role = 'mdm_s1_runtime'")
@@ -155,6 +206,7 @@ def main():
                 "worker_state": (status.get("process") or {}).get("state"),
                 "pending_jobs": (status.get("process") or {}).get("pending_jobs"),
                 "processed_jobs": (status.get("process") or {}).get("processed_jobs"),
+                "heartbeat_at": (status.get("process") or {}).get("heartbeat_at"),
             })
             last_keys = keys
             if len(received) == 2:
@@ -168,6 +220,36 @@ def main():
         assert receipt_progress and receipt_progress[-1]["receipt_count"] == 2
         assert all(sample["receipt_count"] in (0, 1, 2)
                    for sample in receipt_progress), receipt_progress
+        # Two status polls cannot establish one worker cycle. A background
+        # worker can complete several cycles, or update heartbeat twice within
+        # one cycle, between observations regardless of elapsed time. Preserve
+        # the measured cumulative-counter deltas without guessing a cycle
+        # identity. The numeric per-call bound is proved separately by the
+        # installed SQL call chain and the focused max_items=1 claim test.
+        observed_counter_intervals = []
+        latest_heartbeat = None
+        latest_processed = None
+        for sample in receipt_progress:
+            hb = sample["heartbeat_at"]
+            processed = sample["processed_jobs"]
+            if hb is None or processed is None:
+                continue
+            parsed = timestamp(hb)
+            if latest_heartbeat is not None and parsed > latest_heartbeat:
+                elapsed = (parsed - latest_heartbeat).total_seconds()
+                delta = processed - latest_processed
+                assert delta >= 0, ("managed cumulative processed counter regressed", sample)
+                observed_counter_intervals.append({
+                    "from_heartbeat": latest_heartbeat.isoformat(),
+                    "to_heartbeat": hb,
+                    "elapsed_seconds": elapsed,
+                    "processed_delta": delta,
+                    "individual_cycle_attribution": False,
+                })
+            if latest_heartbeat is None or parsed > latest_heartbeat:
+                latest_heartbeat = parsed
+                latest_processed = processed
+        observations["observed_counter_intervals"] = observed_counter_intervals
         new_postmaster = timestamp(sql("SELECT pg_postmaster_start_time()"))
         assert new_postmaster > original_postmaster
         assert new_postmaster > max(selected.values()) and new_postmaster >= restarted_at
@@ -287,6 +369,8 @@ def main():
             "SELECT jsonb_object_agg(name,setting) FROM pg_settings WHERE name IN "
             "('pg_react.poll_interval_ms','pg_react.batch_size','pg_react.max_pending_jobs')"))
         assert settings["pg_react.batch_size"] == "1", settings
+        assert int(settings["pg_react.batch_size"]) <= claim_limit, (
+            "managed batch exceeds operational max_claims", settings, claim_limit)
         first_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
         heartbeat = timestamp(first_status["process"]["heartbeat_at"])
         limit = time.monotonic() + 35
@@ -343,6 +427,8 @@ def main():
             "configured_limits": settings,
             "two_case_drain_seconds": drain_elapsed_seconds,
             "observed_receipt_progress": receipt_progress,
+            "per_cycle_claim_bound": observations["installed_cycle_claim_bound"],
+            "observed_counter_intervals": observed_counter_intervals,
             "two_receipts": received,
             "before": before_state,
             "after": actual,
