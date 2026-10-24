@@ -132,13 +132,26 @@ BEGIN
                     'selected_queue', CASE WHEN d.decision = 'WINNER' AND d.best_action = 'ASSIGN_QUEUE'
                                            THEN d.best_queue ELSE NULL END,
                    'applicable', c.status = 'open' AND NOT c.pending_stewardship,
-                   'reason', CASE d.decision
-                       WHEN 'WINNER' THEN 'best allowed candidate'
-                       WHEN 'AMBIGUOUS' THEN 'equal best priorities'
-                       WHEN 'NO_CANDIDATE' THEN 'no applicable route candidate'
-                       WHEN 'PROTECTED' THEN 'manual assignment is protected'
-                       WHEN 'NO_OP' THEN 'selected queue matches current queue'
+                   'reason', CASE
+                       WHEN c.status <> 'open' THEN 'case is not open'
+                       WHEN c.pending_stewardship THEN 'stewardship is pending'
+                       WHEN d.decision = 'WINNER' THEN 'best allowed candidate'
+                       WHEN d.decision = 'AMBIGUOUS' THEN 'equal best priorities'
+                       WHEN d.decision = 'NO_CANDIDATE' THEN 'no applicable route candidate'
+                       WHEN d.decision = 'PROTECTED' THEN 'manual assignment is protected'
+                       WHEN d.decision = 'NO_OP' THEN 'selected queue matches current queue'
+                       WHEN d.best_action = 'ESCALATE' AND c.due_at IS NULL THEN 'no deadline is set'
+                       WHEN d.best_action = 'ESCALATE' AND c.due_at > $4 THEN 'deadline has not been reached'
+                       WHEN d.best_action = 'ESCALATE' THEN 'requested level is not the next permitted level'
                        ELSE 'case is not eligible for automation'
+                   END,
+                   'captured_at', $4,
+                   'due_at', c.due_at,
+                   'deadline_due', c.due_at IS NOT NULL AND c.due_at <= $4,
+                   'current_escalation_level', c.escalation_level,
+                   'requested_escalation_level', CASE
+                       WHEN d.best_action = 'ESCALATE' AND d.best_count = 1 THEN d.best_level
+                       ELSE NULL
                    END,
                    'manual_assignment_protected', c.manual_assignment_protected,
                     'pending_stewardship', c.pending_stewardship,
