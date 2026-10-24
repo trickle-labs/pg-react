@@ -41,7 +41,9 @@ The public seams are:
   for the same read at one explicit finite database-time sample (`NULL` entity
   selects all entities). Equality with `due_at` counts as due. The existing
   overloads sample `statement_timestamp()` once; population comparison uses its
-  supplied `captured_at` for both routing and deadline proposals.
+  supplied `captured_at` for both routing and deadline proposals. Its
+  explanation records that sample, the current deadline and escalation level,
+  the requested level, due status, and the specific ineligibility reason.
 - `pgreact_mdm.deadline_preview(source_relation, policy_revision, captured_at[, entity_name])`
   for explicit-time deadline proposals.
 - `pgreact_mdm.compare_population(...)` for complete or partial bounded
@@ -104,6 +106,12 @@ execution role. MDM rejects its calls to human decision, refresh, rebuild, and
 identity APIs. The adapter helper is owned by `mdm_helper_owner` and restores
 only the narrow worker grants after binding creation, replacement, or
 reconciliation.
+
+The read-only `pgreact_mdm.delivery_inspection_v1` view reports the current
+deadline and escalation level beside the requested level and the level recorded
+in an applied MDM receipt. It also carries binding and policy versions,
+delivery state, receipt outcome, and remediation reason. The receipt level is
+historical; the current case level may change after a later human action.
 
 Run `tests/integrations/pg-mdm/v0.48-codec.sql` after the fixture test, then
 run `tests/integrations/pg-mdm/v0.47-live-setup.sql` to create the second MDM

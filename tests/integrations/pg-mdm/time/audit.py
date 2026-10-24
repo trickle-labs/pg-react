@@ -315,6 +315,56 @@ def main():
             assert attempt["episode_id"] in work_ids
             assert attempt["attempt_no"] == 1
 
+        inspections = json.loads(sql(
+            "SELECT COALESCE(jsonb_agg(to_jsonb(i) ORDER BY i.case_key),'[]') "
+            "FROM pgreact_mdm.delivery_inspection_v1 i "
+            "WHERE i.policy_revision='s1-idle-feasibility' AND i.action='ESCALATE'"))
+        assert {row["case_key"] for row in inspections} == set(selected), inspections
+        cases_by_key = {row["case_key"]: row for row in actual["cases"]}
+        receipts_by_key = {row["case_key"]: row for row in received}
+        for inspection in inspections:
+            key = inspection["case_key"]
+            case_row = cases_by_key[key]
+            receipt = receipts_by_key[key]
+            attempt = attempts[key]
+            assert {
+                "policy_revision": inspection["policy_revision"],
+                "policy_digest": inspection["policy_digest"],
+                "binding_version": inspection["binding_version"],
+                "action": inspection["action"],
+                "delivery_outcome": inspection["delivery_outcome"],
+                "delivery_reason_code": inspection["delivery_reason_code"],
+                "mdm_receipt_id": inspection["mdm_receipt_id"],
+                "mdm_outcome": inspection["mdm_outcome"],
+                "mdm_reason_code": inspection["mdm_reason_code"],
+                "current_case_status": inspection["current_case_status"],
+                "current_due_at": timestamp(inspection["current_due_at"]).isoformat(),
+                "requested_due_at": inspection["requested_due_at"],
+                "requested_escalation_level": inspection["requested_escalation_level"],
+                "applied_escalation_level": inspection["applied_escalation_level"],
+                "current_escalation_level": inspection["current_escalation_level"],
+                "current_manual_assignment_protected": inspection["current_manual_assignment_protected"],
+                "current_pending_stewardship": inspection["current_pending_stewardship"],
+            } == {
+                "policy_revision": "s1-idle-feasibility",
+                "policy_digest": binding["policy_digest"],
+                "binding_version": binding["binding_version"],
+                "action": "ESCALATE",
+                "delivery_outcome": attempt["outcome"],
+                "delivery_reason_code": attempt["reason_code"],
+                "mdm_receipt_id": receipt["receipt_id"],
+                "mdm_outcome": receipt["outcome"],
+                "mdm_reason_code": receipt["reason_code"],
+                "current_case_status": "open",
+                "current_due_at": selected[key].isoformat(),
+                "requested_due_at": None,
+                "requested_escalation_level": 2,
+                "applied_escalation_level": 2,
+                "current_escalation_level": 2,
+                "current_manual_assignment_protected": case_row["manual_assignment_protected"],
+                "current_pending_stewardship": False,
+            }, inspection
+
         settings = json.loads(sql(
             "SELECT jsonb_object_agg(name,setting) FROM pg_settings WHERE name IN "
             "('pg_react.poll_interval_ms','pg_react.batch_size','pg_react.max_pending_jobs')"))
