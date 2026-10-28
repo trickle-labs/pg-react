@@ -433,6 +433,9 @@ def main():
         assert cycles == [{"state": "blocked", "pending_jobs": pending, "processed_jobs": 0,
                            "reason": "MDM activation required"}] * 2, cycles
         assert json.loads(sql(state_query, "s1_logical")) == after
+        fixture("logical-restore-activate-probe", "/work/tests/integrations/pg-mdm/time/recovery.sql",
+                "s1_logical", ("-v", "pending=true", "-v", "activate=true"))
+        observations["logical_restore"]["after_activation"] = json.loads(sql(state_query, "s1_logical"))
         observations["checks"].append({"name": "logical-restore-blocked-cycles", "result": "passed"})
         assert after == before, "logical restore did not preserve the complete recovery state"
         assert sql("SELECT NOT EXISTS (SELECT 1 FROM pgreact_mdm.authorized_policy_cases_v1)", "s1_logical") == "t"

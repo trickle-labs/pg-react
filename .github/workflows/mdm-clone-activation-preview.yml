@@ -89,6 +89,17 @@ jobs:
           result=$?
           printf '%s\n' "$result" > clone-evidence/full.exit
           exit "$result"
+      - name: Probe logical restore and activation (failure expected)
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          command=(python3 tests/integrations/pg-mdm/time/audit.py pgreact:clone-candidate clone-evidence/logical-activation --logical-restore)
+          printf '%q ' "${command[@]}" > clone-evidence/logical-activation.command
+          printf '\n' >> clone-evidence/logical-activation.command
+          "${command[@]}" > clone-evidence/logical-activation.log 2>&1
+          result=$?
+          printf '%s\n' "$result" > clone-evidence/logical-activation.exit
+          exit "$result"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         if: always()
         with:
