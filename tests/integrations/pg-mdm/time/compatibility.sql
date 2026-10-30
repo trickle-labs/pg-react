@@ -64,7 +64,7 @@ BEGIN
     FOREACH version IN ARRAY ARRAY['0.108.0','0.108.3','0.108.1','0.108.2',
         '0.108.4','0.108.30','0.109.0','0.108.3-dev'] LOOP
         UPDATE pg_extension SET extversion = version WHERE extname = 'pg_trickle';
-        supported := version IN ('0.108.0','0.108.3');
+        supported := version IN ('0.108.0','0.108.3','0.108.4');
         PERFORM pg_temp.assert_profile('version-' || version, version, supported, true);
         SELECT f INTO finding FROM pgreact_internal.pgtrickle_health_findings() f
         WHERE f->>'code' = 'PGT_RUNTIME_UNSUPPORTED';
@@ -72,9 +72,9 @@ BEGIN
             IF finding IS NOT NULL THEN RAISE EXCEPTION 'supported version diagnostic: %', finding; END IF;
         ELSIF finding IS DISTINCT FROM jsonb_build_object(
             'code','PGT_RUNTIME_UNSUPPORTED','severity','ERROR','object_identity','pg_trickle',
-            'message',format('installed pg_trickle version is %s; pg-react requires qualified 0.108.0 or 0.108.3',version),
-            'hint','Use qualified pg_trickle 0.108.0 or 0.108.3 before resuming pg-react coordination.',
-            'installed_version',version,'expected_version','0.108.0 or 0.108.3',
+            'message',format('installed pg_trickle version is %s; pg-react requires qualified 0.108.0, 0.108.3, or 0.108.4',version),
+            'hint','Use qualified pg_trickle 0.108.0, 0.108.3, or 0.108.4 before resuming pg-react coordination.',
+            'installed_version',version,'expected_version','0.108.0, 0.108.3, or 0.108.4',
             'coordination_mode','LEGACY_EXPLICIT') THEN
             RAISE EXCEPTION 'unsupported version diagnostic differs: %', finding;
         END IF;
