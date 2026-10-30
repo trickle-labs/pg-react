@@ -336,6 +336,19 @@ BEGIN
         RAISE EXCEPTION 'missing-receipt fixture unexpectedly exists in MDM';
     END IF;
 
+    IF to_regprocedure('mdm_internal.policy_runtime_epoch()') IS NULL
+       OR NOT EXISTS (
+           SELECT 1
+           FROM pg_catalog.pg_attribute AS attribute
+           JOIN pg_catalog.pg_class AS relation ON relation.oid = attribute.attrelid
+           JOIN pg_catalog.pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+           WHERE namespace.nspname = 'mdm_internal'
+             AND relation.relname = 'policy_binding_runtime'
+             AND attribute.attname = 'activation_epoch'
+             AND NOT attribute.attisdropped) THEN
+        RAISE EXCEPTION 'missing-receipt setup requires the MDM policy runtime epoch API';
+    END IF;
+
     IF NOT pgreact_mdm.policy_runtime_ready() THEN
         SELECT jsonb_agg(jsonb_build_object(
                    'binding_id', b.binding_id,
