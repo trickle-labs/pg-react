@@ -257,6 +257,7 @@ DECLARE
     fake_receipt_id uuid := '00000000-0000-0000-0000-000000000001';
     control_before jsonb;
     control_after jsonb;
+    unready_bindings jsonb;
     retained_request pgreact_mdm.intent_requests%ROWTYPE;
     blocked_attempt pgreact_mdm.intent_attempts%ROWTYPE;
 BEGIN
@@ -333,6 +334,32 @@ BEGIN
     IF pgreact_mdm.intent_receipt_exists(
            binding.binding_id, synthetic_request_key, fake_receipt_id) THEN
         RAISE EXCEPTION 'missing-receipt fixture unexpectedly exists in MDM';
+    END IF;
+
+    IF NOT pgreact_mdm.policy_runtime_ready() THEN
+        SELECT jsonb_agg(jsonb_build_object(
+                   'binding_id', b.binding_id,
+                   'state', r.state,
+                   'runtime_version', r.runtime_version,
+                   'stored_runtime_version', a.runtime_version,
+                   'epoch_matches', r.activation_epoch = mdm_internal.policy_runtime_epoch(),
+                   'database_matches', r.database_oid = (SELECT oid FROM pg_database WHERE datname = current_database()),
+                   'worker_matches', r.automation_role_oid = (SELECT oid FROM pg_roles WHERE rolname = 'pgreact_mdm_worker'))
+                   ORDER BY b.binding_id)
+        INTO unready_bindings
+        FROM pgreact_mdm.policy_intent_bindings AS b
+        LEFT JOIN mdm_internal.policy_binding_runtime AS r USING (binding_id)
+        LEFT JOIN pgreact_mdm.policy_intent_runtime AS a USING (binding_id)
+        WHERE b.enabled
+          AND (r.binding_id IS NULL
+               OR r.activation_epoch IS DISTINCT FROM mdm_internal.policy_runtime_epoch()
+               OR r.database_oid IS DISTINCT FROM (SELECT oid FROM pg_database WHERE datname = current_database())
+               OR r.automation_role_oid IS DISTINCT FROM (SELECT oid FROM pg_roles WHERE rolname = 'pgreact_mdm_worker')
+               OR (r.state = 'active' AND (a.binding_id IS NULL
+                   OR a.database_oid IS DISTINCT FROM r.database_oid
+                   OR a.worker_role_oid IS DISTINCT FROM r.automation_role_oid
+                   OR a.runtime_version IS DISTINCT FROM r.runtime_version)));
+        RAISE EXCEPTION 'missing-receipt setup has unreconciled policy bindings: %', unready_bindings;
     END IF;
 
     PERFORM set_config('role', 'pgreact_mdm_worker', true);
