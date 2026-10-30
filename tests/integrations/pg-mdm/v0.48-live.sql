@@ -123,6 +123,13 @@ FROM pgreact_mdm.create_intent_binding(
     ARRAY['ASSIGN_QUEUE']::text[],
     ARRAY['m2-ready']::text[], NULL, 0)
 \gset
+SELECT COALESCE((SELECT runtime.runtime_version
+                 FROM mdm_internal.policy_binding_runtime AS runtime
+                 WHERE runtime.binding_id = :'v048_policy_binding_id'::uuid), 0)
+       AS v048_policy_runtime_version
+\gset
+SELECT pgreact_mdm.reconcile_intent_binding(
+    :'v048_policy_binding_id'::uuid, :v048_policy_runtime_version);
 RESET ROLE;
 RESET SESSION AUTHORIZATION;
 SET SESSION AUTHORIZATION mdm_legacy_login;
@@ -133,6 +140,13 @@ FROM pgreact_mdm.create_intent_binding(
     :'escalation_entity_name', 'v0.48-live-policy',
     ARRAY['ESCALATE', 'SET_DUE_AT']::text[], ARRAY[]::text[], interval '1 day', 2)
 \gset
+SELECT COALESCE((SELECT runtime.runtime_version
+                 FROM mdm_internal.policy_binding_runtime AS runtime
+                 WHERE runtime.binding_id = :'v048_escalation_binding_id'::uuid), 0)
+       AS v048_escalation_runtime_version
+\gset
+SELECT pgreact_mdm.reconcile_intent_binding(
+    :'v048_escalation_binding_id'::uuid, :v048_escalation_runtime_version);
 RESET ROLE;
 RESET SESSION AUTHORIZATION;
 
