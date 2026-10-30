@@ -229,6 +229,16 @@ SELECT pgreact_mdm.reconcile_intent_binding(
     :'v048_escalation_binding_id'::uuid, :v048_escalation_runtime_version);
 RESET ROLE;
 RESET SESSION AUTHORIZATION;
+SELECT runtime.runtime_version AS v048_policy_runtime_version
+FROM mdm_internal.policy_binding_runtime AS runtime
+WHERE runtime.binding_id = :'v048_policy_binding_id'::uuid
+\gset
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"queue_entity_execution_role";
+SELECT pgreact_mdm.reconcile_intent_binding(
+    :'v048_policy_binding_id'::uuid, :v048_policy_runtime_version);
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
 
 BEGIN;
 DO $missing_receipt_recovery$
