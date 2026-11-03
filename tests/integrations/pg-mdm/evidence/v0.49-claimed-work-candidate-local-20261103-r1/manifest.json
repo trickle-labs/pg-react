@@ -1,4 +1,10 @@
 {
+  "archive": {
+    "file_count": 28,
+    "path": "claimed-work-candidate-local-20261103-r1.tar.gz",
+    "round_trip_verified": true,
+    "sha256": "e876475a89b4c767d083bc4caee61b4cd6c4a00810eee21de066a908f36934a2"
+  },
   "artifacts": {
     "claimed-work-run.log": "5b289d58eb8d20c73b0221a5715785e07ba6283b28f2e86e373cbbeaf36838d2",
     "claimed-work/autonomous-bootstrap.log": "2728c46b15ff7f91725a671ae1815b3e55e8522861f06374c0a6dcecb3b4bbec",
