@@ -51,7 +51,7 @@ jobs:
           for run in first repeat; do
             python3 tests/integrations/pg-mdm/time/audit.py \
               pgreact:pause-preview "pause-evidence/$run" --claimed-work
-            python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); required={"claimed-pause-barrier","pause-first-runtime-freshness","paused-before-claim","human-edit-claim-orders","binding-replacement-claim-orders","fresh-after-terminal-pause","cross-key-after-human-reduction"}; passed={x["name"] for x in o["checks"] if x["result"]=="passed"}; assert required<=passed, o.get("failure"); assert o["entry_decision"]=="FOCUSED_CLAIMED_PAUSE_QUALIFIED"; assert not o["claimed_pause"]["pause_acknowledged_before_delivery_release"]' "pause-evidence/$run/observations.json"
+            python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); required={"claimed-pause-barrier","pause-first-runtime-freshness","paused-before-claim","human-edit-claim-orders","binding-replacement-claim-orders","fresh-after-terminal-pause","cross-key-after-human-reduction","delivery-inspection-output-matrix","read-only-route-explanation"}; passed={x["name"] for x in o["checks"] if x["result"]=="passed"}; assert required<=passed, o.get("failure"); assert o["entry_decision"]=="FOCUSED_CLAIMED_PAUSE_QUALIFIED"; assert not o["claimed_pause"]["pause_acknowledged_before_delivery_release"]' "pause-evidence/$run/observations.json"
           done
       - name: Preserve real autonomous recurrence
         id: legacy_2

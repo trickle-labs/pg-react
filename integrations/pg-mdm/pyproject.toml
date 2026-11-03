@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pg-react-bounded-refresh-producer"
+version = "0.49.0"
+description = "Bounded JSONL producer for pg-react managed refresh workloads"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+pg-react-bounded-refresh-producer = "bounded_refresh_producer:main"
+
+[tool.setuptools]
+py-modules = ["bounded_refresh_producer"]

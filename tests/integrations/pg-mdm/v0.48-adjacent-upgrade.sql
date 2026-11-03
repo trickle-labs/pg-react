@@ -1,4 +1,5 @@
 \set ON_ERROR_STOP on
+DROP EVENT TRIGGER IF EXISTS pgre_mdm_history_guard_ddl;
 
 CREATE SCHEMA v048_adjacent_upgrade;
 CREATE SCHEMA IF NOT EXISTS pgreact_mdm;
@@ -94,6 +95,7 @@ $upgrade_before$;
 
 \ir ../../../integrations/pg-mdm/sql/request-store.sql
 \ir ../../../integrations/pg-mdm/sql/intent-worker.sql
+\ir ../../../integrations/pg-mdm/sql/retention-guard.sql
 
 DO $upgrade_after$
 DECLARE actual_decision jsonb;

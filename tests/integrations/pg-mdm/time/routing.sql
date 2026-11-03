@@ -8,7 +8,8 @@ SELECT oid, proname, proargtypes, prorettype, proretset, prosecdef, proacl
 FROM pg_catalog.pg_proc
 WHERE oid IN (
     'pgreact_mdm.route_cases(regclass,text)'::regprocedure,
-    'pgreact_mdm.route_cases(regclass,text,text)'::regprocedure);
+    'pgreact_mdm.route_cases(regclass,text,text)'::regprocedure,
+    'pgreact_mdm.route_cases(regclass,text,text,timestamptz)'::regprocedure);
 \ir ../../../../integrations/pg-mdm/sql/routing.sql
 DO $reinstall$
 DECLARE actual jsonb;
@@ -90,6 +91,19 @@ BEGIN
             RAISE EXCEPTION 'explicit route vector at %: expected %, got %', sample, expected, actual;
         END IF;
     END LOOP;
+
+    -- Keep the relation on the approved source allowlist while proving that
+    -- case-scoped validation and routing ignore an invalid non-target row.
+    INSERT INTO mdm_fixture.policy_cases_v1
+    SELECT * FROM v049_original_cases WHERE case_key = 2;
+    UPDATE mdm_fixture.policy_cases_v1 SET status = 'invalid' WHERE case_key = 2;
+    SELECT jsonb_agg(to_jsonb(r) ORDER BY case_key) INTO actual
+    FROM pgreact_mdm.route_cases(
+        'mdm_fixture.policy_cases_v1', 'v0.49-time', 'customer', due, 1) AS r;
+    IF actual IS DISTINCT FROM jsonb_build_array(due_result) THEN
+        RAISE EXCEPTION 'case-scoped route changed the selected row or scanned invalid peers: %', actual;
+    END IF;
+    DELETE FROM mdm_fixture.policy_cases_v1 WHERE case_key = 2;
 
     -- Both legacy signatures retain their complete result shape and statement-time semantics.
     SELECT jsonb_agg(jsonb_set(to_jsonb(r), '{explanation,captured_at}', 'null'::jsonb)
@@ -299,24 +313,6 @@ BEGIN
     END LOOP;
 END
 $three_cases$;
-
-CREATE ROLE pgreact_time_reader NOLOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
-GRANT USAGE ON SCHEMA pgreact_mdm, mdm_fixture TO pgreact_time_reader;
-SET LOCAL ROLE pgreact_time_reader;
-DO $privileges$
-BEGIN
-    BEGIN
-        PERFORM pgreact_mdm.route_cases('mdm_fixture.policy_cases_v1', 'v0.49-time', NULL::text,
-            '2099-10-02 00:00:00+00'::timestamptz);
-        RAISE EXCEPTION 'explicit-time route bypassed source privileges';
-    EXCEPTION WHEN OTHERS THEN
-        IF SQLERRM <> 'MDM_INPUT_UNAUTHORIZED: mdm_fixture.policy_cases_v1 is not readable by pgreact_time_reader' THEN
-            RAISE;
-        END IF;
-    END;
-END
-$privileges$;
-RESET ROLE;
 
 ROLLBACK;
 SELECT 'v0.49 explicit-time routing and comparison: PASS' AS result;

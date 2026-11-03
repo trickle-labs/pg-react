@@ -77,8 +77,18 @@ jobs:
           for run in first repeat; do
             python3 tests/integrations/pg-mdm/time/audit.py \
               pgreact:producer-compatibility "producer-evidence/claimed-$run" --claimed-work
-            python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); required={"claimed-pause-barrier","pause-first-runtime-freshness","paused-before-claim","human-edit-claim-orders","binding-replacement-claim-orders","fresh-after-terminal-pause","cross-key-after-human-reduction"}; passed={x["name"] for x in o["checks"] if x["result"]=="passed"}; assert required<=passed, o.get("failure"); assert o["entry_decision"]=="FOCUSED_CLAIMED_PAUSE_QUALIFIED"; assert not o["claimed_pause"]["pause_acknowledged_before_delivery_release"]' "producer-evidence/claimed-$run/observations.json"
+            python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); required={"claimed-pause-barrier","pause-first-runtime-freshness","paused-before-claim","human-edit-claim-orders","binding-replacement-claim-orders","fresh-after-terminal-pause","cross-key-after-human-reduction","delivery-inspection-output-matrix","read-only-route-explanation"}; passed={x["name"] for x in o["checks"] if x["result"]=="passed"}; assert required<=passed, o.get("failure"); assert o["entry_decision"]=="FOCUSED_CLAIMED_PAUSE_QUALIFIED"; assert not o["claimed_pause"]["pause_acknowledged_before_delivery_release"]' "producer-evidence/claimed-$run/observations.json"
           done
+      - name: Verify postmaster crash after committed delivery (historical)
+        id: legacy_crash
+        if: steps.legacy_1.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          trap 'status=$?; printf "%s\n" "$status" > producer-evidence/historical-crash.exit' EXIT
+          python3 tests/integrations/pg-mdm/time/audit.py \
+            pgreact:producer-compatibility producer-evidence/claimed-crash --claimed-work-crash
+          python3 -c 'import json; o=json.load(open("producer-evidence/claimed-crash/observations.json")); passed={c["name"] for c in o["checks"] if c["result"]=="passed"}; assert o["entry_decision"]=="FOCUSED_POSTMASTER_CRASH_RECOVERY_QUALIFIED" and not o["release_qualified"]; assert "postmaster-crash-after-commit-idempotent-retry" in passed; e=o["postmaster_crash_after_commit"]; assert e["controller_exit_code"]!=0 and not e["execute_result_received"]; assert e["durable_state_after_crash_matches_committed_state"] and e["retry_left_durable_state_unchanged"]; r=e["same_lease_retry"]; assert r["returncode"]==1 and r["stdout"]=="" and r["stderr"].startswith("ERROR:  lease is no longer valid for episode ")'
       - name: Qualify autonomous MDM recurrence and cold restart
         id: legacy_2
         if: steps.legacy_1.outcome == 'success'
@@ -134,7 +144,7 @@ jobs:
         if: ${{ !cancelled() && steps.legacy_1.outcome != '' }}
         run: |
           printf 'Historical old-MDM tests are nonblocking and are not release qualification.\n' > producer-evidence/historical-outcomes.txt
-          printf 'claimed=%s recurrence=%s full=%s pending=%s outage=%s multi-outage=%s\n' '${{ steps.legacy_1.outcome }}' '${{ steps.legacy_2.outcome }}' '${{ steps.legacy_3.outcome }}' '${{ steps.legacy_4.outcome }}' '${{ steps.legacy_5.outcome }}' '${{ steps.legacy_6.outcome }}' >> producer-evidence/historical-outcomes.txt
+          printf 'claimed=%s crash=%s recurrence=%s full=%s pending=%s outage=%s multi-outage=%s\n' '${{ steps.legacy_1.outcome }}' '${{ steps.legacy_crash.outcome }}' '${{ steps.legacy_2.outcome }}' '${{ steps.legacy_3.outcome }}' '${{ steps.legacy_4.outcome }}' '${{ steps.legacy_5.outcome }}' '${{ steps.legacy_6.outcome }}' >> producer-evidence/historical-outcomes.txt
           cat producer-evidence/historical-outcomes.txt >> "$GITHUB_STEP_SUMMARY"
           if grep -q '=failure' producer-evidence/historical-outcomes.txt; then
             printf '::warning::Historical compatibility failed; see the artifact and raw exits. This is not release qualification.\n'

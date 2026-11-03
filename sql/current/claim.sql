@@ -1,4 +1,4 @@
--- 0.46.1: disambiguate the shared generic claim sweep from its OUT parameter.
+-- 0.46.1: disambiguate claim sweep output and honor salience before FIFO within age bucket.
 CREATE OR REPLACE FUNCTION pgreact.claim(
     worker_id text,
     max_items integer DEFAULT 1,
@@ -16,6 +16,7 @@ DECLARE
     claimed record;
     version_id uuid;
     count_claimed integer := 0;
+    claim_found boolean;
     seconds integer := extract(epoch FROM lease_for)::integer;
     fairness interval;
     claim_limit integer;
@@ -38,7 +39,7 @@ BEGIN
         PERFORM pgreact.sweep_expired_leases(version_id);
     END LOOP;
     FOR candidate IN
-        SELECT agenda.rule_version_id
+        SELECT agenda.episode_id, agenda.rule_version_id
         FROM pgreact_internal.agenda agenda
         JOIN pgreact_internal.rule_versions version USING (rule_version_id)
         WHERE agenda.state IN ('PENDING', 'RETRY_WAIT')
@@ -50,11 +51,22 @@ BEGIN
           AND (agenda_groups IS NULL OR agenda.agenda_group = ANY(agenda_groups))
         ORDER BY CASE WHEN agenda.available_at <= clock_timestamp() - fairness
                       THEN 0 ELSE 1 END,
-                 agenda.available_at, agenda.salience DESC, agenda.episode_id
+                 agenda.salience DESC, agenda.available_at, agenda.episode_id
     LOOP
-        SELECT * INTO claimed
-        FROM pgreact.claim_episode(candidate.rule_version_id, worker_id, seconds);
-        IF FOUND THEN
+        claim_found := false;
+        -- Roll back a rule-level claim that did not select this globally ordered episode.
+        BEGIN
+            SELECT * INTO claimed
+            FROM pgreact.claim_episode(candidate.rule_version_id, worker_id, seconds);
+            claim_found := FOUND;
+            IF claim_found AND claimed.episode_id <> candidate.episode_id THEN
+                RAISE EXCEPTION USING ERRCODE = 'PGR01',
+                    MESSAGE = 'claim_episode returned an episode outside the global claim order';
+            END IF;
+        EXCEPTION WHEN SQLSTATE 'PGR01' THEN
+            claim_found := false;
+        END;
+        IF claim_found THEN
             SELECT agenda.event_kind INTO event_kind
             FROM pgreact_internal.agenda agenda
             WHERE agenda.episode_id = claimed.episode_id;

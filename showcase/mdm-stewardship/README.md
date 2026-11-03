@@ -11,6 +11,12 @@ The fixture is in `mdm_fixture`, never `mdm_steward`. It demonstrates immutable
 package revisions, winner/tie/no-candidate/protected/no-op routing, opening-time
 validation, deadline preservation, and bounded no-effect comparison.
 
-Live routing and MDM publication remain blocked until pg-mdm M1 installs the
-authorized `mdm_steward.policy_cases_v1` projection. No intent submission or
-private-catalog access belongs in this showcase.
+This package intentionally remains a read-only fixture. It routes from
+`mdm_fixture.policy_cases_v1` and does not demonstrate admissions,
+`mdm.refresh`, or intent submission. The pg-react integration adapter uses the
+authorized `mdm_steward.policy_cases_v1` projection, but production intake and
+refresh batching remain outside this example. The bounded JSONL producer
+reference for source admissions and refresh batching is documented in the
+[pg-mdm integration guide](../../integrations/pg-mdm/README.md#bounded-jsonl-producer).
+Its local workload evidence does not establish application deployment or release
+qualification. No private-catalog access belongs in this showcase.

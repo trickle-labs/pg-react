@@ -1,6 +1,11 @@
 # Ordered, explicit current installation inputs.
 # Preserve the published predecessor byte-for-byte, then append maintenance.
 sql/pg_react--0.46.0.sql
+sql/current/owner-recovery.sql
 sql/current/claim.sql
+sql/current/metadata-rebuild.sql
 sql/current/worker-grants.sql
 sql/current/pgtrickle.sql
+sql/current/recovery-restore.sql
+sql/current/temporal-key-limit.sql
+sql/current/binding-ddl-lock.sql

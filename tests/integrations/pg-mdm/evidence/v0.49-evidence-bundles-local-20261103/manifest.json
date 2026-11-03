@@ -1,0 +1,112 @@
+{
+  "evidence_kind": "v0.49_selected_local_qualification_bundle",
+  "date": "2026-11-03",
+  "release_qualified": false,
+  "round_trip_verified": true,
+  "source_hash_reconciliation": {
+    "reference_source_manifest_sha256": "a735ece87b9804fb5db9179fb5fab14c0ec29c20694bb5a37d81cf6268f77a0a",
+    "reference_source_commit": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+    "reference_manifest_marked_commit_bound": false,
+    "candidate_base_commit": "201d850b",
+    "reference_file_count": 222,
+    "candidate_file_hash_matches": 222,
+    "missing_files": 0,
+    "mismatched_files": 0,
+    "method": "SHA-256 each recorded relative file path and compare with the source manifest.",
+    "scope_limit": "Source-content equivalence only; final CI, review, release package identity, and release qualification remain open."
+  },
+  "bundles": [
+    {
+      "name": "autonomous-recurrence-cross-generation",
+      "archive": "autonomous-recurrence-cross-generation.tar.gz",
+      "archive_sha256": "2031c31d4bb7be36ae59e65bb2c74b614f7106dfda1edd170872361ff237d5ac",
+      "source_directory": "v0.49-autonomous-recurrence-cross-generation-local-20261101-r1",
+      "file_count": 9,
+      "uncompressed_bytes": 2509956,
+      "compressed_bytes": 351907,
+      "source_files_sha256": {
+        "autonomous-bootstrap.log": "e04336211d7ce309e2d819ecc0296cd246697876748af48907741ba2d53d9aa1",
+        "autonomous-human-reduction.log": "b399fb537016dc4d0ee834225c17e3bffff4f6300dae68fd6a0a748bdfa9f9c6",
+        "autonomous-setup.log": "1d5de9ac77e3bfe58e242c8d1b8725b6e295f37fc4530466655b76d911ab9270",
+        "autonomous-successor.log": "13246db7161d0511f41896f8c1dad41884efb17af2afbb998dae4a54bee374b1",
+        "compatibility.log": "78cd52e1901071e572a8393a2fb194ffed3c2f703d5e8fc0e4d20de45981d6ef",
+        "idle-setup.log": "07261e4cbb0e5aefaca98e886b2665a0f9740acebffe1aaab0ab0f7279b2dacc",
+        "manifest.json": "e32e7e04d5e2559acd8c5fc1bec3c4e00ac4844c76797faafbd2df8b607deb4f",
+        "observations.json": "6d14dfd52de2002f0e58f59e6cb232b4ce7101bde6fbeb031f5beca14eb81b97",
+        "populated-core-upgrade-rollback.log": "b08ca12e7d993e218bbfa0e2b398554858405c025e062625c1969cbf54170ca7"
+      }
+    },
+    {
+      "name": "current-worktree-physical-clone-paired",
+      "archive": "current-worktree-physical-clone-paired.tar.gz",
+      "archive_sha256": "b86231e6b13ff63a0cd53edeab00896a87c9642a55b25e0c4768f71bc19f59bf",
+      "source_directory": "v0.49-current-worktree-physical-clone-paired-local-20261103-r1",
+      "file_count": 13,
+      "uncompressed_bytes": 59906483,
+      "compressed_bytes": 4101943,
+      "source_files_sha256": {
+        "candidate/bounded-run.json": "6e5a33cab64b2e997351259a1f027dd8c918eaebb04733f1ce6ad50879fafe68",
+        "candidate/observations.json": "b92b066ed406c5dd4ab822ca68d8792bba4ef340d90981b33652d8a0d953c586",
+        "candidate/resource-samples.jsonl": "7dc096b2c21d08f8769fa42dfe6f4438807297b45bd57939e1ad347e83f22f23",
+        "candidate/run.log": "76308b329132e089b094eac3135c1af892b73200b6c9a98f4d9a31af1c65a75d",
+        "control/bounded-run.json": "5fd3e048965f91f1b20a3c068fce20a8b41761b56409a7e2352b2e6b7ff53de8",
+        "control/observations.json": "13e532fd41e95c958e3e7104994a5839cc594ce10d1f36b6fc7a579a2c36c77e",
+        "control/resource-samples.jsonl": "0b0f7c8ac492a542069d933e9485649f3940e58bc1eb423338eb275e3d29e1b6",
+        "control/run.log": "438fe4eabba106a2bead4d18f19f36ba51ac2218b44f68c17ae7eb50f47a9714",
+        "retention/autonomous-bootstrap.log": "b275ff94d8827e67a9a1beb79168ede07053aeb8cb7cfc66acb39f7eb5ab5d61",
+        "retention/history-retention.log": "338c14385258eef7a0eba63541df14c6f8e6d2ad45ec12bcecf9445e77e4270f",
+        "retention/idle-setup.log": "bedcb6b86ec45355e603a8b893fe5c1f7105f02864e7aa319ee4425611e11559",
+        "retention/observations.json": "c8e243d88eb327ee741388205bda4267970917f02aaf5e32eeadb1f9326ed0e1",
+        "source-manifest.json": "62c9abefd163c06567816bd52a3796ccc82b00c7f04df7bbf4a89408e298654a"
+      }
+    },
+    {
+      "name": "current-worktree-logical-restore",
+      "archive": "current-worktree-logical-restore.tar.gz",
+      "archive_sha256": "ad9e902380fd040cea9f3ff0220fbbfb69c6743b3e00fa472e4ffdfc6f528411",
+      "source_directory": "v0.49-current-worktree-logical-restore-local-20261103-r1",
+      "file_count": 21,
+      "uncompressed_bytes": 2968241,
+      "compressed_bytes": 418105,
+      "source_files_sha256": {
+        "autonomous-bootstrap.log": "2990313b56a156cfca62a049323048eaf0f8c7a7ff387fb280533438eaeec1d8",
+        "compatibility.log": "8df513574f893f0294c1dec7628f651e3ba640d07156417471a72569d375c315",
+        "cross-cluster-state-after-recovery.json": "f36f1f87f5dff33ffd7227876fdf9a152b3aacbd50dd81bc9ffedaa41be9d8e4",
+        "cross-cluster-state-after.json": "fa0c08d39a47532c917ea1c849a0d7d1423494458452e1aa233bda28b55ba7e2",
+        "cross-cluster-state-before.json": "a8047861e304e097ff317375c91dfc23476f27a2197e03d94ad97321cae3b2db",
+        "history-retention-archive-restore.log": "91a6b165fe3322a21e2df897176b94ee587ce63cb2c415320ce1e074ff9297d2",
+        "idle-setup.log": "fc1375919c97c8a50a700542bd122fe69c66069d1dc91a476375e1c9a766085a",
+        "logical-restore-adapter-reinstall.log": "36b77f500c53a0a93ec38717cd3adf0cbd26da36781a94c2c9be9f5dda8e058d",
+        "logical-restore-guard.log": "6e876b4f1dc4cf45471dba4dcdedc5e3dcb08bbf79f3f8895e5d5bf9bbb47dcf",
+        "logical-restore-missing-guard-owner.log": "9e59edd290a48bb7987625a8cdeb454820bcd102fadd89c193ce22df3de907ef",
+        "logical-restore-preflight.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logical-restore-reconcile-replay.log": "9bebb919aac6aafadd65e80cbee56bbd9c8f0809c6a242055dc6110719b6d9a5",
+        "logical-restore-stream-definitions.json": "17fbc79d24e47ba73c22da7936a8d290ecd0de93167cbe98c52ae97e0ef04d52",
+        "logical-restore-temporal-probe-seed.log": "651eb616b2adf9e9726a35931a9a6bd05e7d5655964e4b7d5a2729e0990c905a",
+        "logical-restore.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "logical-retention-restore.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "observations.json": "f913fd9f6796ece05374f696d1da7190657455c34f0c5065957a314e19014eb3",
+        "populated-core-upgrade-rollback.log": "4c96f6be3e007501f472df00a0e9a7f92cb2e0dc9cb5a88e20476a6c4989595a",
+        "retention-archive-adapter-reinstall.log": "36b77f500c53a0a93ec38717cd3adf0cbd26da36781a94c2c9be9f5dda8e058d",
+        "retention-archive-reconcile-replay.log": "9bebb919aac6aafadd65e80cbee56bbd9c8f0809c6a242055dc6110719b6d9a5",
+        "source-manifest.json": "62c9abefd163c06567816bd52a3796ccc82b00c7f04df7bbf4a89408e298654a"
+      }
+    },
+    {
+      "name": "managed-fairness-current-worktree",
+      "archive": "managed-fairness-current-worktree.tar.gz",
+      "archive_sha256": "8317edba2476ded24ed2433c199b20dee01004e7c282281a00f3d994e3a51893",
+      "source_directory": "v0.49-managed-fairness-current-worktree-local-20261103-r1",
+      "file_count": 5,
+      "uncompressed_bytes": 2387421,
+      "compressed_bytes": 344047,
+      "source_files_sha256": {
+        "compatibility.log": "8df513574f893f0294c1dec7628f651e3ba640d07156417471a72569d375c315",
+        "managed-cycle-fairness-fresh.log": "3a5fc767e0f9d25dce86ae752745103950dac94926d699e6ee5c96699677dece",
+        "managed-cycle-fairness-upgrade.log": "3a5fc767e0f9d25dce86ae752745103950dac94926d699e6ee5c96699677dece",
+        "observations.json": "b9249879382a6532327e97df3adb2bfebc860bddf826d824c4df602375235461",
+        "populated-core-upgrade-rollback.log": "9ee279f767e085f82bed20405932cc3abc1af41b9091d2adfef5126aee6b3154"
+      }
+    }
+  ]
+}
