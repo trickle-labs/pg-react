@@ -13,13 +13,21 @@ v0.48 worker writes only through `mdm_steward.submit_policy_intent`; MDM remains
 the authority for each action. Live v0.47 qualification passed against pg-mdm
 v0.13.1 (extension version 0.14.0), which provides
 `mdm_steward.policy_cases_v1`; fixture qualification uses a separate schema.
-Support is limited to the approved 100-case pilot envelope. Production-scale
-resource and recovery limits remain unsupported; see the
+The v0.47 reader was qualified for the approved 100-case pilot. The separate
+v0.49.0 support profile is described below; it does not extend the old reader's
+qualification claim. See the
 [v0.48.0 release notes](../../docs/v0.48.0-release-notes.md).
 
-The v0.49 managed-escalation envelope has been selected but is not yet
-release-qualified. Keep production activation disabled until the exact-artifact
-qualification gates pass; see the [v0.49 qualification record](../../docs/v0.49-qualification.md).
+The v0.49.0 managed-escalation adapter is released for the limited operating
+profile in the [release notes](../../docs/v0.49.0-release-notes.md). Keep
+deployment within those limits. Retain coherent backups and matching binaries
+for at least 90 days, and keep automatic and React M21 pruning disabled until
+restore from an actually retained 90-day archive has passed. The
+[qualification record](../../docs/v0.49-qualification.md) links the evidence
+and documents the accepted release tradeoffs.
+
+Dated candidate measurements later in this guide preserve the raw status of
+each run. The release manifest records the final release decision separately.
 
 Install the SQL files in order:
 

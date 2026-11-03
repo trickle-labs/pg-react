@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "selected_raw_evidence": [
+    "paired-workload-physical-clone.tar.gz",
+    "logical-restore.tar.gz"
+  ],
+  "original_source_manifest": {
+    "recorded_source_commit": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+    "source_tree_commit_bound": false,
+    "file_count": 222,
+    "manifest_sha256": "a735ece87b9804fb5db9179fb5fab14c0ec29c20694bb5a37d81cf6268f77a0a"
+  },
+  "clean_candidate_comparison": {
+    "candidate_source_commit": "3ca1e2052ec962cc21740fae1abdcc13ffdd1f53",
+    "candidate_tree": "064c2b32c4140279701e08d801c98b2c553337b3",
+    "listed_file_hashes_matched": 222,
+    "missing": 0,
+    "mismatched": 0
+  },
+  "changes_after_workload_source_snapshot": [
+    {
+      "path": "tests/integrations/pg-mdm/time/audit.py",
+      "scope": "test harness only",
+      "change": "Adapt the upstream pg-mdm bootstrap fixture's single pg_trickle 0.108.3 pin to the candidate image default, and record source and adapted fixture hashes."
+    },
+    {
+      "path": "tests/integrations/pg-mdm/time/claimed_work.py",
+      "scope": "test harness only",
+      "change": "Clear a closed stdin handle before subprocess communicate cleanup."
+    }
+  ],
+  "candidate_ci": {
+    "run_id": 41685762545,
+    "head": "e776d38c61c50f81b45953ba9f68460aa5ec5990",
+    "head_tree": "18c768ee470bd9c1f1d720a093b143f0bd30feb9",
+    "merged_commit": "6173375101e917b756c3effe2991704f77b8b661",
+    "merged_tree": "18c768ee470bd9c1f1d720a093b143f0bd30feb9",
+    "result": "The PR candidate CI covers the harness-only changes. No runtime SQL, extension, or producer source changed after the workload snapshot."
+  }
+}

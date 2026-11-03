@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "release": "pg-react MDM adapter 0.49.0",
+  "release_decision": {
+    "status": "limited_release_owner_accepted",
+    "scope": "The supported initial profile in docs/v0.49.0-release-notes.md",
+    "owner_direction": "The sole maintainer delegated practical completion on 2026-11-03.",
+    "independent_review": {
+      "status": "waived",
+      "reason": "No separate maintainer was available. Focused internal review, exact candidate CI, and source-matched evidence were accepted as the practical release basis.",
+      "external_review_claimed": false
+    },
+    "post_release_follow_up": "Retain coherent backups and matching binaries for at least 90 days, then verify restore from an actually retained 90-day archive before enabling any pruning.",
+    "automatic_pruning_enabled": false,
+    "react_m21_pruning_enabled": false
+  },
+  "candidate_source": {
+    "merged_pr": 34,
+    "merge_commit": "6173375101e917b756c3effe2991704f77b8b661",
+    "tree": "18c768ee470bd9c1f1d720a093b143f0bd30feb9",
+    "qualification_source_commit": "3ca1e2052ec962cc21740fae1abdcc13ffdd1f53",
+    "runtime_sources_unchanged_since_qualification": true,
+    "source_reconciliation": "source-reconciliation.json"
+  },
+  "candidate_ci": {
+    "pull_request_checks": {
+      "passed": 9,
+      "failed": 0,
+      "skipped": 1,
+      "skipped_job": "tag-only publication"
+    },
+    "run_id": 41685762545,
+    "head": "e776d38c61c50f81b45953ba9f68460aa5ec5990",
+    "head_tree_matches_merge_tree": true,
+    "conclusion": "success",
+    "artifact_name": "mdm-clone-activation-candidate-evidence",
+    "artifact_size_bytes": 5293500,
+    "artifact_digest": "sha256:e478b53be0e1c266f7761ce8b6221d5287039d2baf6009176d3c04601de48295",
+    "full_audit": {
+      "assertions": 53,
+      "passed": 53,
+      "failed": 0,
+      "entry_decision": "QUALIFICATION_INCOMPLETE",
+      "release_qualified": false
+    },
+    "focused_lanes": {
+      "clean_clone": "8/8, repeated",
+      "direct_clean_clone": "7/7, repeated",
+      "claimed_work": "24/24, repeated",
+      "autonomous_recurrence": "11/11, repeated",
+      "logical_restore": "48/48, repeated",
+      "producer_wheel": "18/18"
+    }
+  },
+  "runtime": {
+    "postgresql": "18.4",
+    "pg_react": {
+      "extension_version": "0.46.1",
+      "shared_library_sha256": "34a46bbf37c3dcc327d156ae24663af44ca89f8bec0d634dd65f357b7711a4f5"
+    },
+    "pg_mdm": {
+      "extension_version": "0.14.2",
+      "source_commit": "ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3",
+      "source_archive_sha256": "d5ef46335ac1e3a1c8255548f388e3b6949dbe8bfb7377fa8c790788754544aa",
+      "shared_library_sha256": "98b55d51d05e11bbdc26b240165c93f1a6e5dc2908ff11c1a14f339cd75e7ebb"
+    },
+    "pg_trickle": {
+      "extension_version": "0.108.4",
+      "source_commit": "eb44093bbeca4f276a92733fe2bbc740d8ef254a",
+      "source_archive_sha256": "c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487",
+      "shared_library_sha256": "eb5c0789d293e62403f82c2c45819fc204b0e05fe6533e3847956ecb59f63a00"
+    },
+    "producer_wheel": {
+      "file": "pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl",
+      "sha256": "1548bd7aa775001159ed87221dc4c3f2ad2871208861ded99d40d7a28e25a0d5",
+      "producer_module_sha256": "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b",
+      "installed_module_sha256": "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b",
+      "checks": 18
+    }
+  },
+  "selected_profile": {
+    "admissions": 300,
+    "offered_rate_per_minute": 60,
+    "accepted_floor_per_minute": 40,
+    "simultaneously_due_cases": 1000,
+    "claims_per_cycle_max": 32,
+    "poll_interval_ms": 1000,
+    "maximum_escalation_level": 2,
+    "due_latency_p95_seconds_max": 150,
+    "due_latency_max_seconds": 180,
+    "outage_seconds_max": 120,
+    "recovery_seconds_max": 180,
+    "sampled_memory_bytes_max_exclusive": 4294967296,
+    "wal_bytes_max": 4294967296,
+    "row_writes_max": 10000000,
+    "supervised_storage_bytes_max_exclusive": 10737418240,
+    "request_key_receipt_retention_days_minimum": 90
+  },
+  "evidence_bundles": [
+    {
+      "path": "autonomous-recurrence-cross-generation.tar.gz",
+      "sha256": "48d9b8a8c5246af37a5afb2970fc4a01c53fd110a7f3ccb77941dc3bb4a3c189"
+    },
+    {
+      "path": "logical-restore.tar.gz",
+      "sha256": "07e6f3a8bea4efd91dad9e7a9b4c3b95e20eed219980903e187572527aea08e3"
+    },
+    {
+      "path": "managed-fairness.tar.gz",
+      "sha256": "26fbc75a49efd5caf955be90cd1da58f31bb1f442d0c90bf8a580212f6eb334a"
+    },
+    {
+      "path": "paired-workload-physical-clone.tar.gz",
+      "sha256": "90c24eae73f03e419ad8dc6e242e92e8c1be871364585cd6e5d4e468363fe99d"
+    }
+  ]
+}

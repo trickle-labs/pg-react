@@ -1,0 +1,154 @@
+name: Release pg-react MDM adapter v0.49.0
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/v0.49.0-release.yml
+      - docs/v0.49.0-release-notes.md
+      - docs/v0.49-qualification.md
+      - integrations/pg-mdm/**
+      - plans/v0.49-qualification-profile.json
+      - plans/v0.49-supported-operating-envelope.json
+      - plans/v0.49.0.md
+      - tests/integrations/pg-mdm/evidence/v0.49.0/**
+  workflow_dispatch:
+  push:
+    tags:
+      - v0.49.0
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Validate release decision and source identity
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          manifest=tests/integrations/pg-mdm/evidence/v0.49.0/manifest.json
+          reconciliation=tests/integrations/pg-mdm/evidence/v0.49.0/source-reconciliation.json
+          jq -e '
+            .release == "pg-react MDM adapter 0.49.0" and
+            .release_decision.status == "limited_release_owner_accepted" and
+            .release_decision.independent_review.status == "waived" and
+            .release_decision.independent_review.external_review_claimed == false and
+            .release_decision.automatic_pruning_enabled == false and
+            .release_decision.react_m21_pruning_enabled == false and
+            .candidate_source.merge_commit == "6173375101e917b756c3effe2991704f77b8b661" and
+            .candidate_source.tree == "18c768ee470bd9c1f1d720a093b143f0bd30feb9" and
+            .candidate_ci.run_id == 41685762545 and
+            .candidate_ci.conclusion == "success" and
+            .candidate_ci.full_audit.assertions == 53 and
+            .candidate_ci.full_audit.passed == 53 and
+            .candidate_ci.full_audit.failed == 0 and
+            .candidate_ci.full_audit.release_qualified == false and
+            .runtime.producer_wheel.checks == 18 and
+            .selected_profile.accepted_floor_per_minute == 40 and
+            .selected_profile.offered_rate_per_minute == 60 and
+            ([.evidence_bundles[].path] | sort) == [
+              "autonomous-recurrence-cross-generation.tar.gz",
+              "logical-restore.tar.gz",
+              "managed-fairness.tar.gz",
+              "paired-workload-physical-clone.tar.gz"
+            ]
+          ' "$manifest"
+          jq -e '
+            .original_source_manifest.file_count == 222 and
+            .clean_candidate_comparison.listed_file_hashes_matched == 222 and
+            .clean_candidate_comparison.missing == 0 and
+            .clean_candidate_comparison.mismatched == 0 and
+            .candidate_ci.head_tree == .candidate_ci.merged_tree
+          ' "$reconciliation"
+          test "$(git rev-parse '6173375101e917b756c3effe2991704f77b8b661^{tree}')" = "18c768ee470bd9c1f1d720a093b143f0bd30feb9"
+          git diff --quiet 3ca1e2052ec962cc21740fae1abdcc13ffdd1f53 "$GITHUB_SHA" -- src sql integrations/pg-mdm/sql integrations/pg-mdm/bounded_refresh_producer.py integrations/pg-mdm/retention_guard_monitor.py integrations/pg-mdm/systemd
+          gh run view 41685762545 --json conclusion,event,headSha --jq '.conclusion == "success" and .event == "pull_request" and .headSha == "e776d38c61c50f81b45953ba9f68460aa5ec5990"' | grep -qx true
+          gh api "repos/$GITHUB_REPOSITORY/git/commits/e776d38c61c50f81b45953ba9f68460aa5ec5990" --jq '.tree.sha == "18c768ee470bd9c1f1d720a093b143f0bd30feb9"' | grep -qx true
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/41685762545/artifacts" | jq -e --arg digest "sha256:e478b53be0e1c266f7761ce8b6221d5287039d2baf6009176d3c04601de48295" 'any(.artifacts[]; .name == "mdm-clone-activation-candidate-evidence" and .expired == false and .digest == $digest)'
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+        with:
+          name: mdm-clone-activation-candidate-evidence
+          run-id: 41685762545
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: candidate-ci
+      - name: Verify candidate audit, producer wheel, and local evidence
+        run: |
+          set -euo pipefail
+          manifest=tests/integrations/pg-mdm/evidence/v0.49.0/manifest.json
+          jq -e '
+            .entry_decision == "QUALIFICATION_INCOMPLETE" and
+            .release_qualified == false and
+            (.checks | length) == 53 and
+            all(.checks[]; .result == "passed")
+          ' candidate-ci/full/observations.json
+          jq -e '
+            (.checks | length) == 18 and
+            all(.checks[]; .result == "passed") and
+            .bounded_producer_installed_wheel.wheel_sha256 == "1548bd7aa775001159ed87221dc4c3f2ad2871208861ded99d40d7a28e25a0d5" and
+            .bounded_producer_installed_wheel.installed_module_sha256 == "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b"
+          ' candidate-ci/producer-wheel/observations.json
+          wheel=candidate-ci/producer-wheel/pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl
+          test "$(sha256sum "$wheel" | cut -d ' ' -f 1)" = "1548bd7aa775001159ed87221dc4c3f2ad2871208861ded99d40d7a28e25a0d5"
+          test "$(unzip -p "$wheel" bounded_refresh_producer.py | sha256sum | cut -d ' ' -f 1)" = "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b"
+          jq -r '.evidence_bundles[] | [.sha256, "tests/integrations/pg-mdm/evidence/v0.49.0/" + .path] | join("  ")' "$manifest" > evidence.SHA256SUMS
+          sha256sum --check evidence.SHA256SUMS
+      - name: Build source and evidence assets
+        run: |
+          set -euo pipefail
+          git archive --format=tar --prefix=pg-react-v0.49.0-source/ "$GITHUB_SHA" | gzip -n -9 > pg-react-v0.49.0-source.tar.gz
+          mkdir -p v0.49.0-release-evidence/ci v0.49.0-release-evidence/local
+          cp -R candidate-ci/. v0.49.0-release-evidence/ci/
+          cp tests/integrations/pg-mdm/evidence/v0.49.0/manifest.json tests/integrations/pg-mdm/evidence/v0.49.0/source-reconciliation.json v0.49.0-release-evidence/
+          cp tests/integrations/pg-mdm/evidence/v0.49.0/*.tar.gz v0.49.0-release-evidence/local/
+          cp docs/v0.49-qualification.md docs/v0.49.0-release-notes.md v0.49.0-release-evidence/
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner -C v0.49.0-release-evidence -cf - . | gzip -n -9 > pg-react-v0.49.0-evidence.tar.gz
+          cp candidate-ci/producer-wheel/pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl
+          sha256sum pg-react-v0.49.0-source.tar.gz pg-react-v0.49.0-evidence.tar.gz pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl > pg-react-v0.49.0.SHA256SUMS
+          sha256sum --check pg-react-v0.49.0.SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: pg-react-v0.49.0-release-assets
+          path: |
+            pg-react-v0.49.0-source.tar.gz
+            pg-react-v0.49.0-evidence.tar.gz
+            pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl
+            pg-react-v0.49.0.SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/tags/v0.49.0'
+    needs: package
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e
+        with:
+          name: pg-react-v0.49.0-release-assets
+          path: release-assets
+      - name: Verify tag and package checksums
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/tags/v0.49.0
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          cd release-assets
+          sha256sum --check pg-react-v0.49.0.SHA256SUMS
+      - name: Require unpublished release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: '! gh release view v0.49.0 >/dev/null 2>&1'
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v0.49.0 release-assets/pg-react-v0.49.0-source.tar.gz release-assets/pg-react-v0.49.0-evidence.tar.gz release-assets/pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl release-assets/pg-react-v0.49.0.SHA256SUMS --verify-tag --notes-file docs/v0.49.0-release-notes.md --title 'pg-react MDM adapter 0.49.0'
