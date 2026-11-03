@@ -1717,6 +1717,33 @@ def main():
         print("PASS: " + name, flush=True)
         return result
 
+    def current_mdm_bootstrap_fixture():
+        original = command("docker", "exec", container, "cat", "/tests/e2e.sql")
+        original_sha256 = command(
+            "docker", "exec", container, "sha256sum", "/tests/e2e.sql").split()[0]
+        old_pin = "CREATE EXTENSION pg_trickle VERSION '0.108.3';"
+        if original.count(old_pin) != 1:
+            raise AssertionError(
+                "pinned pg-mdm e2e.sql must contain exactly one pg_trickle 0.108.3 install")
+        adapted = original.replace(old_pin, "CREATE EXTENSION pg_trickle;", 1)
+        target = "/tests/e2e-current-pgtrickle.sql"
+        adapted_path = output / "mdm-e2e-current-pgtrickle.sql"
+        adapted_path.write_text(adapted)
+        command("docker", "cp", str(adapted_path), container + ":" + target)
+        adapted_sha256 = hashlib.sha256(adapted_path.read_bytes()).hexdigest()
+        candidate_version = sql(
+            "SELECT default_version FROM pg_available_extensions WHERE name='pg_trickle'",
+            "postgres")
+        observations["mdm_e2e_bootstrap_fixture"] = {
+            "source_path": "/tests/e2e.sql",
+            "source_sha256": original_sha256,
+            "adapted_path": target,
+            "adapted_sha256": adapted_sha256,
+            "candidate_pg_trickle_version": candidate_version,
+            "change": "replace the upstream 0.108.3 pin with the candidate image default",
+        }
+        return target
+
     def cases():
         return json.loads(sql("SELECT jsonb_agg(to_jsonb(c) ORDER BY c.case_key) "
                               "FROM mdm_steward.policy_cases_v1 c"))
@@ -4777,7 +4804,8 @@ def main():
             "SELECT jsonb_agg(to_jsonb(e) ORDER BY cycle) FROM cycle_bound.evidence e", "s1_cycle_bound"))
         fixture("refresh-permission", "/work/tests/integrations/pg-mdm/time/refresh-permission.sql", "s1_compatibility")
         producer_archive = (observations["image_labels"] or {}).get("pg_trickle.source_archive_sha256")
-        fixture("mdm-bootstrap", "/tests/e2e.sql", "postgres",
+        mdm_bootstrap_file = current_mdm_bootstrap_fixture()
+        fixture("mdm-bootstrap", mdm_bootstrap_file, "postgres",
                 ("-v", "producer_artifact_sha256=" + producer_archive) if producer_archive else ())
         fixture("mdm-policy-fixtures", "/tests/e2e_policy.sql")
         observations["mdm_entry_cases"] = json.loads(sql(
@@ -4789,8 +4817,9 @@ def main():
         observations["mdm_entry_cases"] = json.loads(sql(
             "SELECT jsonb_agg(to_jsonb(c) ORDER BY case_key) FROM mdm_steward.policy_cases_v1 c", "foundation"))
         observations["fixture_sha256"] = command("docker", "exec", container, "sha256sum",
-            "/tests/e2e.sql", "/tests/e2e_policy.sql", "/usr/lib/postgresql/18/lib/pg_react.so",
-            "/usr/lib/postgresql/18/lib/pg_mdm.so", "/usr/lib/postgresql/18/lib/pg_trickle.so").splitlines()
+            "/tests/e2e.sql", mdm_bootstrap_file, "/tests/e2e_policy.sql",
+            "/usr/lib/postgresql/18/lib/pg_react.so", "/usr/lib/postgresql/18/lib/pg_mdm.so",
+            "/usr/lib/postgresql/18/lib/pg_trickle.so").splitlines()
         sql("ALTER DATABASE foundation ALLOW_CONNECTIONS false", "postgres")
         sql("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='foundation'", "postgres")
         try:
