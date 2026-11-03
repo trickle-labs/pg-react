@@ -143,7 +143,7 @@
     "if_operator_retention_is_enabled": "Use no cutoff shorter than the full occurrence lifetime plus 90 days; retain MDM-owned keys, bodies, and receipts for the same horizon.",
     "release_timing_decision_2026_11_03": {
       "retention_promise_changes": false,
-      "qualification_target": "Use the existing controlled 10-CPU ARM64 Docker host with paired PostgreSQL candidate/control stacks; no separate customer application staging deployment is required.",
+      "qualification_target": "Use the existing controlled 10-CPU ARM64 Docker host with paired PostgreSQL candidate/control stacks; record container architecture separately and do not claim native ARM64 performance when the image runs under emulation. No separate customer application staging deployment is required.",
       "pre_release": "Configure coherent backups and matching-binary retention for at least 90 days; keep automatic and React M21 pruning disabled; pass simulated 89/91-day boundaries and exact-artifact staging restore/clone qualification.",
       "post_release_follow_up": "Verify restore from an actually retained 90-day archive before enabling any pruning.",
       "superuser_boundary": "Treat superusers as trusted infrastructure operators; alert on the daily retention-guard health check."
