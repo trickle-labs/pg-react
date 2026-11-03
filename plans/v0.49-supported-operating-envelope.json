@@ -1037,6 +1037,18 @@
       "release_qualified": false,
       "evidence": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-candidate-local-20261103-r1/manifest.json"
     },
+    "current_managed_cycle_admission_and_fairness_2026_11_03": {
+      "react_commit": "24a0f2971af95f947afe0f9d7126592f8caf9a64",
+      "image_id": "sha256:a2ae0ba5e2c9f9c01b2c1ad9f8fa87e4756b9f932269fa1e5a90f596c06cc283",
+      "managed_admission_32_checks": 5,
+      "managed_fairness_checks": 9,
+      "fairness_claims_per_cycle": 1,
+      "selected_workload_claims_per_cycle": 32,
+      "image_platform": "linux/amd64 under emulation on the ARM64 host",
+      "release_qualified": false,
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-managed-cycle-candidate-local-20261103-r1/manifest.json",
+      "scope": "Admission bound and focused age-window fairness pass. The one-claim fairness probe does not replace mixed-load fairness at the selected 32-claim profile or exact packaged CI."
+    },
     "post_release_follow_ups": [
       "Maintain coherent backups and matching binaries for at least 90 days; verify restore from an actually retained 90-day archive before enabling any pruning."
     ],

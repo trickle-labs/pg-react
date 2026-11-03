@@ -1,0 +1,100 @@
+{
+  "archive": {
+    "file_count": 11,
+    "path": "managed-cycle-candidate-local-20261103-r1.tar.gz",
+    "round_trip_verified": true,
+    "sha256": "2dd186e4b2e3c6f960b56f6327938df224caf1d95efe4bdcfd0f28262082a7a7"
+  },
+  "artifacts": {
+    "managed-admission-32-run.log": "5294068fe4af8bdec2998949123c3c943ec98e1f9f8977cc398cc7b658aeb0c0",
+    "managed-admission-32/compatibility.log": "8df513574f893f0294c1dec7628f651e3ba640d07156417471a72569d375c315",
+    "managed-admission-32/managed-cycle-admission-bound-32.log": "4f4ae4ac08f3ed00169d564490dd91444806f697218d1aafac873c8194cab989",
+    "managed-admission-32/observations.json": "88a2513df1ed85e71895e02840e4647e01a540bccb858f8aeb4636ba38da7a4f",
+    "managed-admission-32/populated-core-upgrade-rollback.log": "abf8e5e79409798aa1e93fdfd7e571d8fb1d15cb3ded6aba9ebd6bbca2109099",
+    "managed-fairness-run.log": "2b0e032995dc72738c705720508a9a7f801b541ba462d758797e267a4c33cdf5",
+    "managed-fairness/compatibility.log": "8df513574f893f0294c1dec7628f651e3ba640d07156417471a72569d375c315",
+    "managed-fairness/managed-cycle-fairness-fresh.log": "3a5fc767e0f9d25dce86ae752745103950dac94926d699e6ee5c96699677dece",
+    "managed-fairness/managed-cycle-fairness-upgrade.log": "3a5fc767e0f9d25dce86ae752745103950dac94926d699e6ee5c96699677dece",
+    "managed-fairness/observations.json": "672e20906c7a23041407618b01464fe5d37ae07ea0f187415541f0b6079ac867",
+    "managed-fairness/populated-core-upgrade-rollback.log": "e791b9c5f5eaf58068453e2567bd9e01b9a7ff6ce2e723325c8e777a1fac3408"
+  },
+  "date": "2026-11-03",
+  "evidence_kind": "current_candidate_managed_admission_and_fairness",
+  "image": {
+    "checkout_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+    "host_cpu_count": 10,
+    "host_platform": "arm64",
+    "id": "sha256:a2ae0ba5e2c9f9c01b2c1ad9f8fa87e4756b9f932269fa1e5a90f596c06cc283",
+    "pg_mdm_source_revision": "ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3",
+    "pg_trickle_source_archive_sha256": "c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487",
+    "pg_trickle_source_revision": "eb44093bbeca4f276a92733fe2bbc740d8ef254a",
+    "platform": "linux/amd64",
+    "source_manifest_sha256": "a735ece87b9804fb5db9179fb5fab14c0ec29c20694bb5a37d81cf6268f77a0a"
+  },
+  "react_revision": "24a0f2971af95f947afe0f9d7126592f8caf9a64",
+  "release_qualified": false,
+  "runs": {
+    "managed_admission_32": {
+      "check_names": [
+        "compatibility",
+        "populated-core-upgrade-rollback",
+        "upgrade-state-only-temporal-reconciliation",
+        "fresh-adjacent-upgrade-compatibility",
+        "managed-cycle-admission-bound-32"
+      ],
+      "checks_failed": [],
+      "checks_passed": 5,
+      "entry_decision": "FOCUSED_MANAGED_CYCLE_ADMISSION_32",
+      "image_id": "sha256:a2ae0ba5e2c9f9c01b2c1ad9f8fa87e4756b9f932269fa1e5a90f596c06cc283",
+      "mode": "--managed-admission-32",
+      "observations_sha256": "88a2513df1ed85e71895e02840e4647e01a540bccb858f8aeb4636ba38da7a4f",
+      "react_revision": "24a0f2971af95f947afe0f9d7126592f8caf9a64",
+      "release_qualified": false,
+      "source_files": {
+        "tests/integrations/pg-mdm/time/audit.py": "f63158bb00298b3cf58bf0b9b35f8f908419146e104d1b3d968597d0e7d4d1f7",
+        "tests/integrations/pg-mdm/time/managed-admission-batch32.sql": "e63de0d51a3cf162400e9279b2d3a5a65531507311d0be1d464bcaa2ebcfdf09",
+        "tests/integrations/pg-mdm/time/managed-admission.sql": "0899f97711a1a5f0039ee9f2f2aadf15b001045177795be2a91cecb632dc74f2",
+        "tests/integrations/pg-mdm/time/managed-fairness.sql": "d5a71c2fae3f7f5ac788999cc9e0ec160dd0c5390ada685a92a6c6dfd4df9d96"
+      }
+    },
+    "managed_fairness": {
+      "check_names": [
+        "compatibility",
+        "populated-core-upgrade-rollback",
+        "upgrade-state-only-temporal-reconciliation",
+        "fresh-adjacent-upgrade-compatibility",
+        "managed-cycle-fairness-fresh",
+        "managed-cycle-fairness-upgrade",
+        "fresh-and-upgrade-managed-cycle-fairness",
+        "fresh-and-upgrade-global-claim-conflict-fairness",
+        "fresh-and-upgrade-concurrent-global-claim-fairness"
+      ],
+      "checks_failed": [],
+      "checks_passed": 9,
+      "entry_decision": "FOCUSED_MANAGED_CYCLE_FAIRNESS",
+      "image_id": "sha256:a2ae0ba5e2c9f9c01b2c1ad9f8fa87e4756b9f932269fa1e5a90f596c06cc283",
+      "mode": "--managed-fairness",
+      "observations_sha256": "672e20906c7a23041407618b01464fe5d37ae07ea0f187415541f0b6079ac867",
+      "react_revision": "24a0f2971af95f947afe0f9d7126592f8caf9a64",
+      "release_qualified": false,
+      "source_files": {
+        "tests/integrations/pg-mdm/time/audit.py": "f63158bb00298b3cf58bf0b9b35f8f908419146e104d1b3d968597d0e7d4d1f7",
+        "tests/integrations/pg-mdm/time/managed-admission-batch32.sql": "e63de0d51a3cf162400e9279b2d3a5a65531507311d0be1d464bcaa2ebcfdf09",
+        "tests/integrations/pg-mdm/time/managed-admission.sql": "0899f97711a1a5f0039ee9f2f2aadf15b001045177795be2a91cecb632dc74f2",
+        "tests/integrations/pg-mdm/time/managed-fairness.sql": "d5a71c2fae3f7f5ac788999cc9e0ec160dd0c5390ada685a92a6c6dfd4df9d96"
+      }
+    }
+  },
+  "schema_version": 1,
+  "scope_note": "Managed admission bound passed at 32 claims per cycle. Fairness passed the one-claim focused scheduler probe; this is not a 32-claim mixed-load fairness qualification, native ARM64 performance evidence, or complete v0.49 release qualification.",
+  "source_manifest_reconciliation": {
+    "change_is_test_harness_only": true,
+    "changed_files": [
+      "tests/integrations/pg-mdm/time/claimed_work.py"
+    ],
+    "matching_file_count": 221,
+    "missing_files": [],
+    "reference_file_count": 222,
+    "reference_manifest_sha256": "62c9abefd163c06567816bd52a3796ccc82b00c7f04df7bbf4a89408e298654a"
+  }
+}
