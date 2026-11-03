@@ -1,0 +1,13 @@
+
+
+{"state": "published", "policy_digest": "264e2e58cbf36bbb78b2d46a2fc21473dfdd36fe586ed179bc9e82ce4675a96d", "policy_package": {"routes": [{"level": 2, "action": "ESCALATE", "priority": 0, "entity_name": "policy_qualification", "reason_code": "ESTABLISHED_NEEDS_TWO_STRONG_CONNECTIONS"}]}, "policy_revision": "s1-idle-feasibility", "canonical_encoding_version": 1}
+(01a1a121-39a8-79fa-b47a-7a1721420561,3)
+01a1a121-39ba-76ec-a6c2-58a2314cf453|1
+1
+(01a1a121-39fa-7105-af5a-1496e2d20816,4)
+(01a1a121-4ea7-744d-8fb1-8b45c86d05e1,5)
+PASS: statement-time escalation defers without an intent or receipt
+7df80726-ceed-4b31-9d4b-8fdc1897600d
+
+
+a71962f1-52f9-4fb0-ae03-24e4809c7662

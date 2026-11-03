@@ -1023,6 +1023,20 @@
       "evidence_bundle": "tests/integrations/pg-mdm/evidence/v0.49-evidence-bundles-local-20261103/current-worktree-physical-clone-paired.tar.gz",
       "scope": "Source-file equivalence for prior paired workload, physical clone, outage, and logical restore diagnostics; this does not replace final candidate CI, review, package digest, or remaining #8/#11 acceptance."
     },
+    "post_reconciliation_test_harness_change_2026_11_03": {
+      "react_commit": "2a72b35ab81ee767e27ea42400c32ba929b66d5b",
+      "source_manifest_file_count": 222,
+      "candidate_tree_file_hashes_matched": 221,
+      "changed_files": ["tests/integrations/pg-mdm/time/claimed_work.py"],
+      "change_scope": "Test-helper-only Python 3.9 subprocess cleanup fix; no runtime SQL or extension source changed.",
+      "claimed_work_checks": 24,
+      "postmaster_crash_checks": 8,
+      "transport_loss_checks": 25,
+      "image_id": "sha256:a2ae0ba5e2c9f9c01b2c1ad9f8fa87e4756b9f932269fa1e5a90f596c06cc283",
+      "image_platform": "linux/amd64 under emulation on the ARM64 host",
+      "release_qualified": false,
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-candidate-local-20261103-r1/manifest.json"
+    },
     "post_release_follow_ups": [
       "Maintain coherent backups and matching binaries for at least 90 days; verify restore from an actually retained 90-day archive before enabling any pruning."
     ],

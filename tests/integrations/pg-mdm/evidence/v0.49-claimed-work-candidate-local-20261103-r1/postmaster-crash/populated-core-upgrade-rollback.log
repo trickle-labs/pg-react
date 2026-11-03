@@ -1,0 +1,3 @@
+
+0f9678ce-6f84-4b68-a952-e28003edf3e4
+PASS: upgrade STATE_ONLY temporal recovery preserved its pending deadline and cleared the barrier

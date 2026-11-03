@@ -1,0 +1,8 @@
+PASS: compatibility
+PASS: populated-core-upgrade-rollback
+PASS: upgrade STATE_ONLY temporal reconciliation
+PASS: fresh/adjacent-upgrade compatibility and callable privileges
+PASS: autonomous-bootstrap
+PASS: idle-setup
+PASS: claimed-work-setup
+PASS: concurrent claims and claimed-work pause/edit/deadline/replacement matrix
