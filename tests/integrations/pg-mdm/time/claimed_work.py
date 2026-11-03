@@ -179,6 +179,8 @@ def qualify(sql, command, fixture, container, observations, postmaster_crash=Fal
             "'blockers',pg_blocking_pids(pid)) FROM pg_stat_activity WHERE application_name='" + name + "'),'null')")
 
     def finish(process):
+        if process.stdin is not None and process.stdin.closed:
+            process.stdin = None
         out, error = process.communicate(timeout=35)
         assert process.returncode == 0, (out, error)
         return out.strip()
