@@ -3,8 +3,8 @@
   "issue": "https://github.com/trickle-labs/pg-react/issues/12",
   "approval": {
     "owner": "grove",
-    "date": "2026-10-26",
-    "source": "Owner authorized recommended numeric qualification limits in the issue #12 implementation conversation on 2026-10-26, then explicitly approved 32 claims per release-workload cycle while retaining the one-claim safety regression.",
+    "date": "2026-10-28",
+    "source": "Owner authorized the numeric qualification limits and 32 claims per release-workload cycle on 2026-10-26, retaining one claim for the focused safety regression. On 2026-10-28 the requester settled 40 cases/minute as the candidate throughput floor; 60/minute remains the offered workload and target.",
     "scope": "Candidate qualification thresholds; production activation and release acceptance remain separate."
   },
   "poll_interval_ms": 1000,
@@ -14,7 +14,9 @@
   "maximum_escalation_level": 2,
   "workload_cases": 300,
   "offered_cases_per_minute": 60,
-  "minimum_cases_per_minute": 45,
+  "minimum_cases_per_minute": 40,
+  "source_admissions_per_mdm_refresh": 5,
+  "source_refresh_transaction_boundary": "Commit each five-admission source batch before a separate mdm.refresh call",
   "simultaneous_due_burst_cases": 1000,
   "due_burst_p95_seconds": 150,
   "due_burst_max_seconds": 180,
@@ -22,6 +24,7 @@
   "backlog_drain_max_seconds": 180,
   "outage_max_seconds": 120,
   "recovery_max_seconds": 180,
+  "postgres_restart_activation": "After every restart, the entity execution role rechecks and reconciles each enabled binding before dispatch resumes; include this step in the 180-second recovery window.",
   "peak_memory_limit_bytes_exclusive": 4294967296,
   "wal_limit_bytes_inclusive": 4294967296,
   "row_writes_limit_inclusive": 10000000,
@@ -30,12 +33,59 @@
   "unauthorized_controls_allowed": 0,
   "preserve_original_deadlines": true,
   "explicit_restore_and_clone_activation": true,
-  "receipt_retention": "Retain request keys, canonical request bodies and applied-level receipts throughout the occurrence lifetime and for at least 90 days after it ends; retain coherent backups across that recovery horizon. No automatic pruning is introduced.",
+  "receipt_retention": "Retain request keys, canonical request bodies and applied-level receipts throughout the occurrence lifetime and for at least 90 days after it ends; retain coherent backups across that recovery horizon. No automatic pruning is introduced. Keep React's operator retention policy disabled for this profile; if enabling it under a separately approved policy, do not apply cutoffs shorter than the full occurrence lifetime plus 90 days, and retain MDM-owned keys, bodies and receipts for the same horizon.",
   "retention_after_occurrence_days_minimum": 90,
+  "completed_measurements": [
+    {
+      "name": "Exact-current-joint-stack paired 300-case qualification bound to the five-admission source-refresh path and updated profile, including every non-throughput gate",
+      "completed_date": "2026-10-30",
+      "result": "Both candidate and control passed all 32 measured workload checks; release qualification remains open.",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-workload-recovery-supported-batch5-profile-reconciled-local-20261030/summary.json"
+    },
+    {
+      "name": "Deadline-stratified mixed-backlog fairness probe under the five-admission source-refresh cadence",
+      "completed_date": "2026-10-30",
+      "result": "Candidate 0.108.4 and control 0.108.3 each passed all 33 measured checks; all four 250-case deadline strata passed their per-stratum latency limits. General production-path fairness remains open.",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-deadline-strata-fairness-local-20261030/summary.json"
+    },
+    {
+      "name": "Continuous deadline-ramp mixed-backlog fairness probe under the five-admission source-refresh cadence",
+      "completed_date": "2026-10-31",
+      "result": "Candidate 0.108.4 and control 0.108.3 each passed all 33 measured checks with 1,000 deadlines ramped across 80 seconds; all four 250-case strata passed their p95 and maximum latency limits. This is a harness-only caller-batching diagnostic, not a qualified production intake path; release qualification remains open.",
+      "qualification_profile_sha256": "cb712add8872c9bded2b432a1e9db83f62528a21807ae969b6138a02af12f226",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-deadline-ramp-fairness-local-20261031/summary.json"
+    },
+    {
+      "name": "Current-source ARM64 Docker paired qualification with the installed bounded-refresh producer and a 120-second PostgreSQL outage",
+      "completed_date": "2026-11-02",
+      "result": "Candidate and control each passed 34/34 checks at 300 admissions offered near 60/minute with 1,000 simultaneously due cases. Both exceeded the 40/minute floor and stayed within measured outage, recovery, latency and resource limits. Release qualification remains open for a clean, commit-bound candidate wheel with exact-artifact CI/review, candidate restore/clone qualification and 90-day coherent recovery. Customer application adoption of the published v0.49 release is post-release.",
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-current-source-paired-outage-local-20261102-r1/summary.json"
+    },
+    {
+      "name": "Current-source paired candidate/control clean-clone recovery with one pending case",
+      "completed_date": "2026-11-02",
+      "result": "Candidate 0.108.4 and control 0.108.3 each passed all 8 recorded checks. Exact receipt replay, preactivation dispatch blocking, activation rejection controls, one pending-item drain and subsequent healthy worker cycles passed. This is a one-claim safety fixture, not workload-scale clone or production recovery; release qualification remains open.",
+      "qualification_profile_sha256": "86f3925dcd3d6308cf021fc207fdbf2adfca8091e3ba2ee9fbdf2037109d318c",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-current-source-clean-clone-paired-local-20261102-r1/summary.json"
+    },
+    {
+      "name": "Exact unpublished producer wheel paired mixed-load outage qualification",
+      "completed_date": "2026-11-03",
+      "result": "Candidate and control installed the same exact wheel SHA-256 5c4c212a3f6205e7d436ee0968ad9ce2e1286cd0ce25881160d4b416665ea3c2 and each passed 34/34 checks with 300 admissions, 1,000 simultaneously due cases, outage, recovery, latency, WAL, writes, memory and storage within the selected profile. Release qualification remains open for final-artifact restore/clone activation, coherent recovery across the 90-day horizon, and final source review/CI/release packaging. Application adoption is post-release.",
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-exact-wheel-paired-outage-local-20261103-r1/summary.json"
+    },
+    {
+      "name": "Exact producer-wheel candidate clean physical-clone recovery, candidate arm only",
+      "completed_date": "2026-11-03",
+      "result": "The candidate arm passed 33/33 checks with the exact unpublished producer wheel, 300 admissions and 1,000 due cases. The physical copy preserved database identity and complete case/receipt state; 1,000 due receipts drained after activation. The matched control was stopped by the host free-space guard before completion, so paired clone qualification remains open. Application images are not clean, commit-bound release artifacts; release qualification remains open.",
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-exact-wheel-paired-clean-clone-local-20261103-r1/summary.json"
+    }
+  ],
   "remaining_measurements": [
-    "Exact-current-joint-stack paired 300-case qualification, including every non-throughput gate",
-    "Mixed-backlog fairness and progress under churn",
-    "Workload-scale recovery time, row writes, WAL and peak memory against the approved numeric limits",
-    "Coherent recovery across the 90-day post-occurrence receipt/key retention horizon"
+    "Complete matched exact-wheel clean-clone qualification (the candidate arm passed; the control stopped at the host free-space guard), then qualify restore/clone activation against final clean commit-bound candidate artifacts and coherent backup recovery across the 90-day post-occurrence receipt/key retention horizon",
+    "Complete final source review, CI, and v0.49 release packaging; production application adoption of the published release is a post-release rollout item"
   ]
 }

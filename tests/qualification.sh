@@ -46,7 +46,7 @@ static_audit() {
     tests/v0.46.0-ddl-lock-order.sh \
     tests/m31-authorization.sql \
     contracts/MDM-STEWARDSHIP-1.json contracts/MDM-STEWARDSHIP-1-fixture.json \
-    tests/mdm_stewardship_contract.py integrations/pg-mdm/contract/README.md \
+    tests/mdm_stewardship_contract.py \
     tests/integrations/pg-mdm/contract/README.md showcase/mdm-stewardship/README.md \
     tests/m55-comparison.sql tests/m55-m35.sql tests/m55-benchmark.sh \
     tests/m55-benchmark-case.sh tests/m55-benchmark-case.sql \

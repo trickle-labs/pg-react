@@ -1,0 +1,1678 @@
+{
+  "schema_version": 1,
+  "issue": "https://github.com/trickle-labs/pg-react/issues/12",
+  "selection": {
+    "date": "2026-10-29",
+    "authority": "The requester delegated selection of the separate v0.49 supported operating envelope.",
+    "status": "SELECTED_NOT_QUALIFIED",
+    "qualification_profile": "plans/v0.49-qualification-profile.json",
+    "producer_interface": {
+      "selection_date": "2026-11-01",
+      "authority": "The requester delegated selection of the producer interface and directed the agent to use its judgment.",
+      "selected": "Installable pg-react-bounded-refresh-producer JSONL CLI",
+      "package_directory": "integrations/pg-mdm",
+      "deployment_model": "For pre-release qualification, pg-mdm staging writes an immutable JSONL input and invokes the CLI for that bounded batch; retries reuse the unchanged input. Build and install a clean, commit-bound unpublished v0.49 candidate wheel before publication. Customer application adoption of the published release is post-release.",
+      "local_package_build": {
+        "date": "2026-11-02",
+        "producer_source_sha256": "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b",
+        "pyproject_sha256": "fb1c51d329eb264f50e5d52b1cec55385c30831a4f1c82e4a7f42e0992fda77d",
+        "wheel_file": "pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl",
+        "wheel_sha256": "e62f1a59de54d0fa177dcebebdca7b61bd9a0147c05d353886ceb995ca2e8c7e",
+        "installed_module_sha256": "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b",
+        "installed_entrypoint_help_passed": true,
+        "working_tree_clean": false,
+        "runtime_audit_observations": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-current-source-wheel-local-20261102-r5/harness/producer-wheel-r5/observations.json",
+        "runtime_audit_summary": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-current-source-wheel-local-20261102-r5/summary.json",
+        "runtime_audit_manifest": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-current-source-wheel-local-20261102-r5/manifest.json",
+        "paired_workload_summary": "tests/integrations/pg-mdm/evidence/v0.49-current-source-json-replay-paired-outage-local-20261102-r1/summary.json",
+        "paired_workload_manifest": "tests/integrations/pg-mdm/evidence/v0.49-current-source-json-replay-paired-outage-local-20261102-r1/manifest.json",
+        "paired_candidate_observations": "tests/integrations/pg-mdm/evidence/v0.49-current-source-json-replay-paired-outage-local-20261102-r1/harness/candidate-postcap-r1/results/observations.json",
+        "paired_control_observations": "tests/integrations/pg-mdm/evidence/v0.49-current-source-json-replay-paired-outage-local-20261102-r1/harness/control-postcap-r1/results/observations.json",
+        "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+        "source_manifest_sha256": "18ce3756e8657ced6b301dfb76ada9ae4f2ab1156de45a6ec585e379c6fa800c",
+        "paired_source_manifest_sha256": "22ad540f7ae0d9f007654d828b6a212b268806ac8c44169bf352139489545bbc",
+        "observed_source_file_count": 56,
+        "runtime_checks_passed": 18,
+        "paired_checks_passed_each": 34,
+        "json_column_replay_exact": true,
+        "conflicting_json_replay_sqlstate": "23505",
+        "admissions_per_minute_offered": 59.999862,
+        "admissions_per_minute_completed": 59.851792,
+        "candidate_admissions_per_minute": 59.548061,
+        "control_admissions_per_minute": 59.57617,
+        "due_receipts_each": 1000,
+        "future_case_receipts_each": 0,
+        "candidate_due_p95_seconds": 95.234073,
+        "candidate_due_max_seconds": 97.120664,
+        "control_due_p95_seconds": 95.31273,
+        "control_due_max_seconds": 97.31273,
+        "candidate_outage_seconds": 110.168429,
+        "control_outage_seconds": 110.237208,
+        "candidate_recovery_and_drain_seconds": 46.456298,
+        "control_recovery_and_drain_seconds": 58.478109,
+        "raw_paired_entry_decision": "INPUT_BLOCKED",
+        "scope": "Current-source installed wheel passed 18 bounded-producer checks, including exact PostgreSQL json replay and conflicting-value rejection. The 300-admission run offered 59.999862/minute and completed 59.851792/minute. The same wheel passed 34/34 selected-profile outage checks on candidate and control, above the 40/minute floor, with all 1,000 due receipts and numeric latency, outage, recovery, and resource limits met. Raw paired status remains INPUT_BLOCKED because exact final artifacts and actual 90-day coherent recovery remain open. This selection treats customer-application adoption and production activation as post-publication rollout outcomes, not pre-release gates. Owner-negative fixtures are separately covered by pg-mdm PR #19 and were not rerun in the numeric pair.",
+        "release_qualified": false
+      },
+      "application_adoption_proven": false,
+      "application_adoption_scope": "This records actual customer-application rollout. The frozen v0.49 plan requires candidate qualification on the real stack, not production use of the unpublished version; production application adoption follows publication.",
+      "adoption_evidence_required": "Before publication, verify source and artifact identity in commit-bound CI/review on the existing controlled PostgreSQL 18 candidate/control Docker stack. Current local evidence covers the producer CLI, immutable five-admission batches, retries, 300 admissions, outage recovery, exact JSON replay, and candidate restore/clone activation. A separate customer-application deployment is not required; adoption and production activation follow publication.",
+      "pre_release_staging_target": {
+        "target": "The existing controlled 10-CPU ARM64 Docker host with paired PostgreSQL 18 candidate/control stacks; record container architecture, and do not claim native ARM64 performance when using an emulated image.",
+        "current_source_evidence": "The source-matched installed wheel passed 18/18 checks, the paired candidate/control workload and outage passed 34/34 per arm, logical restore passed 48/48, and the exact-wheel candidate clone passed 33/33.",
+        "status": "LOCAL_SOURCE_AND_RESTORE_EVIDENCE_COMPLETE_COMMIT_BOUND_CI_REVIEW_PENDING",
+        "exact_candidate_evidence": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-wheel-current-candidate-local-20261103-r2/manifest.json"
+      },
+      "previous_local_package_build": {
+        "date": "2026-11-02",
+        "python_version": "3.15.2",
+        "producer_source_sha256": "055935d936ad7884298ca356b48991205dc74b0a8a568b9f17556530ceadd61a",
+        "pyproject_sha256": "fb1c51d329eb264f50e5d52b1cec55385c30831a4f1c82e4a7f42e0992fda77d",
+        "wheel_file": "pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl",
+        "wheel_sha256": "8ca9bfbe299ad81c96bc5ba0b96be7a8ea5fa207fbda6ec8c3af761a81541e9c",
+        "installed_module_sha256": "055935d936ad7884298ca356b48991205dc74b0a8a568b9f17556530ceadd61a",
+        "installed_entrypoint_help_exit_code": 0,
+        "working_tree_clean": false,
+        "runtime_audit_observations": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/observations.json",
+        "paired_workload_observations": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/observations.json",
+        "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+        "scope": "The 19,661,400-byte total JSONL cap passed exact installed-wheel boundary checks and the candidate/control numeric workload passed 34/34 checks per arm. INPUT_BLOCKED and release_qualified=false remain valid because this is local candidate evidence; a clean commit-bound wheel, exact-artifact CI/review, candidate restore/clone qualification, and actual 90-day recovery remain open. Customer application adoption of the published release is post-release. The workload arms did not rerun the owner-negative fixtures, which are separately covered by merged pg-mdm PR #19.",
+        "paired_workload_manifest": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/manifest.json"
+      },
+      "earlier_local_package_build": {
+        "date": "2026-11-01",
+        "python_version": "3.15.2",
+        "producer_source_sha256": "6022c7c51e33cb798fd0fb75a399221358b50e90960b7fc0f48f127757df9d7e",
+        "pyproject_sha256": "fb1c51d329eb264f50e5d52b1cec55385c30831a4f1c82e4a7f42e0992fda77d",
+        "wheel_file": "pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl",
+        "wheel_sha256": "879d56a2285d9a4ad9d8c102286b8ab407c4016cf42708b28a25f79c5910243a",
+        "installed_module_sha256": "6022c7c51e33cb798fd0fb75a399221358b50e90960b7fc0f48f127757df9d7e",
+        "installed_entrypoint_help_exit_code": 0,
+        "runtime_audit_observations": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-installed-wheel-current-local-20261101-r3/observations.json",
+        "scope": "The exact installed wheel passed live admission/replay, PostgreSQL stop/start retry, a 300-admission workload, and the selected-profile paired outage workload with 1,000 simultaneously due cases (34/34 checks each; 59.182/59.216 observed cases per minute). This local reference-producer evidence does not qualify a clean commit-bound candidate wheel in pre-release staging, exact-artifact CI/review, candidate restore/clone activation, 90-day coherent retention, or release. Customer application adoption of the published release is post-release."
+      }
+    },
+    "production_activation_authorized": false,
+    "release_qualified": false
+  },
+  "intake": {
+    "admissions": 300,
+    "window_minutes": 5,
+    "offered_admissions_per_minute": 60,
+    "candidate_throughput_floor_per_minute": 40,
+    "throughput_floor_is_service_guarantee": false,
+    "producer_admissions_per_invocation_max": 300,
+    "simultaneously_due_cases": 1000,
+    "maximum_distinct_cases_if_admissions_and_due_cases_do_not_overlap": 1300,
+    "mdm_entity_per_refresh": 1,
+    "admissions_per_refresh": 5,
+    "source_rows_per_admission_max": 4,
+    "source_rows_per_refresh_max": 20,
+    "jsonl_payload_utf8_bytes_per_admission_max_excluding_line_ending": 65536,
+    "jsonl_input_bytes_per_invocation_max": 19661400,
+    "refresh_call": "mdm.refresh(entity_name, full_policy)",
+    "transaction_boundary": "Commit source changes before calling mdm.refresh in a separate transaction.",
+    "unbounded_batches_supported": false
+  },
+  "managed_execution": {
+    "poll_interval_ms": 1000,
+    "claims_per_cycle_max": 32,
+    "next_levels_per_case_evaluation_max": 1,
+    "maximum_escalation_level": 2
+  },
+  "service_limits_seconds": {
+    "due_receipt_latency_p95_max": 150,
+    "due_receipt_latency_max": 180,
+    "detection_and_dispatch_max": 180,
+    "backlog_drain_max": 180,
+    "postgres_outage_max": 120,
+    "recovery_max_including_binding_reconciliation": 180
+  },
+  "resource_limits": {
+    "qualification_host": "10-CPU ARM64 or separately approved equivalent",
+    "peak_sampled_memory_bytes_exclusive": 4294967296,
+    "wal_bytes_inclusive": 4294967296,
+    "row_writes_inclusive": 10000000,
+    "used_storage_bytes_exclusive": 10737418240
+  },
+  "retention": {
+    "request_keys_canonical_bodies_and_applied_level_receipts": "Retain throughout each occurrence and for at least 90 days after it ends.",
+    "coherent_backup_horizon_days_minimum": 90,
+    "automatic_pruning": false,
+    "react_operator_retention_policy_enabled": false,
+    "if_operator_retention_is_enabled": "Use no cutoff shorter than the full occurrence lifetime plus 90 days; retain MDM-owned keys, bodies, and receipts for the same horizon.",
+    "release_timing_decision_2026_11_03": {
+      "retention_promise_changes": false,
+      "qualification_target": "Use the existing controlled 10-CPU ARM64 Docker host with paired PostgreSQL candidate/control stacks; record container architecture separately and do not claim native ARM64 performance when the image runs under emulation. No separate customer application staging deployment is required.",
+      "pre_release": "Configure coherent backups and matching-binary retention for at least 90 days; keep automatic and React M21 pruning disabled. The backdated 89/91-day boundary check, current-source logical restore, paired workload/outage, and exact-wheel candidate clone are complete. The matched-control clone rerun is waived because the paired candidate/control workload and outage passed; finish commit-bound CI/review and package identity on the existing controlled stack.",
+      "post_release_follow_up": "Verify restore from an actually retained 90-day archive before enabling any pruning.",
+      "superuser_boundary": "Treat superusers as trusted infrastructure operators; alert on the daily retention-guard health check."
+    },
+    "current_source_boundary_audit": {
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-history-retention-current-source-arm64-local-20261101-r1/observations.json",
+      "mdm_source_revision": "ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3",
+      "pg_trickle_source_revision": "eb44093bbeca4f276a92733fe2bbc740d8ef254a",
+      "history_retention_fixture_sha256": "d6bf2241b4fa1aea509d4d4e019983c21a106db7a56b7f82ed31e1a699386304",
+      "intent_worker_sql_sha256": "920b9fc2a914187f5df73ae67b1c175af426120b97d2e19ac9cec7dced0890e8",
+      "drop_entity_before_horizon": {
+        "case_resolved_days": 89,
+        "receipt_created_days": 91,
+        "sqlstate": "55000",
+        "exact_managed_state_preserved": true
+      },
+      "after_horizon_pruning": {
+        "case_and_receipt_age_days": 91,
+        "eligible_pruning_succeeded": true,
+        "entity_drop_succeeded": true
+      },
+      "age_was_simulated_by_timestamps": true,
+      "actual_90_day_archive_and_restore_qualified": false
+    }
+  },
+  "safety": {
+    "duplicate_controls_allowed": 0,
+    "unauthorized_controls_allowed": 0,
+    "preserve_original_deadlines": true,
+    "restore_and_clone_require_explicit_activation": true
+  },
+  "qualification": {
+    "local_candidate_and_control_workload_checks": "32 each passed",
+    "local_deadline_strata_fairness_checks": "33 each passed",
+    "local_deadline_ramp_fairness_checks": "33 each passed",
+    "local_reference_producer_case_run": {
+      "admissions": 300,
+      "source_rows": 1200,
+      "source_rows_per_admission": 4,
+      "admissions_per_refresh": 5,
+      "refresh_calls": 60,
+      "cases_opened": 300,
+      "reviews_opened": 300,
+      "offered_admissions_per_minute": 59.999271,
+      "completed_admissions_per_minute": 59.666452,
+      "elapsed_seconds": 301.677065,
+      "simultaneous_due_burst_cases": 0,
+      "release_qualified": false,
+      "status": "LOCAL_REFERENCE_PRODUCER_SUBSET",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-local-20261031-r11/observations.json"
+    },
+    "local_reference_producer_input_bounds": {
+      "source_rows_per_admission_max": 4,
+      "source_rows_per_refresh_max": 20,
+      "jsonl_payload_utf8_bytes_per_admission_max_excluding_line_ending": 65536,
+      "four_rows_accepted": true,
+      "five_rows_rejected_before_database_calls": true,
+      "payload_at_byte_limit_accepted": true,
+      "payload_over_byte_limit_rejected_before_json_parse": true,
+      "same_name_different_cluster_rejected_before_source_or_refresh": true,
+      "offered_admissions_per_minute": 59.998171,
+      "completed_admissions_per_minute": 59.656194,
+      "checks_passed": 14,
+      "producer_sha256": "6313d7671a2539f71611e0280313ed8274878b14b8f0057c18adefc4d0f57d6c",
+      "release_qualified": false,
+      "status": "LOCAL_REFERENCE_PRODUCER_BOUNDARY_AND_WORKLOAD_AUDIT",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-source-payload-cap-local-20261031-r1/observations.json"
+    },
+    "local_reference_producer_total_input_bound_2026_11_02": {
+      "date": "2026-11-02",
+      "max_admissions_per_invocation": 300,
+      "max_payload_bytes_per_admission": 65536,
+      "maximum_line_ending_bytes": 2,
+      "max_input_bytes_per_invocation": 19661400,
+      "exact_limit_accepted": true,
+      "limit_plus_one_rejected_before_database_calls": true,
+      "limit_plus_one_error": "ERROR: input exceeds supported maximum of 19661400 bytes",
+      "301_admissions_rejected_before_database_calls": true,
+      "producer_limits_match_supported_envelope": true,
+      "checks_passed": 7,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_BOUNDED_PRODUCER_INPUT_BYTES",
+      "release_qualified": false,
+      "producer_source_sha256": "055935d936ad7884298ca356b48991205dc74b0a8a568b9f17556530ceadd61a",
+      "audit_sha256": "091e56b8a386ac9a0570c2538512e2cdd1e77024c4315d4c6f9efbc78bb4d43e",
+      "supported_envelope_sha256": "e010c5062dd1cd1382edd24df1c8e2f2381aeff9ba5451e409db8634ee1543e6",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-local-20261102-r1/observations.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-local-20261102-r1/manifest.json"
+    },
+    "local_installed_producer_total_input_bound_2026_11_02": {
+      "date": "2026-11-02",
+      "producer_source_sha256": "055935d936ad7884298ca356b48991205dc74b0a8a568b9f17556530ceadd61a",
+      "producer_wheel_sha256": "8ca9bfbe299ad81c96bc5ba0b96be7a8ea5fa207fbda6ec8c3af761a81541e9c",
+      "installed_module_sha256": "055935d936ad7884298ca356b48991205dc74b0a8a568b9f17556530ceadd61a",
+      "pyproject_sha256": "fb1c51d329eb264f50e5d52b1cec55385c30831a4f1c82e4a7f42e0992fda77d",
+      "supported_envelope_sha256": "27c632820ef62fb72a63e97dbf6d88ebce6ad55de2f03646c206c0ae223b59ca",
+      "max_input_bytes_per_invocation": 19661400,
+      "exact_limit_accepted_with_300_admissions": true,
+      "limit_plus_one_cli_rejected_with_exact_error": "ERROR: input exceeds supported maximum of 19661400 bytes",
+      "fake_psql_invoked_for_over_limit_input": false,
+      "checks_passed": 5,
+      "checks_failed": 0,
+      "paired_workload_requalified_on_this_wheel": true,
+      "entry_decision": "INPUT_BLOCKED",
+      "release_qualified": false,
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/observations.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/manifest.json",
+      "wheel": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl",
+      "input_boundary_entry_decision": "LOCAL_INSTALLED_WHEEL_INPUT_BOUNDARY",
+      "paired_workload": {
+        "date": "2026-11-02",
+        "scope": "Freshly installed wheel; identical 300-admission and 1000-due workload with planned PostgreSQL outage on candidate and control images.",
+        "producer_source_sha256": "055935d936ad7884298ca356b48991205dc74b0a8a568b9f17556530ceadd61a",
+        "producer_wheel_sha256": "8ca9bfbe299ad81c96bc5ba0b96be7a8ea5fa207fbda6ec8c3af761a81541e9c",
+        "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+        "candidate": {
+          "run_name": "candidate-input-cap-r2",
+          "image_id": "sha256:2fc9eb364df605b089635f352daa92322d109eedf4616aa4145b4642b09b05f3",
+          "checks_total": 34,
+          "checks_passed": 34,
+          "checks_failed": 0,
+          "entry_decision": "INPUT_BLOCKED",
+          "release_qualified": false,
+          "intake": {
+            "admissions": 300,
+            "source_rows": 1200,
+            "refresh_calls": 60,
+            "batches": 60,
+            "batch_size_limit": 5,
+            "offered_admissions_per_minute": 59.997964,
+            "completed_admissions_per_minute": 59.587273,
+            "observed_case_rate_per_minute": 58.89406544820931,
+            "minimum_case_rate_per_minute": 40
+          },
+          "due_burst": {
+            "cases": 1000,
+            "receipt_p95_seconds": 97.745651,
+            "receipt_p95_limit_seconds": 150,
+            "receipt_max_seconds": 99.745651,
+            "receipt_max_limit_seconds": 180,
+            "latency_by_stratum": [
+              {
+                "due_stratum": 0,
+                "case_count": 250,
+                "receipt_count": 250,
+                "p95_limit_seconds": 150,
+                "max_limit_seconds": 180,
+                "p95_seconds": 98.831753,
+                "max_seconds": 99.745651,
+                "result": "passed"
+              },
+              {
+                "due_stratum": 1,
+                "case_count": 250,
+                "receipt_count": 250,
+                "p95_limit_seconds": 150,
+                "max_limit_seconds": 180,
+                "p95_seconds": 90.882249,
+                "max_seconds": 91.882249,
+                "result": "passed"
+              },
+              {
+                "due_stratum": 2,
+                "case_count": 250,
+                "receipt_count": 250,
+                "p95_limit_seconds": 150,
+                "max_limit_seconds": 180,
+                "p95_seconds": 82.093335,
+                "max_seconds": 82.093335,
+                "result": "passed"
+              },
+              {
+                "due_stratum": 3,
+                "case_count": 250,
+                "receipt_count": 250,
+                "p95_limit_seconds": 150,
+                "max_limit_seconds": 180,
+                "p95_seconds": 72.838838,
+                "max_seconds": 73.4295,
+                "result": "passed"
+              }
+            ]
+          },
+          "outage_and_recovery": {
+            "outage_seconds": 110.610395,
+            "outage_limit_seconds": 120,
+            "binding_reconciliation_seconds_after_postgres_ready": 0.965832,
+            "backlog_drain_seconds_after_postgres_ready": 47.542659,
+            "backlog_drain_limit_seconds": 180
+          },
+          "resources": {
+            "peak_sampled_memory_bytes": 1172254720,
+            "memory_limit_bytes": 4294967296,
+            "conservative_storage_bytes": 2012507516,
+            "storage_growth_bytes": 528286065,
+            "storage_limit_bytes": 10737418240,
+            "wal_delta_bytes": 364437804,
+            "wal_limit_bytes": 4294967296,
+            "row_writes_delta": 775849,
+            "row_writes_limit": 10000000
+          },
+          "supervision": {
+            "exit_code": 0,
+            "elapsed_seconds": 838.0216088750167,
+            "measurement_errors": [],
+            "stop_reason": null,
+            "supervision_error": null
+          },
+          "raw_observations": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/harness/candidate-input-cap-r2/results/observations.json",
+          "bounded_run": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/harness/candidate-input-cap-r2/bounded-run.json",
+          "raw_observations_sha256": "e31488643f8c88b8ac3a1282dff87707d8e9dd5d482c3aceec21b3744d090b7e",
+          "bounded_run_sha256": "4584f73cb6e020b429ce4ad494d829a6aac6d5123351d75b7ce11d7ec82a0bca"
+        },
+        "control": {
+          "run_name": "control-input-cap-r1",
+          "image_id": "sha256:9228b9a5cdde4bc39bed6fae38f5b40263427abbf13f6b246254732e304a388f",
+          "checks_total": 34,
+          "checks_passed": 34,
+          "checks_failed": 0,
+          "entry_decision": "INPUT_BLOCKED",
+          "release_qualified": false,
+          "intake": {
+            "admissions": 300,
+            "source_rows": 1200,
+            "refresh_calls": 60,
+            "batches": 60,
+            "batch_size_limit": 5,
+            "offered_admissions_per_minute": 59.99924,
+            "completed_admissions_per_minute": 59.546652,
+            "observed_case_rate_per_minute": 59.192997789319115,
+            "minimum_case_rate_per_minute": 40
+          },
+          "due_burst": {
+            "cases": 1000,
+            "receipt_p95_seconds": 95.184681,
+            "receipt_p95_limit_seconds": 150,
+            "receipt_max_seconds": 97.162941,
+            "receipt_max_limit_seconds": 180,
+            "latency_by_stratum": [
+              {
+                "due_stratum": 0,
+                "case_count": 250,
+                "receipt_count": 250,
+                "p95_limit_seconds": 150,
+                "max_limit_seconds": 180,
+                "p95_seconds": 96.184681,
+                "max_seconds": 97.162941,
+                "result": "passed"
+              },
+              {
+                "due_stratum": 1,
+                "case_count": 250,
+                "receipt_count": 250,
+                "p95_limit_seconds": 150,
+                "max_limit_seconds": 180,
+                "p95_seconds": 88.350168,
+                "max_seconds": 89.350168,
+                "result": "passed"
+              },
+              {
+                "due_stratum": 2,
+                "case_count": 250,
+                "receipt_count": 250,
+                "p95_limit_seconds": 150,
+                "max_limit_seconds": 180,
+                "p95_seconds": 80.168496,
+                "max_seconds": 80.168496,
+                "result": "passed"
+              },
+              {
+                "due_stratum": 3,
+                "case_count": 250,
+                "receipt_count": 250,
+                "p95_limit_seconds": 150,
+                "max_limit_seconds": 180,
+                "p95_seconds": 71.223595,
+                "max_seconds": 71.690314,
+                "result": "passed"
+              }
+            ]
+          },
+          "outage_and_recovery": {
+            "outage_seconds": 110.15965,
+            "outage_limit_seconds": 120,
+            "binding_reconciliation_seconds_after_postgres_ready": 0.343648,
+            "backlog_drain_seconds_after_postgres_ready": 46.081702,
+            "backlog_drain_limit_seconds": 180
+          },
+          "resources": {
+            "peak_sampled_memory_bytes": 1451880448,
+            "memory_limit_bytes": 4294967296,
+            "conservative_storage_bytes": 2099135814,
+            "storage_growth_bytes": 529648425,
+            "storage_limit_bytes": 10737418240,
+            "wal_delta_bytes": 367011470,
+            "wal_limit_bytes": 4294967296,
+            "row_writes_delta": 775771,
+            "row_writes_limit": 10000000
+          },
+          "supervision": {
+            "exit_code": 0,
+            "elapsed_seconds": 780.1749787080334,
+            "measurement_errors": [],
+            "stop_reason": null,
+            "supervision_error": null
+          },
+          "raw_observations": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/harness/control-input-cap-r1/results/observations.json",
+          "bounded_run": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/harness/control-input-cap-r1/bounded-run.json",
+          "raw_observations_sha256": "78763a3aa547bab41d0cd4000b1be445d5927f863496850d65d58cf1c8bbfa8f",
+          "bounded_run_sha256": "e387a68bad745e5d503b6b13cfab1e60101dc1502f4765d5c9ba6d034d877aaa"
+        },
+        "all_numeric_checks_passed": true,
+        "release_qualified": false,
+        "open_gates": [
+          "The exact final v0.49 artifact, restore/clone activation in staging, and coherent 90-day backup/receipt recovery remain unqualified."
+        ],
+        "post_release_rollout": [
+          "The actual deployed MDM application producer is absent from this repository; customer-application adoption remains unproven and follows publication."
+        ],
+        "execution_host": {
+          "docker_platform": "linux/arm64",
+          "docker_cpus": 10,
+          "docker_memory_bytes": 8319504384
+        },
+        "runtime_stack": {
+          "postgres_server_version_num": 180004,
+          "pg_react_version": "0.46.1",
+          "pg_react_checkout_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+          "pg_react_rust_source_revision": "90c7e17bb060a85166b6830394d1f0f0a7c7089a",
+          "pg_react_source_manifest_sha256": "9635a2d814846500c8724e5d83e54f3b5ae348e91d0c0a3065c9d3aa263de203",
+          "pg_react_install_sql_sha256": "f9181b0f110eab670fbd1db4628f5c3fca34b58e41185d87f4f358c16e644afb",
+          "pg_react_upgrade_sql_sha256": "2fd6590e4547c43abd6a6b31ac1f0948f9c9bff670530327f29974c126c2c1d4",
+          "pg_mdm_version": "0.14.2",
+          "pg_mdm_source_revision": "ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3",
+          "candidate_pg_trickle_version": "0.108.4",
+          "candidate_pg_trickle_source_revision": "eb44093bbeca4f276a92733fe2bbc740d8ef254a",
+          "control_pg_trickle_version": "0.108.3",
+          "control_pg_trickle_source_revision": "c7e257e551d6f6bacb84ecfe6f5daf7637c53673",
+          "candidate_pg_trickle_source_archive_sha256": "c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487",
+          "control_pg_trickle_source_archive_sha256": "d6233d49cee80d33ac30626e0af7932a9698279233b8fceef3447275192abc27",
+          "candidate_pg_react_install_sql_sha256": "f9181b0f110eab670fbd1db4628f5c3fca34b58e41185d87f4f358c16e644afb",
+          "control_pg_react_install_sql_sha256": "f9181b0f110eab670fbd1db4628f5c3fca34b58e41185d87f4f358c16e644afb",
+          "candidate_pg_react_upgrade_sql_sha256": "2fd6590e4547c43abd6a6b31ac1f0948f9c9bff670530327f29974c126c2c1d4",
+          "control_pg_react_upgrade_sql_sha256": "2fd6590e4547c43abd6a6b31ac1f0948f9c9bff670530327f29974c126c2c1d4"
+        },
+        "raw_audit_classification_note": "Both raw arms retain entry_decision=INPUT_BLOCKED because the captured audit assigns that label to every full-profile run. Its remaining_inputs text still lists owner outcomes and outage/envelope checks, although MDM PR #19 plus its passing final-commit CI settles the owner fixtures and this pair passes the numeric outage/recovery checks. Treat the raw label as a harness classification, not evidence that those two prerequisites are missing.",
+        "owner_fixture_prerequisite": {
+          "status": "owner decisions and negative receipt fixtures complete",
+          "mdm_pr": "https://github.com/trickle-labs/pg-mdm/pull/19",
+          "merged_commit": "06471e647ee54a80973fb5ad6709830f9955dbff",
+          "fixture_head_commit": "03aac7cde5d591870c4200e1b9a0f524ffdabff3",
+          "ci_run": "https://github.com/trickle-labs/pg-mdm/actions/runs/39285572518",
+          "ci_conclusion": "success",
+          "pinned_mdm_revision_in_workload_image": "ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3",
+          "contract_url_at_pinned_revision": "https://github.com/trickle-labs/pg-mdm/blob/ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3/contracts/MDM-STEWARDSHIP-1-v049-receipt-fixtures.md",
+          "contract_blob_sha": "45e364b28e20e64c6f2e34898df3eccc5b25ec27"
+        }
+      },
+      "open_gates": [
+        "The exact final v0.49 artifact, restore/clone activation in staging, and coherent 90-day backup/receipt recovery remain unqualified."
+      ],
+      "post_release_rollout": [
+        "The actual deployed MDM application producer is absent from this repository; customer-application adoption remains unproven and follows publication."
+      ],
+      "owner_fixture_prerequisite": {
+        "status": "owner decisions and negative receipt fixtures complete",
+        "mdm_pr": "https://github.com/trickle-labs/pg-mdm/pull/19",
+        "merged_commit": "06471e647ee54a80973fb5ad6709830f9955dbff",
+        "fixture_head_commit": "03aac7cde5d591870c4200e1b9a0f524ffdabff3",
+        "ci_run": "https://github.com/trickle-labs/pg-mdm/actions/runs/39285572518",
+        "ci_conclusion": "success",
+        "pinned_mdm_revision_in_workload_image": "ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3",
+        "contract_url_at_pinned_revision": "https://github.com/trickle-labs/pg-mdm/blob/ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3/contracts/MDM-STEWARDSHIP-1-v049-receipt-fixtures.md",
+        "contract_blob_sha": "45e364b28e20e64c6f2e34898df3eccc5b25ec27"
+      },
+      "raw_pair_classification_note": "Both raw arms retain entry_decision=INPUT_BLOCKED because the captured audit assigns that label to every full-profile run. Its remaining_inputs text still lists owner outcomes and outage/envelope checks, although MDM PR #19 plus its passing final-commit CI settles the owner fixtures and this pair passes the numeric outage/recovery checks. Treat the raw label as a harness classification, not evidence that those two prerequisites are missing."
+    },
+    "local_current_reference_producer_target_guard": {
+      "producer_sha256": "49935fd9e4c688e6ca78dd8ac6fc1cda935c60a353d858e67262d8963b539aa0",
+      "image_id": "sha256:bf90991ad82a43d1a27c5da28b2b89aba2b8099e6a928d332123967c708aedbf",
+      "react_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+      "admissions": 300,
+      "source_rows": 1200,
+      "refresh_calls": 60,
+      "offered_admissions_per_minute": 59.999522,
+      "completed_admissions_per_minute": 59.620092,
+      "live_target_change_rejected_before_source_commit_or_refresh": true,
+      "database_state_unchanged_after_target_change": true,
+      "same_name_different_cluster_rejected_before_writes_or_refresh": true,
+      "checks_passed": 16,
+      "checks_failed": 0,
+      "paired_control_run": false,
+      "deployed_producer_qualified": false,
+      "release_qualified": false,
+      "entry_decision": "FOCUSED_BOUNDED_CASE_PRODUCER_300_QUALIFIED",
+      "status": "LOCAL_CURRENT_SOURCE_REFERENCE_PRODUCER_AUDIT",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-target-guard-current-local-20261101-r2/observations.json"
+    },
+    "local_reference_producer_retry_deadline": {
+      "producer_sha256": "6022c7c51e33cb798fd0fb75a399221358b50e90960b7fc0f48f127757df9d7e",
+      "audit_sha256": "3e120ab795c3152743e2a0eacba676e3d2849557c7eeed12006162591a4c44c1",
+      "simulated_retry_window_seconds": 0.25,
+      "remaining_window_at_transaction_retry_seconds": 0.0625,
+      "backoff_capped_to_remaining_window": true,
+      "source_transaction_or_refresh_retried_after_expiry": false,
+      "checks_passed": 1,
+      "checks_failed": 0,
+      "database_calls_mocked": true,
+      "entry_decision": "FOCUSED_BOUNDED_PRODUCER_RETRY_DEADLINE",
+      "release_qualified": false,
+      "status": "LOCAL_REFERENCE_PRODUCER_RETRY_DEADLINE_REGRESSION",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-retry-deadline-current-local-20261101-r1/observations.json"
+    },
+    "local_clean_physical_clone_activation": {
+      "copied_active_database_setting": true,
+      "database_and_worker_oids_preserved": true,
+      "pre_activation_durable_changes": 0,
+      "unauthorized_stale_mismatched_and_unsupported_activation_rejected": true,
+      "pending_receipt_replayed_after_explicit_activation": true,
+      "checks_passed": 7,
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "release_qualified": false,
+      "status": "FOCUSED_ONE_OCCURRENCE_CLEAN_CLONE_RECOVERY",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-clean-clone-bounded-limits-current-local-20261031-r2/observations.json"
+    },
+    "local_clean_physical_clone_direct_submission": {
+      "direct_worker_submission_before_activation_rejected": true,
+      "durable_state_unchanged": true,
+      "checks_passed": 6,
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "release_qualified": false,
+      "status": "FOCUSED_CLEAN_CLONE_DIRECT_ACTIVATION_GUARD",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-clean-clone-direct-current-local-20261031-r2/observations.json"
+    },
+    "local_reference_producer_mixed_candidate_run": {
+      "admissions": 300,
+      "source_rows": 1200,
+      "source_refresh_batch_size": 5,
+      "refresh_calls": 60,
+      "simultaneously_due_cases": 1000,
+      "admissions_while_due_cases_remained": 56,
+      "offered_admissions_per_minute": 60.0,
+      "producer_completed_admissions_per_minute": 59.515511,
+      "observed_workload_admissions_per_minute": 59.179955,
+      "due_receipt_latency_p95_seconds": 95.337063,
+      "due_receipt_latency_max_seconds": 97.296839,
+      "postgres_outage_seconds": 110.381157,
+      "backlog_recovery_seconds_including_binding_reconciliation": 63.603197,
+      "binding_reconciliation_seconds_after_postgres_ready": 0.350317,
+      "combined_wal_growth_bytes": 469979280,
+      "combined_row_writes": 776631,
+      "peak_sampled_memory_bytes": 1456525312,
+      "conservative_used_storage_bytes_at_harness_completion": 2029957915,
+      "checks_passed": 34,
+      "matched_control_run": false,
+      "entry_decision": "INPUT_BLOCKED",
+      "release_qualified": false,
+      "status": "LOCAL_REFERENCE_PRODUCER_MIXED_CANDIDATE_ONLY",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-mixed-local-20261031-r1/summary.json"
+    },
+    "local_reference_producer_mixed_pair": {
+      "admissions": 300,
+      "source_rows": 1200,
+      "admissions_per_refresh": 5,
+      "refresh_calls_per_run": 60,
+      "simultaneous_due_cases": 1000,
+      "admissions_while_due_cases_remained": 80,
+      "checks_passed_each": 30,
+      "offered_admissions_per_minute": {
+        "candidate": 60.0,
+        "control": 60.0
+      },
+      "completed_admissions_per_minute": {
+        "candidate": 59.6970965342048,
+        "control": 59.74043121167636
+      },
+      "due_receipt_latency_p95_seconds": {
+        "candidate": 2.554382,
+        "control": 2.575898
+      },
+      "due_receipt_latency_max_seconds": {
+        "candidate": 2.698386,
+        "control": 2.676883
+      },
+      "wal_bytes": {
+        "candidate": 455488534,
+        "control": 453381726
+      },
+      "row_writes": {
+        "candidate": 766837,
+        "control": 766665
+      },
+      "peak_sampled_memory_bytes": {
+        "candidate": 1281347584,
+        "control": 1373736960
+      },
+      "conservative_used_storage_bytes": {
+        "candidate": 2109275915,
+        "control": 2062020736
+      },
+      "entry_decision": "INPUT_BLOCKED",
+      "deployed_producer_adoption_proven": false,
+      "release_qualified": false,
+      "status": "LOCAL_REFERENCE_PRODUCER_MIXED_CANDIDATE_CONTROL_PAIR",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-five-admission-refresh-overlap-timing-local-20261031/summary.json"
+    },
+    "local_reference_producer_outage_recovery_pair": {
+      "admissions": 300,
+      "simultaneous_due_cases": 1000,
+      "checks_passed_each": 33,
+      "postgres_outage_seconds": {
+        "candidate": 110.155,
+        "control": 110.255
+      },
+      "binding_reconciliation_seconds": {
+        "candidate": 0.343,
+        "control": 0.348
+      },
+      "backlog_drain_seconds": {
+        "candidate": 61.416,
+        "control": 64.083
+      },
+      "recovery_seconds_including_binding_reconciliation": {
+        "candidate": 61.759,
+        "control": 64.431
+      },
+      "completed_admissions_per_minute": {
+        "candidate": 59.756,
+        "control": 59.726
+      },
+      "due_receipt_latency_p95_seconds": {
+        "candidate": 95.792,
+        "control": 95.971
+      },
+      "due_receipt_latency_max_seconds": {
+        "candidate": 97.211,
+        "control": 97.215
+      },
+      "wal_bytes": {
+        "candidate": 471017544,
+        "control": 471531117
+      },
+      "row_writes": {
+        "candidate": 772750,
+        "control": 772680
+      },
+      "peak_sampled_memory_bytes": {
+        "candidate": 1139163136,
+        "control": 1139306496
+      },
+      "conservative_used_storage_bytes": {
+        "candidate": 2078429677,
+        "control": 2050663953
+      },
+      "producer_started_after_postgres_recovery": true,
+      "entry_decision": "INPUT_BLOCKED",
+      "deployed_producer_recovery_proven": false,
+      "release_qualified": false,
+      "status": "LOCAL_REFERENCE_PRODUCER_PLANNED_OUTAGE_PAIR",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-five-admission-outage-recovery-overlap-local-20261031/summary.json"
+    },
+    "local_installed_wheel_paired_outage_workload": {
+      "evidence_summary": "tests/integrations/pg-mdm/evidence/v0.49-installed-wheel-paired-outage-local-20261101-r1/summary.json",
+      "evidence_manifest": "tests/integrations/pg-mdm/evidence/v0.49-installed-wheel-paired-outage-local-20261101-r1/manifest.json",
+      "react_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+      "candidate_image_id": "sha256:ac4811ecc945acc7af593cff7f216505071838b440ad475f9dc104be3a9dd2fd",
+      "control_image_id": "sha256:716b867b9ace7df8644617622800f2b3f5311b49d8e1aad3679b8459fbdc2a9b",
+      "producer_wheel_sha256": "879d56a2285d9a4ad9d8c102286b8ab407c4016cf42708b28a25f79c5910243a",
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "admissions": 300,
+      "simultaneous_due_cases": 1000,
+      "checks_passed_each": 34,
+      "offered_admissions_per_minute": {
+        "candidate": 59.997958,
+        "control": 59.999714
+      },
+      "completed_admissions_per_minute": {
+        "candidate": 59.531581,
+        "control": 59.562009
+      },
+      "observed_case_throughput_per_minute": {
+        "candidate": 59.181786550049964,
+        "control": 59.21576359946019
+      },
+      "due_receipt_latency_p95_seconds": {
+        "candidate": 95.160639,
+        "control": 96.889823
+      },
+      "due_receipt_latency_max_seconds": {
+        "candidate": 97.125746,
+        "control": 98.386222
+      },
+      "postgres_outage_seconds": {
+        "candidate": 110.136525,
+        "control": 110.147236
+      },
+      "binding_reconciliation_seconds_after_ready": {
+        "candidate": 0.345073,
+        "control": 0.342012
+      },
+      "backlog_drain_seconds_after_ready": {
+        "candidate": 63.634314,
+        "control": 66.04724
+      },
+      "peak_sampled_memory_bytes": {
+        "candidate": 1255194624,
+        "control": 1517645824
+      },
+      "conservative_used_storage_bytes": {
+        "candidate": 2061769399,
+        "control": 2051702718
+      },
+      "wal_bytes": {
+        "candidate": 470916493,
+        "control": 467335289
+      },
+      "row_writes": {
+        "candidate": 776676,
+        "control": 776635
+      },
+      "raw_arm_entry_decisions": [
+        "INPUT_BLOCKED",
+        "INPUT_BLOCKED"
+      ],
+      "release_qualified": false,
+      "not_demonstrated": [
+        "Customer application adoption of the published v0.49 release (post-release).",
+        "Final-artifact production activation.",
+        "Coherent backup and matching-binary restore across the full 90-day retention horizon."
+      ],
+      "status": "LOCAL_SELECTED_PROFILE_INSTALLED_WHEEL_PAIRED_WORKLOAD_CHECKS_PASS"
+    },
+    "local_reference_producer_clean_clone_pair": {
+      "candidate": {
+        "image": "sha256:ac4811ecc945acc7af593cff7f216505071838b440ad475f9dc104be3a9dd2fd",
+        "extensions": {
+          "pg_react": "0.46.1",
+          "pg_mdm": "0.14.2",
+          "pg_trickle": "0.108.4"
+        },
+        "admissions": 300,
+        "source_rows": 1200,
+        "source_admissions_per_refresh": 5,
+        "refresh_calls": 60,
+        "simultaneous_due_cases": 1000,
+        "due_receipts": 1000,
+        "future_churn_receipts": 0,
+        "offered_admissions_per_minute": 60.0,
+        "completed_admissions_per_minute": 59.721944,
+        "admissions_while_due_cases_remained": 60,
+        "checks_passed": 33,
+        "checks_failed": 0,
+        "clean_physical_clone": {
+          "source_and_clone_system_identifiers_equal": true,
+          "source_and_clone_database_oids_equal": true,
+          "full_workload_case_and_receipt_state_equal_before_activation": true,
+          "copy_seconds": 0.791945,
+          "postgres_outage_seconds": 109.914311,
+          "postgres_outage_limit_seconds": 120,
+          "binding_reconciliation_seconds_after_postgres_ready": 0.514572,
+          "backlog_drain_seconds_after_postgres_ready": 64.075319,
+          "backlog_recovery_limit_seconds": 180
+        },
+        "resources": {
+          "combined_wal_bytes": 433201688,
+          "combined_wal_limit_bytes": 4294967296,
+          "combined_row_writes": 772006,
+          "combined_row_writes_limit": 10000000,
+          "peak_sampled_memory_bytes": 1136099328,
+          "peak_memory_limit_bytes_exclusive": 4294967296,
+          "conservative_used_storage_bytes": 2769982932,
+          "storage_limit_bytes_exclusive": 10737418240
+        },
+        "entry_decision": "INPUT_BLOCKED",
+        "release_qualified": false
+      },
+      "control": {
+        "image": "sha256:716b867b9ace7df8644617622800f2b3f5311b49d8e1aad3679b8459fbdc2a9b",
+        "extensions": {
+          "pg_mdm": "0.14.2",
+          "pg_react": "0.46.1",
+          "pg_trickle": "0.108.3"
+        },
+        "admissions": 300,
+        "source_rows": 1200,
+        "source_admissions_per_refresh": 5,
+        "refresh_calls": 60,
+        "simultaneous_due_cases": 1000,
+        "due_receipts": 1000,
+        "future_churn_receipts": 0,
+        "offered_admissions_per_minute": 60.0,
+        "completed_admissions_per_minute": 59.72496335840318,
+        "admissions_while_due_cases_remained": 60,
+        "checks_passed": 33,
+        "checks_failed": 0,
+        "clean_physical_clone": {
+          "source_and_clone_system_identifiers_equal": true,
+          "source_and_clone_database_oids_equal": true,
+          "full_workload_case_and_receipt_state_equal_before_activation": true,
+          "copy_seconds": 0.875867,
+          "postgres_outage_seconds": 110.12188,
+          "postgres_outage_limit_seconds": 120,
+          "binding_reconciliation_seconds_after_postgres_ready": 0.518476,
+          "backlog_drain_seconds_after_postgres_ready": 61.672179,
+          "backlog_recovery_limit_seconds": 180
+        },
+        "resources": {
+          "combined_wal_bytes": 470851309,
+          "combined_wal_limit_bytes": 4294967296,
+          "combined_row_writes": 773090,
+          "combined_row_writes_limit": 10000000,
+          "peak_sampled_memory_bytes": 1164283904,
+          "peak_memory_limit_bytes_exclusive": 4294967296,
+          "conservative_used_storage_bytes": 2769888047,
+          "storage_limit_bytes_exclusive": 10737418240
+        },
+        "entry_decision": "INPUT_BLOCKED",
+        "release_qualified": false
+      },
+      "profile_snapshot_sha256": "cb712add8872c9bded2b432a1e9db83f62528a21807ae969b6138a02af12f226",
+      "current_selected_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "pair_order": "candidate_then_control",
+      "runs_per_image": 1,
+      "workload_values_match_current_selected_profile": true,
+      "deployed_producer_recovery_proven": false,
+      "exact_final_artifact_qualified": false,
+      "entry_decision": "INPUT_BLOCKED",
+      "release_qualified": false,
+      "status": "LOCAL_REFERENCE_PRODUCER_CLEAN_PHYSICAL_CLONE_CANDIDATE_CONTROL_PAIR",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-clean-clone-workload-recovery-local-20261031-r1/summary.json"
+    },
+    "local_managed_cycle_admission_32": {
+      "image": "sha256:4e5b8238b3e7950a862762dd339fa406cbd9ea27874a0ef58fe70a4c24694415",
+      "react_revision": "90c7e17bb060a85166b6830394d1f0f0a7c7089a",
+      "pg_react": "0.46.1",
+      "pg_trickle": "0.108.4",
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "configured_claim_limit": 32,
+      "focused_safety_claim_limit": 1,
+      "due_items": 33,
+      "future_items": 1,
+      "processed_jobs_by_cycle": [
+        32,
+        1,
+        0
+      ],
+      "pending_jobs_by_cycle": [
+        1,
+        0,
+        0
+      ],
+      "full_action_work_attempt_and_source_vectors_checked": true,
+      "no_future_admission_or_replay": true,
+      "checks_passed": 4,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_MANAGED_CYCLE_ADMISSION_32",
+      "release_qualified": false,
+      "status": "LOCAL_MANAGED_CYCLE_32_CLAIM_BOUNDARY",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-managed-admission-32-current-local-20261031-r2/summary.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-managed-admission-32-current-local-20261031-r2/manifest.json"
+    },
+    "local_current_reference_producer_paired_outage": {
+      "date": "2026-11-01",
+      "producer_sha256": "49935fd9e4c688e6ca78dd8ac6fc1cda935c60a353d858e67262d8963b539aa0",
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "react_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+      "candidate_image_id": "sha256:ac4811ecc945acc7af593cff7f216505071838b440ad475f9dc104be3a9dd2fd",
+      "control_image_id": "sha256:716b867b9ace7df8644617622800f2b3f5311b49d8e1aad3679b8459fbdc2a9b",
+      "candidate_pg_trickle": "0.108.4",
+      "control_pg_trickle": "0.108.3",
+      "candidate_and_control_each_passed_34_checks": true,
+      "checks_failed_each": 0,
+      "same_producer_source": true,
+      "admissions": 300,
+      "source_rows": 1200,
+      "refresh_calls_per_run": 60,
+      "source_admissions_per_refresh": 5,
+      "simultaneous_due_cases": 1000,
+      "admissions_while_due_cases_remained": {
+        "candidate": 56,
+        "control": 56
+      },
+      "offered_admissions_per_minute": {
+        "candidate": 59.997963,
+        "control": 59.998009
+      },
+      "completed_admissions_per_minute": {
+        "candidate": 59.564265,
+        "control": 59.545586
+      },
+      "due_receipt_latency_p95_seconds": {
+        "candidate": 95.21533,
+        "control": 95.711092
+      },
+      "due_receipt_latency_max_seconds": {
+        "candidate": 97.189563,
+        "control": 97.711092
+      },
+      "postgres_outage_seconds": {
+        "candidate": 110.297558,
+        "control": 110.314447
+      },
+      "postgres_ready_to_backlog_drain_seconds": {
+        "candidate": 63.182141,
+        "control": 63.663908
+      },
+      "binding_reconciliation_seconds": {
+        "candidate": 0.339315,
+        "control": 0.34649
+      },
+      "wal_bytes": {
+        "candidate": 468054856,
+        "control": 468455747
+      },
+      "row_writes": {
+        "candidate": 776619,
+        "control": 776603
+      },
+      "peak_sampled_memory_bytes": {
+        "candidate": 1299599360,
+        "control": 1167331328
+      },
+      "conservative_used_storage_bytes": {
+        "candidate": 2100971751,
+        "control": 2074475030
+      },
+      "outage_ended_before_producer_startup": true,
+      "deployed_producer_adoption_proven": false,
+      "exact_final_artifact_qualified": false,
+      "production_restore_clone_activation_qualified": false,
+      "ninety_day_retention_proven": false,
+      "paired_control_run": true,
+      "entry_decision": "INPUT_BLOCKED",
+      "release_qualified": false,
+      "status": "LOCAL_CURRENT_SOURCE_REFERENCE_PRODUCER_MIXED_OUTAGE_PAIR",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-current-source-mixed-outage-local-20261101-r3/summary.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-current-source-mixed-outage-local-20261101-r3/manifest.json"
+    },
+    "local_retention_function_source_health": {
+      "date": "2026-11-01",
+      "react_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+      "candidate_image_id": "sha256:ac4811ecc945acc7af593cff7f216505071838b440ad475f9dc104be3a9dd2fd",
+      "image_architecture": "arm64",
+      "host_architecture_cpus_memory": "aarch64 10 8319504384",
+      "health_entries": 18,
+      "function_integrity_checks": [
+        "pgreact_mdm.guard_policy_history_retention()",
+        "pgreact_mdm.guard_intent_retention_markers()",
+        "pgreact_mdm.enforce_history_guard_ddl()",
+        "pgreact_mdm.reject_intent_record_mutation()"
+      ],
+      "disabled_and_missing_event_guard_detected": true,
+      "superuser_replaced_policy_guard_body_detected": true,
+      "restored_guard_health_passed": true,
+      "checks_passed": 5,
+      "checks_failed": 0,
+      "health_query_sha256": "e5ea12b4f13b1a19dd8f3ed772f5b2b89663b130deb87dd6da407a3fb315c29b",
+      "monitor_sha256": "bab151e14be2c1fd6c0e44a37219ff650d703ebf05c0853d41813fb1a194a354",
+      "request_store_sha256": "0ae7dc835716bd9a799b5d9031b9790fddf4235f1a2cb634fd4b5021ccd39a98",
+      "audit_sha256": "2d7441258b622a01676a96c0dc2d2f75b5adc5733eb06dc885d3fecc9323b4f7",
+      "entry_decision": "FOCUSED_HISTORY_RETENTION_REGRESSION",
+      "release_qualified": false,
+      "status": "LOCAL_RETENTION_GUARD_FUNCTION_SOURCE_HEALTH",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-retention-function-source-health-current-local-20261101-r4/observations.json"
+    },
+    "open_gates": [
+      "Run exact CI/review and release packaging for the final commit; verify the candidate runtime/source files against the 222-file current-worktree manifest. Repeat the full paired workload and restore profile only if a runtime source hash changes or CI exposes a relevant defect.",
+      "Close any remaining parent issue #8 and implementation issue #11 acceptance on the same final source. The existing paired workload, physical clone, and logical restore results on the controlled ARM64 host count when their recorded source hashes match the candidate; customer application adoption and activation remain post-publication rollout outcomes."
+    ],
+    "local_current_worktree_hash_reconciliation_2026_11_03": {
+      "source_manifest_sha256": "a735ece87b9804fb5db9179fb5fab14c0ec29c20694bb5a37d81cf6268f77a0a",
+      "source_manifest_file_count": 222,
+      "candidate_tree_file_hashes_matched": 222,
+      "missing_files": 0,
+      "mismatched_files": 0,
+      "candidate_base": "origin/main including pg-react commit 201d850b and pg-trickle 0.108.4 compatibility PR #33",
+      "evidence_bundle": "tests/integrations/pg-mdm/evidence/v0.49-evidence-bundles-local-20261103/current-worktree-physical-clone-paired.tar.gz",
+      "scope": "Source-file equivalence for prior paired workload, physical clone, outage, and logical restore diagnostics; this does not replace final candidate CI, review, package digest, or remaining #8/#11 acceptance."
+    },
+    "post_reconciliation_test_harness_change_2026_11_03": {
+      "react_commit": "2a72b35ab81ee767e27ea42400c32ba929b66d5b",
+      "source_manifest_file_count": 222,
+      "candidate_tree_file_hashes_matched": 221,
+      "changed_files": ["tests/integrations/pg-mdm/time/claimed_work.py"],
+      "change_scope": "Test-helper-only Python 3.9 subprocess cleanup fix; no runtime SQL or extension source changed.",
+      "claimed_work_checks": 24,
+      "postmaster_crash_checks": 8,
+      "transport_loss_checks": 25,
+      "image_id": "sha256:a2ae0ba5e2c9f9c01b2c1ad9f8fa87e4756b9f932269fa1e5a90f596c06cc283",
+      "image_platform": "linux/amd64 under emulation on the ARM64 host",
+      "release_qualified": false,
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-candidate-local-20261103-r1/manifest.json"
+    },
+    "current_managed_cycle_admission_and_fairness_2026_11_03": {
+      "react_commit": "24a0f2971af95f947afe0f9d7126592f8caf9a64",
+      "image_id": "sha256:a2ae0ba5e2c9f9c01b2c1ad9f8fa87e4756b9f932269fa1e5a90f596c06cc283",
+      "managed_admission_32_checks": 5,
+      "managed_fairness_checks": 9,
+      "fairness_claims_per_cycle": 1,
+      "selected_workload_claims_per_cycle": 32,
+      "image_platform": "linux/amd64 under emulation on the ARM64 host",
+      "release_qualified": false,
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-managed-cycle-candidate-local-20261103-r1/manifest.json",
+      "scope": "Admission bound and focused age-window fairness pass. The one-claim fairness probe does not replace mixed-load fairness at the selected 32-claim profile or exact packaged CI."
+    },
+    "post_release_follow_ups": [
+      "Maintain coherent backups and matching binaries for at least 90 days; verify restore from an actually retained 90-day archive before enabling any pruning."
+    ],
+    "local_current_reference_producer_retry_deadline_paired_outage": {
+      "date": "2026-11-01",
+      "producer_sha256": "6022c7c51e33cb798fd0fb75a399221358b50e90960b7fc0f48f127757df9d7e",
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "candidate_image_id": "sha256:ac4811ecc945acc7af593cff7f216505071838b440ad475f9dc104be3a9dd2fd",
+      "control_image_id": "sha256:716b867b9ace7df8644617622800f2b3f5311b49d8e1aad3679b8459fbdc2a9b",
+      "candidate_and_control_each_passed_34_checks": true,
+      "checks_failed_each": 0,
+      "admissions": 300,
+      "offered_admissions_per_minute": {
+        "candidate": 59.998172,
+        "control": 59.99807
+      },
+      "completed_admissions_per_minute": {
+        "candidate": 59.555376,
+        "control": 59.561288
+      },
+      "due_receipt_latency_p95_seconds": {
+        "candidate": 95.483605,
+        "control": 95.72335
+      },
+      "due_receipt_latency_max_seconds": {
+        "candidate": 97.483605,
+        "control": 97.519124
+      },
+      "postgres_outage_seconds": {
+        "candidate": 110.433997,
+        "control": 110.412168
+      },
+      "binding_reconciliation_seconds": {
+        "candidate": 0.344999,
+        "control": 0.356136
+      },
+      "postgres_ready_to_backlog_drain_seconds": {
+        "candidate": 63.615253,
+        "control": 63.338103
+      },
+      "peak_sampled_memory_bytes": {
+        "candidate": 1146474496,
+        "control": 1316003840
+      },
+      "conservative_used_storage_bytes": {
+        "candidate": 2100723098,
+        "control": 2101522336
+      },
+      "combined_wal_bytes": {
+        "candidate": 467660354,
+        "control": 469052476
+      },
+      "combined_row_writes": {
+        "candidate": 776675,
+        "control": 776625
+      },
+      "numeric_envelope_bound_to_both_images": true,
+      "entry_decision": "INPUT_BLOCKED",
+      "release_qualified": false,
+      "deployed_producer_adoption_proven": false,
+      "ninety_day_retention_proven": false,
+      "production_restore_clone_activation_qualified": false,
+      "remaining_inputs": [
+        "The per-arm observations retain INPUT_BLOCKED labels and static remaining-input strings from the copied audit script. This paired summary records the outage/recovery envelope against both image digests, and pg-mdm #19 supplies the owner-confirmed negative outcomes and green final-commit CI.",
+        "A clean commit-bound candidate wheel with exact-artifact CI/review, pre-release staging and restore/clone qualification, the 90-day coherent backup/receipt-retention horizon, and remaining #8/#11 gates remain open. Customer application adoption of the published release is post-release."
+      ],
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-retry-deadline-paired-outage-local-20261101-r1/summary.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-retry-deadline-paired-outage-local-20261101-r1/manifest.json",
+      "churn_receipts": 1000,
+      "future_churn_receipts": {
+        "candidate": 0,
+        "control": 0
+      },
+      "observed_escalation_levels": [
+        2
+      ],
+      "owner_confirmed_negative_receipt_fixtures": "https://github.com/trickle-labs/pg-mdm/pull/19",
+      "owner_fixture_final_commit_ci": {
+        "test": "success",
+        "e2e": "success",
+        "check_runs_passed": 4
+      },
+      "raw_arm_entry_decisions": {
+        "candidate": "INPUT_BLOCKED",
+        "control": "INPUT_BLOCKED"
+      }
+    },
+    "local_current_source_bounded_producer_paired_outage_2026_11_02": {
+      "date": "2026-11-02",
+      "candidate_image_id": "sha256:f8b8c55dec0231381ddc38522f7bb95c3a21e5a361f8bdcd11a518aac1ee4524",
+      "control_image_id": "sha256:98a15baf385a2933900234029d6be9c53c4d61875d63459869e542cfa33a8290",
+      "source_manifest_sha256": "e83d3cbcee17ca31ff4277ebd355eb9a7ae27c0149445aa237a8075ad7d53394",
+      "source_manifest_file_sha256": "40907b0658c5d9024fbee90448abac6f2700389f86b14d797f259c8262289d80",
+      "qualification_profile_sha256": "2bb14739e1d967dfa126add232b2119527d2e6637b1c7ff886ee77816682e852",
+      "candidate_and_control_each_passed_34_checks": true,
+      "checks_failed_each": 0,
+      "admissions": 300,
+      "offered_admissions_per_minute": {
+        "candidate": 59.99917,
+        "control": 59.998561
+      },
+      "completed_cases_per_minute": {
+        "candidate": 58.898573,
+        "control": 58.611865
+      },
+      "due_receipt_latency_p95_seconds": {
+        "candidate": 95.887857,
+        "control": 97.993023
+      },
+      "due_receipt_latency_max_seconds": {
+        "candidate": 97.887857,
+        "control": 100.199845
+      },
+      "postgres_outage_seconds": {
+        "candidate": 110.388628,
+        "control": 110.50384
+      },
+      "postgres_ready_to_backlog_drain_seconds": {
+        "candidate": 47.017498,
+        "control": 50.583479
+      },
+      "binding_reconciliation_seconds": {
+        "candidate": 0.464689,
+        "control": 1.530381
+      },
+      "peak_memory_bytes": {
+        "candidate": 1365962752,
+        "control": 1354678272
+      },
+      "conservative_used_storage_bytes": {
+        "candidate": 2089833826,
+        "control": 2078590071
+      },
+      "combined_wal_bytes": {
+        "candidate": 377194939,
+        "control": 367304886
+      },
+      "combined_row_writes": {
+        "candidate": 776202,
+        "control": 776486
+      },
+      "future_churn_receipts": {
+        "candidate": 0,
+        "control": 0
+      },
+      "numeric_envelope_bound_to_both_images": true,
+      "entry_decision": "INPUT_BLOCKED",
+      "release_qualified": false,
+      "deployed_application_adoption_proven": false,
+      "ninety_day_retention_proven": false,
+      "production_restore_clone_activation_qualified": false,
+      "audit_note": "Both raw observations retain INPUT_BLOCKED and static remaining-input strings. The owner-confirmed negative outcomes are supplied separately by merged pg-mdm PR #19; this paired run records current-source numeric outage and envelope results only.",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-current-source-paired-outage-local-20261102-r1/summary.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-current-source-paired-outage-local-20261102-r1/manifest.json"
+    },
+    "local_current_source_postcap_installed_wheel_paired_outage_2026_11_02": {
+      "date": "2026-11-02",
+      "candidate_image_id": "sha256:2fc9eb364df605b089635f352daa92322d109eedf4616aa4145b4642b09b05f3",
+      "control_image_id": "sha256:9228b9a5cdde4bc39bed6fae38f5b40263427abbf13f6b246254732e304a388f",
+      "candidate_base_image_id": "sha256:ac4811ecc945acc7af593cff7f216505071838b440ad475f9dc104be3a9dd2fd",
+      "control_base_image_id": "sha256:716b867b9ace7df8644617622800f2b3f5311b49d8e1aad3679b8459fbdc2a9b",
+      "checkout_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+      "rust_source_revision": "90c7e17bb060a85166b6830394d1f0f0a7c7089a",
+      "source_manifest_sha256": "9635a2d814846500c8724e5d83e54f3b5ae348e91d0c0a3065c9d3aa263de203",
+      "producer_source_sha256": "28b66a7f71cd766b33801690187ac76441f5dd316c23a774d191158a167a36c2",
+      "producer_wheel_sha256": "ae15487bed420d7ca7f5dd5bd6d8f8ad8269bf1ad022608ef79423310ee6501e",
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "supported_envelope_sha256": "1f8b3bd8229943522add8f7df1170bc298292e8a9e2ae05b4a7a506fe7cb26c3",
+      "candidate_and_control_each_passed_34_checks": true,
+      "checks_failed_each": 0,
+      "same_postcap_installed_wheel_and_profile": true,
+      "admissions": 300,
+      "source_rows": 1200,
+      "refresh_calls_per_run": 60,
+      "simultaneously_due_cases": 1000,
+      "due_receipts_each": 1000,
+      "future_churn_receipts_each": 0,
+      "offered_admissions_per_minute": {
+        "candidate": 59.999793,
+        "control": 59.998387
+      },
+      "completed_producer_admissions_per_minute": {
+        "candidate": 59.566973,
+        "control": 59.588641
+      },
+      "observed_cases_per_minute": {
+        "candidate": 59.19014387821793,
+        "control": 59.24297470640285
+      },
+      "due_receipt_latency_p95_seconds": {
+        "candidate": 95.476432,
+        "control": 97.492485
+      },
+      "due_receipt_latency_max_seconds": {
+        "candidate": 97.476432,
+        "control": 99.045322
+      },
+      "postgres_outage_seconds": {
+        "candidate": 110.130218,
+        "control": 110.240314
+      },
+      "postgres_ready_to_backlog_drain_seconds": {
+        "candidate": 46.07939,
+        "control": 78.744402
+      },
+      "binding_reconciliation_seconds_after_postgres_ready": {
+        "candidate": 0.33997,
+        "control": 0.351672
+      },
+      "combined_wal_bytes": {
+        "candidate": 370771198,
+        "control": 365691080
+      },
+      "combined_row_writes": {
+        "candidate": 775633,
+        "control": 775729
+      },
+      "peak_sampled_memory_bytes": {
+        "candidate": 1207582720,
+        "control": 1161179136
+      },
+      "conservative_used_storage_bytes": {
+        "candidate": 2054109748,
+        "control": 2076838288
+      },
+      "entry_decisions": {
+        "candidate": "INPUT_BLOCKED",
+        "control": "INPUT_BLOCKED"
+      },
+      "entry_decision": "INPUT_BLOCKED",
+      "release_qualified": false,
+      "deployed_application_adoption_proven": false,
+      "exact_final_artifact_qualified": false,
+      "production_restore_clone_activation_qualified": false,
+      "ninety_day_retention_proven": false,
+      "audit_note": "Both raw observations retain INPUT_BLOCKED and release_qualified=false. This pair records numeric current-source results for the post-cap installed wheel only; it does not qualify a clean commit-bound candidate wheel in pre-release staging, exact-artifact CI/review, candidate restore/clone activation, or the 90-day coherent backup, receipt, and key recovery horizon. Customer application adoption of the published release is post-release.",
+      "evidence": "tests/integrations/pg-mdm/evidence/v0.49-current-source-postcap-wheel-paired-outage-local-20261102-r1/summary.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-current-source-postcap-wheel-paired-outage-local-20261102-r1/manifest.json"
+    },
+    "local_current_source_wheel_paired_outage_2026_11_02": {
+      "date": "2026-11-02",
+      "candidate_image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "control_image_id": "sha256:9b361b662b08d1a5970e62a9a1fc2935d6d14e3c0e05946aeb5bbcac6362b92c",
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "source_file_count": 214,
+      "producer_source_sha256": "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b",
+      "producer_wheel_sha256": "0b752e8721531ecd2155e9d813c75f9dab7b2b3b5c4fe923588b998d3d1d258a",
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "supported_envelope_sha256": "7aedf8456fdfcb39df7ca083a1038558d2a17e0b0d36d4d603997e303f75a271",
+      "same_current_source_manifest_and_installed_wheel": true,
+      "candidate_and_control_each_passed_34_checks": true,
+      "checks_failed_each": 0,
+      "admissions": 300,
+      "source_rows": 1200,
+      "refresh_calls_per_run": 60,
+      "simultaneously_due_cases": 1000,
+      "due_receipts_each": 1000,
+      "future_churn_receipts_each": 0,
+      "offered_admissions_per_minute": {
+        "candidate": 59.998875,
+        "control": 59.997972
+      },
+      "completed_producer_admissions_per_minute": {
+        "candidate": 59.525237,
+        "control": 59.554534
+      },
+      "observed_cases_per_minute": {
+        "candidate": 59.11022074334288,
+        "control": 58.943796523499465
+      },
+      "due_receipt_latency_p95_seconds": {
+        "candidate": 95.259096,
+        "control": 98.044089
+      },
+      "due_receipt_latency_max_seconds": {
+        "candidate": 97.204,
+        "control": 100.272892
+      },
+      "postgres_outage_seconds": {
+        "candidate": 110.240987,
+        "control": 111.590399
+      },
+      "postgres_ready_to_backlog_drain_seconds": {
+        "candidate": 46.972265,
+        "control": 48.967018
+      },
+      "binding_reconciliation_seconds_after_postgres_ready": {
+        "candidate": 0.360173,
+        "control": 1.095399
+      },
+      "combined_wal_bytes": {
+        "candidate": 365738064,
+        "control": 367421220
+      },
+      "combined_row_writes": {
+        "candidate": 775747,
+        "control": 776253
+      },
+      "peak_memory_bytes": {
+        "candidate": 1403346944,
+        "control": 1277771776
+      },
+      "conservative_used_storage_bytes": {
+        "candidate": 2060022627,
+        "control": 2054095599
+      },
+      "entry_decisions": {
+        "candidate": "INPUT_BLOCKED",
+        "control": "INPUT_BLOCKED"
+      },
+      "entry_decision": "INPUT_BLOCKED",
+      "release_qualified": false,
+      "deployed_application_adoption_proven": false,
+      "exact_final_artifact_qualified": false,
+      "production_restore_clone_activation_qualified": false,
+      "ninety_day_retention_proven": false,
+      "audit_note": "Both current-source candidate/control arms passed the numeric workload and recovery checks. The run does not qualify a clean commit-bound candidate wheel in pre-release staging, exact-artifact CI/review, candidate restore/clone activation, or the 90-day coherent recovery horizon. Customer application adoption of the published release is post-release.",
+      "summary": "tests/integrations/pg-mdm/evidence/v0.49-current-source-wheel-paired-outage-local-20261102-r1/summary.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-current-source-wheel-paired-outage-local-20261102-r1/manifest.json"
+    },
+    "local_current_source_claimed_work_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "image_architecture": "arm64",
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 22,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_CLAIMED_PAUSE_QUALIFIED",
+      "release_qualified": false,
+      "summary": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-current-paired-image-local-20261102-r1/summary.json",
+      "manifest": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-current-paired-image-local-20261102-r1/manifest.json"
+    },
+    "local_current_source_claimed_work_crash_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 8,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_POSTMASTER_CRASH_RECOVERY_QUALIFIED",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-crash-current-paired-image-local-20261102-r1/harness/claimed-work-crash-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-crash-current-paired-image-local-20261102-r1/claimed-work-crash.audit.log"
+    },
+    "local_current_source_claimed_work_transport_loss_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 23,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_PACKET_LEVEL_ACK_LOSS_QUALIFIED",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-transport-loss-current-paired-image-local-20261102-r1/harness/claimed-work-transport-loss-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-transport-loss-current-paired-image-local-20261102-r1/claimed-work-transport-loss.audit.log"
+    },
+    "local_current_source_clean_clone_activation_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 8,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_CLEAN_CLONE_RECOVERY_QUALIFIED",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-clean-clone-activation-current-paired-image-local-20261102-r1/harness/clean-clone-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-clean-clone-activation-current-paired-image-local-20261102-r1/clean-clone.audit.log"
+    },
+    "local_current_source_logical_restore_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 48,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_REACT_LOGICAL_RESTORE_QUALIFIED",
+      "acknowledged_batch_token": 1,
+      "pending_batch_token": 2,
+      "pending_batch_payload_preserved_after_restore_and_adoption": true,
+      "consumer_invalidated_reason": "DATABASE_INSTANCE_CHANGED",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-logical-restore-current-paired-image-local-20261102-r1/harness/logical-restore-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-logical-restore-current-paired-image-local-20261102-r1/logical-restore.audit.log"
+    },
+    "local_current_source_managed_admission_32_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 5,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_MANAGED_CYCLE_ADMISSION_32",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-managed-admission-32-current-paired-image-local-20261102-r1/harness/managed-admission-32-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-managed-admission-32-current-paired-image-local-20261102-r1/managed-admission-32.audit.log"
+    },
+    "local_current_source_managed_fairness_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 9,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_MANAGED_CYCLE_FAIRNESS",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-managed-fairness-current-paired-image-local-20261102-r1/harness/managed-fairness-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-managed-fairness-current-paired-image-local-20261102-r1/managed-fairness.audit.log"
+    },
+    "local_current_source_history_retention_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 5,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_HISTORY_RETENTION_REGRESSION",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-history-retention-current-paired-image-local-20261102-r1/harness/history-retention-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-history-retention-current-paired-image-local-20261102-r1/history-retention.audit.log"
+    },
+    "local_current_source_temporal_limit_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 2,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_TEMPORAL_LIMIT_REGRESSION",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-temporal-limit-current-paired-image-local-20261102-r1/harness/temporal-limit-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-temporal-limit-current-paired-image-local-20261102-r1/temporal-limit.audit.log"
+    },
+    "local_current_source_dispatcher_recovery_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 2,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_DISPATCHER_RECOVERY_REGRESSION",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-dispatcher-recovery-current-paired-image-local-20261102-r1/harness/dispatcher-recovery-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-dispatcher-recovery-current-paired-image-local-20261102-r1/dispatcher-recovery.audit.log"
+    },
+    "local_current_source_statement_time_retry_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 5,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_STATEMENT_TIME_RETRY",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-statement-time-retry-current-paired-image-local-20261102-r1/harness/statement-time-retry-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-statement-time-retry-current-paired-image-local-20261102-r1/statement-time-retry.audit.log"
+    },
+    "local_current_source_binding_ddl_lock_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 1,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_BINDING_DDL_LOCK_REGRESSION",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-binding-ddl-lock-current-paired-image-local-20261102-r1/harness/binding-ddl-lock-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-binding-ddl-lock-current-paired-image-local-20261102-r1/binding-ddl-lock.audit.log"
+    },
+    "local_current_source_autonomous_recurrence_on_paired_image_2026_11_02": {
+      "date": "2026-11-02",
+      "image_id": "sha256:64fff88fdab17c27b3b670c2092d9621677cde3baa848ffd970eadf085542218",
+      "same_image_as_current_source_wheel_paired_outage": true,
+      "source_manifest_sha256": "21a087054b44360fea7b0f7783e500a5091a9a6e3d784cff0772fdef2d76e577",
+      "observed_source_files": 56,
+      "observed_source_hashes_match_current_worktree": true,
+      "qualification_profile_sha256": "d48390457e5d0839ac3a95d9d34ef0db945be42eead2f74e7a9c0c5381f19eee",
+      "checks_passed": 11,
+      "checks_failed": 0,
+      "entry_decision": "FOCUSED_AUTONOMOUS_RECURRENCE_QUALIFIED",
+      "release_qualified": false,
+      "observations": "tests/integrations/pg-mdm/evidence/v0.49-autonomous-recurrence-current-paired-image-local-20261102-r1/harness/autonomous-recurrence-r1/observations.json",
+      "audit_log": "tests/integrations/pg-mdm/evidence/v0.49-autonomous-recurrence-current-paired-image-local-20261102-r1/autonomous-recurrence.audit.log"
+    },
+    "local_current_source_rust_unit_tests_2026_11_02": {
+      "date": "2026-11-02",
+      "react_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+      "command": "rtk cargo test --no-default-features --quiet",
+      "result": "8 passed across 2 suites; 0.03 seconds",
+      "format_check": "rtk cargo fmt --check passed",
+      "release_qualified": false,
+      "log": "tests/integrations/pg-mdm/evidence/v0.49-current-source-unit-tests-local-20261102-r1/cargo-test.log"
+    },
+    "pg_trickle_1288_merged_ci_status_2026_11_02": {
+      "pr": "https://github.com/trickle-labs/pg-trickle/pull/1288",
+      "state": "MERGED",
+      "merged_at": "2026-10-29T23:31:56Z",
+      "merge_commit": "eb44093bbeca4f276a92733fe2bbc740d8ef254a",
+      "ci_run": "https://github.com/trickle-labs/pg-trickle/actions/runs/40973089476",
+      "ci_check_counts": {
+        "success": 22,
+        "skipped": 18,
+        "failure": 3
+      },
+      "underlying_failures": [
+        "Sensitive E2E: test_scheduler_refreshes_multiple_healthy_sts timed out; the second stream table had 1 row instead of 2.",
+        "Sensitive E2E: test_mixed_sched_parallel_sts_same_view_serial ended with actual=4, expected=5, extra=1, missing=2.",
+        "PR correctness summary: e2e-sensitive-gate failed."
+      ],
+      "assessment": "The two E2E failures are scheduler-convergence cases in test files not changed by PR #1288, whose code change was limited to output_delta.rs and its dump/restore E2E. This shows no direct test-file overlap but does not rule out an indirect regression. Keep upstream full-CI qualification open.",
+      "release_qualified": false
+    },
+    "owner_confirmed_negative_receipt_fixtures": {
+      "source_pr": "https://github.com/trickle-labs/pg-mdm/pull/19",
+      "contract": "https://github.com/trickle-labs/pg-mdm/blob/03aac7cde5d591870c4200e1b9a0f524ffdabff3/contracts/MDM-STEWARDSHIP-1-v049-receipt-fixtures.md",
+      "head_commit": "03aac7cde5d591870c4200e1b9a0f524ffdabff3",
+      "merge_commit": "06471e647ee54a80973fb5ad6709830f9955dbff",
+      "merged_at": "2026-10-19T18:15:47Z",
+      "final_commit_ci": {
+        "test": "success",
+        "e2e": "success",
+        "check_runs_passed": 4
+      },
+      "outcomes": {
+        "non_next_level": "STALE_CASE / ESCALATION_NOT_NEXT; exactly one receipt, stable receipt ID on replay; no control mutation.",
+        "paused_binding": "BINDING_PAUSED; exactly one receipt, stable receipt ID on replay; no control mutation.",
+        "replaced_binding": "BINDING_REPLACED; exactly one receipt; no control mutation.",
+        "malformed_or_extra_or_missing_level": "Exact MDM_POLICY_INTENT SQL exception; no receipt and no control mutation."
+      },
+      "tested_by_this_pair": false,
+      "joint_pg_react_release_qualified": false
+    }
+  },
+  "evidence": [
+    "tests/integrations/pg-mdm/evidence/v0.49-workload-recovery-supported-batch5-profile-reconciled-local-20261030/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-deadline-strata-fairness-local-20261030/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-deadline-ramp-fairness-local-20261031/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-local-20261031-r11/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-five-admission-refresh-overlap-timing-local-20261031/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-five-admission-outage-recovery-overlap-local-20261031/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-clean-clone-workload-recovery-local-20261031-r1/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-managed-admission-32-current-local-20261031-r2/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-history-retention-current-source-arm64-local-20261101-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-installed-wheel-current-local-20261101-r3/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-current-source-mixed-outage-local-20261101-r3/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-current-source-mixed-outage-local-20261101-r3/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-retention-function-source-health-current-local-20261101-r4/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-retry-deadline-current-local-20261101-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-retry-deadline-paired-outage-local-20261101-r1/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-reference-producer-retry-deadline-paired-outage-local-20261101-r1/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-installed-wheel-paired-outage-local-20261101-r1/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-installed-wheel-paired-outage-local-20261101-r1/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-current-source-paired-outage-local-20261102-r1/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-current-source-paired-outage-local-20261102-r1/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-current-source-postcap-wheel-paired-outage-local-20261102-r1/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-current-source-postcap-wheel-paired-outage-local-20261102-r1/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-local-20261102-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-local-20261102-r1/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-bounded-producer-total-input-cap-installed-wheel-local-20261102-r1/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-current-source-wheel-paired-outage-local-20261102-r1/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-current-source-wheel-paired-outage-local-20261102-r1/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-current-paired-image-local-20261102-r1/summary.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-current-paired-image-local-20261102-r1/manifest.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-crash-current-paired-image-local-20261102-r1/harness/claimed-work-crash-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-crash-current-paired-image-local-20261102-r1/claimed-work-crash.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-transport-loss-current-paired-image-local-20261102-r1/harness/claimed-work-transport-loss-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-claimed-work-transport-loss-current-paired-image-local-20261102-r1/claimed-work-transport-loss.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-clean-clone-activation-current-paired-image-local-20261102-r1/harness/clean-clone-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-clean-clone-activation-current-paired-image-local-20261102-r1/clean-clone.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-logical-restore-current-paired-image-local-20261102-r1/harness/logical-restore-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-logical-restore-current-paired-image-local-20261102-r1/logical-restore.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-managed-admission-32-current-paired-image-local-20261102-r1/harness/managed-admission-32-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-managed-admission-32-current-paired-image-local-20261102-r1/managed-admission-32.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-managed-fairness-current-paired-image-local-20261102-r1/harness/managed-fairness-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-managed-fairness-current-paired-image-local-20261102-r1/managed-fairness.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-history-retention-current-paired-image-local-20261102-r1/harness/history-retention-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-history-retention-current-paired-image-local-20261102-r1/history-retention.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-temporal-limit-current-paired-image-local-20261102-r1/harness/temporal-limit-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-temporal-limit-current-paired-image-local-20261102-r1/temporal-limit.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-dispatcher-recovery-current-paired-image-local-20261102-r1/harness/dispatcher-recovery-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-dispatcher-recovery-current-paired-image-local-20261102-r1/dispatcher-recovery.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-statement-time-retry-current-paired-image-local-20261102-r1/harness/statement-time-retry-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-statement-time-retry-current-paired-image-local-20261102-r1/statement-time-retry.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-binding-ddl-lock-current-paired-image-local-20261102-r1/harness/binding-ddl-lock-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-binding-ddl-lock-current-paired-image-local-20261102-r1/binding-ddl-lock.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-autonomous-recurrence-current-paired-image-local-20261102-r1/harness/autonomous-recurrence-r1/observations.json",
+    "tests/integrations/pg-mdm/evidence/v0.49-autonomous-recurrence-current-paired-image-local-20261102-r1/autonomous-recurrence.audit.log",
+    "tests/integrations/pg-mdm/evidence/v0.49-current-source-unit-tests-local-20261102-r1/cargo-test.log"
+  ]
+}

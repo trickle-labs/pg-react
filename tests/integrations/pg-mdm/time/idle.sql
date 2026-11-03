@@ -1,5 +1,6 @@
 \set ON_ERROR_STOP on
 SET TIME ZONE 'UTC';
+DROP EVENT TRIGGER IF EXISTS pgre_mdm_history_guard_ddl;
 \ir ../../../../integrations/pg-mdm/sql/policy-inputs.sql
 \ir ../../../../integrations/pg-mdm/sql/routing.sql
 \ir ../../../../integrations/pg-mdm/sql/deadline-preview.sql
@@ -7,6 +8,7 @@ SET TIME ZONE 'UTC';
 \ir ../../../../integrations/pg-mdm/sql/typed-flow.sql
 \ir ../../../../integrations/pg-mdm/sql/request-store.sql
 \ir ../../../../integrations/pg-mdm/sql/intent-worker.sql
+\ir ../../../../integrations/pg-mdm/sql/retention-guard.sql
 GRANT USAGE ON SCHEMA pgreact_mdm TO mdm_legacy_administrator, mdm_administrator;
 
 CREATE ROLE mdm_s1_runner LOGIN NOSUPERUSER NOBYPASSRLS NOINHERIT;
@@ -14,6 +16,13 @@ CREATE ROLE mdm_s1_runtime LOGIN NOSUPERUSER NOBYPASSRLS INHERIT;
 CREATE ROLE s1_operator NOLOGIN;
 CREATE ROLE s1_reader NOLOGIN;
 CREATE ROLE s1_advanced_reader NOLOGIN;
+CREATE ROLE pgreact_admin NOLOGIN;
+CREATE ROLE s1_recovery_operator LOGIN INHERIT NOSUPERUSER NOBYPASSRLS;
+GRANT pgreact_admin TO s1_recovery_operator;
+GRANT s1_operator TO s1_recovery_operator WITH SET TRUE, INHERIT FALSE;
+GRANT USAGE ON SCHEMA pgreact TO pgreact_admin;
+GRANT EXECUTE ON FUNCTION pgreact.prepare_recovery(), pgreact.rebuild_transient_metadata()
+    TO pgreact_admin;
 GRANT pgreact_mdm_worker TO mdm_s1_runner WITH SET TRUE, INHERIT FALSE;
 GRANT pgreact_mdm_worker TO mdm_s1_runtime WITH SET TRUE, INHERIT TRUE;
 GRANT CONNECT ON DATABASE s1_idle TO mdm_s1_runtime;
@@ -36,7 +45,7 @@ ALTER VIEW s1_audit.candidate OWNER TO mdm_s1_runner;
 
 SELECT case_key, reason_code, action_revision, COALESCE(assigned_queue::text, '') AS assigned_queue,
        escalation_level, manual_assignment_protected,
-       clock_timestamp() + interval '30 seconds' AS deadline
+       clock_timestamp() + interval '45 seconds' AS deadline
 FROM mdm_steward.policy_cases_v1
 WHERE entity_name = 'policy_qualification' AND status = 'open'
   AND NOT pending_stewardship AND opened_at IS NOT NULL
@@ -61,6 +70,86 @@ SELECT * FROM pgreact_mdm.create_intent_binding(
 RESET ROLE;
 RESET SESSION AUTHORIZATION;
 SELECT pgreact_mdm.sync_intent_case_identities();
+
+-- Candidate discovery uses dispatch time; a stale MDM acceptance timestamp
+-- must defer the callback so the configured retry starts a fresh statement.
+SELECT COALESCE(policy_case.assigned_queue::text, '') AS assigned_queue,
+       policy_case.escalation_level,
+       policy_case.manual_assignment_protected,
+       policy_case.action_revision
+FROM mdm_steward.policy_cases_v1 AS policy_case
+WHERE policy_case.case_key = :case_key
+\gset
+SELECT clock_timestamp() + interval '5 seconds' AS dispatch_regression_deadline \gset
+SET SESSION AUTHORIZATION mdm_legacy_login;
+SET ROLE mdm_legacy_administrator;
+SELECT mdm_steward.set_case_controls(
+    :case_key, NULLIF(:'assigned_queue', '')::name,
+    :'dispatch_regression_deadline'::timestamptz,
+    :escalation_level, :'manual_assignment_protected'::boolean,
+    :action_revision, 'S1 statement-time escalation regression');
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+CREATE TEMP TABLE s1_statement_time_regression_case (case_key bigint PRIMARY KEY);
+INSERT INTO s1_statement_time_regression_case VALUES (:case_key);
+DO $statement_time_escalation$
+DECLARE
+    test_case pgreact_mdm.intent_deployer_policy_cases_v1;
+    candidate pgreact_mdm.intent_escalation_candidates%ROWTYPE;
+    deferred_message text;
+    requests_before bigint;
+    receipts_before bigint;
+BEGIN
+    SELECT policy_case.* INTO STRICT test_case
+    FROM pgreact_mdm.intent_deployer_policy_cases_v1 AS policy_case
+    JOIN pg_temp.s1_statement_time_regression_case AS selected USING (case_key);
+    IF statement_timestamp() >= test_case.due_at THEN
+        RAISE EXCEPTION 'statement-time escalation regression began after deadline';
+    END IF;
+    PERFORM pg_catalog.pg_sleep(GREATEST(
+        EXTRACT(EPOCH FROM test_case.due_at - clock_timestamp()) + 0.25,
+        0.25)::double precision);
+    SELECT intent.* INTO candidate
+    FROM pgreact_mdm.intent_escalation_candidates AS intent
+    WHERE intent.case_key = test_case.case_key;
+    IF NOT FOUND OR candidate.action IS DISTINCT FROM 'ESCALATE'
+       OR candidate.escalation_level IS DISTINCT FROM 2 THEN
+        RAISE EXCEPTION 'due escalation candidate missing after statement crossed deadline';
+    END IF;
+    SELECT count(*) INTO requests_before FROM pgreact_mdm.intent_requests;
+    SELECT count(*) INTO receipts_before FROM mdm_steward.policy_receipts_v1;
+    BEGIN
+        PERFORM pgreact_mdm.submit_escalation_intent(
+            NULL::pgreact.activation_context, test_case);
+    EXCEPTION WHEN SQLSTATE '40001' THEN
+        GET STACKED DIAGNOSTICS deferred_message = MESSAGE_TEXT;
+    END;
+    IF deferred_message IS DISTINCT FROM 'due escalation requires a fresh statement' THEN
+        RAISE EXCEPTION 'stale escalation callback did not raise its retry signal';
+    END IF;
+    IF (SELECT count(*) FROM pgreact_mdm.intent_requests) <> requests_before
+       OR (SELECT count(*) FROM mdm_steward.policy_receipts_v1) <> receipts_before THEN
+        RAISE EXCEPTION 'stale escalation callback wrote an intent or receipt';
+    END IF;
+END
+$statement_time_escalation$;
+SELECT COALESCE(policy_case.assigned_queue::text, '') AS assigned_queue,
+       policy_case.escalation_level,
+       policy_case.manual_assignment_protected,
+       policy_case.action_revision
+FROM mdm_steward.policy_cases_v1 AS policy_case
+WHERE policy_case.case_key = :case_key
+\gset
+SET SESSION AUTHORIZATION mdm_legacy_login;
+SET ROLE mdm_legacy_administrator;
+SELECT mdm_steward.set_case_controls(
+    :case_key, NULLIF(:'assigned_queue', '')::name, :'deadline'::timestamptz,
+    :escalation_level, :'manual_assignment_protected'::boolean,
+    :action_revision, 'Restore S1 deadline after statement-time regression');
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+\echo PASS: statement-time escalation defers without an intent or receipt
+DROP TABLE pg_temp.s1_statement_time_regression_case;
 
 -- The optional two-case outage qualification prepares a second *real* MDM
 -- occurrence through the same authorized human control API, before the
@@ -138,8 +227,28 @@ SET SESSION AUTHORIZATION mdm_s1_runner;
 SELECT pgreact_api.author_deadline_rule(
     's1-future-idle', 's1_audit.candidate'::regclass,
     'case_key', 'deadline', 'COMMAND',
-    's1_audit.deliver(pgreact.activation_context,s1_audit.candidate)');
+    's1_audit.deliver(pgreact.activation_context,s1_audit.candidate)',
+    NULL, NULL, 'SEED_CURRENT', NULL, 0, 'default', NULL, 5, 1, 2, 30);
 RESET SESSION AUTHORIZATION;
+DO $retry_policy$
+DECLARE binding pgreact_internal.consequence_bindings%ROWTYPE;
+BEGIN
+    SELECT consequence.* INTO STRICT binding
+    FROM pgreact_internal.rules AS rule
+    JOIN pgreact_internal.rule_versions AS version USING (rule_id)
+    JOIN pgreact_internal.consequence_bindings AS consequence USING (rule_version_id)
+    WHERE rule.rule_name = 's1-future-idle'
+      AND version.state = 'ACTIVE'
+      AND consequence.event_kind = 'ACTIVATE';
+    IF ROW(binding.max_attempts, binding.initial_backoff_seconds,
+           binding.backoff_multiplier, binding.max_backoff_seconds)
+       IS DISTINCT FROM ROW(5, 1, 2::numeric, 30) THEN
+        RAISE EXCEPTION 's1-future-idle retry policy is %, %, %, %',
+            binding.max_attempts, binding.initial_backoff_seconds,
+            binding.backoff_multiplier, binding.max_backoff_seconds;
+    END IF;
+END
+$retry_policy$;
 
 CREATE ROLE mdm_s1_rotated_worker NOLOGIN;
 DO $worker_grants$

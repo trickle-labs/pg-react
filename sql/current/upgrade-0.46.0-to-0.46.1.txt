@@ -1,4 +1,10 @@
-# 0.46.0 -> 0.46.1: preserve state/roles; fix shared claim name resolution.
+# 0.46.0 -> 0.46.1: preserve state/roles; guard generic temporal refresh/resume.
+sql/current/owner-recovery.sql
+sql/current/upgrade-settings-snapshot.sql
 sql/current/claim.sql
+sql/current/metadata-rebuild.sql
 sql/current/worker-grants.sql
 sql/current/pgtrickle.sql
+sql/current/recovery-restore.sql
+sql/current/temporal-key-limit.sql
+sql/current/binding-ddl-lock.sql

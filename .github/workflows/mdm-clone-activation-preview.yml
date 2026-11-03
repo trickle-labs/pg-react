@@ -27,6 +27,7 @@ jobs:
           git archive --format=tar HEAD | sha256sum > clone-evidence/react-archive-sha256.txt
           (cd .producer/mdm && git archive --format=tar HEAD) | sha256sum > clone-evidence/mdm-archive-sha256.txt
           sha256sum tests/integrations/pg-mdm/time/audit.py tests/integrations/pg-mdm/time/autonomous_recurrence.py \
+            integrations/pg-mdm/bounded_refresh_producer.py integrations/pg-mdm/pyproject.toml \
             integrations/pg-mdm/sql/intent-worker.sql \
             sql/current/pgtrickle.sql plans/v0.49-qualification-profile.json > clone-evidence/source-sha256.txt
       - name: Build exact candidate stack
@@ -34,10 +35,10 @@ jobs:
           set -euo pipefail
           docker build -f .producer/mdm/tests/Dockerfile.e2e \
             --build-arg PG_MDM_SOURCE_REVISION=ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3 \
-            --build-arg PG_TRICKLE_REVISION=c7e257e551d6f6bacb84ecfe6f5daf7637c53673 \
-            --build-arg PG_TRICKLE_SHA256=d6233d49cee80d33ac30626e0af7932a9698279233b8fceef3447275192abc27 \
-            --label pg_trickle.source_revision=c7e257e551d6f6bacb84ecfe6f5daf7637c53673 \
-            --label pg_trickle.source_archive_sha256=d6233d49cee80d33ac30626e0af7932a9698279233b8fceef3447275192abc27 \
+            --build-arg PG_TRICKLE_REVISION=eb44093bbeca4f276a92733fe2bbc740d8ef254a \
+            --build-arg PG_TRICKLE_SHA256=c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487 \
+            --label pg_trickle.source_revision=eb44093bbeca4f276a92733fe2bbc740d8ef254a \
+            --label pg_trickle.source_archive_sha256=c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487 \
             -t pgreact:mdm-clone-candidate .producer/mdm > clone-evidence/mdm-build.log 2>&1
           docker build -f tests/integrations/pg-mdm/Dockerfile.v0.48 \
             --build-arg PG_MDM_IMAGE=pgreact:mdm-clone-candidate \
@@ -53,12 +54,12 @@ jobs:
           cmp clone-evidence/mdm-libraries.txt clone-evidence/joint-libraries.txt
           docker run --rm --entrypoint sha256sum pgreact:clone-candidate \
             /usr/lib/postgresql/18/lib/pg_react.so > clone-evidence/react-library.txt
-      - name: Repeat physical clone, direct delivery, claimed-work and recurrence tests
+      - name: Repeat clone, recovery, claimed-work and recurrence probes
         run: |
           set +e
           set -uo pipefail
           status=0
-          for mode in clean-clone clean-clone-direct claimed-work autonomous-recurrence; do
+          for mode in clean-clone clean-clone-direct claimed-work autonomous-recurrence logical-restore; do
             for run in first repeat; do
               command=(python3 tests/integrations/pg-mdm/time/audit.py pgreact:clone-candidate "clone-evidence/$mode-$run" "--$mode")
               printf '%q ' "${command[@]}" > "clone-evidence/$mode-$run.command"
@@ -69,7 +70,7 @@ jobs:
               if [ "$result" -ne 0 ]; then
                 status=1
               else
-                python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); mode=sys.argv[2]; passed={c["name"] for c in o["checks"] if c["result"]=="passed"}; required={"clean-clone":{"clean-clone-preactivation","pending-recovery-s1_idle-5432"},"clean-clone-direct":{"clean-clone-direct-delivery-blocked"},"claimed-work":{"claimed-pause-barrier","pause-first-runtime-freshness","paused-before-claim","human-edit-claim-orders","binding-replacement-claim-orders","fresh-after-terminal-pause","cross-key-after-human-reduction"},"autonomous-recurrence":{"autonomous-recurrence"}}[mode]; assert required <= passed, o.get("failure"); assert mode != "clean-clone" or o["entry_decision"]=="FOCUSED_CLEAN_CLONE_RECOVERY_QUALIFIED"; assert mode != "claimed-work" or (o["entry_decision"]=="FOCUSED_CLAIMED_PAUSE_QUALIFIED" and not o["claimed_pause"]["pause_acknowledged_before_delivery_release"]); assert mode != "autonomous-recurrence" or (o["entry_decision"]=="FOCUSED_AUTONOMOUS_RECURRENCE_QUALIFIED" and o["autonomous_recurrence"]["old_receipts_unchanged"] and o["autonomous_recurrence"]["no_replay_across_cycles_and_restart"])' "clone-evidence/$mode-$run/observations.json" "$mode" > "clone-evidence/$mode-$run.validation.log" 2>&1
+              python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); mode=sys.argv[2]; passed={c["name"] for c in o["checks"] if c["result"]=="passed"}; required={"clean-clone":{"clean-clone-preactivation","pending-recovery-s1_idle-5432"},"clean-clone-direct":{"clean-clone-direct-delivery-blocked"},"claimed-work":{"claimed-pause-barrier","pause-first-runtime-freshness","paused-before-claim","human-edit-claim-orders","binding-replacement-claim-orders","fresh-after-terminal-pause","cross-key-after-human-reduction","delivery-inspection-output-matrix","read-only-route-explanation"},"autonomous-recurrence":{"autonomous-recurrence"},"logical-restore":{"logical-restore-dump-config","logical-restore-guard","logical-restore-blocked-cycles","logical-restore-preactivation","logical-restore-application-role-rebind","logical-restore-restricted-recovery-role","logical-restore-react-recovery","logical-restore-mdm-helper-config","logical-restore-reconcile-replay","logical-restore-pgtrickle-capture-recovery","logical-restore-producer-reinitialization"}}[mode]; assert required <= passed, o.get("failure"); assert mode != "clean-clone" or o["entry_decision"]=="FOCUSED_CLEAN_CLONE_RECOVERY_QUALIFIED"; assert mode != "claimed-work" or (o["entry_decision"]=="FOCUSED_CLAIMED_PAUSE_QUALIFIED" and not o["claimed_pause"]["pause_acknowledged_before_delivery_release"]); assert mode != "autonomous-recurrence" or (o["entry_decision"]=="FOCUSED_AUTONOMOUS_RECURRENCE_QUALIFIED" and o["autonomous_recurrence"]["old_receipts_unchanged"] and o["autonomous_recurrence"]["no_replay_across_cycles_and_restart"]); assert mode != "logical-restore" or (o["entry_decision"]=="FOCUSED_REACT_LOGICAL_RESTORE_QUALIFIED" and not o["release_qualified"] and o["logical_restore"]["capture_adoption_validation"]["status"]=="REINITIALIZATION_REQUIRED" and o["logical_restore"]["producer_reinitialization"]["result"]=="passed" and o["logical_restore"]["producer_reinitialization"]["validation"]["status"]=="SAFE" and o["logical_restore"]["producer_reinitialization"]["validation"]["ok"])' "clone-evidence/$mode-$run/observations.json" "$mode" > "clone-evidence/$mode-$run.validation.log" 2>&1
                 validation=$?
                 printf '%s\n' "$validation" > "clone-evidence/$mode-$run.validation.exit"
                 if [ "$validation" -ne 0 ]; then status=1; fi
@@ -77,6 +78,20 @@ jobs:
             done
           done
           exit "$status"
+      - name: Qualify the unpublished producer wheel on the candidate stack
+        if: ${{ !cancelled() }}
+        run: |
+          set +e
+          set -uo pipefail
+          command=(python3 tests/integrations/pg-mdm/time/audit.py pgreact:clone-candidate clone-evidence/producer-wheel --bounded-producer-wheel)
+          printf '%q ' "${command[@]}" > clone-evidence/producer-wheel.command
+          printf '\n' >> clone-evidence/producer-wheel.command
+          "${command[@]}" > clone-evidence/producer-wheel.log 2>&1
+          result=$?
+          printf '%s\n' "$result" > clone-evidence/producer-wheel.exit
+          if [ "$result" -ne 0 ]; then exit "$result"; fi
+          set -e
+          python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); passed={c["name"] for c in o["checks"] if c["result"]=="passed"}; required={"bounded-producer-current-source-installed-wheel-runtime","bounded-producer-reconnect-after-live-postgres-restart","five-source-row-producer-commit-refresh-replay","300-case-producer-offer-commit-refresh"}; assert required <= passed, o.get("failure"); assert o["entry_decision"]=="FOCUSED_BOUNDED_CASE_PRODUCER_300_QUALIFIED"; assert o["release_qualified"] is False; bulk=o["bounded_producer_300"]; assert (bulk["source_rows_inserted"],bulk["cases_opened"])==(1200,300); wheel=o["bounded_producer_installed_wheel"]["wheel_sha256"]; artifact=bulk["producer_artifact"]; assert artifact["type"]=="installed_wheel" and artifact["wheel_sha256"]==wheel and len(wheel)==64' clone-evidence/producer-wheel/observations.json > clone-evidence/producer-wheel.validation.log 2>&1
       - name: Run full joint audit on the activation candidate
         if: ${{ !cancelled() }}
         run: |

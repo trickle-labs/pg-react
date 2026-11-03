@@ -353,6 +353,7 @@ BEGIN
     EXECUTE 'GRANT SELECT ON TABLE pgreact_mdm.intent_queue_candidates, pgreact_mdm.intent_due_candidates, pgreact_mdm.intent_escalation_candidates TO pgreact_mdm_worker';
     EXECUTE 'GRANT SELECT ON TABLE pgreact_mdm.policy_intent_bindings, pgreact_mdm.policy_intent_runtime TO pgreact_mdm_worker';
     EXECUTE 'GRANT SELECT, INSERT ON TABLE pgreact_mdm.intent_requests, pgreact_mdm.intent_attempts, pgreact_mdm.intent_holds TO pgreact_mdm_worker';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION pgreact_mdm.intent_escalation_candidate_for_case(uuid, bigint) TO pgreact_mdm_worker';
     EXECUTE 'GRANT EXECUTE ON FUNCTION pgreact_mdm.submit_queue_intent(pgreact.activation_context, pgreact_mdm.intent_deployer_policy_cases_v1), pgreact_mdm.submit_due_intent(pgreact.activation_context, pgreact_mdm.intent_deployer_policy_cases_v1), pgreact_mdm.submit_escalation_intent(pgreact.activation_context, pgreact_mdm.intent_deployer_policy_cases_v1), pgreact_mdm.change_queue_intent(pgreact.activation_context, pgreact_mdm.intent_deployer_policy_cases_v1, pgreact_mdm.intent_deployer_policy_cases_v1), pgreact_mdm.change_due_intent(pgreact.activation_context, pgreact_mdm.intent_deployer_policy_cases_v1, pgreact_mdm.intent_deployer_policy_cases_v1), pgreact_mdm.change_escalation_intent(pgreact.activation_context, pgreact_mdm.intent_deployer_policy_cases_v1, pgreact_mdm.intent_deployer_policy_cases_v1), pgreact_mdm.execute_intent_episode(uuid, text) TO pgreact_mdm_worker';
     EXECUTE 'REVOKE ALL ON TABLE mdm_steward.policy_cases_v1, mdm_steward.policy_bindings_v1, mdm_steward.policy_receipts_v1, mdm_internal.policy_binding_runtime FROM pgreact_mdm_worker';
     EXECUTE 'GRANT EXECUTE ON FUNCTION mdm_steward.submit_policy_intent(uuid, bytea, bigint, text, jsonb, bigint, bigint, bigint, bigint, bytea, bigint, bytea, text, text, text) TO pgreact_mdm_worker';
@@ -702,7 +703,8 @@ JOIN pgreact_mdm.policy_intent_packages AS package
   ON package.policy_revision = binding.policy_revision
 CROSS JOIN LATERAL pgreact_mdm.route_cases(
     'pgreact_mdm.authorized_policy_cases_v1'::regclass,
-    binding.policy_revision, binding.entity_name::text) AS route
+    binding.policy_revision, binding.entity_name::text,
+    clock_timestamp()) AS route
 WHERE binding.enabled
   AND runtime.database_oid = (SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database())
   AND runtime.worker_role_oid = (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'pgreact_mdm_worker')
@@ -714,6 +716,64 @@ WHERE binding.enabled
   AND route.decision = 'WINNER'
   AND route.action = 'ESCALATE'
   AND (route.explanation ->> 'escalation_level')::integer <= binding.max_escalation_level;
+
+CREATE OR REPLACE FUNCTION pgreact_mdm.intent_escalation_candidate_for_case(
+    target_binding_id uuid,
+    target_case_key bigint
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+VOLATILE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+DECLARE
+    binding pgreact_mdm.policy_intent_bindings%ROWTYPE;
+    routed record;
+    requested_level integer;
+BEGIN
+    SELECT intent_binding.* INTO binding
+    FROM pgreact_mdm.policy_intent_bindings AS intent_binding
+    JOIN pgreact_mdm.policy_intent_runtime AS runtime USING (binding_id)
+    JOIN pgreact_mdm.policy_intent_packages AS package USING (policy_revision)
+    WHERE intent_binding.binding_id = target_binding_id
+      AND intent_binding.enabled
+      AND runtime.database_oid = (SELECT oid FROM pg_catalog.pg_database WHERE datname = current_database())
+      AND runtime.worker_role_oid = (SELECT oid FROM pg_catalog.pg_roles WHERE rolname = 'pgreact_mdm_worker')
+      AND 'ESCALATE' = ANY(intent_binding.allowed_actions);
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    SELECT route.* INTO routed
+    FROM pgreact_mdm.route_cases(
+        'pgreact_mdm.authorized_policy_cases_v1'::regclass,
+        binding.policy_revision, binding.entity_name::text,
+        clock_timestamp(), target_case_key) AS route
+    WHERE route.decision = 'WINNER'
+      AND route.action = 'ESCALATE'
+    ORDER BY route.case_key
+    LIMIT 1;
+    IF NOT FOUND THEN
+        RETURN NULL;
+    END IF;
+
+    requested_level := (routed.explanation ->> 'escalation_level')::integer;
+    IF binding.max_escalation_level IS NULL
+       OR requested_level > binding.max_escalation_level THEN
+        RETURN NULL;
+    END IF;
+    RETURN jsonb_build_object(
+        'case_key', routed.case_key,
+        'binding_id', binding.binding_id,
+        'policy_revision', binding.policy_revision,
+        'policy_digest', encode(binding.policy_digest, 'hex'),
+        'action', 'ESCALATE',
+        'arguments', jsonb_build_object('level', requested_level),
+        'consequence_identity', 'escalate_level_' || requested_level,
+        'escalation_level', requested_level);
+END
+$function$;
 
 CREATE OR REPLACE FUNCTION pgreact_mdm.submit_intent(
     context pgreact.activation_context,
@@ -735,7 +795,6 @@ DECLARE
     digest bytea;
     v_work_ref text := 'pgreact:' || (context).rule_version_id::text || ':' || (context).episode_id::text;
     response record;
-    validation_count integer;
     conflict boolean := false;
 BEGIN
     IF NOT pgreact_mdm.policy_runtime_ready() THEN
@@ -789,35 +848,33 @@ BEGIN
             conflict := true;
         END IF;
     ELSE
-        SELECT count(*) INTO validation_count
-        FROM pgreact_mdm.authorized_policy_cases_v1 AS current_case
-        WHERE current_case.case_key = (candidate ->> 'case_key')::bigint
-          AND current_case.entity_name = binding.entity_name
-          AND CASE candidate ->> 'action'
-              WHEN 'ASSIGN_QUEUE' THEN EXISTS (
-                  SELECT 1 FROM pgreact_mdm.intent_queue_candidates AS intent
-                  WHERE intent.binding_id = binding.binding_id
-                    AND intent.case_key = current_case.case_key
-                    AND intent.arguments ->> 'queue' = candidate -> 'arguments' ->> 'queue')
-              WHEN 'SET_DUE_AT' THEN EXISTS (
-                  SELECT 1 FROM pgreact_mdm.intent_due_candidates AS intent
-                  WHERE intent.binding_id = binding.binding_id
-                    AND intent.case_key = current_case.case_key
-                    AND intent.arguments ->> 'due_at' = candidate -> 'arguments' ->> 'due_at')
-              WHEN 'ESCALATE' THEN EXISTS (
-                  SELECT 1 FROM pgreact_mdm.intent_escalation_candidates AS intent
-                  WHERE intent.binding_id = binding.binding_id
-                    AND intent.case_key = current_case.case_key
-                    AND intent.arguments ->> 'level' = candidate -> 'arguments' ->> 'level')
-              ELSE false
-              END;
-        IF validation_count = 0 THEN
-            RETURN;
-        END IF;
-        SELECT * INTO STRICT policy_case
-        FROM pgreact_mdm.authorized_policy_cases_v1
-        WHERE case_key = (candidate ->> 'case_key')::bigint
-          AND entity_name = binding.entity_name;
+        BEGIN
+            SELECT * INTO STRICT policy_case
+            FROM pgreact_mdm.authorized_policy_cases_v1 AS current_case
+            WHERE current_case.case_key = (candidate ->> 'case_key')::bigint
+              AND current_case.entity_name = binding.entity_name
+              AND CASE candidate ->> 'action'
+                  WHEN 'ASSIGN_QUEUE' THEN EXISTS (
+                      SELECT 1 FROM pgreact_mdm.intent_queue_candidates AS intent
+                      WHERE intent.binding_id = binding.binding_id
+                        AND intent.case_key = current_case.case_key
+                        AND intent.arguments ->> 'queue' = candidate -> 'arguments' ->> 'queue')
+                  WHEN 'SET_DUE_AT' THEN EXISTS (
+                      SELECT 1 FROM pgreact_mdm.intent_due_candidates AS intent
+                      WHERE intent.binding_id = binding.binding_id
+                        AND intent.case_key = current_case.case_key
+                        AND intent.arguments ->> 'due_at' = candidate -> 'arguments' ->> 'due_at')
+                  WHEN 'ESCALATE' THEN
+                      (pgreact_mdm.intent_escalation_candidate_for_case(
+                          binding.binding_id, current_case.case_key)
+                       -> 'arguments' ->> 'level')
+                      = candidate -> 'arguments' ->> 'level'
+                  ELSE false
+                  END;
+        EXCEPTION
+            WHEN NO_DATA_FOUND THEN
+                RETURN;
+        END;
         key := pgreact_mdm.intent_request_key(
             binding.binding_id, binding.policy_revision, policy_case.case_key,
             (context).generation, policy_case.action_revision,
@@ -1048,14 +1105,22 @@ SET search_path = pg_catalog, pg_temp
 AS $function$
 DECLARE candidate jsonb;
 BEGIN
-    SELECT to_jsonb(intent) INTO candidate
-    FROM pgreact_mdm.intent_escalation_candidates AS intent
-    JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
-    WHERE intent.case_key = ($2).case_key
-      AND binding.entity_name::text = ($2).entity_name
-    ORDER BY intent.binding_id
+    SELECT candidate_row.candidate INTO candidate
+    FROM pgreact_mdm.policy_intent_bindings AS binding
+    CROSS JOIN LATERAL (
+        SELECT pgreact_mdm.intent_escalation_candidate_for_case(
+            binding.binding_id, ($2).case_key) AS candidate
+    ) AS candidate_row
+    WHERE binding.entity_name::text = ($2).entity_name
+      AND candidate_row.candidate IS NOT NULL
+    ORDER BY binding.binding_id
     LIMIT 1;
     IF FOUND THEN
+        IF ($2).due_at > statement_timestamp() THEN
+            RAISE EXCEPTION USING
+                ERRCODE = '40001',
+                MESSAGE = 'due escalation requires a fresh statement';
+        END IF;
         PERFORM pgreact_mdm.submit_intent_as_worker($1, candidate);
     END IF;
 END
@@ -1098,10 +1163,14 @@ GRANT CREATE ON SCHEMA pgreact_mdm TO pgreact_mdm_worker;
 ALTER FUNCTION pgreact_mdm.submit_intent(pgreact.activation_context, jsonb) OWNER TO pgreact_mdm_worker;
 REVOKE CREATE ON SCHEMA pgreact_mdm FROM pgreact_mdm_worker;
 GRANT EXECUTE ON FUNCTION pgreact_mdm.submit_intent(pgreact.activation_context, jsonb) TO CURRENT_USER;
+ALTER FUNCTION pgreact_mdm.intent_escalation_candidate_for_case(uuid, bigint) OWNER TO mdm_helper_owner;
+REVOKE ALL ON FUNCTION pgreact_mdm.intent_escalation_candidate_for_case(uuid, bigint) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pgreact_mdm.intent_escalation_candidate_for_case(uuid, bigint) TO pgreact_mdm_worker;
 
 GRANT USAGE ON SCHEMA pgreact, pgreact_mdm, mdm_steward TO pgreact_mdm_worker;
 GRANT USAGE ON SCHEMA mdm_steward TO mdm_helper_owner WITH GRANT OPTION;
 GRANT SELECT ON TABLE pgreact_mdm.policy_packages TO mdm_helper_owner WITH GRANT OPTION;
+GRANT SELECT ON TABLE pgreact_mdm.policy_intent_packages TO mdm_helper_owner WITH GRANT OPTION;
 GRANT SELECT ON TABLE pgreact_mdm.policy_packages TO pgreact_mdm_worker;
 GRANT SELECT ON pgreact_mdm.intent_queue_candidates,
     pgreact_mdm.intent_due_candidates,
@@ -1257,6 +1326,7 @@ BEGIN
     EXECUTE format('GRANT SELECT ON TABLE pgreact_mdm.policy_packages, pgreact_mdm.policy_intent_packages, pgreact_mdm.policy_intent_bindings, pgreact_mdm.policy_intent_runtime TO %I', $1);
     EXECUTE format('GRANT SELECT ON TABLE pgreact.rules TO %I', $1);
     EXECUTE format('GRANT SELECT ON TABLE pgreact_mdm.authorized_policy_cases_v1, pgreact_mdm.intent_deployer_policy_cases_v1, pgreact_mdm.intent_queue_candidates, pgreact_mdm.intent_due_candidates, pgreact_mdm.intent_escalation_candidates TO %I', $1);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION pgreact_mdm.intent_escalation_candidate_for_case(uuid, bigint) TO %I', $1);
     EXECUTE format('GRANT CREATE ON SCHEMA pgreact_mdm TO %I', $1);
     IF (SELECT relowner FROM pg_catalog.pg_class
         WHERE oid = 'pgreact_mdm.intent_deployer_policy_cases_v1'::regclass) <> role_row.oid THEN
@@ -1394,3 +1464,228 @@ GRANT EXECUTE ON FUNCTION pgreact_mdm.create_intent_binding(text, text, text[], 
     pgreact_mdm.replace_intent_binding(uuid, bigint, text, text[], text[], interval, integer),
     pgreact_mdm.reconcile_intent_binding(uuid, bigint),
     pgreact_mdm.pause_intent_binding(uuid, bigint) TO PUBLIC;
+
+-- Retain managed cases through 90 elapsed days after resolution and receipts
+-- through 90 elapsed days after creation. MDM's drop_entity deletes both.
+-- This DML/TRUNCATE barrier does not preserve backup history or constrain privileged DDL.
+CREATE OR REPLACE FUNCTION pgreact_mdm.guard_policy_history_retention()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+DECLARE
+    case_status text;
+    case_resolved_at timestamptz;
+    case_exists boolean;
+    managed_case boolean;
+BEGIN
+    IF TG_LEVEL = 'STATEMENT' THEN
+        IF TG_TABLE_NAME = 'policy_receipts_v1' THEN
+            IF EXISTS (
+                SELECT 1
+                FROM mdm_steward.policy_receipts_v1 AS receipt
+                LEFT JOIN mdm_steward.policy_cases_v1 AS policy_case
+                  USING (case_key)
+                WHERE (
+                    EXISTS (
+                        SELECT 1
+                        FROM pgreact_mdm.policy_intent_bindings AS binding
+                        WHERE binding.binding_id = receipt.binding_id)
+                    OR EXISTS (
+                        SELECT 1
+                        FROM pgreact_mdm.intent_case_identities AS identity_map
+                        WHERE identity_map.case_key = receipt.case_key))
+                  AND (policy_case.case_key IS NULL
+                    OR policy_case.status <> 'resolved'
+                    OR policy_case.resolved_at IS NULL
+                    OR pg_catalog.clock_timestamp()
+                        < policy_case.resolved_at + interval '2160 hours'
+                    OR pg_catalog.clock_timestamp()
+                        < receipt.created_at + interval '2160 hours'))
+            THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '55000',
+                    MESSAGE = 'PGREACT_MDM_RETENTION: managed policy receipts remain within the retention period';
+            END IF;
+        ELSIF TG_TABLE_NAME = 'policy_cases_v1' THEN
+            IF EXISTS (
+                SELECT 1
+                FROM mdm_steward.policy_cases_v1 AS policy_case
+                WHERE (
+                    EXISTS (
+                        SELECT 1
+                        FROM pgreact_mdm.policy_intent_bindings AS binding
+                        WHERE binding.entity_name = policy_case.entity_name)
+                    OR EXISTS (
+                        SELECT 1
+                        FROM pgreact_mdm.intent_case_identities AS identity_map
+                        WHERE identity_map.entity_name = policy_case.entity_name
+                          AND identity_map.case_key = policy_case.case_key)
+                    )
+                  AND (policy_case.status <> 'resolved'
+                    OR policy_case.resolved_at IS NULL
+                    OR pg_catalog.clock_timestamp()
+                        < policy_case.resolved_at + interval '2160 hours'
+                    OR EXISTS (
+                        SELECT 1
+                        FROM mdm_steward.policy_receipts_v1 AS receipt
+                        WHERE receipt.case_key = policy_case.case_key)))
+            THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '55000',
+                    MESSAGE = 'PGREACT_MDM_RETENTION: managed cases or receipts remain protected';
+            END IF;
+        ELSE
+            RAISE EXCEPTION USING
+                ERRCODE = '55000',
+                MESSAGE = 'PGREACT_MDM_RETENTION: unsupported MDM history table';
+        END IF;
+        RETURN NULL;
+    END IF;
+
+    IF TG_TABLE_NAME = 'policy_cases_v1' THEN
+        case_status := OLD.status;
+        case_resolved_at := OLD.resolved_at;
+        case_exists := true;
+    ELSIF TG_TABLE_NAME = 'policy_receipts_v1' THEN
+        SELECT policy_case.status, policy_case.resolved_at
+          INTO case_status, case_resolved_at
+          FROM mdm_steward.policy_cases_v1 AS policy_case
+         WHERE policy_case.case_key = OLD.case_key
+           FOR SHARE;
+        case_exists := FOUND;
+    ELSE
+        RAISE EXCEPTION USING
+            ERRCODE = '55000',
+            MESSAGE = 'PGREACT_MDM_RETENTION: unsupported MDM history table';
+    END IF;
+
+    IF TG_TABLE_NAME = 'policy_receipts_v1' THEN
+        SELECT EXISTS (
+            SELECT 1
+            FROM pgreact_mdm.policy_intent_bindings AS binding
+            WHERE binding.binding_id = OLD.binding_id)
+            OR EXISTS (
+                SELECT 1
+                FROM pgreact_mdm.intent_case_identities AS identity_map
+                WHERE identity_map.case_key = OLD.case_key)
+          INTO managed_case;
+    ELSIF TG_TABLE_NAME = 'policy_cases_v1' THEN
+        SELECT EXISTS (
+            SELECT 1
+            FROM pgreact_mdm.policy_intent_bindings AS binding
+            WHERE binding.entity_name = OLD.entity_name)
+            OR EXISTS (
+                SELECT 1
+                FROM pgreact_mdm.intent_case_identities AS identity_map
+                WHERE identity_map.entity_name = OLD.entity_name
+                  AND identity_map.case_key = OLD.case_key)
+          INTO managed_case;
+    ELSE
+        RAISE EXCEPTION USING
+            ERRCODE = '55000',
+            MESSAGE = 'PGREACT_MDM_RETENTION: unsupported MDM history table';
+    END IF;
+
+    IF managed_case THEN
+        IF NOT case_exists
+            OR case_status <> 'resolved'
+            OR case_resolved_at IS NULL
+            OR pg_catalog.clock_timestamp()
+                < case_resolved_at + interval '2160 hours'
+        THEN
+            RAISE EXCEPTION USING
+                ERRCODE = '55000',
+                MESSAGE = pg_catalog.format(
+                    'PGREACT_MDM_RETENTION: managed policy history for case %s is not eligible for deletion',
+                    OLD.case_key);
+        END IF;
+
+        IF TG_TABLE_NAME = 'policy_receipts_v1' THEN
+            IF pg_catalog.clock_timestamp()
+                < OLD.created_at + interval '2160 hours'
+            THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '55000',
+                    MESSAGE = pg_catalog.format(
+                        'PGREACT_MDM_RETENTION: receipt for managed case %s is younger than 90 days',
+                        OLD.case_key);
+            END IF;
+        ELSIF TG_TABLE_NAME = 'policy_cases_v1' THEN
+            IF EXISTS (
+                SELECT 1
+                FROM mdm_steward.policy_receipts_v1 AS receipt
+                WHERE receipt.case_key = OLD.case_key)
+            THEN
+                RAISE EXCEPTION USING
+                    ERRCODE = '55000',
+                    MESSAGE = pg_catalog.format(
+                        'PGREACT_MDM_RETENTION: receipts for managed case %s must be pruned first',
+                        OLD.case_key);
+            END IF;
+        END IF;
+    END IF;
+
+    RETURN OLD;
+END
+$function$;
+
+GRANT CREATE ON SCHEMA pgreact_mdm TO mdm_helper_owner;
+ALTER FUNCTION pgreact_mdm.guard_policy_history_retention() OWNER TO mdm_helper_owner;
+REVOKE CREATE ON SCHEMA pgreact_mdm FROM mdm_helper_owner;
+REVOKE ALL ON FUNCTION pgreact_mdm.guard_policy_history_retention() FROM PUBLIC;
+
+DO $retention_triggers$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_trigger
+        WHERE tgrelid = 'mdm_steward.policy_receipts_v1'::regclass
+          AND tgname = 'pgreact_mdm_receipts_retention'
+          AND NOT tgisinternal)
+    THEN
+        EXECUTE 'CREATE TRIGGER pgreact_mdm_receipts_retention
+            BEFORE DELETE ON mdm_steward.policy_receipts_v1
+            FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.guard_policy_history_retention()';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_trigger
+        WHERE tgrelid = 'mdm_steward.policy_receipts_v1'::regclass
+          AND tgname = 'pgreact_mdm_receipts_no_truncate'
+          AND NOT tgisinternal)
+    THEN
+        EXECUTE 'CREATE TRIGGER pgreact_mdm_receipts_no_truncate
+            BEFORE TRUNCATE ON mdm_steward.policy_receipts_v1
+            FOR EACH STATEMENT EXECUTE FUNCTION pgreact_mdm.guard_policy_history_retention()';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_trigger
+        WHERE tgrelid = 'mdm_steward.policy_cases_v1'::regclass
+          AND tgname = 'pgreact_mdm_cases_retention'
+          AND NOT tgisinternal)
+    THEN
+        EXECUTE 'CREATE TRIGGER pgreact_mdm_cases_retention
+            BEFORE DELETE ON mdm_steward.policy_cases_v1
+            FOR EACH ROW EXECUTE FUNCTION pgreact_mdm.guard_policy_history_retention()';
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_catalog.pg_trigger
+        WHERE tgrelid = 'mdm_steward.policy_cases_v1'::regclass
+          AND tgname = 'pgreact_mdm_cases_no_truncate'
+          AND NOT tgisinternal)
+    THEN
+        EXECUTE 'CREATE TRIGGER pgreact_mdm_cases_no_truncate
+            BEFORE TRUNCATE ON mdm_steward.policy_cases_v1
+            FOR EACH STATEMENT EXECUTE FUNCTION pgreact_mdm.guard_policy_history_retention()';
+    END IF;
+END
+$retention_triggers$;
+
+ALTER TABLE mdm_steward.policy_receipts_v1
+    ENABLE TRIGGER pgreact_mdm_receipts_retention;
+ALTER TABLE mdm_steward.policy_receipts_v1
+    ENABLE TRIGGER pgreact_mdm_receipts_no_truncate;
+ALTER TABLE mdm_steward.policy_cases_v1
+    ENABLE TRIGGER pgreact_mdm_cases_retention;
+ALTER TABLE mdm_steward.policy_cases_v1
+    ENABLE TRIGGER pgreact_mdm_cases_no_truncate;

@@ -3,6 +3,7 @@ import copy
 import datetime
 import json
 import time
+import uuid
 
 
 def qualify(sql, command, fixture, container, observations, timestamp):
@@ -162,25 +163,234 @@ def qualify(sql, command, fixture, container, observations, timestamp):
     assert [r for r in second["receipts"] if r["case_key"] == original] == [
         r for r in first["receipts"] if r["case_key"] == original]
 
-    def later_cycles():
+    def later_cycles(expected_state):
         started = timestamp(json.loads(sql("SELECT to_json(clock_timestamp())")))
         wait_for(lambda _: (lambda p: p.get("state") == "ready" and p.get("heartbeat_at") and
             timestamp(p["heartbeat_at"]) > started + datetime.timedelta(seconds=3))(
                 read("SELECT pgreact_api.managed_status()").get("process") or {}),
             "managed cycles failed to advance after recurrence")
-        assert state() == second, "later managed cycles changed durable state"
+        assert state() == expected_state, "later managed cycles changed durable state"
 
-    later_cycles()
+    later_cycles(second)
+    successor_case_key = successor["case_key"]
+    prior_request, = [r for r in second["requests"] if r["case_key"] == successor_case_key]
+    prior_applied_receipt, = [r for r in second["receipts"]
+        if r["case_key"] == successor_case_key and r["outcome"] == "APPLIED_CONTROL"]
+    inactive_activation = read(
+        "SELECT to_jsonb(a) FROM pgreact_internal.activation_state a "
+        "JOIN pgreact_internal.rule_versions v USING (rule_version_id) "
+        "JOIN pgreact_internal.rules r USING (rule_id) "
+        "WHERE r.rule_name='s1-autonomous' AND a.semantic_key=" + str(successor_case_key))
+    assert inactive_activation["active"] is False
+    assert inactive_activation["generation"] == prior_request["lifecycle_generation"]
+
+    fixture("autonomous-human-reduction",
+            "/work/tests/integrations/pg-mdm/time/autonomous-human-reduction.sql", "s1_idle")
+    expected_cases = copy.deepcopy(second["cases"])
+    lowered_case = next(c for c in expected_cases if c["case_key"] == successor_case_key)
+    lowered_case.update(escalation_level=1, action_revision=lowered_case["action_revision"] + 1)
+
+    def generation_denial_ready(actual):
+        return any(r["case_key"] == successor_case_key
+            and r["lifecycle_generation"] > prior_request["lifecycle_generation"]
+            and r["action_revision"] == lowered_case["action_revision"]
+            for r in actual["requests"])
+
+    after_generation_denial = wait_for(
+        generation_denial_ready,
+        "new React generation did not submit the same occurrence's previously applied level")
+    assert after_generation_denial["cases"] == expected_cases
+    assert after_generation_denial["source"] == second["source"]
+    assert after_generation_denial["selector"] == second["selector"]
+    generation_request, = [r for r in after_generation_denial["requests"]
+        if r["case_key"] == successor_case_key
+        and r["lifecycle_generation"] > prior_request["lifecycle_generation"]]
+    generation = generation_request["lifecycle_generation"]
+    active_activation = read(
+        "SELECT to_jsonb(a) FROM pgreact_internal.activation_state a "
+        "JOIN pgreact_internal.rule_versions v USING (rule_version_id) "
+        "JOIN pgreact_internal.rules r USING (rule_id) "
+        "WHERE r.rule_name='s1-autonomous' AND a.semantic_key=" + str(successor_case_key))
+    assert generation == prior_request["lifecycle_generation"] + 1
+    assert active_activation["active"] is True
+    assert active_activation["generation"] == generation
+    generation_activation = read(
+        "SELECT to_jsonb(m) FROM pgreact.matches m WHERE name='s1-autonomous' "
+        "AND semantic_key=" + str(successor_case_key))
+    assert generation_activation["activation_id"] == active_activation["activation_id"]
+    work_parts = generation_request["work_ref"].split(":")
+    assert len(work_parts) == 3 and work_parts[0] == "pgreact"
+    assert work_parts[1] == active_activation["rule_version_id"]
+    episode_id = int(work_parts[2])
+
+    expected_body = {
+        "action": "ESCALATE", "arguments": {"level": 2},
+        "binding_id": binding["binding_id"], "case_key": successor_case_key,
+        "evaluation_ref": "pgreact:" + generation_activation["activation_id"],
+        "expected_action_revision": lowered_case["action_revision"],
+        "expected_definition_version": lowered_case["definition_version"],
+        "expected_evidence_basis_digest": lowered_case["evidence_basis_digest"][2:],
+        "expected_policy_digest": binding["policy_digest"][2:],
+        "expected_publication_revision": lowered_case["publication_revision"],
+        "expected_review_version": lowered_case["review_version"],
+        "expected_stewardship_epoch": lowered_case["stewardship_epoch"],
+        "policy_revision": binding["policy_revision"],
+        "work_ref": generation_request["work_ref"],
+    }
+    expected_key = "\\x" + sql(
+        "SELECT encode(pgreact_mdm.intent_request_key('" + binding["binding_id"] +
+        "'::uuid,'s1-idle-feasibility'," + str(successor_case_key) + "," +
+        str(generation) + "," + str(lowered_case["action_revision"]) +
+        ",'escalate_level_2',2),'hex')")
+    expected_digest = "\\x" + sql(
+        "SELECT encode(pgreact_mdm.intent_request_digest('" +
+        json.dumps(expected_body).replace("'", "''") + "'::jsonb),'hex')")
+    expected_request = {
+        "binding_id": binding["binding_id"], "request_key": expected_key,
+        "request_digest": expected_digest, "request_body": expected_body,
+        "work_ref": generation_request["work_ref"],
+        "policy_revision": binding["policy_revision"], "case_key": successor_case_key,
+        "lifecycle_generation": generation,
+        "action_revision": lowered_case["action_revision"],
+        "consequence_identity": "escalate_level_2", "escalation_level": 2,
+        "first_episode_id": episode_id, "created_at": generation_request["created_at"],
+    }
+    assert generation_request == expected_request, generation_request
+    timestamp(generation_request["created_at"])
+    assert generation_request["request_key"] != prior_request["request_key"]
+
+    case_receipts = [r for r in after_generation_denial["receipts"]
+        if r["case_key"] == successor_case_key and r["action"] == "ESCALATE"]
+    applied_receipt, = [r for r in case_receipts if r["outcome"] == "APPLIED_CONTROL"]
+    denial_receipt, = [r for r in case_receipts if r["outcome"] == "ACTION_DENIED"]
+    assert len(case_receipts) == 2
+    assert applied_receipt == prior_applied_receipt
+    assert denial_receipt["reason_code"] == "ESCALATION_LEVEL_ALREADY_APPLIED"
+    expected_control = {
+        "assigned_queue": lowered_case["assigned_queue"],
+        "due_at": lowered_case["due_at"].replace("T", " ").removesuffix(":00"),
+        "escalation_level": 1,
+        "manual_assignment_protected": lowered_case["manual_assignment_protected"],
+    }
+    expected_denial_receipt = {
+        "receipt_id": denial_receipt["receipt_id"],
+        "created_at": denial_receipt["created_at"],
+        "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
+        "session_role_name": "mdm_s1_runtime", "action": "ESCALATE",
+        "outcome": "ACTION_DENIED", "reason_code": "ESCALATION_LEVEL_ALREADY_APPLIED",
+        "control": expected_control, "case_key": successor_case_key,
+        "binding_id": binding["binding_id"], "binding_version": binding["binding_version"],
+        "action_revision": lowered_case["action_revision"],
+        "resulting_publication_revision": None, "request_body": expected_body,
+        "request_key": expected_key, "request_digest": expected_digest,
+    }
+    assert denial_receipt == expected_denial_receipt, denial_receipt
+    uuid.UUID(denial_receipt["receipt_id"])
+    timestamp(denial_receipt["created_at"])
+    assert len(after_generation_denial["receipts"]) == len(second["receipts"]) + 1
+    assert [r for r in after_generation_denial["receipts"]
+        if r["receipt_id"] in {old["receipt_id"] for old in second["receipts"]}] == second["receipts"]
+
+    generation_attempt, = [a for a in after_generation_denial["intent_attempts"]
+        if a["request_key"] == expected_key]
+    expected_attempt = {
+        "episode_id": episode_id, "attempt_no": 1, "binding_id": binding["binding_id"],
+        "request_key": expected_key, "request_digest": expected_digest,
+        "request_body": expected_body, "work_ref": generation_request["work_ref"],
+        "receipt_id": denial_receipt["receipt_id"], "outcome": "ACTION_DENIED",
+        "reason_code": "ESCALATION_LEVEL_ALREADY_APPLIED", "case_key": successor_case_key,
+        "action_revision": lowered_case["action_revision"], "control": expected_control,
+        "resulting_publication_revision": None, "attempted_at": generation_attempt["attempted_at"],
+    }
+    assert generation_attempt == expected_attempt
+    timestamp(generation_attempt["attempted_at"])
+    assert after_generation_denial["intent_attempts"] == sorted(
+        second["intent_attempts"] + [generation_attempt],
+        key=lambda a: (a["episode_id"], a["attempt_no"]))
+    assert after_generation_denial["requests"] == sorted(
+        second["requests"] + [generation_request], key=lambda r: r["work_ref"])
+    generation_work, = [w for w in after_generation_denial["work"]
+        if w["work_id"] == work_parts[2]]
+    expected_work = {
+        "work_id": work_parts[2], "kind": "rule", "name": "s1-autonomous",
+        "version": "1", "state": "COMPLETED", "claimable": False,
+        "updated_at": generation_work["updated_at"],
+    }
+    assert generation_work == expected_work
+    assert len(after_generation_denial["work"]) == len(second["work"]) + 1
+    old_work_ids = {w["work_id"] for w in second["work"]}
+    assert [w for w in after_generation_denial["work"] if w["work_id"] in old_work_ids] == second["work"]
+    generation_core_attempt, = [a for a in after_generation_denial["attempts"]
+        if a["episode_id"] == episode_id]
+    expected_core_attempt = {
+        **{k: generation_core_attempt[k] for k in
+            ("execution_id", "started_at", "finished_at", "worker_id")},
+        "episode_id": episode_id, "attempt_no": 1, "status": "COMPLETED",
+        "error_message": None, "error_code": None,
+        "event_kind": "ACTIVATE", "name": "s1-autonomous",
+    }
+    assert generation_core_attempt == expected_core_attempt
+    timestamp(generation_core_attempt["started_at"])
+    timestamp(generation_core_attempt["finished_at"])
+    old_core_attempt_ids = {a["execution_id"] for a in second["attempts"]}
+    assert [a for a in after_generation_denial["attempts"]
+        if a["execution_id"] in old_core_attempt_ids] == second["attempts"]
+    assert len(after_generation_denial["attempts"]) == len(second["attempts"]) + 1
+    assert len([r for r in after_generation_denial["receipts"]
+        if r["case_key"] == successor_case_key and r["action"] == "ESCALATE"
+        and r["outcome"] == "APPLIED_CONTROL" and r["control"].get("escalation_level") == 2]) == 1
+
+    holds = read("SELECT COALESCE(jsonb_agg(to_jsonb(h) ORDER BY held_at),'[]') "
+        "FROM pgreact_mdm.intent_holds h WHERE binding_id='" + binding["binding_id"] +
+        "'::uuid AND case_key=" + str(successor_case_key) +
+        " AND expected_action_revision=" + str(lowered_case["action_revision"]))
+    hold, = holds
+    assert hold["binding_id"] == binding["binding_id"]
+    assert hold["case_key"] == successor_case_key
+    assert hold["policy_revision"] == binding["policy_revision"]
+    assert hold["action"] == "ESCALATE"
+    assert hold["expected_action_revision"] == lowered_case["action_revision"]
+    assert hold["reason_code"] == "ESCALATION_LEVEL_ALREADY_APPLIED"
+    timestamp(hold["held_at"])
+
+    later_cycles(after_generation_denial)
+    holds_after_cycles = read("SELECT COALESCE(jsonb_agg(to_jsonb(h) ORDER BY held_at),'[]') "
+        "FROM pgreact_mdm.intent_holds h WHERE binding_id='" + binding["binding_id"] +
+        "'::uuid AND case_key=" + str(successor_case_key) +
+        " AND expected_action_revision=" + str(lowered_case["action_revision"]))
+    assert holds_after_cycles == holds
+    observations["same_occurrence_cross_generation"] = {
+        "case_key": successor_case_key,
+        "prior_generation": prior_request["lifecycle_generation"],
+        "new_generation": generation,
+        "inactive_before_human_edit": inactive_activation,
+        "active_after_reentry": active_activation,
+        "lowered_case": lowered_case,
+        "request": generation_request,
+        "attempt": generation_attempt,
+        "applied_receipt_unchanged": applied_receipt,
+        "denial_receipt": denial_receipt,
+        "hold": hold,
+        "no_repeat_after_cycles": True,
+    }
+    observations["checks"].append({
+        "name": "same-occurrence-cross-generation-repeat-denied", "result": "passed"})
+
     old_postmaster = sql("SELECT pg_postmaster_start_time()")
     command("docker", "restart", container)
     # Wait via docker exec without assuming a fixed startup duration.
     command("docker", "exec", container, "sh", "-c",
             "until pg_isready -U postgres >/dev/null 2>&1; do sleep 0.2; done")
     assert sql("SELECT pg_postmaster_start_time()") > old_postmaster
-    reconcile_after_restart(second)
-    later_cycles()
+    reconcile_after_restart(after_generation_denial)
+    later_cycles(after_generation_denial)
+    holds_after_restart = read("SELECT COALESCE(jsonb_agg(to_jsonb(h) ORDER BY held_at),'[]') "
+        "FROM pgreact_mdm.intent_holds h WHERE binding_id='" + binding["binding_id"] +
+        "'::uuid AND case_key=" + str(successor_case_key) +
+        " AND expected_action_revision=" + str(lowered_case["action_revision"]))
+    assert holds_after_restart == holds
     observations["autonomous_recurrence"] = {"before": prepared, "after": second,
         "exact": True, "old_receipts_unchanged": True, "no_replay_across_cycles_and_restart": True}
     observations["checks"].append({"name": "autonomous-recurrence", "result": "passed"})
     observations["entry_decision"] = "FOCUSED_AUTONOMOUS_RECURRENCE_QUALIFIED"
-    print("PASS: autonomous MDM recurrence, exact controls/receipts and cold restart", flush=True)
+    print("PASS: autonomous MDM recurrence, cross-generation duplicate denial and cold restart", flush=True)

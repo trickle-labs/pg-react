@@ -1,0 +1,14 @@
+[Unit]
+Description=Check pg-react retained-history guards
+
+[Service]
+Type=oneshot
+User=pgreact-monitor
+Group=pgreact-monitor
+EnvironmentFile=/etc/pg-react/retention-guard-monitor.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 /opt/pg-react/integrations/pg-mdm/retention_guard_monitor.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true

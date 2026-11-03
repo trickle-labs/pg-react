@@ -1,0 +1,89 @@
+{
+  "archive": {
+    "file_count": 18,
+    "path": "bounded-producer-wheel-current-candidate-local-20261103-r2.tar.gz",
+    "round_trip_verified": true,
+    "sha256": "5b186759ff4c7f152c153233e94c29d6137f173bd05da6d91e03527554d32fc9"
+  },
+  "artifacts": {
+    "bounded-producer-wheel-run.log": "5c98d4ba2b6443db7169d13bb81dbd89792f6816730d87811ec22686d8131b92",
+    "raw/autonomous-bootstrap.log": "3143271f2bedc92da6ddbcc2152fbaddc83852a8f82a9292c9cb72fbac37ba17",
+    "raw/bounded-producer-300-admissions.jsonl": "5275eb9e000c3cf8d99c4725dc62642d80819c3c8949a32195361c7c8291b046",
+    "raw/bounded-producer-300-run.log": "36e7dc73f764db7e098f65c84f5621ef1e31e9ea44a281b5a9101d14d923951b",
+    "raw/bounded-producer-admissions.jsonl": "f73af57d4d10f15dc4bc520e07767ba6606086846af014ba586ad33ad546d778",
+    "raw/bounded-producer-json-admission.jsonl": "0b5b9002547101138d563cfb2975d8446683fd2910cd4268462d4fbc18090bd8",
+    "raw/bounded-producer-json-conflict.jsonl": "923f34a4d5de52b4610955420877292c2b933c83ab746bcaa72db0118d98fd8a",
+    "raw/bounded-producer-restart-admissions.jsonl": "52dbfdbe17c5319ac044c80c279bf7debc4044cdb2f749def7f0f76961255ec0",
+    "raw/bounded-producer-restart-run.log": "5e60bd89db8aa53b765dada50b68ba6409c1baf80bb39f10d6cf25a4e9c78b3b",
+    "raw/bounded-producer-run-1.log": "478e92dbb76d9190ede3eb3e6688a7e233b8b92b332a4b6a18f36e63c99843c2",
+    "raw/bounded-producer-run-2.log": "6e7d99f367ba131160e47577e8733b351be5f55cd4902f2e644ad6233659e019",
+    "raw/bounded-producer-split-cluster-admissions.jsonl": "fdbd35b9f183f57f2b72fd46d7c3b24437d281769dfdb0e98f673d8adffdb54e",
+    "raw/bounded-producer-split-cluster-services.conf": "7121d6cc86610584a4b4358c286d3192088eca7c35df1e8b7111a28c4255fe94",
+    "raw/compatibility.log": "8df513574f893f0294c1dec7628f651e3ba640d07156417471a72569d375c315",
+    "raw/idle-setup.log": "320be20252e2f4db2694634cd3f9805c3d540a27fbff66c2785e1a6eb5e471f1",
+    "raw/observations.json": "687b8cf1b1b7c9d9b9a203d3e856b0fb12407e07e7c6fa49f516db64344bff7d",
+    "raw/pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl": "5c4c212a3f6205e7d436ee0968ad9ce2e1286cd0ce25881160d4b416665ea3c2",
+    "raw/populated-core-upgrade-rollback.log": "991dc72f403ae4d717b20d9986c9110d4b16a40ddd3cc69814b863303ee3a1c0"
+  },
+  "date": "2026-11-03",
+  "evidence_kind": "current_candidate_exact_installed_bounded_producer_wheel",
+  "image": {
+    "checkout_revision": "2871b580cf58c8c0fc24bbcdf4bed68b054aaf76",
+    "host_cpu_count": 10,
+    "host_platform": "arm64 (emulated)",
+    "id": "sha256:a2ae0ba5e2c9f9c01b2c1ad9f8fa87e4756b9f932269fa1e5a90f596c06cc283",
+    "pg_mdm_source_revision": "ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3",
+    "pg_trickle_source_archive_sha256": "c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487",
+    "pg_trickle_source_revision": "eb44093bbeca4f276a92733fe2bbc740d8ef254a",
+    "platform": "linux/amd64",
+    "source_manifest_sha256": "a735ece87b9804fb5db9179fb5fab14c0ec29c20694bb5a37d81cf6268f77a0a"
+  },
+  "installed_wheel": {
+    "entry_point_help_passed": true,
+    "installed_module_loaded_from_venv": true,
+    "installed_module_sha256": "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b",
+    "producer_source_sha256": "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b",
+    "wheel_file": "pg_react_bounded_refresh_producer-0.49.0-py3-none-any.whl",
+    "wheel_origin": "provided_exact_artifact",
+    "wheel_sha256": "5c4c212a3f6205e7d436ee0968ad9ce2e1286cd0ce25881160d4b416665ea3c2"
+  },
+  "qualification_profile_sha256": "3e53b3734b63ad14ba3f67b548b349cefe0add12d5164aceba7d4632146d992d",
+  "react_revision": "43d8618b75625ab4bc57801f827b01527850fa87",
+  "release_qualified": false,
+  "run": {
+    "checks_failed": [],
+    "checks_passed": 18,
+    "entry_decision": "FOCUSED_BOUNDED_CASE_PRODUCER_300_QUALIFIED",
+    "mode": "--bounded-producer-wheel-file",
+    "postgres_restart": {
+      "connection_retries": 103,
+      "outage_seconds": 111.501,
+      "recovered": true
+    },
+    "producer_300": {
+      "admissions": 300,
+      "admissions_per_minute": 59.636821,
+      "batch_size_limit": 5,
+      "batches": 60,
+      "connection_retries": 0,
+      "elapsed_seconds": 301.826955,
+      "event": "producer_complete",
+      "offered_admissions": 300,
+      "offered_admissions_per_minute": 59.999973,
+      "offered_seconds": 300.000134,
+      "refresh_calls": 60,
+      "source_rows": 1200,
+      "transaction_retries": 0
+    },
+    "release_qualified": false,
+    "wheel_sha256": "5c4c212a3f6205e7d436ee0968ad9ce2e1286cd0ce25881160d4b416665ea3c2"
+  },
+  "schema_version": 1,
+  "scope_note": "The exact provided producer wheel installed in a Python 3.12 virtual environment and passed 18/18 focused checks. It offered 300 admissions at 59.999973/minute and completed at 59.636821/minute, above the agreed 40/minute floor; it also passed exact JSON replay and a 111.501-second live PostgreSQL stop/start recovery. Linux/AMD64 ran under emulation on a 10-CPU ARM64 host; this is not native ARM64 performance evidence. The 90-day retention promise is unchanged. The backdated 89/91-day boundary check is separate evidence; automatic and React pruning stay disabled at release, and restore from an actually retained 90-day archive is required before enabling pruning.",
+  "source_files": {
+    "integrations/pg-mdm/bounded_refresh_producer.py": "0e623079900017b7b4dbcf24417166be0b50721046dff64566a702d740eab95b",
+    "integrations/pg-mdm/pyproject.toml": "fb1c51d329eb264f50e5d52b1cec55385c30831a4f1c82e4a7f42e0992fda77d",
+    "tests/integrations/pg-mdm/time/audit.py": "f63158bb00298b3cf58bf0b9b35f8f908419146e104d1b3d968597d0e7d4d1f7"
+  },
+  "source_manifest_note": "Image checkout 2871b580 predates the candidate-only claimed_work.py test-helper cleanup fix. Runtime product SQL and extension source are unchanged; wheel producer and pyproject SHA-256 values match the current candidate. The test harness and profile were read from candidate commit 43d8618."
+}

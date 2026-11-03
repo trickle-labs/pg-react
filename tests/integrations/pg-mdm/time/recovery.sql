@@ -68,7 +68,8 @@ BEGIN
           AND m.database_oid=r.database_oid AND m.state='active'
           AND m.automation_role_oid='pgreact_mdm_worker'::regrole
           AND r.worker_role_oid=m.automation_role_oid)
-       OR NOT EXISTS (SELECT 1 FROM pgreact_mdm.authorized_policy_cases_v1) THEN
+       OR NOT EXISTS (SELECT 1 FROM pgreact_mdm.authorized_policy_cases_v1)
+       OR NOT pgreact_mdm.policy_runtime_ready() THEN
         RAISE EXCEPTION 'explicit reconciliation did not activate the restored binding';
     END IF;
 END

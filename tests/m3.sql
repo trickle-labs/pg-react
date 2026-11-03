@@ -1,4 +1,8 @@
 \set ON_ERROR_STOP on
+\if :{?fairness_only}
+\else
+  \set fairness_only false
+\endif
 
 CREATE SCHEMA m3;
 CREATE TABLE m3.facts (id bigint PRIMARY KEY, value integer NOT NULL, enabled boolean NOT NULL DEFAULT true);
@@ -27,7 +31,7 @@ GRANT EXECUTE ON FUNCTION pgreact.begin_refresh(uuid, bigint), pgreact.refresh_r
 GRANT SELECT ON pgreact.rules TO m3_intruder;
 
 SET SESSION AUTHORIZATION m3_operator;
-SELECT pgreact.configure_operations(20, 60, interval '1 second', 1000);
+SELECT pgreact.configure_operations(20, 60, interval '30 seconds', 1000);
 RESET SESSION AUTHORIZATION;
 
 SELECT pgreact.create_rule(
@@ -65,14 +69,77 @@ SELECT pgreact.execute_claimed_episode(:episode_id::bigint, 'm3-worker-a', :'lea
   \quit 1
 \endif
 
-SELECT pg_sleep(1.1);
+UPDATE pgreact_internal.agenda SET available_at = clock_timestamp() - interval '10 seconds'
+WHERE rule_version_id = :'pilot_version'::uuid AND state = 'PENDING';
 SELECT pgreact.create_rule('m3-high', 'm3.backpressure_fact'::regclass, ARRAY['id'], 'COMMAND',
   'm3.activate_backpressure(pgreact.activation_context,m3.backpressure_fact)'::regprocedure,
   NULL, NULL, 'SEED_CURRENT', ARRAY['value'], 99, 'high') AS high_version \gset
-INSERT INTO m3.facts VALUES (500, 500);
+INSERT INTO m3.facts VALUES (500, 500), (501, 501);
 SELECT pgreact.begin_refresh(:'high_version'::uuid, 30002);
 BEGIN; SELECT pgreact.refresh_rule(:'high_version'::uuid); COMMIT;
 SELECT pgreact.clear_refresh_barrier(:'high_version'::uuid); SELECT pgreact.release_refresh_lock();
+UPDATE pgreact_internal.agenda SET available_at = clock_timestamp() - interval '10 seconds'
+WHERE rule_version_id = :'pilot_version'::uuid AND state = 'PENDING';
+\set high_salience_result false
+SELECT claim.*, to_jsonb(claim) AS api_row
+FROM pgreact.claim('m3-high-before-fairness', 1, interval '30 seconds', ARRAY['pilot', 'high']) AS claim
+\gset high_
+SELECT :'high_rule_version_id'::uuid = :'high_version'::uuid AND
+       :'high_api_row'::jsonb = (
+         SELECT jsonb_build_object(
+         'episode_id', agenda.episode_id,
+         'lease_token', agenda.lease_token,
+         'activation_id', agenda.activation_id,
+         'bindings', COALESCE(agenda.new_bindings, agenda.old_bindings),
+         'event_kind', agenda.event_kind,
+         'rule_version_id', agenda.rule_version_id
+         )
+         FROM pgreact_internal.agenda AS agenda
+         WHERE agenda.episode_id = :'high_episode_id'::bigint
+       ) AS high_salience_result \gset
+\if :high_salience_result
+\else
+  \quit 1
+\endif
+SELECT pgreact.execute_claimed_episode(:high_episode_id::bigint, 'm3-high-before-fairness',
+  :'high_lease_token'::uuid) = 'COMPLETED' AS high_salience_completed \gset
+\if :high_salience_completed
+\else
+  \quit 1
+\endif
+UPDATE pgreact_internal.agenda SET available_at = clock_timestamp() - interval '31 seconds'
+WHERE rule_version_id = :'pilot_version'::uuid AND state = 'PENDING';
+\set fairness_result false
+SELECT claim.*, to_jsonb(claim) AS api_row
+FROM pgreact.claim('m3-fair-after-window', 1, interval '30 seconds', ARRAY['pilot', 'high']) AS claim
+\gset fairness_
+SELECT :'fairness_rule_version_id'::uuid = :'pilot_version'::uuid AND
+       :'fairness_api_row'::jsonb = (
+         SELECT jsonb_build_object(
+         'episode_id', agenda.episode_id,
+         'lease_token', agenda.lease_token,
+         'activation_id', agenda.activation_id,
+         'bindings', COALESCE(agenda.new_bindings, agenda.old_bindings),
+         'event_kind', agenda.event_kind,
+         'rule_version_id', agenda.rule_version_id
+         )
+         FROM pgreact_internal.agenda AS agenda
+         WHERE agenda.episode_id = :'fairness_episode_id'::bigint
+       ) AS fairness_result \gset
+\if :fairness_result
+\else
+  \quit 1
+\endif
+SELECT pgreact.execute_claimed_episode(:fairness_episode_id::bigint, 'm3-fair-after-window',
+  :'fairness_lease_token'::uuid) = 'COMPLETED' AS fairness_completed \gset
+\if :fairness_completed
+\else
+  \quit 1
+\endif
+\if :fairness_only
+SELECT 'M3 fairness checks passed';
+\quit
+\endif
 SELECT rule_version_id = :'pilot_version'::uuid AS fairness_prevents_starvation
 FROM pgreact.claim('m3-fair', 1, interval '30 seconds', ARRAY['pilot', 'high']) \gset
 \if :fairness_prevents_starvation

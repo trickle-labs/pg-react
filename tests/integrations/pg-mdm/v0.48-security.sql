@@ -2,7 +2,16 @@
 SET TIME ZONE 'UTC';
 SELECT current_database() AS v048_database \gset
 \connect :v048_database mdm_m2_runner
+CREATE FUNCTION pg_temp.sha256(data bytea)
+RETURNS bytea
+LANGUAGE plpgsql IMMUTABLE STRICT
+AS $hostile$
+BEGIN
+    RAISE EXCEPTION 'hostile search_path sha256 was executed';
+END
+$hostile$;
 SET ROLE pgreact_mdm_worker;
+SET search_path = pg_temp, pg_catalog;
 
 DO $security$
 DECLARE
@@ -198,6 +207,8 @@ BEGIN
        OR attempt_row.request_body IS DISTINCT FROM request_row.request_body
        OR attempt_row.request_digest <> request_row.request_digest
        OR request_row.request_digest <> pgreact_mdm.intent_request_digest(request_row.request_body)
+       OR request_row.request_digest <> pgreact_mdm.framed_digest(
+           'pg_mdm/policy-intent/v1', request_row.request_body)
        OR request_row.request_key <> pgreact_mdm.intent_request_key(
            request_row.binding_id, request_row.policy_revision, request_row.case_key,
            request_row.lifecycle_generation, request_row.action_revision,
@@ -517,3 +528,4 @@ BEGIN
 END
 $retention$;
 SELECT 'v0.48 indefinite request and attempt retention passed' AS result;
+RESET search_path;

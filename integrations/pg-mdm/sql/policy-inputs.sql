@@ -431,7 +431,10 @@ BEGIN
 END
 $function$;
 
-CREATE OR REPLACE FUNCTION pgreact_mdm.validate_inputs(source_relation regclass)
+CREATE OR REPLACE FUNCTION pgreact_mdm.validate_inputs(
+    source_relation regclass,
+    target_case_key bigint
+)
 RETURNS jsonb
 LANGUAGE plpgsql
 STABLE
@@ -480,9 +483,11 @@ BEGIN
                count(*) FILTER (WHERE status = 'open' AND opened_at IS NULL
                                   AND opened_at_source = 'unknown')
         FROM %s
+        WHERE $1 IS NULL OR case_key = $1
     $query$, source_relation)
     INTO null_keys, duplicate_keys, duplicate_reviews, invalid_rows, invalid_actions,
-         unsorted_actions, unknown_opening;
+         unsorted_actions, unknown_opening
+    USING target_case_key;
     IF null_keys > 0 THEN
         findings := findings || jsonb_build_array(jsonb_build_object(
             'code', 'MDM_INPUT_KEY_INVALID', 'rows', null_keys,
@@ -527,6 +532,15 @@ BEGIN
         'findings', findings,
         'source_relation', source_relation::text);
 END
+$function$;
+
+CREATE OR REPLACE FUNCTION pgreact_mdm.validate_inputs(source_relation regclass)
+RETURNS jsonb
+LANGUAGE SQL
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $function$
+    SELECT pgreact_mdm.validate_inputs($1, NULL::bigint)
 $function$;
 
 CREATE OR REPLACE FUNCTION pgreact_mdm.policy_inputs(source_relation regclass)
