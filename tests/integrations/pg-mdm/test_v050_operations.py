@@ -134,7 +134,7 @@ def _normalize(rows, started, finished):
                 if not started - timedelta(seconds=2) <= timestamp <= finished + timedelta(seconds=2):
                     raise AssertionError(f"captured_at was outside the query interval: {value}")
                 row[key] = "<captured-at>"
-            elif key in ("oldest_overdue_age", "oldest_pending_age") and value is not None:
+            elif key in ("oldest_overdue_age", "oldest_pending_age", "oldest_publication_age") and value is not None:
                 age = _parse_interval(value)
                 if not timedelta(minutes=59) <= age <= timedelta(minutes=61):
                     raise AssertionError(f"expected the seeded one-hour age, got {value}")
@@ -201,10 +201,56 @@ def main():
                 "status": "passed",
                 "actual": raw_actual,
             })
+    _docker_psql(container, sql=(
+        "DELETE FROM mdm_steward.policy_receipt_publications_v1; "
+        "UPDATE mdm_steward.policy_receipts_v1 "
+        "SET created_at = clock_timestamp() - interval '1 hour' "
+        "WHERE receipt_id = '10000000-0000-0000-0000-000000000001'; "
+        "INSERT INTO pgreact_mdm.intent_attempts "
+        "SELECT episode_id, 2, binding_id, request_key, clock_timestamp(), "
+        "outcome, reason_code, receipt_id "
+        "FROM pgreact_mdm.intent_attempts WHERE outcome = 'APPLIED_CONTROL';"
+    ))
+    publication_query = blocks[QUERY_NAMES.index("accepted-publication")]
+    publication_sql = (
+        "SELECT coalesce(json_agg(to_jsonb(query_result)), '[]'::json)::text FROM (\n"
+        + publication_query.strip().removesuffix(";")
+        + "\n) AS query_result;"
+    )
+    started = datetime.now(timezone.utc)
+    output = _docker_psql(
+        container,
+        sql=publication_sql,
+        variables=(
+            ("report_interval", "100 years"),
+            ("retention_horizon", "100 years"),
+            ("binding_id", "00000000-0000-0000-0000-000000000001"),
+            ("adapter_rule_names", "{mdm-route}"),
+        ),
+    )
+    finished = datetime.now(timezone.utc)
+    duplicate_retry_actual = _normalize(json.loads(output), started, finished)
+    duplicate_retry_expected = [{
+        "accepted_control_requests": 1,
+        "oldest_publication_age": "<one-hour>",
+        "publication_states": ["PENDING_PUBLICATION"],
+        "publication_state": "PENDING_PUBLICATION",
+    }]
+    if duplicate_retry_actual != duplicate_retry_expected:
+        raise AssertionError(
+            "accepted-publication retry output mismatch\n"
+            f"expected: {duplicate_retry_expected}\nactual: {duplicate_retry_actual}"
+        )
+    report["results"].append({
+        "scenario": "duplicate-pending-retry",
+        "query": "accepted-publication",
+        "status": "passed",
+        "actual": json.loads(output),
+    })
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(json.dumps(report, indent=2) + "\n")
-    print(f"{len(QUERY_NAMES)} documented queries match populated and empty-state outputs")
+    print(f"{len(QUERY_NAMES)} documented queries match populated and empty-state outputs; pending retry count is exact")
 
 
 if __name__ == "__main__":
