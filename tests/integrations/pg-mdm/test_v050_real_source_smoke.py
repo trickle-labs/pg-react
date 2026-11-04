@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import subprocess
+import time
 from pathlib import Path
 
 from test_v050_operations import QUERY_NAMES, _docker_psql
@@ -19,6 +20,20 @@ def main():
     parser.add_argument("container", help="running pg-react image with merged pg-mdm")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    for _ in range(30):
+        try:
+            react_installed = _docker_psql(
+                args.container,
+                sql="SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_extension "
+                "WHERE extname = 'pg_react');",
+            ) == "t"
+        except subprocess.CalledProcessError:
+            react_installed = False
+        if react_installed:
+            break
+        time.sleep(1)
+    else:
+        raise AssertionError("pg_react bootstrap extension was not installed")
     try:
         _docker_psql(
             args.container,
