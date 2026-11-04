@@ -92,6 +92,41 @@ BEGIN
 END
 $$;
 
+DO $v050_shadow_details$
+DECLARE
+    comparison jsonb;
+    assignment_route jsonb;
+    protected_route jsonb;
+    no_op_route jsonb;
+BEGIN
+    comparison := pgreact_mdm.compare_population(
+        'mdm_fixture.policy_cases_v1'::regclass,
+        'policy-1', 'policy-1', '2026-09-21 12:00:00+00',
+        '{"id":"v050-shadow-details","key_min":1,"key_max":7,"expected_count":7}'::jsonb);
+    SELECT value -> 'current' -> 'route' INTO assignment_route
+    FROM jsonb_array_elements(comparison -> 'rows') AS item(value)
+    WHERE value ->> 'case_key' = '1';
+    SELECT value -> 'current' -> 'route' INTO protected_route
+    FROM jsonb_array_elements(comparison -> 'rows') AS item(value)
+    WHERE value ->> 'case_key' = '4';
+    SELECT value -> 'current' -> 'route' INTO no_op_route
+    FROM jsonb_array_elements(comparison -> 'rows') AS item(value)
+    WHERE value ->> 'case_key' = '7';
+    IF assignment_route ->> 'current_queue' IS DISTINCT FROM 'general'
+       OR assignment_route ->> 'selected_queue' IS DISTINCT FROM 'priority'
+       OR protected_route ->> 'current_queue' IS DISTINCT FROM 'manual'
+       OR protected_route ->> 'decision' IS DISTINCT FROM 'PROTECTED'
+       OR protected_route ->> 'manual_assignment_protected' IS DISTINCT FROM 'true'
+       OR protected_route ->> 'reason' IS DISTINCT FROM 'manual assignment is protected'
+       OR no_op_route ->> 'current_queue' IS DISTINCT FROM 'priority'
+       OR no_op_route ->> 'decision' IS DISTINCT FROM 'NO_OP'
+       OR no_op_route ->> 'reason' IS DISTINCT FROM 'selected queue matches current queue' THEN
+        RAISE EXCEPTION 'v0.50 shadow omitted current assignments, protections, or no-op reasons: %',
+            comparison -> 'rows';
+    END IF;
+END
+$v050_shadow_details$;
+
 DO $$
 DECLARE
     actual jsonb;

@@ -18,6 +18,7 @@ from derive_v050_qualification import (
     GATE_IDS,
     OBJECT_FIELDS,
     RECORD_FIELDS,
+    _valid_shadow_competitors,
     derive,
 )
 
@@ -68,13 +69,35 @@ def complete_manifest(evidence_directory):
     })
     current = {
         "route": {
-            "decision": "NO_MATCH",
+            "decision": "WINNER",
+            "current_queue": "general",
             "selected_queue": None,
-            "action": None,
-            "priority": None,
-            "competitors": [],
+            "action": "ESCALATE",
+            "priority": 1,
+            "reason_code": "POSSIBLE_DUPLICATE",
+            "competitors": [{
+                "reason_code": "POSSIBLE_DUPLICATE",
+                "entity_name": "domain-1",
+                "queue": None,
+                "priority": 1,
+                "action": "ESCALATE",
+                "level": 1,
+            }],
+            "reason": "best allowed candidate",
+            "applicable": True,
+            "manual_assignment_protected": True,
+            "pending_stewardship": False,
+            "due_at": "2026-11-04T10:00:00+00:00",
+            "deadline_due": True,
+            "current_escalation_level": 0,
+            "requested_escalation_level": 1,
         },
-        "deadline": {"decision": "NO_PROPOSAL", "proposed_due_at": None, "reason": "no_rule"},
+        "deadline": {
+            "decision": "PRESERVED",
+            "existing_due_at": "2026-11-04T10:00:00+00:00",
+            "proposed_due_at": None,
+            "reason": "existing deadline is preserved",
+        },
     }
     proposed = copy.deepcopy(current)
     coverage = retain_json("coverage", [{
@@ -161,6 +184,29 @@ class V050QualificationTests(unittest.TestCase):
         self.temporary_directory = tempfile.TemporaryDirectory()
         self.evidence_directory = Path(self.temporary_directory.name)
         self.addCleanup(self.temporary_directory.cleanup)
+
+    def test_shadow_competitors_preserve_assignment_and_escalation_shapes(self):
+        assignment = {
+            "reason_code": "POSSIBLE_DUPLICATE", "entity_name": None,
+            "queue": "priority", "priority": 1, "action": "ASSIGN_QUEUE",
+        }
+        escalation = {
+            "reason_code": "POSSIBLE_DUPLICATE", "entity_name": "domain-1",
+            "queue": None, "priority": 1, "action": "ESCALATE", "level": 1,
+        }
+        invalid_escalation = {**escalation, "level": "1"}
+        missing_level = {key: value for key, value in escalation.items() if key != "level"}
+        assignment_with_level = {**assignment, "level": 1}
+        self.assertEqual(
+            [
+                _valid_shadow_competitors([assignment]),
+                _valid_shadow_competitors([escalation]),
+                _valid_shadow_competitors([invalid_escalation]),
+                _valid_shadow_competitors([missing_level]),
+                _valid_shadow_competitors([assignment_with_level]),
+            ],
+            [True, True, False, False, False],
+        )
 
     def test_current_manifest_remains_blocked_on_missing_external_evidence(self):
         manifest = json.loads((HERE / "evidence/v0.50.0/manifest.json").read_text())
@@ -400,6 +446,38 @@ class V050QualificationTests(unittest.TestCase):
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": ["shadow.coverage_manifest"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_shadow_requires_assignment_deadline_and_escalation_details(self):
+        manifest = complete_manifest(self.evidence_directory)
+        reference = manifest["release_record"]["shadow"]["coverage_manifest"]
+        path = self.evidence_directory / reference["path"]
+        coverage = json.loads(path.read_text())
+        for side in ("current", "proposed"):
+            route = coverage[0]["rows"][0][side]["route"]
+            for field in ("current_queue", "requested_escalation_level"):
+                route.pop(field)
+            coverage[0]["rows"][0][side]["deadline"].pop("existing_due_at")
+        content = json.dumps(coverage, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [
+                    "shadow.coverage_manifest",
+                    "shadow.observed_case_count",
+                ],
                 "release_record_complete": False,
             },
         )

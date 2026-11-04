@@ -96,6 +96,15 @@ TEXT_FIELDS = tuple(
     field for field in ARTIFACT_FIELDS
     if field not in DIGEST_FIELDS + COMMIT_FIELDS + OBJECT_FIELDS
 )
+SHADOW_ROUTE_FIELDS = {
+    "decision", "current_queue", "selected_queue", "action", "priority", "reason_code",
+    "competitors", "reason", "applicable", "manual_assignment_protected",
+    "pending_stewardship", "due_at", "deadline_due", "current_escalation_level",
+    "requested_escalation_level",
+}
+SHADOW_DEADLINE_FIELDS = {"decision", "existing_due_at", "proposed_due_at", "reason"}
+ROUTE_DECISIONS = {"WINNER", "AMBIGUOUS", "NO_CANDIDATE", "NO_OP", "PROTECTED", "INELIGIBLE"}
+DEADLINE_DECISIONS = {"INELIGIBLE", "OPENED_AT_UNKNOWN", "PRESERVED", "PROPOSED", "REPLACEMENT"}
 
 
 def _present(value):
@@ -150,6 +159,27 @@ def _valid_case_keys(value):
     )
 
 
+def _valid_shadow_competitors(value):
+    if not isinstance(value, list):
+        return False
+    base_fields = {"reason_code", "entity_name", "queue", "priority", "action"}
+    for candidate in value:
+        if (not isinstance(candidate, dict)
+                or set(candidate) not in (base_fields, base_fields | {"level"})
+                or not isinstance(candidate["reason_code"], str)
+                or any(candidate[key] is not None and not isinstance(candidate[key], str)
+                       for key in ("entity_name", "queue"))
+                or type(candidate["priority"]) is not int
+                or not isinstance(candidate["action"], str)
+                or candidate["action"] not in {"ASSIGN_QUEUE", "ESCALATE"}
+                or (candidate["action"] == "ESCALATE") != ("level" in candidate)
+                or "level" in candidate and (
+                    type(candidate["level"]) is not int or candidate["level"] < 1
+                )):
+            return False
+    return True
+
+
 def _valid_shadow_coverage(coverage_manifest, membership, revisions):
     if not isinstance(coverage_manifest, list) or not coverage_manifest:
         return False, 0, 0
@@ -188,27 +218,36 @@ def _valid_shadow_coverage(coverage_manifest, membership, revisions):
             if (not isinstance(row, dict) or set(row) != {"case_key", "current", "proposed", "changed"}
                     or type(row["case_key"]) is not int
                     or not 0 < row["case_key"] <= 9223372036854775807
-                    or not isinstance(row["current"], dict)
-                    or set(row["current"]) != {"route", "deadline"}
-                    or any(not isinstance(row["current"][key], dict) for key in ("route", "deadline"))
-                    or not isinstance(row["proposed"], dict)
-                    or set(row["proposed"]) != {"route", "deadline"}
-                    or any(not isinstance(row["proposed"][key], dict) for key in ("route", "deadline"))
-                    or set(row["current"]["route"]) != {
-                        "decision", "selected_queue", "action", "priority", "competitors"
-                    }
-                    or set(row["current"]["deadline"]) != {
-                        "decision", "proposed_due_at", "reason"
-                    }
-                    or set(row["proposed"]["route"]) != {
-                        "decision", "selected_queue", "action", "priority", "competitors"
-                    }
-                    or set(row["proposed"]["deadline"]) != {
-                        "decision", "proposed_due_at", "reason"
-                    }
                     or type(row["changed"]) is not bool
                     or row["changed"] != (row["current"] != row["proposed"])):
                 return False, len(seen_rows), len(seen_rows) - len(set(seen_rows))
+            for side in ("current", "proposed"):
+                value = row[side]
+                if not isinstance(value, dict) or set(value) != {"route", "deadline"}:
+                    return False, len(seen_rows), len(seen_rows) - len(set(seen_rows))
+                route, deadline = value["route"], value["deadline"]
+                if (not isinstance(route, dict) or set(route) != SHADOW_ROUTE_FIELDS
+                        or not isinstance(route["decision"], str)
+                        or route["decision"] not in ROUTE_DECISIONS
+                        or any(route[key] is not None and not isinstance(route[key], str)
+                               for key in ("current_queue", "selected_queue", "action", "reason_code"))
+                        or route["priority"] is not None and type(route["priority"]) is not int
+                        or not _valid_shadow_competitors(route["competitors"])
+                        or not isinstance(route["reason"], str)
+                        or route["action"] not in {None, "ASSIGN_QUEUE", "ESCALATE"}
+                        or any(type(route[key]) is not bool for key in (
+                            "applicable", "manual_assignment_protected", "pending_stewardship",
+                            "deadline_due"))
+                        or any(route[key] is not None and type(route[key]) is not int
+                               for key in ("current_escalation_level", "requested_escalation_level"))
+                        or route["due_at"] is not None and _record_timestamp(route["due_at"]) is None
+                        or not isinstance(deadline, dict) or set(deadline) != SHADOW_DEADLINE_FIELDS
+                        or not isinstance(deadline["decision"], str)
+                        or deadline["decision"] not in DEADLINE_DECISIONS
+                        or any(deadline[key] is not None and _record_timestamp(deadline[key]) is None
+                               for key in ("existing_due_at", "proposed_due_at"))
+                        or not isinstance(deadline["reason"], str)):
+                    return False, len(seen_rows), len(seen_rows) - len(set(seen_rows))
             row_keys.append(row["case_key"])
         if (type(coverage["expected_count"]) is not int
                 or coverage["expected_count"] != len(member_keys)

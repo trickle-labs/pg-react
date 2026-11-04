@@ -47,6 +47,8 @@ DECLARE
     expected jsonb;
     source_before jsonb;
     source_after jsonb;
+    route_shadow jsonb;
+    deadline_shadow jsonb;
     due_result jsonb := '{
         "case_key":1,"review_id":"40000000-0000-4000-8000-000000000001",
         "policy_revision":"v0.49-time","reason_code":"POSSIBLE_DUPLICATE",
@@ -145,17 +147,28 @@ BEGIN
     -- A comparison must use its captured time for routing as well as deadline proposals.
     actual := pgreact_mdm.compare_population('mdm_fixture.policy_cases_v1', 'v0.49-time', 'v0.49-time', due,
         '{"id":"time-boundary","membership":[1],"expected_count":1}'::jsonb);
+    route_shadow := (due_result - ARRAY['case_key','review_id','policy_revision','explanation'])
+        || jsonb_build_object(
+            'reason', due_result -> 'explanation' -> 'reason',
+            'applicable', due_result -> 'explanation' -> 'applicable',
+            'manual_assignment_protected', due_result -> 'explanation' -> 'manual_assignment_protected',
+            'pending_stewardship', due_result -> 'explanation' -> 'pending_stewardship',
+            'due_at', due_result -> 'explanation' -> 'due_at',
+            'deadline_due', due_result -> 'explanation' -> 'deadline_due',
+            'current_escalation_level', due_result -> 'explanation' -> 'current_escalation_level',
+            'requested_escalation_level', due_result -> 'explanation' -> 'requested_escalation_level');
+    deadline_shadow := jsonb_build_object(
+        'decision', 'INELIGIBLE', 'existing_due_at', due, 'proposed_due_at', NULL,
+        'reason', 'SET_DUE_AT is not permitted for this case');
     expected := jsonb_build_object(
         'state', 'complete', 'read_only', true, 'captured_at', due,
         'policy_revisions', '{"current":"v0.49-time","proposed":"v0.49-time"}'::jsonb,
         'coverage', '{"population_id":"time-boundary","membership":[1],"expected_count":1,"observed_count":1,"partial":false,"snapshot":"one READ COMMITTED statement per read"}'::jsonb,
         'rows', jsonb_build_array(jsonb_build_object('case_key', 1, 'changed', false,
             'current', jsonb_build_object(
-                'route', due_result - ARRAY['case_key','review_id','policy_revision','reason_code','current_queue','explanation'],
-                'deadline', '{"decision":"INELIGIBLE","proposed_due_at":null,"reason":"SET_DUE_AT is not permitted for this case"}'::jsonb),
+                'route', route_shadow, 'deadline', deadline_shadow),
             'proposed', jsonb_build_object(
-                'route', due_result - ARRAY['case_key','review_id','policy_revision','reason_code','current_queue','explanation'],
-                'deadline', '{"decision":"INELIGIBLE","proposed_due_at":null,"reason":"SET_DUE_AT is not permitted for this case"}'::jsonb))));
+                'route', route_shadow, 'deadline', deadline_shadow))));
     IF actual IS DISTINCT FROM expected THEN
         RAISE EXCEPTION 'comparison sample vector: expected %, got %', expected, actual;
     END IF;

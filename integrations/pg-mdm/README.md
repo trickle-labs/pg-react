@@ -168,7 +168,9 @@ The public seams are:
 - `pgreact_mdm.deadline_preview(source_relation, policy_revision, captured_at[, entity_name])`
   for explicit-time deadline proposals.
 - `pgreact_mdm.compare_population(...)` for complete or partial bounded
-  comparisons with an explicit coverage manifest.
+  comparisons with an explicit coverage manifest. Each case includes current
+  and proposed queue decisions, manual-protection and no-op reasons, current
+  and proposed due dates, and escalation levels.
 
 The explicit-time routing read is preparatory work for
 [managed bounded escalation #11](https://github.com/trickle-labs/pg-react/issues/11). It does not
