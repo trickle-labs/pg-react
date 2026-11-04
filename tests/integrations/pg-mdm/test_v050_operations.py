@@ -21,6 +21,7 @@ QUERY_NAMES = (
     "held-requests",
     "repeated-escalations",
     "accepted-publication",
+    "pending-stewardship",
     "retention-coverage",
 )
 POPULATED_EXPECTED = (
@@ -28,7 +29,7 @@ POPULATED_EXPECTED = (
       "stale_intent_rate": 0.5, "sample_state": "SAMPLED"}],
     [
         {"sample_count": 2, "sample_state": "SAMPLED",
-         "failure_class": "ACCEPTED_CONTROL_PUBLICATION_UNKNOWN",
+         "failure_class": "ACCEPTED_CONTROL_PUBLICATION_OBSERVED",
          "delivery_outcome": "APPLIED_CONTROL", "delivery_reason_code": None,
          "mdm_outcome": "APPLIED_CONTROL", "mdm_reason_code": "CONTROL_APPLIED",
          "attempt_count": 1},
@@ -59,7 +60,9 @@ POPULATED_EXPECTED = (
       "same_request_retries": 0, "duplicate_applied_levels": 0,
       "sample_state": "SAMPLED"}],
     [{"accepted_control_requests": 1, "oldest_publication_age": None,
-      "publication_state": "UNAVAILABLE_PUBLICLY"}],
+      "publication_states": ["PUBLISHED"], "publication_state": "PUBLISHED"}],
+    [{"pending_cases": 1, "unknown_age_cases": 0,
+      "oldest_pending_age": "<one-hour>", "pending_state": "SAMPLED"}],
     [{"retained_requests": 2, "requests_with_receipt_id": 1,
       "retained_receipts": 1, "missing_receipts": 0,
       "coverage_state": "REQUEST_RECEIPT_COVERED",
@@ -90,7 +93,9 @@ EMPTY_EXPECTED = (
       "same_request_retries": 0, "duplicate_applied_levels": 0,
       "sample_state": "SAMPLED"}],
     [{"accepted_control_requests": 0, "oldest_publication_age": None,
-      "publication_state": "NO_ACCEPTED_CONTROL_SAMPLES"}],
+      "publication_states": [], "publication_state": "NO_ACCEPTED_CONTROL_SAMPLES"}],
+    [{"pending_cases": 0, "unknown_age_cases": 0,
+      "oldest_pending_age": None, "pending_state": "NO_PENDING_CASES"}],
     [{"retained_requests": 1, "requests_with_receipt_id": 0,
       "retained_receipts": 0, "missing_receipts": 0,
       "coverage_state": "NO_RECEIPT_SAMPLES",
@@ -129,10 +134,10 @@ def _normalize(rows, started, finished):
                 if not started - timedelta(seconds=2) <= timestamp <= finished + timedelta(seconds=2):
                     raise AssertionError(f"captured_at was outside the query interval: {value}")
                 row[key] = "<captured-at>"
-            elif key == "oldest_overdue_age" and value is not None:
+            elif key in ("oldest_overdue_age", "oldest_pending_age") and value is not None:
                 age = _parse_interval(value)
                 if not timedelta(minutes=59) <= age <= timedelta(minutes=61):
-                    raise AssertionError(f"expected the seeded one-hour overdue age, got {value}")
+                    raise AssertionError(f"expected the seeded one-hour age, got {value}")
                 row[key] = "<one-hour>"
             elif key == "oldest_eligible_at" and value is not None:
                 row[key] = datetime.fromisoformat(value.replace("Z", "+00:00")).isoformat()

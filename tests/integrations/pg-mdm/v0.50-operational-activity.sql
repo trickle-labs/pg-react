@@ -56,14 +56,25 @@ CREATE TABLE mdm_steward.policy_receipts_v1 (
     receipt_id uuid PRIMARY KEY,
     outcome text NOT NULL,
     reason_code text,
-    resulting_publication_revision bigint
+    resulting_publication_revision bigint,
+    created_at timestamptz NOT NULL,
+    publication_tracking_started_at timestamptz NOT NULL
+);
+CREATE TABLE mdm_steward.policy_receipt_publications_v1 (
+    receipt_id uuid PRIMARY KEY,
+    case_key bigint NOT NULL,
+    action_revision bigint NOT NULL,
+    publication_revision bigint NOT NULL,
+    publication_state text NOT NULL,
+    observed_at timestamptz NOT NULL
 );
 CREATE TABLE mdm_steward.policy_cases_v1 (
     entity_name name NOT NULL,
     case_key bigint NOT NULL,
     status text NOT NULL,
     publication_revision bigint NOT NULL,
-    pending_stewardship boolean NOT NULL
+    pending_stewardship boolean NOT NULL,
+    pending_since timestamptz
 );
 
 INSERT INTO pgreact_mdm.policy_intent_bindings VALUES
@@ -88,23 +99,43 @@ INSERT INTO pgreact_mdm.intent_holds VALUES
      'BINDING_PAUSED', '2026-11-04 10:04:00+00');
 INSERT INTO pgreact.work VALUES ('rule', '201', 'COMPLETED'), ('rule', '202', 'PENDING');
 INSERT INTO mdm_steward.policy_receipts_v1 VALUES
-    ('10000000-0000-0000-0000-000000000001', 'APPLIED_CONTROL', 'CONTROL_APPLIED', NULL);
+    ('10000000-0000-0000-0000-000000000001', 'APPLIED_CONTROL', 'CONTROL_APPLIED', NULL,
+     '2026-11-04 10:04:00+00', '2026-11-04 10:04:00+00');
+INSERT INTO mdm_steward.policy_receipt_publications_v1 VALUES
+    ('10000000-0000-0000-0000-000000000001', 101, 3, 6, 'PUBLISHED',
+     '2026-11-04 10:05:00+00');
 INSERT INTO mdm_steward.policy_cases_v1 VALUES
-    ('entity_a', 101, 'open', 6, false),
-    ('entity_a', 102, 'open', 5, true),
-    ('entity_a', 103, 'open', 4, false),
-    ('entity_b', 201, 'open', 3, false);
+    ('entity_a', 101, 'open', 6, false, NULL),
+    ('entity_a', 102, 'open', 5, true, '2026-11-04 09:00:00+00'),
+    ('entity_a', 103, 'open', 4, false, NULL),
+    ('entity_b', 201, 'open', 3, false, NULL);
 
 \ir ../../../integrations/pg-mdm/sql/operational-activity.sql
 
 CREATE TEMP TABLE v050_activity_assertions (scenario text, actual jsonb);
 GRANT INSERT, SELECT ON v050_activity_assertions TO PUBLIC;
+CREATE TEMP TABLE v050_pending_assertions (
+    scenario text,
+    actual jsonb,
+    ages_known boolean
+);
+GRANT INSERT, SELECT ON v050_pending_assertions TO PUBLIC;
 
 SET SESSION AUTHORIZATION v050_entity_a_login;
 INSERT INTO v050_activity_assertions
 SELECT 'authorized entity sees only its exact public projection',
        coalesce(jsonb_agg(to_jsonb(activity) ORDER BY activity.work_ref), '[]'::jsonb)
 FROM pgreact_mdm.operational_activity_v1 AS activity;
+INSERT INTO v050_pending_assertions
+SELECT 'authorized entity sees only its pending case',
+       coalesce(jsonb_agg(jsonb_build_object(
+           'binding_id', pending.binding_id,
+           'entity_name', pending.entity_name,
+           'case_key', pending.case_key,
+           'pending_since', pending.pending_since
+       ) ORDER BY pending.case_key), '[]'::jsonb),
+       coalesce(bool_and(pending.pending_age IS NOT NULL), true)
+FROM pgreact_mdm.pending_cases_v1 AS pending;
 RESET SESSION AUTHORIZATION;
 
 SET SESSION AUTHORIZATION v050_unrelated_login;
@@ -112,6 +143,16 @@ INSERT INTO v050_activity_assertions
 SELECT 'unrelated role sees no rows',
        coalesce(jsonb_agg(to_jsonb(activity)), '[]'::jsonb)
 FROM pgreact_mdm.operational_activity_v1 AS activity;
+INSERT INTO v050_pending_assertions
+SELECT 'unrelated role sees no pending cases',
+       coalesce(jsonb_agg(jsonb_build_object(
+           'binding_id', pending.binding_id,
+           'entity_name', pending.entity_name,
+           'case_key', pending.case_key,
+           'pending_since', pending.pending_since
+       )), '[]'::jsonb),
+       coalesce(bool_and(pending.pending_age IS NOT NULL), true)
+FROM pgreact_mdm.pending_cases_v1 AS pending;
 RESET SESSION AUTHORIZATION;
 
 DO $assertions$
@@ -145,9 +186,14 @@ BEGIN
             'mdm_outcome', 'APPLIED_CONTROL',
             'mdm_reason_code', 'CONTROL_APPLIED',
             'resulting_publication_revision', NULL,
+            'mdm_publication_state', 'PUBLISHED',
+            'mdm_publication_revision', 6,
+            'mdm_publication_observed_at', '2026-11-04 10:05:00+00'::timestamptz,
+            'mdm_pending_publication_age', NULL,
             'current_case_status', 'open',
             'current_publication_revision', 6,
-            'current_pending_stewardship', false
+            'current_pending_stewardship', false,
+            'current_pending_since', NULL
         ),
         jsonb_build_object(
             'binding_id', '00000000-0000-0000-0000-000000000001'::uuid,
@@ -171,9 +217,14 @@ BEGIN
             'mdm_outcome', NULL,
             'mdm_reason_code', NULL,
             'resulting_publication_revision', NULL,
+            'mdm_publication_state', NULL,
+            'mdm_publication_revision', NULL,
+            'mdm_publication_observed_at', NULL,
+            'mdm_pending_publication_age', NULL,
             'current_case_status', 'open',
             'current_publication_revision', 5,
-            'current_pending_stewardship', true
+            'current_pending_stewardship', true,
+            'current_pending_since', '2026-11-04 09:00:00+00'::timestamptz
         )
     ) THEN
         RAISE EXCEPTION 'authorized projection did not match its complete expected output: %', authorized;
@@ -185,7 +236,69 @@ BEGIN
     IF unauthorized <> '[]'::jsonb THEN
         RAISE EXCEPTION 'unrelated role saw operational rows: %', unauthorized;
     END IF;
+
+    SELECT actual INTO STRICT authorized
+    FROM v050_pending_assertions
+    WHERE scenario = 'authorized entity sees only its pending case';
+    IF authorized <> jsonb_build_array(jsonb_build_object(
+        'binding_id', '00000000-0000-0000-0000-000000000001'::uuid,
+        'entity_name', 'entity_a',
+        'case_key', 102,
+        'pending_since', '2026-11-04 09:00:00+00'::timestamptz
+    )) OR NOT (SELECT ages_known FROM v050_pending_assertions
+               WHERE scenario = 'authorized entity sees only its pending case') THEN
+        RAISE EXCEPTION 'authorized pending-case projection did not match its complete expected output: %', authorized;
+    END IF;
+
+    SELECT actual INTO STRICT unauthorized
+    FROM v050_pending_assertions
+    WHERE scenario = 'unrelated role sees no pending cases';
+    IF unauthorized <> '[]'::jsonb THEN
+        RAISE EXCEPTION 'unrelated role saw pending cases: %', unauthorized;
+    END IF;
 END
 $assertions$;
+
+DO $publication_states$
+DECLARE actual_state text; actual_age interval;
+BEGIN
+    DELETE FROM mdm_steward.policy_receipt_publications_v1;
+    SELECT mdm_publication_state, mdm_pending_publication_age
+      INTO STRICT actual_state, actual_age
+      FROM pgreact_mdm.operational_activity_v1
+     WHERE work_ref = 'work-a-applied';
+    IF actual_state IS DISTINCT FROM 'PENDING_PUBLICATION' OR actual_age IS NULL THEN
+        RAISE EXCEPTION 'tracked accepted control did not show pending publication and age: %, %',
+            actual_state, actual_age;
+    END IF;
+
+    UPDATE mdm_steward.policy_receipts_v1
+       SET publication_tracking_started_at = created_at + interval '1 second';
+    SELECT mdm_publication_state, mdm_pending_publication_age
+      INTO STRICT actual_state, actual_age
+      FROM pgreact_mdm.operational_activity_v1
+     WHERE work_ref = 'work-a-applied';
+    IF actual_state IS DISTINCT FROM 'UNKNOWN_LEGACY' OR actual_age IS NOT NULL THEN
+        RAISE EXCEPTION 'legacy accepted control did not retain unknown publication age: %, %',
+            actual_state, actual_age;
+    END IF;
+
+    UPDATE mdm_steward.policy_receipts_v1
+       SET publication_tracking_started_at = created_at;
+    INSERT INTO mdm_steward.policy_receipt_publications_v1 VALUES
+        ('10000000-0000-0000-0000-000000000001', 101, 3, 7,
+         'SUPERSEDED_BEFORE_PUBLICATION', '2026-11-04 10:06:00+00');
+    SELECT mdm_publication_state INTO STRICT actual_state
+      FROM pgreact_mdm.operational_activity_v1
+     WHERE work_ref = 'work-a-applied';
+    IF actual_state IS DISTINCT FROM 'SUPERSEDED_BEFORE_PUBLICATION' THEN
+        RAISE EXCEPTION 'superseded accepted control state was not exposed: %', actual_state;
+    END IF;
+    DELETE FROM mdm_steward.policy_receipt_publications_v1;
+    INSERT INTO mdm_steward.policy_receipt_publications_v1 VALUES
+        ('10000000-0000-0000-0000-000000000001', 101, 3, 6,
+         'PUBLISHED', '2026-11-04 10:05:00+00');
+END
+$publication_states$;
 
 SELECT scenario FROM v050_activity_assertions ORDER BY scenario;
