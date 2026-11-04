@@ -524,6 +524,8 @@ def derive(manifest, manifest_directory=None):
         value = artifact_tuple.get(field)
         if _present(value) and not isinstance(value, str):
             invalid_artifact_fields.append(field)
+        elif field == "coordinator_owner" and _present(value) and value != "pg-react":
+            invalid_artifact_fields.append(field)
     for field in DIGEST_FIELDS:
         value = artifact_tuple.get(field)
         if _present(value) and (

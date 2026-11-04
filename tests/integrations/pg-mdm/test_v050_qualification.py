@@ -2,6 +2,7 @@
 import copy
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -10,6 +11,7 @@ from pathlib import Path
 
 
 HERE = Path(__file__).parent
+ROOT = HERE.parents[2]
 sys.path.insert(0, str(HERE))
 from derive_v050_qualification import (
     ARTIFACT_FIELDS,
@@ -32,6 +34,7 @@ def complete_manifest(evidence_directory):
         artifact_tuple[field] = "b" * 40
     for field in OBJECT_FIELDS:
         artifact_tuple[field] = {"qualified": True}
+    artifact_tuple["coordinator_owner"] = "pg-react"
     evidence_dir = evidence_directory / "logs"
     evidence_dir.mkdir(exist_ok=True)
     gates = []
@@ -206,6 +209,32 @@ class V050QualificationTests(unittest.TestCase):
                 _valid_shadow_competitors([assignment_with_level]),
             ],
             [True, True, False, False, False],
+        )
+
+    def test_coordinator_owner_must_remain_pg_react(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["artifact_tuple"]["coordinator_owner"] = "mdm"
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": False,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": ["coordinator_owner"],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [],
+                "release_record_complete": True,
+            },
+        )
+
+    def test_adapter_source_does_not_call_mdm_refresh(self):
+        sql_directory = ROOT / "integrations/pg-mdm/sql"
+        source = "\n".join(path.read_text() for path in sorted(sql_directory.glob("*.sql")))
+        self.assertEqual(
+            re.findall(r"(?i)\bmdm\s*\.\s*refresh\s*\(", source),
+            [],
         )
 
     def test_current_manifest_remains_blocked_on_missing_external_evidence(self):
