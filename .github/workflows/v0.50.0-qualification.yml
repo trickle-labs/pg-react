@@ -58,6 +58,48 @@ jobs:
           test -n "$ready"
           python3 tests/integrations/pg-mdm/test_v050_operations.py \
             "$container" --output v0.50.0-evidence/operational-query-results.json
+      - name: Checkout merged pg-mdm source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          repository: trickle-labs/pg-mdm
+          ref: d1efa229d74c45c6fb4c48984ba97053d0672b9f
+          path: .producer/mdm
+      - name: Build the exact MDM source and pg-react adapter
+        run: |
+          set -euo pipefail
+          mdm_revision=d1efa229d74c45c6fb4c48984ba97053d0672b9f
+          test "$(git -C .producer/mdm rev-parse HEAD)" = "$mdm_revision"
+          git rev-parse HEAD > v0.50.0-evidence/pg-react-source-revision.txt
+          git -C .producer/mdm rev-parse HEAD > v0.50.0-evidence/mdm-source-revision.txt
+          docker build -f .producer/mdm/tests/Dockerfile.e2e \
+            --build-arg "PG_MDM_SOURCE_REVISION=$mdm_revision" \
+            --label "pg_mdm.source_revision=$mdm_revision" \
+            -t pg_mdm:v050-real-source .producer/mdm \
+            > v0.50.0-evidence/mdm-source-build.log 2>&1
+          docker build -f tests/integrations/pg-mdm/Dockerfile.v0.48 \
+            --build-arg PG_MDM_IMAGE=pg_mdm:v050-real-source \
+            -t pgreact:v050-real-source . \
+            > v0.50.0-evidence/pg-react-source-build.log 2>&1
+      - name: Plan the documented queries against the real MDM schema
+        run: |
+          set -euo pipefail
+          container=pgreact-v050-real-source-${GITHUB_RUN_ID}
+          cleanup() { docker stop "$container" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          docker run --rm --detach --name "$container" \
+            --env POSTGRES_PASSWORD=v050-test \
+            pgreact:v050-real-source >/dev/null
+          ready=
+          for attempt in {1..30}; do
+            if docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test -n "$ready"
+          python3 tests/integrations/pg-mdm/test_v050_real_source_smoke.py \
+            "$container" --output v0.50.0-evidence/real-source-query-plans.json
       - name: Derive candidate qualification status
         run: |
           python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
