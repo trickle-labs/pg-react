@@ -22,5 +22,5 @@ COPY showcase/mdm-stewardship/ /workspace/showcase/mdm-stewardship/
 COPY tests/integrations/pg-mdm/ /workspace/tests/integrations/pg-mdm/
 COPY --from=pg_mdm /sql/configure_helper.sql /workspace/tests/integrations/pg-mdm/pg-mdm-configure-helper.sql
 USER root
-RUN echo "shared_preload_libraries = 'pg_trickle,pg_react'" >> /usr/share/postgresql/postgresql.conf.sample
+RUN echo "shared_preload_libraries = 'pg_trickle,pg_mdm,pg_react'" >> /usr/share/postgresql/postgresql.conf.sample
 USER postgres
