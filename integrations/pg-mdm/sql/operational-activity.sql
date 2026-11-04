@@ -25,9 +25,27 @@ SELECT binding.binding_id,
        receipt.outcome AS mdm_outcome,
        receipt.reason_code AS mdm_reason_code,
        receipt.resulting_publication_revision,
+       CASE
+           WHEN receipt.receipt_id IS NULL THEN NULL
+           WHEN receipt.outcome <> 'APPLIED_CONTROL' THEN NULL
+           WHEN receipt_publication.receipt_id IS NOT NULL
+               THEN receipt_publication.publication_state
+           WHEN receipt.publication_tracking_started_at > receipt.created_at
+               THEN 'UNKNOWN_LEGACY'
+           ELSE 'PENDING_PUBLICATION'
+       END AS mdm_publication_state,
+       receipt_publication.publication_revision AS mdm_publication_revision,
+       receipt_publication.observed_at AS mdm_publication_observed_at,
+       CASE
+           WHEN receipt.outcome = 'APPLIED_CONTROL'
+            AND receipt_publication.receipt_id IS NULL
+            AND receipt.publication_tracking_started_at <= receipt.created_at
+               THEN clock_timestamp() - receipt.created_at
+       END AS mdm_pending_publication_age,
        case_row.status AS current_case_status,
        case_row.publication_revision AS current_publication_revision,
-       case_row.pending_stewardship AS current_pending_stewardship
+       case_row.pending_stewardship AS current_pending_stewardship,
+       case_row.pending_since AS current_pending_since
 FROM pgreact_mdm.intent_requests AS request
 JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
 LEFT JOIN pgreact_mdm.intent_attempts AS attempt
@@ -38,6 +56,8 @@ LEFT JOIN pgreact.work AS work
  AND work.work_id = COALESCE(attempt.episode_id, request.first_episode_id)::text
 LEFT JOIN mdm_steward.policy_receipts_v1 AS receipt
   ON receipt.receipt_id = attempt.receipt_id
+LEFT JOIN mdm_steward.policy_receipt_publications_v1 AS receipt_publication
+  ON receipt_publication.receipt_id = receipt.receipt_id
 LEFT JOIN mdm_steward.policy_cases_v1 AS case_row
   ON case_row.entity_name = binding.entity_name
  AND case_row.case_key = request.case_key
@@ -59,3 +79,24 @@ COMMENT ON VIEW pgreact_mdm.operational_activity_v1 IS
     'Entity-role-scoped intent, React work-state, and receipt projection; excludes request bodies and controls.';
 REVOKE ALL ON pgreact_mdm.operational_activity_v1 FROM PUBLIC;
 GRANT SELECT ON pgreact_mdm.operational_activity_v1 TO PUBLIC;
+
+CREATE OR REPLACE VIEW pgreact_mdm.pending_cases_v1
+WITH (security_barrier = true) AS
+SELECT binding.binding_id,
+       binding.entity_name::text AS entity_name,
+       case_row.case_key,
+       case_row.pending_since,
+       CASE WHEN case_row.pending_since IS NOT NULL
+            THEN clock_timestamp() - case_row.pending_since
+       END AS pending_age
+FROM pgreact_mdm.policy_intent_bindings AS binding
+JOIN mdm_steward.policy_cases_v1 AS case_row
+  ON case_row.entity_name = binding.entity_name
+WHERE case_row.pending_stewardship
+  AND pg_catalog.pg_has_role(
+      session_user, binding.entity_execution_role, 'MEMBER');
+
+COMMENT ON VIEW pgreact_mdm.pending_cases_v1 IS
+    'Entity-role-scoped pending stewardship cases and decision age.';
+REVOKE ALL ON pgreact_mdm.pending_cases_v1 FROM PUBLIC;
+GRANT SELECT ON pgreact_mdm.pending_cases_v1 TO PUBLIC;
