@@ -102,23 +102,45 @@ BEGIN
                    jsonb_build_object(
                        'route', jsonb_build_object(
                            'decision', c.decision,
+                           'current_queue', c.current_queue,
                            'selected_queue', c.selected_queue,
                            'action', c.action,
                            'priority', c.priority,
-                           'competitors', c.competitors),
+                           'reason_code', c.reason_code,
+                           'competitors', c.competitors,
+                           'reason', c.explanation -> 'reason',
+                           'applicable', c.explanation -> 'applicable',
+                           'manual_assignment_protected', c.explanation -> 'manual_assignment_protected',
+                           'pending_stewardship', c.explanation -> 'pending_stewardship',
+                           'due_at', c.explanation -> 'due_at',
+                           'deadline_due', c.explanation -> 'deadline_due',
+                           'current_escalation_level', c.explanation -> 'current_escalation_level',
+                           'requested_escalation_level', c.explanation -> 'requested_escalation_level'),
                        'deadline', jsonb_build_object(
                            'decision', cd.decision,
+                           'existing_due_at', cd.existing_due_at,
                            'proposed_due_at', cd.proposed_due_at,
                            'reason', cd.reason)) AS current_result,
                    jsonb_build_object(
                        'route', jsonb_build_object(
                            'decision', p.decision,
+                           'current_queue', p.current_queue,
                            'selected_queue', p.selected_queue,
                            'action', p.action,
                            'priority', p.priority,
-                           'competitors', p.competitors),
+                           'reason_code', p.reason_code,
+                           'competitors', p.competitors,
+                           'reason', p.explanation -> 'reason',
+                           'applicable', p.explanation -> 'applicable',
+                           'manual_assignment_protected', p.explanation -> 'manual_assignment_protected',
+                           'pending_stewardship', p.explanation -> 'pending_stewardship',
+                           'due_at', p.explanation -> 'due_at',
+                           'deadline_due', p.explanation -> 'deadline_due',
+                           'current_escalation_level', p.explanation -> 'current_escalation_level',
+                           'requested_escalation_level', p.explanation -> 'requested_escalation_level'),
                        'deadline', jsonb_build_object(
                            'decision', pd.decision,
+                           'existing_due_at', pd.existing_due_at,
                            'proposed_due_at', pd.proposed_due_at,
                            'reason', pd.reason)) AS proposed_result
             FROM current_routes AS c
@@ -167,4 +189,4 @@ END
 $function$;
 
 COMMENT ON FUNCTION pgreact_mdm.compare_population(regclass, text, text, timestamptz, jsonb) IS
-    'v0.47 bounded read-only comparison with explicit population coverage';
+    'v0.47 bounded read-only coverage; v0.50 adds full routing, deadline, and escalation review fields';

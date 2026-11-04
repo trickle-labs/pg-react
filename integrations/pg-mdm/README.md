@@ -39,8 +39,24 @@ integrations/pg-mdm/sql/comparison.sql
 integrations/pg-mdm/sql/typed-flow.sql
 integrations/pg-mdm/sql/request-store.sql
 integrations/pg-mdm/sql/intent-worker.sql
+integrations/pg-mdm/sql/operational-activity.sql  # v0.50 role-scoped read view
 integrations/pg-mdm/sql/retention-guard.sql  # run as superuser after the adapter files
 ```
+
+Install `operational-activity.sql` after `intent-worker.sql` as a database
+administrator with access to the adapter's intent tables and `pgreact.work`.
+It requires the frozen MDM M1/M2 policy-case and receipt contract; the shared
+[MDM qualification issue](https://github.com/trickle-labs/pg-mdm/issues/5) is
+still open, so this is not installable against the current released contract.
+The view grants SELECT to `PUBLIC`, while the existing policy-deployer setup
+grants schema access to entity roles. Rows are returned only when `session_user`
+belongs to the row's entity execution role. The view omits request bodies and
+control JSON. Use the [v0.50 operator signal
+queries](../../docs/v0.50.0-operations.md) for cohort reporting after
+qualification; the approved qualification manifest supplies the reporting
+interval and retention horizon. The [v0.50 support matrix](../../docs/v0.50.0-support-matrix.md)
+and [draft release notes](../../docs/v0.50.0-release-notes.md) state the
+current qualification and recovery limits.
 
 For v0.49, install `retention-guard.sql` as a superuser after
 `request-store.sql` and `intent-worker.sql`. It creates the isolated guard-owner
@@ -152,7 +168,9 @@ The public seams are:
 - `pgreact_mdm.deadline_preview(source_relation, policy_revision, captured_at[, entity_name])`
   for explicit-time deadline proposals.
 - `pgreact_mdm.compare_population(...)` for complete or partial bounded
-  comparisons with an explicit coverage manifest.
+  comparisons with an explicit coverage manifest. Each case includes current
+  and proposed queue decisions, manual-protection and no-op reasons, current
+  and proposed due dates, and escalation levels.
 
 The explicit-time routing read is preparatory work for
 [managed bounded escalation #11](https://github.com/trickle-labs/pg-react/issues/11). It does not

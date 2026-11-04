@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "scope": "fixture-only; not real MDM qualification",
+  "postgresql_version": "18.6 (Debian 18.6-1.pgdg13+2)",
+  "operations_guide_sha256": "79ad0a53da957836b9964efb8a528d0a9aac33a6f4209c5e45d697ae43d1d243",
+  "results": [
+    {
+      "scenario": "populated",
+      "query": "stale-intent-rate",
+      "status": "passed",
+      "actual": [
+        {
+          "sample_state": "SAMPLED",
+          "stale_intent_rate": 0.5,
+          "classified_attempts": 2,
+          "stale_or_superseded_attempts": 1
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "denied-invalid-conflict",
+      "status": "passed",
+      "actual": [
+        {
+          "mdm_outcome": "APPLIED_CONTROL",
+          "sample_count": 2,
+          "sample_state": "SAMPLED",
+          "attempt_count": 1,
+          "failure_class": "ACCEPTED_CONTROL_PUBLICATION_UNKNOWN",
+          "mdm_reason_code": "CONTROL_APPLIED",
+          "delivery_outcome": "APPLIED_CONTROL",
+          "delivery_reason_code": null
+        },
+        {
+          "mdm_outcome": null,
+          "sample_count": 2,
+          "sample_state": "SAMPLED",
+          "attempt_count": 1,
+          "failure_class": "POLICY_OR_CONFIGURATION",
+          "mdm_reason_code": null,
+          "delivery_outcome": "STALE_CASE",
+          "delivery_reason_code": "STALE_CASE"
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "worker-failures",
+      "status": "passed",
+      "actual": [
+        {
+          "status": "FAILED",
+          "error_code": "WORKER_TIMEOUT",
+          "sample_count": 1,
+          "sample_state": "SAMPLED",
+          "execution_class": "RETRYING_FAILURE",
+          "execution_count": 1,
+          "current_work_state": "RETRY_WAIT"
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "overdue-open-cases",
+      "status": "passed",
+      "actual": [
+        {
+          "captured_at": "2026-11-04T02:36:27.123111+00:00",
+          "sample_state": "SAMPLED",
+          "oldest_overdue_age": "01:00:01.381369",
+          "overdue_case_count": 1,
+          "eligible_open_cases": 2,
+          "overdue_without_pending_work": 1
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "work-backlog",
+      "status": "passed",
+      "actual": [
+        {
+          "state": "ACTIVE",
+          "rule_name": "mdm-route",
+          "captured_at": "2026-11-04T02:36:27.38388+00:00",
+          "sample_state": "SAMPLED",
+          "claims_blocked": false,
+          "failed_episodes": 1,
+          "oldest_eligible_at": "2026-11-04T10:00:00+00:00",
+          "outstanding_episodes": 3
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "work-state-counts",
+      "status": "passed",
+      "actual": [
+        {
+          "state": "LEASED",
+          "sample_state": "SAMPLED",
+          "episode_count": 1
+        },
+        {
+          "state": "PENDING",
+          "sample_state": "SAMPLED",
+          "episode_count": 1
+        },
+        {
+          "state": "RETRY_WAIT",
+          "sample_state": "SAMPLED",
+          "episode_count": 1
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "held-requests",
+      "status": "passed",
+      "actual": [
+        {
+          "held_reasons": [
+            "BINDING_PAUSED"
+          ],
+          "sample_state": "HELD",
+          "held_requests": 1
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "repeated-escalations",
+      "status": "passed",
+      "actual": [
+        {
+          "sample_state": "SAMPLED",
+          "distinct_requests": 1,
+          "sampled_case_levels": 1,
+          "same_request_retries": 0,
+          "duplicate_applied_levels": 0
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "accepted-publication",
+      "status": "passed",
+      "actual": [
+        {
+          "publication_state": "UNAVAILABLE_PUBLICLY",
+          "oldest_publication_age": null,
+          "accepted_control_requests": 1
+        }
+      ]
+    },
+    {
+      "scenario": "populated",
+      "query": "retention-coverage",
+      "status": "passed",
+      "actual": [
+        {
+          "coverage_state": "REQUEST_RECEIPT_COVERED",
+          "missing_receipts": 0,
+          "retained_receipts": 1,
+          "retained_requests": 2,
+          "requests_with_receipt_id": 1,
+          "evidence_version_coverage": "UNAVAILABLE_PUBLICLY"
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "stale-intent-rate",
+      "status": "passed",
+      "actual": [
+        {
+          "sample_state": "NO_SAMPLES",
+          "stale_intent_rate": null,
+          "classified_attempts": 0,
+          "stale_or_superseded_attempts": 0
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "denied-invalid-conflict",
+      "status": "passed",
+      "actual": [
+        {
+          "mdm_outcome": null,
+          "sample_count": 0,
+          "sample_state": "NO_SAMPLES",
+          "attempt_count": 0,
+          "failure_class": null,
+          "mdm_reason_code": null,
+          "delivery_outcome": null,
+          "delivery_reason_code": null
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "worker-failures",
+      "status": "passed",
+      "actual": [
+        {
+          "status": null,
+          "error_code": null,
+          "sample_count": 0,
+          "sample_state": "NO_SAMPLES",
+          "execution_class": null,
+          "execution_count": 0,
+          "current_work_state": null
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "overdue-open-cases",
+      "status": "passed",
+      "actual": [
+        {
+          "captured_at": null,
+          "sample_state": "NO_ELIGIBLE_CASES",
+          "oldest_overdue_age": null,
+          "overdue_case_count": 0,
+          "eligible_open_cases": 0,
+          "overdue_without_pending_work": 0
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "work-backlog",
+      "status": "passed",
+      "actual": [
+        {
+          "state": null,
+          "rule_name": null,
+          "captured_at": "2026-11-04T02:36:30.124117+00:00",
+          "sample_state": "NO_RULE_SAMPLES",
+          "claims_blocked": null,
+          "failed_episodes": null,
+          "oldest_eligible_at": null,
+          "outstanding_episodes": null
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "work-state-counts",
+      "status": "passed",
+      "actual": [
+        {
+          "state": "LEASED",
+          "sample_state": "NO_RULE_SAMPLES",
+          "episode_count": 0
+        },
+        {
+          "state": "PENDING",
+          "sample_state": "NO_RULE_SAMPLES",
+          "episode_count": 0
+        },
+        {
+          "state": "RETRY_WAIT",
+          "sample_state": "NO_RULE_SAMPLES",
+          "episode_count": 0
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "held-requests",
+      "status": "passed",
+      "actual": [
+        {
+          "held_reasons": [],
+          "sample_state": "ZERO_HELD",
+          "held_requests": 0
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "repeated-escalations",
+      "status": "passed",
+      "actual": [
+        {
+          "sample_state": "SAMPLED",
+          "distinct_requests": 1,
+          "sampled_case_levels": 1,
+          "same_request_retries": 0,
+          "duplicate_applied_levels": 0
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "accepted-publication",
+      "status": "passed",
+      "actual": [
+        {
+          "publication_state": "NO_ACCEPTED_CONTROL_SAMPLES",
+          "oldest_publication_age": null,
+          "accepted_control_requests": 0
+        }
+      ]
+    },
+    {
+      "scenario": "empty",
+      "query": "retention-coverage",
+      "status": "passed",
+      "actual": [
+        {
+          "coverage_state": "NO_RECEIPT_SAMPLES",
+          "missing_receipts": 0,
+          "retained_receipts": 0,
+          "retained_requests": 1,
+          "requests_with_receipt_id": 0,
+          "evidence_version_coverage": "UNAVAILABLE_PUBLICLY"
+        }
+      ]
+    }
+  ]
+}
