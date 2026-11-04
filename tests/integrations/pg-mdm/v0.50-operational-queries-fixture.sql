@@ -23,6 +23,11 @@ UPDATE mdm_steward.policy_cases_v1
 SET permitted_actions = ARRAY['SET_DUE_AT']::text[], opened_at_source = 'publication'
 WHERE entity_name = 'entity_a' AND case_key = 102;
 UPDATE mdm_steward.policy_cases_v1
+SET permitted_actions = ARRAY['SET_DUE_AT']::text[],
+    opened_at = clock_timestamp() - interval '2 hours',
+    opened_at_source = 'publication'
+WHERE entity_name = 'entity_a' AND case_key = 103;
+UPDATE mdm_steward.policy_cases_v1
 SET permitted_actions = ARRAY[]::text[], opened_at_source = 'unknown'
 WHERE entity_name = 'entity_b';
 

@@ -41,7 +41,7 @@ POPULATED_EXPECTED = (
       "execution_class": "RETRYING_FAILURE", "status": "FAILED",
       "current_work_state": "RETRY_WAIT", "error_code": "WORKER_TIMEOUT",
       "execution_count": 1}],
-    [{"eligible_open_cases": 1, "overdue_case_count": 1,
+    [{"eligible_open_cases": 2, "overdue_case_count": 1,
       "overdue_without_pending_work": 1, "oldest_overdue_age": "<one-hour>",
       "captured_at": "<captured-at>", "sample_state": "SAMPLED"}],
     [{"rule_name": "mdm-route", "state": "ACTIVE", "outstanding_episodes": 3,

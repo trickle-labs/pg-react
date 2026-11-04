@@ -92,6 +92,7 @@ INSERT INTO mdm_steward.policy_receipts_v1 VALUES
 INSERT INTO mdm_steward.policy_cases_v1 VALUES
     ('entity_a', 101, 'open', 6, false),
     ('entity_a', 102, 'open', 5, true),
+    ('entity_a', 103, 'open', 4, false),
     ('entity_b', 201, 'open', 3, false);
 
 \ir ../../../integrations/pg-mdm/sql/operational-activity.sql
