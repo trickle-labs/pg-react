@@ -19,10 +19,13 @@ def main():
     parser.add_argument("container", help="running pg-react image with merged pg-mdm")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    _docker_psql(
-        args.container,
-        path="/workspace/tests/integrations/pg-mdm/v0.50-real-source-setup.sql",
-    )
+    try:
+        _docker_psql(
+            args.container,
+            path="/workspace/tests/integrations/pg-mdm/v0.50-real-source-setup.sql",
+        )
+    except subprocess.CalledProcessError as error:
+        raise AssertionError(f"real pg-mdm setup failed: {error.stderr}") from error
     guide = (ROOT / "docs/v0.50.0-operations.md").read_text()
     blocks = re.findall(r"```sql\s*\n(.*?)\n```", guide, re.DOTALL)
     if len(blocks) != len(QUERY_NAMES):
