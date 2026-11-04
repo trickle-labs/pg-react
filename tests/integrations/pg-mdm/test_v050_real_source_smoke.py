@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Plan the v0.50 query pack against the merged pg-mdm extension schema."""
+"""Execute the v0.50 operator queries against real pg-mdm in its empty state."""
 
 import argparse
 import hashlib
@@ -7,12 +7,31 @@ import json
 import re
 import subprocess
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
-from test_v050_operations import QUERY_NAMES, _docker_psql
+from test_v050_operations import EMPTY_EXPECTED, QUERY_NAMES, _docker_psql, _normalize
 
 
 ROOT = Path(__file__).resolve().parents[3]
+EMPTY_SOURCE_EXPECTED = dict(zip(QUERY_NAMES, EMPTY_EXPECTED))
+EMPTY_SOURCE_EXPECTED.update({
+    "repeated-escalations": [{
+        "sampled_case_levels": 0,
+        "distinct_requests": 0,
+        "same_request_retries": 0,
+        "duplicate_applied_levels": 0,
+        "sample_state": "NO_SAMPLES",
+    }],
+    "retention-coverage": [{
+        "retained_requests": 0,
+        "requests_with_receipt_id": 0,
+        "retained_receipts": 0,
+        "missing_receipts": 0,
+        "coverage_state": "NO_SAMPLES",
+        "evidence_version_coverage": "UNAVAILABLE_PUBLICLY",
+    }],
+})
 
 
 def main():
@@ -52,9 +71,10 @@ def main():
         ("binding_id", "00000000-0000-0000-0000-000000000001"),
         ("adapter_rule_names", "{mdm-route}"),
     )
-    planned = []
+    results = []
     for name, block in zip(QUERY_NAMES, blocks):
-        sql = "EXPLAIN (FORMAT JSON, COSTS OFF)\n" + block.strip().removesuffix(";")
+        query = block.strip().removesuffix(";")
+        sql = "EXPLAIN (FORMAT JSON, COSTS OFF)\n" + query
         try:
             plan = json.loads(_docker_psql(args.container, sql=sql, variables=variables))
         except subprocess.CalledProcessError as error:
@@ -68,11 +88,39 @@ def main():
             or not isinstance(plan[0]["Plan"].get("Node Type"), str)
         ):
             raise AssertionError(f"{name} returned an unexpected PostgreSQL plan: {plan}")
-        planned.append({"query": name, "status": "planned"})
+        result_sql = (
+            "SELECT coalesce(json_agg(to_jsonb(query_result)), '[]'::json)::text FROM (\n"
+            + query
+            + "\n) AS query_result;"
+        )
+        started = datetime.now(timezone.utc)
+        try:
+            output = _docker_psql(args.container, sql=result_sql, variables=variables)
+        except subprocess.CalledProcessError as error:
+            raise AssertionError(
+                f"{name} could not execute against merged pg-mdm: {error.stderr}"
+            ) from error
+        finished = datetime.now(timezone.utc)
+        raw_actual = json.loads(output)
+        actual = _normalize(json.loads(output), started, finished)
+        expected = sorted(
+            EMPTY_SOURCE_EXPECTED[name], key=lambda row: json.dumps(row, sort_keys=True)
+        )
+        if actual != expected:
+            raise AssertionError(
+                f"{name} real-source empty-state output mismatch\n"
+                f"expected: {expected}\nactual: {actual}"
+            )
+        results.append({
+            "query": name,
+            "plan_status": "passed",
+            "empty_state_status": "passed",
+            "actual": raw_actual,
+        })
 
     report = {
         "scope": (
-            "schema-only smoke; the extension source is real and the database has no cohort data"
+            "real pg-mdm source; exact empty-state queries only; no cohort data"
         ),
         "postgresql_version": _docker_psql(
             args.container, sql="SELECT current_setting('server_version');"
@@ -90,7 +138,7 @@ def main():
             sql="SELECT extversion FROM pg_catalog.pg_extension WHERE extname = 'pg_trickle';",
         ),
         "operations_guide_sha256": hashlib.sha256(guide.encode()).hexdigest(),
-        "results": planned,
+        "results": results,
     }
     args.output.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, sort_keys=True))
