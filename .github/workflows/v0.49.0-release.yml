@@ -1,16 +1,7 @@
 name: Release pg-react MDM adapter v0.49.0
 
+# The published v0.49.0 artifact is immutable; rebuild only on dispatch or its tag.
 on:
-  pull_request:
-    paths:
-      - .github/workflows/v0.49.0-release.yml
-      - docs/v0.49.0-release-notes.md
-      - docs/v0.49-qualification.md
-      - integrations/pg-mdm/**
-      - plans/v0.49-qualification-profile.json
-      - plans/v0.49-supported-operating-envelope.json
-      - plans/v0.49.0.md
-      - tests/integrations/pg-mdm/evidence/v0.49.0/**
   workflow_dispatch:
   push:
     tags:

@@ -1,4 +1,4 @@
-name: v0.50.0 qualification
+name: v0.50.0 candidate validation
 
 on:
   pull_request:
@@ -28,7 +28,8 @@ jobs:
     with:
       image: pg-react:v0.50.0-qualification
 
-  v050:
+  candidate:
+    name: Candidate evidence
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -57,7 +58,13 @@ jobs:
           test -n "$ready"
           python3 tests/integrations/pg-mdm/test_v050_operations.py \
             "$container" --output v0.50.0-evidence/operational-query-results.json
+      - name: Derive candidate qualification status
+        run: |
+          python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
+            > v0.50.0-evidence/qualification-result.json
+          cat v0.50.0-evidence/qualification-result.json
       - name: Require complete real-stack release evidence
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
             --require-qualified > v0.50.0-evidence/qualification-result.json
@@ -65,5 +72,5 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: v0.50.0-qualification-${{ github.run_id }}
+          name: v0.50.0-candidate-evidence-${{ github.run_id }}
           path: v0.50.0-evidence/
