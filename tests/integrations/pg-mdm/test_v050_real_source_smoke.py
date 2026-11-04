@@ -16,6 +16,11 @@ from test_v050_operations import EMPTY_EXPECTED, QUERY_NAMES, _docker_psql, _nor
 ROOT = Path(__file__).resolve().parents[3]
 EMPTY_SOURCE_EXPECTED = dict(zip(QUERY_NAMES, EMPTY_EXPECTED))
 EMPTY_SOURCE_EXPECTED.update({
+    "held-requests": [{
+        "held_requests": 0,
+        "held_reasons": [],
+        "sample_state": "NO_REQUEST_SAMPLES",
+    }],
     "repeated-escalations": [{
         "sampled_case_levels": 0,
         "distinct_requests": 0,
