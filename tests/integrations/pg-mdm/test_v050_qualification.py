@@ -1,0 +1,479 @@
+#!/usr/bin/env python3
+import copy
+import hashlib
+import json
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+HERE = Path(__file__).parent
+sys.path.insert(0, str(HERE))
+from derive_v050_qualification import (
+    ARTIFACT_FIELDS,
+    COMMIT_FIELDS,
+    DIGEST_FIELDS,
+    GATE_IDS,
+    OBJECT_FIELDS,
+    RECORD_FIELDS,
+    derive,
+)
+
+
+def complete_manifest(evidence_directory):
+    artifact_tuple = {field: "qualified-value" for field in ARTIFACT_FIELDS}
+    for field in DIGEST_FIELDS:
+        artifact_tuple[field] = "a" * 64
+    artifact_tuple["runtime_image_digest"] = "sha256:" + "a" * 64
+    for field in COMMIT_FIELDS:
+        artifact_tuple[field] = "b" * 40
+    for field in OBJECT_FIELDS:
+        artifact_tuple[field] = {"qualified": True}
+    evidence_dir = evidence_directory / "logs"
+    evidence_dir.mkdir(exist_ok=True)
+    gates = []
+    evidence_references = {}
+    for gate_id in GATE_IDS:
+        path = f"logs/{gate_id}.log"
+        content = f"retained evidence for {gate_id}\n".encode()
+        (evidence_directory / path).write_bytes(content)
+        reference = {"path": path, "sha256": hashlib.sha256(content).hexdigest()}
+        evidence_references[gate_id] = reference
+        gates.append({
+            "id": gate_id,
+            "required": True,
+            "status": "passed",
+            "evidence": [reference],
+        })
+    def approval(name, gate_id):
+        return {
+            "name": name,
+            "signed_at": "2026-11-04T10:00:00+00:00",
+            "evidence": evidence_references[gate_id],
+        }
+
+    def retain_json(name, value):
+        path = f"logs/{name}.json"
+        content = json.dumps(value, sort_keys=True, separators=(",", ":")).encode()
+        (evidence_directory / path).write_bytes(content)
+        return {"path": path, "sha256": hashlib.sha256(content).hexdigest()}
+
+    case_keys = list(range(1, 101))
+    membership = retain_json("membership", {
+        "schema_version": 1,
+        "population_id": "cohort-1",
+        "case_keys": case_keys,
+    })
+    current = {
+        "route": {
+            "decision": "NO_MATCH",
+            "selected_queue": None,
+            "action": None,
+            "priority": None,
+            "competitors": [],
+        },
+        "deadline": {"decision": "NO_PROPOSAL", "proposed_due_at": None, "reason": "no_rule"},
+    }
+    proposed = copy.deepcopy(current)
+    coverage = retain_json("coverage", [{
+        "state": "complete",
+        "read_only": True,
+        "captured_at": "2026-11-04T10:00:00+00:00",
+        "policy_revisions": {"current": "policy-r1", "proposed": "policy-r2"},
+        "coverage": {
+            "population_id": "cohort-1",
+            "membership": case_keys,
+            "expected_count": len(case_keys),
+            "observed_count": len(case_keys),
+            "partial": False,
+            "snapshot": "one READ COMMITTED statement per read",
+        },
+        "rows": [
+            {"case_key": key, "current": current, "proposed": proposed, "changed": False}
+            for key in case_keys
+        ],
+    }])
+    package_content = b"retained adapter package artifact\n"
+    package_path = "logs/adapter-package.bin"
+    (evidence_directory / package_path).write_bytes(package_content)
+    package = {"path": package_path, "sha256": hashlib.sha256(package_content).hexdigest()}
+    return {
+        "schema_version": 1,
+        "release": "pg-react MDM adapter 0.50.0",
+        "artifact_tuple": artifact_tuple,
+        "release_record": {
+            "workload": {"id": "workload-1", "owner": "owner", "administrative_domain": "domain-1"},
+            "cohort": {
+                "membership_definition": "case_key in the frozen membership manifest",
+                "membership_manifest": membership,
+                "membership_sha256": membership["sha256"],
+                "member_count": 100,
+                "policy_revisions": ["policy-r1", "policy-r2"],
+                "expected_exceptions": evidence_references["R3"],
+                "package_manifest": package,
+                "package_digest": package["sha256"],
+            },
+            "shadow": {
+                "reference_population_sha256": membership["sha256"],
+                "coverage_manifest": coverage,
+                "expected_case_count": 100,
+                "observed_case_count": 100,
+                "partial": False,
+                "duplicate_case_count": 0,
+                "owner_approval": approval("owner", "R3"),
+            },
+            "operating_envelope": {
+                "baseline_evidence": evidence_references["R6"],
+                "thresholds": {
+                    "case_count_max": 100,
+                    "churn_per_hour_max": 20,
+                    "queue_backlog_max": 50,
+                    "latency_p95_ms_max": 2000,
+                    "retention_horizon_seconds": 7776000,
+                    "recovery_rto_seconds_max": 3600,
+                },
+                "observation": {
+                    "started_at": "2026-11-01T00:00:00Z",
+                    "ended_at": "2026-11-04T00:00:00Z",
+                },
+                "operator_threshold_approval": approval("operator", "R6"),
+                "release_owner_threshold_approval": approval("release-owner", "R6"),
+            },
+            "support_documents": {
+                "release_notes": "docs/v0.50.0-release-notes.md",
+                "support_matrix": "docs/v0.50.0-support-matrix.md",
+                "operator_guide": "docs/v0.50.0-operations.md",
+            },
+            "final_signoffs": {
+                "operator": approval("operator", "R8"),
+                "release_owner": approval("release-owner", "R8"),
+                "independent_reviewer": approval("independent-reviewer", "R8"),
+            },
+        },
+        "gates": gates,
+    }
+
+
+class V050QualificationTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary_directory = tempfile.TemporaryDirectory()
+        self.evidence_directory = Path(self.temporary_directory.name)
+        self.addCleanup(self.temporary_directory.cleanup)
+
+    def test_current_manifest_remains_blocked_on_missing_external_evidence(self):
+        manifest = json.loads((HERE / "evidence/v0.50.0/manifest.json").read_text())
+        result = derive(manifest, HERE / "evidence/v0.50.0")
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": False,
+                "missing_artifact_fields": list(ARTIFACT_FIELDS),
+                "invalid_artifact_fields": [],
+                "blocking_gates": list(GATE_IDS),
+                "manifest_errors": [],
+                "missing_release_fields": [
+                    field for field in RECORD_FIELDS
+                    if field not in {
+                        "support_documents.release_notes",
+                        "support_documents.support_matrix",
+                        "support_documents.operator_guide",
+                    }
+                ],
+                "invalid_release_fields": [],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_require_qualified_exit_status_matches_the_derived_decision(self):
+        blocked_path = HERE / "evidence/v0.50.0/manifest.json"
+        qualified_path = self.evidence_directory / "qualified-manifest.json"
+        qualified_path.write_text(json.dumps(complete_manifest(self.evidence_directory)))
+        for path, expected_status in ((blocked_path, False), (qualified_path, True)):
+            completed = subprocess.run(
+                [sys.executable, str(HERE / "derive_v050_qualification.py"),
+                 str(path), "--require-qualified"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            result = json.loads(completed.stdout)
+            self.assertEqual(result, derive(json.loads(path.read_text()), path.parent))
+            self.assertEqual(result["release_qualified"], expected_status)
+            self.assertEqual(completed.returncode, 0 if expected_status else 1)
+            self.assertEqual(completed.stderr, "")
+
+    def test_complete_tuple_and_every_retained_required_gate_qualify(self):
+        result = derive(complete_manifest(self.evidence_directory), self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": True,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [],
+                "release_record_complete": True,
+            },
+        )
+
+    def test_skipped_required_gate_cannot_qualify(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["gates"][0]["status"] = "skipped"
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [GATE_IDS[0]],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [],
+                "release_record_complete": True,
+            },
+        )
+
+    def test_passed_gate_without_evidence_cannot_qualify(self):
+        manifest = copy.deepcopy(complete_manifest(self.evidence_directory))
+        manifest["gates"][0]["evidence"] = []
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [GATE_IDS[0]],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [],
+                "release_record_complete": True,
+            },
+        )
+
+    def test_malformed_artifact_digest_cannot_qualify(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["artifact_tuple"]["pg_mdm_shared_library_sha256"] = "not-a-digest"
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": False,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": ["pg_mdm_shared_library_sha256"],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [],
+                "release_record_complete": True,
+            },
+        )
+
+    def test_artifact_tuple_rejects_non_text_versions_and_non_object_configuration(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["artifact_tuple"]["pg_react_version"] = 50
+        manifest["artifact_tuple"]["temporal_configuration"] = "configured"
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": False,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": ["pg_react_version", "temporal_configuration"],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [],
+                "release_record_complete": True,
+            },
+        )
+
+    def test_passed_gate_requires_retained_file_with_matching_digest(self):
+        manifest = complete_manifest(self.evidence_directory)
+        (self.evidence_directory / "logs/R1.log").write_text("changed evidence\n")
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R1"],
+                "manifest_errors": ["R1 evidence[0] sha256 does not match the retained file"],
+                "missing_release_fields": [],
+                "invalid_release_fields": [],
+                "release_record_complete": True,
+            },
+        )
+
+    def test_evidence_path_cannot_escape_manifest_directory(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["gates"][0]["evidence"][0]["path"] = "../R1.log"
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R1"],
+                "manifest_errors": ["R1 evidence[0] path must be a relative path inside the manifest directory"],
+                "missing_release_fields": [],
+                "invalid_release_fields": [],
+                "release_record_complete": True,
+            },
+        )
+
+    def test_partial_shadow_coverage_cannot_qualify(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["shadow"]["partial"] = True
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["shadow.partial"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_shadow_count_mismatch_and_duplicate_keys_cannot_qualify(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["shadow"]["observed_case_count"] = 99
+        manifest["release_record"]["shadow"]["duplicate_case_count"] = 1
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [
+                    "shadow.observed_case_count",
+                    "shadow.duplicate_case_count",
+                ],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_coverage_manifest_must_match_the_frozen_membership(self):
+        manifest = complete_manifest(self.evidence_directory)
+        reference = manifest["release_record"]["shadow"]["coverage_manifest"]
+        path = self.evidence_directory / reference["path"]
+        coverage = json.loads(path.read_text())
+        coverage[0]["coverage"]["membership"].pop()
+        content = json.dumps(coverage, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["shadow.coverage_manifest"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_package_digest_must_match_its_retained_artifact(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["cohort"]["package_digest"] = "f" * 64
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["cohort.package_digest"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_coverage_evidence_must_decode_to_a_manifest(self):
+        manifest = complete_manifest(self.evidence_directory)
+        reference = manifest["release_record"]["shadow"]["coverage_manifest"]
+        path = self.evidence_directory / reference["path"]
+        content = b"null"
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["shadow.coverage_manifest"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_duplicate_rows_cannot_be_hidden_by_matching_recorded_counts(self):
+        manifest = complete_manifest(self.evidence_directory)
+        reference = manifest["release_record"]["shadow"]["coverage_manifest"]
+        path = self.evidence_directory / reference["path"]
+        coverage = json.loads(path.read_text())
+        coverage[0]["rows"][-1]["case_key"] = coverage[0]["rows"][-2]["case_key"]
+        content = json.dumps(coverage, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [
+                    "shadow.coverage_manifest",
+                    "shadow.duplicate_case_count",
+                ],
+                "release_record_complete": False,
+            },
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

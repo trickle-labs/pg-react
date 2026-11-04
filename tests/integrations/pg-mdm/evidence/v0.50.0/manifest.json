@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "release": "pg-react MDM adapter 0.50.0",
+  "artifact_tuple": {
+    "postgresql_version": null,
+    "runtime_image_digest": null,
+    "pg_react_version": null,
+    "pg_react_source_commit": null,
+    "pg_react_shared_library_sha256": null,
+    "pg_trickle_version": null,
+    "pg_trickle_source_commit": null,
+    "pg_trickle_shared_library_sha256": null,
+    "pg_mdm_version": null,
+    "pg_mdm_source_commit": null,
+    "pg_mdm_source_archive_sha256": null,
+    "pg_mdm_shared_library_sha256": null,
+    "mdm_contract_digest": null,
+    "public_projection_digest": null,
+    "adapter_package_digest": null,
+    "platform": null,
+    "isolation": null,
+    "cdc": null,
+    "coordinator_owner": null,
+    "temporal_configuration": null,
+    "capability_response": null
+  },
+  "release_record": {
+    "workload": {
+      "id": null,
+      "owner": null,
+      "administrative_domain": null
+    },
+    "cohort": {
+      "membership_definition": null,
+      "membership_manifest": null,
+      "membership_sha256": null,
+      "member_count": null,
+      "policy_revisions": [],
+      "expected_exceptions": null,
+      "package_manifest": null,
+      "package_digest": null
+    },
+    "shadow": {
+      "reference_population_sha256": null,
+      "coverage_manifest": null,
+      "expected_case_count": null,
+      "observed_case_count": null,
+      "partial": null,
+      "duplicate_case_count": null,
+      "owner_approval": null
+    },
+    "operating_envelope": {
+      "baseline_evidence": null,
+      "thresholds": {
+        "case_count_max": null,
+        "churn_per_hour_max": null,
+        "queue_backlog_max": null,
+        "latency_p95_ms_max": null,
+        "retention_horizon_seconds": null,
+        "recovery_rto_seconds_max": null
+      },
+      "observation": {
+        "started_at": null,
+        "ended_at": null
+      },
+      "operator_threshold_approval": null,
+      "release_owner_threshold_approval": null
+    },
+    "support_documents": {
+      "release_notes": "docs/v0.50.0-release-notes.md",
+      "support_matrix": "docs/v0.50.0-support-matrix.md",
+      "operator_guide": "docs/v0.50.0-operations.md"
+    },
+    "final_signoffs": {
+      "operator": null,
+      "release_owner": null,
+      "independent_reviewer": null
+    }
+  },
+  "gates": [
+    { "id": "R1", "required": true, "status": "blocked", "evidence": [], "remaining": "Final artifact tuple, installed MDM contract and projection digests are not available." },
+    { "id": "R2", "required": true, "status": "blocked", "evidence": [], "remaining": "Shared failure suite has not run against the final real stack." },
+    { "id": "R3", "required": true, "status": "blocked", "evidence": [], "remaining": "Named workload, owner, fixed membership and shadow approval are not recorded." },
+    { "id": "R4", "required": true, "status": "blocked", "evidence": [], "remaining": "Staged cohort enablement has not run." },
+    { "id": "R5", "required": true, "status": "blocked", "evidence": [{ "path": "operational-activity-postgres-18.6.log", "sha256": "ae60ff39d9825c11f2a0e7bd5fa5e5077d5f2db08cfbbc28b9577176c49dca37" }, { "path": "operational-queries-postgres-18.6.json", "sha256": "15bbced77e11038fc2bfb0fe0637b165bfe1f3e9c984cf1f037120a91932171e" }], "remaining": "The projection and query-pack fixtures pass on PostgreSQL 18.6; queries have not run against the real cohort. MDM exposes no receipt-to-publication correlation or pending-since timestamp, so publication state and age remain UNAVAILABLE_PUBLICLY." },
+    { "id": "R6", "required": true, "status": "blocked", "evidence": [], "remaining": "Named workload baseline and approved numeric limits are not available." },
+    { "id": "R7", "required": true, "status": "blocked", "evidence": [], "remaining": "No populated recovery, upgrade or clone drill has run on the final v0.50 tuple. The prior v0.49 selected profile passed its repeated 48-check logical-restore audit, but that evidence does not qualify the v0.50 artifact tuple or full recovery matrix." },
+    { "id": "R8", "required": true, "status": "blocked", "evidence": [], "remaining": "Draft notes and matrix exist, but final limits, observation record, support decision and required sign-offs are not available." },
+    { "id": "C01", "required": true, "status": "blocked", "evidence": [], "remaining": "Exact stack and capability admission has not run on the final tuple." },
+    { "id": "C02", "required": true, "status": "blocked", "evidence": [], "remaining": "Core-only install and adapter-absent compatibility have not run on the final tuple." },
+    { "id": "C03", "required": true, "status": "blocked", "evidence": [], "remaining": "Final authorization and negative-permission matrix has not run." },
+    { "id": "C04", "required": true, "status": "blocked", "evidence": [], "remaining": "Ordinary compatibility has not run on the final tuple." },
+    { "id": "C05", "required": true, "status": "blocked", "evidence": [], "remaining": "Fresh install and populated adjacent upgrade have not run on the final tuple." },
+    { "id": "C06", "required": true, "status": "blocked", "evidence": [], "remaining": "Atomicity, concurrency and uncertain-commit retry matrix has not run on the final tuple." },
+    { "id": "C07", "required": true, "status": "blocked", "evidence": [], "remaining": "Concurrent stewardship, replacement and pause matrix has not run on the final tuple." },
+    { "id": "C08", "required": true, "status": "blocked", "evidence": [], "remaining": "Time, recurrence and escalation boundaries have not run on the final tuple." },
+    { "id": "C09", "required": true, "status": "blocked", "evidence": [], "remaining": "Complete final-population comparison has not run for the named cohort." },
+    { "id": "C10", "required": true, "status": "blocked", "evidence": [], "remaining": "Restart, populated restore, failed-upgrade and guarded-clone drills have not run on the final tuple." },
+    { "id": "C11", "required": true, "status": "blocked", "evidence": [], "remaining": "Final workload resource and recovery limits have not been measured." },
+    { "id": "C12", "required": true, "status": "blocked", "evidence": [], "remaining": "Exact packaged artifact, retained final logs and independent review are not available." }
+  ],
+  "external_inputs": [
+    "Named workload owner, stable cohort membership, representative cases and expected manual exceptions.",
+    "Accepted MDM M0/M1/M2/M4 contract, public projection and exact package; MDM readiness issue #5 remains open.",
+    "Final packaged PostgreSQL, pg-react, pg-trickle and pg-mdm artifact identities, MDM contract digest and public projection digest.",
+    "Baseline workload measurements followed by operator and release-owner approved numeric limits and an observation period.",
+    "Operator and independent release sign-off after failure, shadow, controlled rollout and observation gates pass."
+  ]
+}
