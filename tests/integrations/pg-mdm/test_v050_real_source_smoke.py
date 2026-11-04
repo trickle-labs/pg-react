@@ -21,6 +21,12 @@ EMPTY_SOURCE_EXPECTED.update({
         "held_reasons": [],
         "sample_state": "NO_REQUEST_SAMPLES",
     }],
+    "accepted-publication": [{
+        "accepted_control_requests": 0,
+        "oldest_publication_age": None,
+        "publication_states": [],
+        "publication_state": "NO_REQUEST_SAMPLES",
+    }],
     "repeated-escalations": [{
         "sampled_case_levels": 0,
         "distinct_requests": 0,
