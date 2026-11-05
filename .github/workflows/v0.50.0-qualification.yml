@@ -110,14 +110,16 @@ jobs:
             --env POSTGRES_PASSWORD=v050-test \
             pgreact:v050-real-source >/dev/null
           ready=
-          for attempt in {1..30}; do
-            if docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then
+          for attempt in {1..60}; do
+            if docker logs "$container" 2>&1 | grep -q 'PostgreSQL init process complete; ready for start up.' \
+              && docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then
               ready=1
               break
             fi
-            sleep 1
+            sleep 2
           done
           test -n "$ready"
+          docker exec "$container" pg_isready -U postgres
           producer_artifact_sha256=$(sed -n 's/^ARG PG_TRICKLE_SHA256=//p' \
             .producer/mdm/tests/Dockerfile.e2e)
           test -n "$producer_artifact_sha256"
