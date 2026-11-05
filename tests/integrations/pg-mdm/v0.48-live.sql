@@ -56,7 +56,7 @@ SELECT pgreact_mdm.publish_intent_package(
     jsonb_build_object(
         'deadline', jsonb_build_object(
             'duration_seconds', 86400, 'min_seconds', 60, 'max_seconds', 86400,
-            'replace_existing_deadline', false),
+            'replace_existing_deadline', true),
         'routes', jsonb_build_array(
             jsonb_build_object(
                 'reason_code', :'queue_reason_code', 'entity_name', :'queue_entity_name',
