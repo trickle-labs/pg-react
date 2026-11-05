@@ -2,7 +2,7 @@
 
 SELECT case_row.case_key,
        entity.execution_role_name,
-       case_row.assigned_queue::text AS assigned_queue,
+       COALESCE(case_row.assigned_queue::text, '') AS assigned_queue,
        case_row.opened_at::text AS opened_at,
        case_row.manual_assignment_protected,
        case_row.action_revision
