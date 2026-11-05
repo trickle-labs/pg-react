@@ -1373,7 +1373,7 @@ BEGIN
               AND rule.state = 'ACTIVE'
             ORDER BY CASE rule.rule_name
                 WHEN 'v0.48-live-worker-queue' THEN 1
-                WHEN 'v0.48-live-worker-due' THEN 2
+                WHEN 'v0.48-live-worker-escalation' THEN 2
                 ELSE 3 END
         LOOP
             attempts := 0;
