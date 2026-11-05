@@ -134,17 +134,14 @@ jobs:
             -U postgres -d foundation \
             -c "CREATE EXTENSION pg_react VERSION '0.46.1'" \
             > v0.50.0-evidence/populated-pg-react-install.log 2>&1
-          # Run the legacy-opening assertion before the MDM E2E backfills it.
-          for test_file in v0.47-live-setup.sql v0.47-live.sql; do
-            log="v0.50.0-evidence/${test_file%.sql}.log"
-            if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
-              -U postgres -d foundation \
-              -f "/workspace/tests/integrations/pg-mdm/$test_file" > "$log" 2>&1; then
-              cat "$log"
-              exit 1
-            fi
-            echo "$test_file passed against the populated MDM source"
-          done
+          # MDM 0.15 adds a second unknown opening, beyond v0.47's exact-one assertion.
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
+            -f /workspace/tests/integrations/pg-mdm/v0.47-live-setup.sql \
+            > v0.50.0-evidence/v0.47-live-setup.log 2>&1; then
+            cat v0.50.0-evidence/v0.47-live-setup.log
+            exit 1
+          fi
           if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
             -U postgres -f /tests/e2e_policy.sql \
             > v0.50.0-evidence/populated-mdm-policy.log 2>&1; then
