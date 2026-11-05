@@ -88,7 +88,11 @@ jobs:
           trap cleanup EXIT
           docker run --rm --detach --name "$container" \
             --env POSTGRES_PASSWORD=v050-test \
-            pgreact:v050-real-source >/dev/null
+            pgreact:v050-real-source postgres \
+              -c shared_preload_libraries=pg_trickle,pg_mdm,pg_react \
+              -c pg_trickle.enabled=off \
+              -c pg_trickle.cdc_mode=trigger \
+              -c pg_trickle.differential_max_change_ratio=1.0 >/dev/null
           ready=
           for attempt in {1..30}; do
             if docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then
@@ -100,6 +104,79 @@ jobs:
           test -n "$ready"
           python3 tests/integrations/pg-mdm/test_v050_real_source_smoke.py \
             "$container" --output v0.50.0-evidence/real-source-query-results.json
+      - name: Run populated real-source integration suite
+        run: |
+          set -euo pipefail
+          container=pgreact-v050-populated-${GITHUB_RUN_ID}
+          cleanup() { docker stop "$container" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          docker run --rm --detach --name "$container" \
+            --env POSTGRES_PASSWORD=v050-test \
+            pgreact:v050-real-source postgres \
+              -c shared_preload_libraries=pg_trickle,pg_mdm,pg_react \
+              -c pg_trickle.enabled=off \
+              -c pg_trickle.cdc_mode=trigger \
+              -c pg_trickle.differential_max_change_ratio=1.0 >/dev/null
+          ready=
+          for attempt in {1..60}; do
+            if docker logs "$container" 2>&1 | grep -q 'PostgreSQL init process complete; ready for start up.' \
+              && docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test -n "$ready"
+          docker exec "$container" pg_isready -U postgres
+          producer_artifact_sha256=$(sed -n 's/^ARG PG_TRICKLE_SHA256=//p' \
+            .producer/mdm/tests/Dockerfile.e2e)
+          test -n "$producer_artifact_sha256"
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -v "producer_artifact_sha256=$producer_artifact_sha256" \
+            -U postgres -f /tests/e2e.sql \
+            > v0.50.0-evidence/populated-mdm-e2e.log 2>&1; then
+            cat v0.50.0-evidence/populated-mdm-e2e.log
+            exit 1
+          fi
+          docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
+            -c "CREATE EXTENSION pg_react VERSION '0.46.1'" \
+            > v0.50.0-evidence/populated-pg-react-install.log 2>&1
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
+            -f /workspace/tests/integrations/pg-mdm/v0.50-package-seed.sql \
+            > v0.50.0-evidence/v0.47-package-seed.log 2>&1; then
+            cat v0.50.0-evidence/v0.47-package-seed.log
+            exit 1
+          fi
+          # MDM 0.15's fixture adds a second unknown opening, beyond v0.47's exact-one assertion.
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
+            -f /workspace/tests/integrations/pg-mdm/v0.47-live-setup.sql \
+            > v0.50.0-evidence/v0.47-live-setup.log 2>&1; then
+            cat v0.50.0-evidence/v0.47-live-setup.log
+            exit 1
+          fi
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -f /tests/e2e_policy.sql \
+            > v0.50.0-evidence/populated-mdm-policy.log 2>&1; then
+            cat v0.50.0-evidence/populated-mdm-policy.log
+            exit 1
+          fi
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
+            -f /workspace/tests/integrations/pg-mdm/v0.50-escalation-seed.sql \
+            > v0.50.0-evidence/escalation-seed.log 2>&1; then
+            cat v0.50.0-evidence/escalation-seed.log
+            exit 1
+          fi
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
+            -f /workspace/tests/integrations/pg-mdm/v0.48-live.sql \
+            > v0.50.0-evidence/v0.48-live.log 2>&1; then
+            cat v0.50.0-evidence/v0.48-live.log
+            exit 1
+          fi
       - name: Derive candidate qualification status
         run: |
           python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
