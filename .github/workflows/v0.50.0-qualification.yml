@@ -80,7 +80,7 @@ jobs:
             --build-arg PG_MDM_IMAGE=pg_mdm:v050-real-source \
             -t pgreact:v050-real-source . \
             > v0.50.0-evidence/pg-react-source-build.log 2>&1
-      - name: Plan the documented queries against the real MDM schema
+      - name: Execute documented queries against the real MDM schema
         run: |
           set -euo pipefail
           container=pgreact-v050-real-source-${GITHUB_RUN_ID}
@@ -99,7 +99,7 @@ jobs:
           done
           test -n "$ready"
           python3 tests/integrations/pg-mdm/test_v050_real_source_smoke.py \
-            "$container" --output v0.50.0-evidence/real-source-query-plans.json
+            "$container" --output v0.50.0-evidence/real-source-query-results.json
       - name: Derive candidate qualification status
         run: |
           python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
