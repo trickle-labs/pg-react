@@ -136,9 +136,9 @@ jobs:
             > v0.50.0-evidence/populated-pg-react-install.log 2>&1
           if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
             -U postgres -d foundation \
-            -f /workspace/tests/integrations/pg-mdm/v0.47.sql \
-            > v0.50.0-evidence/v0.47.log 2>&1; then
-            cat v0.50.0-evidence/v0.47.log
+            -f /workspace/tests/integrations/pg-mdm/v0.50-package-seed.sql \
+            > v0.50.0-evidence/v0.47-package-seed.log 2>&1; then
+            cat v0.50.0-evidence/v0.47-package-seed.log
             exit 1
           fi
           # MDM 0.15's fixture adds a second unknown opening, beyond v0.47's exact-one assertion.
