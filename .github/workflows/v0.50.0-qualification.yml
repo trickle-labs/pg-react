@@ -88,7 +88,11 @@ jobs:
           trap cleanup EXIT
           docker run --rm --detach --name "$container" \
             --env POSTGRES_PASSWORD=v050-test \
-            pgreact:v050-real-source >/dev/null
+            pgreact:v050-real-source postgres \
+              -c shared_preload_libraries=pg_trickle,pg_mdm,pg_react \
+              -c pg_trickle.enabled=off \
+              -c pg_trickle.cdc_mode=trigger \
+              -c pg_trickle.differential_max_change_ratio=1.0 >/dev/null
           ready=
           for attempt in {1..30}; do
             if docker exec "$container" pg_isready -U postgres >/dev/null 2>&1; then
@@ -108,7 +112,11 @@ jobs:
           trap cleanup EXIT
           docker run --rm --detach --name "$container" \
             --env POSTGRES_PASSWORD=v050-test \
-            pgreact:v050-real-source >/dev/null
+            pgreact:v050-real-source postgres \
+              -c shared_preload_libraries=pg_trickle,pg_mdm,pg_react \
+              -c pg_trickle.enabled=off \
+              -c pg_trickle.cdc_mode=trigger \
+              -c pg_trickle.differential_max_change_ratio=1.0 >/dev/null
           ready=
           for attempt in {1..60}; do
             if docker logs "$container" 2>&1 | grep -q 'PostgreSQL init process complete; ready for start up.' \
