@@ -17,6 +17,7 @@ ORDER BY case_row.case_key
 LIMIT 1
 \gset v050_escalation_
 
+SET SESSION AUTHORIZATION mdm_test_login;
 SET ROLE :"v050_escalation_execution_role_name";
 SELECT action_revision AS seed_action_revision
 FROM mdm_steward.set_case_controls(
@@ -29,6 +30,7 @@ FROM mdm_steward.set_case_controls(
     'v0.50 populated v0.48 escalation fixture')
 \gset v050_escalation_
 RESET ROLE;
+RESET SESSION AUTHORIZATION;
 
 SELECT case_row.action_revision >= :v050_escalation_action_revision
    AND case_row.action_revision = :v050_escalation_seed_action_revision
