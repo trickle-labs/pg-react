@@ -157,6 +157,13 @@ jobs:
           fi
           if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
             -U postgres -d foundation \
+            -f /workspace/tests/integrations/pg-mdm/v0.50-escalation-seed.sql \
+            > v0.50.0-evidence/escalation-seed.log 2>&1; then
+            cat v0.50.0-evidence/escalation-seed.log
+            exit 1
+          fi
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
             -f /workspace/tests/integrations/pg-mdm/v0.48-live.sql \
             > v0.50.0-evidence/v0.48-live.log 2>&1; then
             cat v0.50.0-evidence/v0.48-live.log
