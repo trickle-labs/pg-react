@@ -478,10 +478,13 @@ BEGIN
     PERFORM pgreact_mdm.sync_intent_case_identities();
     SELECT * INTO STRICT queue_candidate
     FROM pgreact_mdm.intent_queue_candidates ORDER BY case_key LIMIT 1;
-    SELECT * INTO STRICT due_candidate
-    FROM pgreact_mdm.intent_due_candidates ORDER BY case_key LIMIT 1;
     SELECT * INTO STRICT escalation_candidate
     FROM pgreact_mdm.intent_escalation_candidates ORDER BY case_key LIMIT 1;
+    -- Intent submissions can remove their case from the other candidate view.
+    SELECT * INTO STRICT due_candidate
+    FROM pgreact_mdm.intent_due_candidates
+    WHERE case_key <> escalation_candidate.case_key
+    ORDER BY case_key LIMIT 1;
     SELECT * INTO STRICT conflict_candidate
     FROM pgreact_mdm.intent_queue_candidates
     WHERE case_key <> queue_candidate.case_key
