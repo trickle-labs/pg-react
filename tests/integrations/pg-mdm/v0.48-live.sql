@@ -585,8 +585,9 @@ BEGIN
         'v0.48-outcome-escalation')::pgreact.activation_context;
     PERFORM set_config('role', 'pgreact_mdm_worker', true);
     PERFORM pgreact_mdm.submit_queue_intent(queue_context, queue_case);
-    PERFORM pgreact_mdm.submit_due_intent(due_context, due_case);
+    -- SET_DUE_AT can make the same case no longer eligible for escalation.
     PERFORM pgreact_mdm.submit_escalation_intent(escalation_context, escalation_case);
+    PERFORM pgreact_mdm.submit_due_intent(due_context, due_case);
     PERFORM pgreact_mdm.submit_intent(conflict_context, to_jsonb(conflict_candidate));
 
     SELECT * INTO STRICT queue_attempt
