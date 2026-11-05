@@ -1,5 +1,8 @@
 \set ON_ERROR_STOP on
 \ir ../../../integrations/pg-mdm/sql/policy-inputs.sql
+\ir ../../../integrations/pg-mdm/sql/routing.sql
+\ir ../../../integrations/pg-mdm/sql/deadline-preview.sql
+\ir ../../../integrations/pg-mdm/sql/comparison.sql
 
 -- shortcut: seeds the v0.48 migration prerequisite until this lane can run v0.47 in an MDM-absent database.
 SELECT pgreact_mdm.publish_package(
