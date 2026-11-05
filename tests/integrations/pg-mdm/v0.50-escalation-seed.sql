@@ -1,5 +1,5 @@
 \set ON_ERROR_STOP on
--- Backfill e2e_policy's rollback case so its other trusted opening stays deadline-eligible.
+-- Backfill e2e_policy's remaining unknown opening; preserve its trusted case for deadline preview.
 SELECT case_row.case_key,
        entity.execution_role_name,
        COALESCE(case_row.assigned_queue::text, '') AS assigned_queue,
@@ -7,15 +7,15 @@ SELECT case_row.case_key,
        statement_timestamp() - INTERVAL '1 hour' AS due_at,
        case_row.manual_assignment_protected,
        case_row.action_revision
-FROM public.e2e_policy_vars AS fixture
-JOIN mdm_steward.policy_cases_v1 AS case_row
-  ON case_row.case_key = fixture.rollback_case_key
+FROM mdm_steward.policy_cases_v1 AS case_row
 JOIN mdm_internal.entities AS entity USING (entity_name)
 WHERE case_row.entity_name = 'policy_qualification'
   AND case_row.status = 'open'
   AND NOT case_row.pending_stewardship
   AND case_row.opened_at IS NULL
   AND case_row.opened_at_source = 'unknown'
+ORDER BY case_row.case_key DESC
+LIMIT 1
 \gset v050_escalation_
 
 SET SESSION AUTHORIZATION mdm_legacy_login;
