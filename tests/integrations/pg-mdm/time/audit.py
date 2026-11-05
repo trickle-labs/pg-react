@@ -1949,8 +1949,10 @@ def main():
         assert len(new_receipts) == 1, new_receipts
         receipt = new_receipts[0]
         uuid.UUID(receipt["receipt_id"])
+        assert datetime.datetime.fromisoformat(receipt["publication_tracking_started_at"]) <= datetime.datetime.fromisoformat(receipt["created_at"]), receipt
         expected_receipt = {
             "receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
+            "publication_tracking_started_at": receipt["publication_tracking_started_at"],
             "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
             "session_role_name": "mdm_s1_runtime", "action": "ESCALATE", "outcome": "APPLIED_CONTROL",
             "reason_code": "CONTROL_APPLIED", "case_key": case["case_key"],
@@ -5225,7 +5227,9 @@ def main():
         request_digest = sql("SELECT encode(pgreact_mdm.intent_request_digest('" +
             json.dumps(expected_body).replace("'", "''") + "'::jsonb),'hex')")
         uuid.UUID(receipt["receipt_id"])
+        assert timestamp(receipt["publication_tracking_started_at"]) <= timestamp(receipt["created_at"]), receipt
         expected_receipt = {"receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
+            "publication_tracking_started_at": receipt["publication_tracking_started_at"],
             "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
             "session_role_name": "mdm_s1_runtime", "action": "ESCALATE", "outcome": "APPLIED_CONTROL",
             "reason_code": "CONTROL_APPLIED", "control": expected_control, "case_key": case_key,
