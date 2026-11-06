@@ -35,10 +35,10 @@ jobs:
           set -euo pipefail
           docker build -f .producer/mdm/tests/Dockerfile.e2e \
             --build-arg PG_MDM_SOURCE_REVISION=a9ac204cebac87a8aae8e9c6137cd4ffaab1b18f \
-            --build-arg PG_TRICKLE_REVISION=d8bb8eb5d45c5c9982e173e88914037433a1ee05 \
-            --build-arg PG_TRICKLE_SHA256=b8d4c59ca3770c305659255e09adde303b4d220228392c415ae363aa7be0a2da \
-            --label pg_trickle.source_revision=d8bb8eb5d45c5c9982e173e88914037433a1ee05 \
-            --label pg_trickle.source_archive_sha256=b8d4c59ca3770c305659255e09adde303b4d220228392c415ae363aa7be0a2da \
+            --build-arg PG_TRICKLE_REVISION=eb44093bbeca4f276a92733fe2bbc740d8ef254a \
+            --build-arg PG_TRICKLE_SHA256=c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487 \
+            --label pg_trickle.source_revision=eb44093bbeca4f276a92733fe2bbc740d8ef254a \
+            --label pg_trickle.source_archive_sha256=c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487 \
             -t pgreact:mdm-clone-candidate .producer/mdm > clone-evidence/mdm-build.log 2>&1
           docker build -f tests/integrations/pg-mdm/Dockerfile.v0.48 \
             --build-arg PG_MDM_IMAGE=pgreact:mdm-clone-candidate \
