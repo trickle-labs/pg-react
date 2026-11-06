@@ -20,7 +20,9 @@ from derive_v050_qualification import (
     GATE_IDS,
     OBJECT_FIELDS,
     R4_STAGE_IDS,
+    R8_FINAL_SIGNOFF_ROLES,
     RECORD_FIELDS,
+    _qualification_evidence_sha256,
     _record_timestamp,
     _valid_shadow_competitors,
     derive,
@@ -86,6 +88,20 @@ def complete_manifest(evidence_directory):
                     "assignments", "due_dates", "no_ops", "protected_cases",
                     "escalation_plans", "ambiguities", "expected_manual_exceptions",
                 ],
+            })
+        elif gate_id == "R8":
+            role = name.replace("-", "_")
+            reference = retain_json(f"final-signoff-{role}", {
+                "schema_version": 1,
+                "role": role,
+                "approver": name,
+                "signed_at": signed_at,
+                "decision": "go",
+                "artifact_tuple_sha256": artifact_tuple_sha256,
+                "workload_id": "workload-1",
+                "cohort_membership_sha256": membership["sha256"],
+                "package_sha256": package["sha256"],
+                "qualification_evidence_sha256": qualification_evidence_sha256,
             })
         return {
             "name": name,
@@ -284,52 +300,70 @@ def complete_manifest(evidence_directory):
         "stages": stages,
     })
     next(gate for gate in gates if gate["id"] == "R4")["evidence"] = [r4_reference]
+    release_record = {
+        "workload": {"id": "workload-1", "owner": "owner", "administrative_domain": "domain-1"},
+        "cohort": {
+            "membership_definition": "case_key in the frozen membership manifest",
+            "membership_manifest": membership,
+            "membership_sha256": membership["sha256"],
+            "member_count": 100,
+            "policy_revisions": ["policy-r1", "policy-r2"],
+            "expected_exceptions": evidence_references["R3"],
+            "package_manifest": package,
+            "package_digest": package["sha256"],
+        },
+        "shadow": {
+            "reference_population_sha256": membership["sha256"],
+            "coverage_manifest": coverage,
+            "expected_case_count": 100,
+            "observed_case_count": 100,
+            "partial": False,
+            "duplicate_case_count": 0,
+            "owner_approval": owner_approval,
+        },
+        "operating_envelope": {
+            "baseline_evidence": baseline_reference,
+            "thresholds": thresholds,
+            "observation": {
+                "started_at": "2026-11-01T00:00:00Z",
+                "ended_at": "2026-11-04T00:00:00Z",
+            },
+            "operator_threshold_approval": approval("operator", "R6"),
+            "release_owner_threshold_approval": approval("release-owner", "R6"),
+        },
+        "support_documents": {
+            "release_notes": "docs/v0.50.0-release-notes.md",
+            "support_matrix": "docs/v0.50.0-support-matrix.md",
+            "operator_guide": "docs/v0.50.0-operations.md",
+        },
+    }
+    qualification_evidence = [
+        artifact_tuple,
+        release_record,
+        [
+            {"id": gate["id"], "status": gate["status"], "evidence": gate["evidence"]}
+            for gate in gates if gate["id"] != "R8"
+        ],
+    ]
+    qualification_evidence_sha256 = hashlib.sha256(
+        json.dumps(qualification_evidence, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    release_record["final_signoffs"] = {
+        role: approval(name, "R8")
+        for role, name in (
+            ("operator", "operator"),
+            ("release_owner", "release-owner"),
+            ("independent_reviewer", "independent-reviewer"),
+        )
+    }
+    next(gate for gate in gates if gate["id"] == "R8")["evidence"] = [
+        release_record["final_signoffs"][role]["evidence"] for role in R8_FINAL_SIGNOFF_ROLES
+    ]
     return {
         "schema_version": 1,
         "release": "pg-react MDM adapter 0.50.0",
         "artifact_tuple": artifact_tuple,
-        "release_record": {
-            "workload": {"id": "workload-1", "owner": "owner", "administrative_domain": "domain-1"},
-            "cohort": {
-                "membership_definition": "case_key in the frozen membership manifest",
-                "membership_manifest": membership,
-                "membership_sha256": membership["sha256"],
-                "member_count": 100,
-                "policy_revisions": ["policy-r1", "policy-r2"],
-                "expected_exceptions": evidence_references["R3"],
-                "package_manifest": package,
-                "package_digest": package["sha256"],
-            },
-            "shadow": {
-                "reference_population_sha256": membership["sha256"],
-                "coverage_manifest": coverage,
-                "expected_case_count": 100,
-                "observed_case_count": 100,
-                "partial": False,
-                "duplicate_case_count": 0,
-                "owner_approval": owner_approval,
-            },
-            "operating_envelope": {
-                "baseline_evidence": baseline_reference,
-                "thresholds": thresholds,
-                "observation": {
-                    "started_at": "2026-11-01T00:00:00Z",
-                    "ended_at": "2026-11-04T00:00:00Z",
-                },
-                "operator_threshold_approval": approval("operator", "R6"),
-                "release_owner_threshold_approval": approval("release-owner", "R6"),
-            },
-            "support_documents": {
-                "release_notes": "docs/v0.50.0-release-notes.md",
-                "support_matrix": "docs/v0.50.0-support-matrix.md",
-                "operator_guide": "docs/v0.50.0-operations.md",
-            },
-            "final_signoffs": {
-                "operator": approval("operator", "R8"),
-                "release_owner": approval("release-owner", "R8"),
-                "independent_reviewer": approval("independent-reviewer", "R8"),
-            },
-        },
+        "release_record": release_record,
         "gates": gates,
     }
 
@@ -358,7 +392,38 @@ class V050QualificationTests(unittest.TestCase):
         path.write_bytes(content)
         reference["sha256"] = hashlib.sha256(content).hexdigest()
 
+    def rewrite_final_signoff(self, manifest, role, update):
+        reference = manifest["release_record"]["final_signoffs"][role]["evidence"]
+        path = self.evidence_directory / reference["path"]
+        report = json.loads(path.read_text())
+        update(report)
+        content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        r8_gate = next(gate for gate in manifest["gates"] if gate["id"] == "R8")
+        next(item for item in r8_gate["evidence"] if item["path"] == reference["path"])["sha256"] = reference["sha256"]
+
+    def refresh_final_signoffs(self, manifest):
+        record = manifest["release_record"]
+        gate_map = {gate["id"]: gate for gate in manifest["gates"]}
+        qualification_digest = _qualification_evidence_sha256(
+            record, manifest["artifact_tuple"], gate_map
+        )
+        references = []
+        for role in R8_FINAL_SIGNOFF_ROLES:
+            approval = record["final_signoffs"][role]
+            reference = approval["evidence"]
+            path = self.evidence_directory / reference["path"]
+            report = json.loads(path.read_text())
+            report["qualification_evidence_sha256"] = qualification_digest
+            content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+            path.write_bytes(content)
+            reference["sha256"] = hashlib.sha256(content).hexdigest()
+            references.append(copy.deepcopy(reference))
+        next(gate for gate in manifest["gates"] if gate["id"] == "R8")["evidence"] = references
+
     def assert_invalid_owner_approval(self, manifest):
+        self.refresh_final_signoffs(manifest)
         self.assertEqual(
             derive(manifest, self.evidence_directory),
             {
@@ -375,6 +440,7 @@ class V050QualificationTests(unittest.TestCase):
         )
 
     def assert_invalid_r4(self, manifest):
+        self.refresh_final_signoffs(manifest)
         self.assertEqual(
             derive(manifest, self.evidence_directory),
             {
@@ -429,12 +495,15 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["coordinator_owner"],
-                "blocking_gates": ["R4", "R6"],
+                "blocking_gates": ["R4", "R6", "R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "operating_envelope.baseline_evidence",
                     "operating_envelope.final_evidence",
+                    "final_signoffs.operator",
+                    "final_signoffs.release_owner",
+                    "final_signoffs.independent_reviewer",
                     "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
@@ -587,10 +656,13 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [],
+                "blocking_gates": ["R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": ["final_signoffs must name three distinct reviewers"],
+                "invalid_release_fields": [
+                    "final_signoffs.release_owner",
+                    "final_signoffs must name three distinct reviewers",
+                ],
                 "release_record_complete": False,
             },
         )
@@ -607,7 +679,7 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [],
+                "blocking_gates": ["R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": ["final_signoffs.operator"],
@@ -625,10 +697,54 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [],
+                "blocking_gates": ["R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": ["final_signoffs.operator name is invalid"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_r8_final_signoff_binds_go_decision_to_exact_candidate_and_evidence(self):
+        updates = (
+            lambda report: report.__setitem__("decision", "no-go"),
+            lambda report: report.__setitem__("artifact_tuple_sha256", "0" * 64),
+            lambda report: report.__setitem__("cohort_membership_sha256", "0" * 64),
+            lambda report: report.__setitem__("qualification_evidence_sha256", "0" * 64),
+        )
+        for update in updates:
+            with self.subTest(update=update):
+                manifest = complete_manifest(self.evidence_directory)
+                self.rewrite_final_signoff(manifest, "operator", update)
+                self.assertEqual(
+                    derive(manifest, self.evidence_directory),
+                    {
+                        "release_qualified": False,
+                        "artifact_tuple_complete": True,
+                        "missing_artifact_fields": [],
+                        "invalid_artifact_fields": [],
+                        "blocking_gates": ["R8"],
+                        "manifest_errors": [],
+                        "missing_release_fields": [],
+                        "invalid_release_fields": ["final_signoffs.operator"],
+                        "release_record_complete": False,
+                    },
+                )
+
+    def test_r8_gate_must_retain_all_three_final_signoffs(self):
+        manifest = complete_manifest(self.evidence_directory)
+        next(gate for gate in manifest["gates"] if gate["id"] == "R8")["evidence"].pop()
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R8"],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["R8.final_signoffs"],
                 "release_record_complete": False,
             },
         )
@@ -655,6 +771,7 @@ class V050QualificationTests(unittest.TestCase):
             ).encode()
             approval_path.write_bytes(approval_content)
             approval_reference["sha256"] = hashlib.sha256(approval_content).hexdigest()
+        self.refresh_final_signoffs(manifest)
         self.assertEqual(
             derive(manifest, self.evidence_directory),
             {
@@ -681,6 +798,7 @@ class V050QualificationTests(unittest.TestCase):
         content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
         path.write_bytes(content)
         reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.refresh_final_signoffs(manifest)
         self.assertEqual(
             derive(manifest, self.evidence_directory),
             {
@@ -692,7 +810,7 @@ class V050QualificationTests(unittest.TestCase):
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
-                    "operating_envelope.thresholds.latency_p95_ms_max"
+                    "operating_envelope.thresholds.latency_p95_ms_max",
                 ],
                 "release_record_complete": False,
             },
@@ -718,10 +836,15 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": ["R6"],
+                "blocking_gates": ["R6", "R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": ["operating_envelope.final_evidence"],
+                "invalid_release_fields": [
+                    "operating_envelope.final_evidence",
+                    "final_signoffs.operator",
+                    "final_signoffs.release_owner",
+                    "final_signoffs.independent_reviewer",
+                ],
                 "release_record_complete": False,
             },
         )
@@ -731,6 +854,7 @@ class V050QualificationTests(unittest.TestCase):
         manifest["release_record"]["operating_envelope"]["thresholds"][
             "latency_p95_ms_max"
         ] = 3000
+        self.refresh_final_signoffs(manifest)
         self.assertEqual(
             derive(manifest, self.evidence_directory),
             {
@@ -762,6 +886,7 @@ class V050QualificationTests(unittest.TestCase):
         content = json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode()
         path.write_bytes(content)
         reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.refresh_final_signoffs(manifest)
         self.assertEqual(
             derive(manifest, self.evidence_directory),
             {
@@ -790,11 +915,15 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [GATE_IDS[0]],
+                "blocking_gates": [GATE_IDS[0], "R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": [],
-                "release_record_complete": True,
+                "invalid_release_fields": [
+                    "final_signoffs.operator",
+                    "final_signoffs.release_owner",
+                    "final_signoffs.independent_reviewer",
+                ],
+                "release_record_complete": False,
             },
         )
 
@@ -809,11 +938,15 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [GATE_IDS[0]],
+                "blocking_gates": [GATE_IDS[0], "R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": [],
-                "release_record_complete": True,
+                "invalid_release_fields": [
+                    "final_signoffs.operator",
+                    "final_signoffs.release_owner",
+                    "final_signoffs.independent_reviewer",
+                ],
+                "release_record_complete": False,
             },
         )
 
@@ -828,12 +961,15 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["pg_mdm_shared_library_sha256"],
-                "blocking_gates": ["R4", "R6"],
+                "blocking_gates": ["R4", "R6", "R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "operating_envelope.baseline_evidence",
                     "operating_envelope.final_evidence",
+                    "final_signoffs.operator",
+                    "final_signoffs.release_owner",
+                    "final_signoffs.independent_reviewer",
                     "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
@@ -852,12 +988,15 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["pg_react_version", "temporal_configuration"],
-                "blocking_gates": ["R4", "R6"],
+                "blocking_gates": ["R4", "R6", "R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "operating_envelope.baseline_evidence",
                     "operating_envelope.final_evidence",
+                    "final_signoffs.operator",
+                    "final_signoffs.release_owner",
+                    "final_signoffs.independent_reviewer",
                     "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
@@ -886,6 +1025,7 @@ class V050QualificationTests(unittest.TestCase):
     def test_evidence_path_cannot_escape_manifest_directory(self):
         manifest = complete_manifest(self.evidence_directory)
         manifest["gates"][0]["evidence"][0]["path"] = "../R1.log"
+        self.refresh_final_signoffs(manifest)
         result = derive(manifest, self.evidence_directory)
         self.assertEqual(
             result,
@@ -905,6 +1045,7 @@ class V050QualificationTests(unittest.TestCase):
     def test_partial_shadow_coverage_cannot_qualify(self):
         manifest = complete_manifest(self.evidence_directory)
         manifest["release_record"]["shadow"]["partial"] = True
+        self.refresh_final_signoffs(manifest)
         result = derive(manifest, self.evidence_directory)
         self.assertEqual(
             result,
@@ -925,6 +1066,7 @@ class V050QualificationTests(unittest.TestCase):
         manifest = complete_manifest(self.evidence_directory)
         manifest["release_record"]["shadow"]["observed_case_count"] = 99
         manifest["release_record"]["shadow"]["duplicate_case_count"] = 1
+        self.refresh_final_signoffs(manifest)
         result = derive(manifest, self.evidence_directory)
         self.assertEqual(
             result,
@@ -953,6 +1095,7 @@ class V050QualificationTests(unittest.TestCase):
         content = json.dumps(coverage, sort_keys=True, separators=(",", ":")).encode()
         path.write_bytes(content)
         reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.refresh_final_signoffs(manifest)
         result = derive(manifest, self.evidence_directory)
         self.assertEqual(
             result,
@@ -986,6 +1129,7 @@ class V050QualificationTests(unittest.TestCase):
         content = json.dumps(coverage, sort_keys=True, separators=(",", ":")).encode()
         path.write_bytes(content)
         reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.refresh_final_signoffs(manifest)
         result = derive(manifest, self.evidence_directory)
         self.assertEqual(
             result,
@@ -1010,6 +1154,7 @@ class V050QualificationTests(unittest.TestCase):
     def test_package_digest_must_match_its_retained_artifact(self):
         manifest = complete_manifest(self.evidence_directory)
         manifest["release_record"]["cohort"]["package_digest"] = "f" * 64
+        self.refresh_final_signoffs(manifest)
         result = derive(manifest, self.evidence_directory)
         self.assertEqual(
             result,
@@ -1018,12 +1163,15 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": ["R3", "R4"],
+                "blocking_gates": ["R3", "R4", "R8"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "cohort.package_digest",
                     "shadow.owner_approval",
+                    "final_signoffs.operator",
+                    "final_signoffs.release_owner",
+                    "final_signoffs.independent_reviewer",
                     "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
@@ -1037,6 +1185,7 @@ class V050QualificationTests(unittest.TestCase):
         content = b"null"
         path.write_bytes(content)
         reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.refresh_final_signoffs(manifest)
         result = derive(manifest, self.evidence_directory)
         self.assertEqual(
             result,
@@ -1066,6 +1215,7 @@ class V050QualificationTests(unittest.TestCase):
         content = json.dumps(coverage, sort_keys=True, separators=(",", ":")).encode()
         path.write_bytes(content)
         reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.refresh_final_signoffs(manifest)
         result = derive(manifest, self.evidence_directory)
         self.assertEqual(
             result,

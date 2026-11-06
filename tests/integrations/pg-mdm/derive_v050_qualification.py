@@ -122,6 +122,7 @@ R3_OWNER_REVIEW_SECTIONS = (
     "assignments", "due_dates", "no_ops", "protected_cases", "escalation_plans",
     "ambiguities", "expected_manual_exceptions",
 )
+R8_FINAL_SIGNOFF_ROLES = ("operator", "release_owner", "independent_reviewer")
 R4_STAGE_FIELDS = {
     "installed_effects_disabled": {
         "effects_enabled", "admission_verified", "grants_verified", "contract_verified",
@@ -405,6 +406,58 @@ def _json_sha256(value):
     except (TypeError, ValueError):
         return None
     return hashlib.sha256(content.encode()).hexdigest()
+
+
+def _qualification_evidence_sha256(record, artifact_tuple, gate_map):
+    return _json_sha256([
+        artifact_tuple,
+        {key: value for key, value in record.items() if key != "final_signoffs"},
+        [
+            {
+                "id": gate_id,
+                "status": (gate_map.get(gate_id) or {}).get("status"),
+                "evidence": (gate_map.get(gate_id) or {}).get("evidence"),
+            }
+            for gate_id in GATE_IDS if gate_id != "R8"
+        ],
+    ])
+
+
+def _valid_final_signoff(value, role, record, artifact_tuple, gate_map, manifest_directory):
+    if not isinstance(value, dict):
+        return False
+    report, error = _read_json_evidence(
+        value.get("evidence"), manifest_directory, f"final_signoffs.{role}"
+    )
+    expected_fields = {
+        "schema_version", "role", "approver", "signed_at", "decision",
+        "artifact_tuple_sha256", "workload_id", "cohort_membership_sha256",
+        "package_sha256", "qualification_evidence_sha256",
+    }
+    prerequisites_passed = all(
+        (gate_map.get(gate_id) or {}).get("status") == "passed"
+        for gate_id in GATE_IDS if gate_id != "R8"
+    )
+    return (
+        error is None
+        and isinstance(report, dict)
+        and set(report) == expected_fields
+        and type(report["schema_version"]) is int
+        and report["schema_version"] == 1
+        and report["role"] == role
+        and report["approver"] == value.get("name")
+        and report["signed_at"] == value.get("signed_at")
+        and _record_timestamp(report["signed_at"]) is not None
+        and report["decision"] == "go"
+        and report["artifact_tuple_sha256"] == _json_sha256(artifact_tuple)
+        and report["workload_id"] == _record_value(record, "workload.id")
+        and report["cohort_membership_sha256"] == _record_value(record, "cohort.membership_sha256")
+        and report["package_sha256"] == _record_value(record, "cohort.package_digest")
+        and report["qualification_evidence_sha256"] == _qualification_evidence_sha256(
+            record, artifact_tuple, gate_map
+        )
+        and prerequisites_passed
+    )
 
 
 def _valid_operating_run(value, record, artifact_tuple):
@@ -917,12 +970,17 @@ def _validate_release_record(manifest, manifest_directory, gate_map, artifact_tu
             elif not (Path(__file__).resolve().parents[3] / value).is_file():
                 invalid.append(f"support_documents.{field}")
 
-    signoffs = _record_value(record, "final_signoffs")
     signer_names = []
-    for field in ("operator", "release_owner", "independent_reviewer"):
+    signoff_references = []
+    for field in R8_FINAL_SIGNOFF_ROLES:
         value = _record_value(record, f"final_signoffs.{field}")
         if _present(value):
-            invalid.extend(_approval_errors(value, f"final_signoffs.{field}", manifest_directory))
+            errors = _approval_errors(value, f"final_signoffs.{field}", manifest_directory)
+            invalid.extend(errors)
+            if not errors and not _valid_final_signoff(
+                value, field, record, artifact_tuple, gate_map, manifest_directory
+            ):
+                invalid.append(f"final_signoffs.{field}")
             signed_at = (
                 _record_timestamp(value.get("signed_at"))
                 if isinstance(value, dict)
@@ -932,8 +990,14 @@ def _validate_release_record(manifest, manifest_directory, gate_map, artifact_tu
                 invalid.append(f"final_signoffs.{field}")
             if isinstance(value, dict) and isinstance(value.get("name"), str):
                 signer_names.append(" ".join(value["name"].split()).casefold())
+        signoff_references.append(value.get("evidence") if isinstance(value, dict) else None)
     if len(signer_names) == 3 and len(set(signer_names)) != 3:
         invalid.append("final_signoffs must name three distinct reviewers")
+    r8_gate = gate_map.get("R8")
+    r8_evidence = r8_gate.get("evidence") if isinstance(r8_gate, dict) else None
+    if all(_present(_record_value(record, f"final_signoffs.{role}"))
+           for role in R8_FINAL_SIGNOFF_ROLES) and r8_evidence != signoff_references:
+        invalid.append("R8.final_signoffs")
 
     r4_gate = gate_map.get("R4")
     r4_references = r4_gate.get("evidence") if isinstance(r4_gate, dict) else None
@@ -1057,6 +1121,9 @@ def derive(manifest, manifest_directory=None):
         blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R4"}]
     if "shadow.owner_approval" in invalid_release_fields:
         blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R3", "R4"}]
+    if any(field.startswith("final_signoffs") or field == "R8.final_signoffs"
+           for field in invalid_release_fields):
+        blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R8"}]
 
     return {
         "release_qualified": (
