@@ -297,8 +297,13 @@ def _record_value(record, dotted_path):
 def _record_timestamp(value):
     if not isinstance(value, str):
         return None
+    value = re.sub(
+        r"\.(\d{1,5})(?=[+-]\d{2}:\d{2}$)",
+        lambda match: "." + match.group(1).ljust(6, "0"),
+        value.replace("Z", "+00:00"),
+    )
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value)
     except ValueError:
         return None
     return parsed if parsed.tzinfo is not None else None
@@ -315,7 +320,7 @@ def _approval_errors(value, label, manifest_directory):
     if not isinstance(value, dict) or set(value) != {"name", "signed_at", "evidence"}:
         return [f"{label} must contain exactly name, signed_at, and evidence"]
     errors = []
-    if not isinstance(value["name"], str) or not value["name"]:
+    if not isinstance(value["name"], str) or not value["name"].strip():
         errors.append(f"{label} name is invalid")
     if _record_timestamp(value["signed_at"]) is None:
         errors.append(f"{label} signed_at must be a timezone-aware timestamp")
@@ -722,7 +727,7 @@ def _validate_release_record(manifest, manifest_directory, gate_map, artifact_tu
             if end is not None and signed_at is not None and signed_at <= end:
                 invalid.append(f"final_signoffs.{field}")
             if isinstance(value, dict) and isinstance(value.get("name"), str):
-                signer_names.append(value["name"])
+                signer_names.append(" ".join(value["name"].split()).casefold())
     if len(signer_names) == 3 and len(set(signer_names)) != 3:
         invalid.append("final_signoffs must name three distinct reviewers")
 

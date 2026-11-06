@@ -79,7 +79,7 @@
   },
   "gates": [
     { "id": "R1", "required": true, "status": "blocked", "evidence": [], "remaining": "Final artifact tuple, installed MDM contract and projection digests are not available." },
-    { "id": "R2", "required": true, "status": "blocked", "evidence": [], "remaining": "Shared failure suite has not run against the final real stack." },
+    { "id": "R2", "required": true, "status": "blocked", "evidence": [{ "path": "r2-publication-recovery-postgres-18.4.json", "sha256": "4f743d20a120ead28a42bab6793bde4fc7175341839a43cc9fb09aec2b87f9f7" }, { "path": "r2-publication-recovery-postgres-18.4.log", "sha256": "0e0b86f7346fe2a27774f2227618294f285acd54b821ebc357d89dc8d52f9c55" }], "remaining": "Candidate v0.48-live.sql integration passed against MDM PR #25 source c9006c3 on PostgreSQL 18.4; the complete R2 matrix on the final release tuple remains unverified." },
     { "id": "R3", "required": true, "status": "blocked", "evidence": [], "remaining": "Named workload, owner, fixed membership and shadow approval are not recorded." },
     { "id": "R4", "required": true, "status": "blocked", "evidence": [], "remaining": "Staged cohort enablement has not run." },
     { "id": "R5", "required": true, "status": "blocked", "evidence": [{ "path": "operational-queries-postgres-18.6.json", "sha256": "ebba20aecda491ee61d950009b085890100cdd61ab68c42bb61c5518481d48c9" }], "remaining": "The PostgreSQL 18.6 fixture queries and pending-retry demo pass against approved contract revision 4. MDM 0.15.0 source is merged to main but has no published release; synthetic data does not establish real-cohort operation." },

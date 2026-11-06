@@ -20,6 +20,7 @@ from derive_v050_qualification import (
     GATE_IDS,
     OBJECT_FIELDS,
     RECORD_FIELDS,
+    _record_timestamp,
     _valid_shadow_competitors,
     derive,
 )
@@ -282,6 +283,12 @@ class V050QualificationTests(unittest.TestCase):
             [True, True, False, False, False],
         )
 
+    def test_postgres_timestamp_with_trimmed_fraction_is_normalized(self):
+        self.assertEqual(
+            _record_timestamp("2026-11-06T08:52:20.63709Z").isoformat(),
+            "2026-11-06T08:52:20.637090+00:00",
+        )
+
     def test_coordinator_owner_must_remain_pg_react(self):
         manifest = complete_manifest(self.evidence_directory)
         manifest["artifact_tuple"]["coordinator_owner"] = "mdm"
@@ -371,6 +378,24 @@ class V050QualificationTests(unittest.TestCase):
             },
         )
 
+    def test_duplicate_final_signers_are_rejected_case_and_whitespace_insensitively(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["final_signoffs"]["release_owner"]["name"] = "  OPERATOR  "
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["final_signoffs must name three distinct reviewers"],
+                "release_record_complete": False,
+            },
+        )
+
     def test_final_signoff_must_follow_observation_end(self):
         manifest = complete_manifest(self.evidence_directory)
         manifest["release_record"]["final_signoffs"]["operator"]["signed_at"] = (
@@ -387,6 +412,24 @@ class V050QualificationTests(unittest.TestCase):
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": ["final_signoffs.operator"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_whitespace_only_final_signer_name_is_invalid(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["final_signoffs"]["operator"]["name"] = " \t "
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["final_signoffs.operator name is invalid"],
                 "release_record_complete": False,
             },
         )

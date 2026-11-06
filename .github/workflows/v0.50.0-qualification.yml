@@ -59,16 +59,16 @@ jobs:
           test -n "$ready"
           python3 tests/integrations/pg-mdm/test_v050_operations.py \
             "$container" --output v0.50.0-evidence/operational-query-results.json
-      - name: Checkout merged pg-mdm source
+      - name: Checkout pg-mdm recovery source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: trickle-labs/pg-mdm
-          ref: d1efa229d74c45c6fb4c48984ba97053d0672b9f
+          ref: c9006c32fdc1fbf5cbe4ef3d246429dea2c7e8d4
           path: .producer/mdm
       - name: Build the exact MDM source and pg-react adapter
         run: |
           set -euo pipefail
-          mdm_revision=d1efa229d74c45c6fb4c48984ba97053d0672b9f
+          mdm_revision=c9006c32fdc1fbf5cbe4ef3d246429dea2c7e8d4
           test "$(git -C .producer/mdm rev-parse HEAD)" = "$mdm_revision"
           git rev-parse HEAD > v0.50.0-evidence/pg-react-source-revision.txt
           git -C .producer/mdm rev-parse HEAD > v0.50.0-evidence/mdm-source-revision.txt
@@ -160,6 +160,15 @@ jobs:
             exit 1
           fi
           if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
+            -f /workspace/tests/integrations/pg-mdm/v0.50-synthetic-shadow-seed.sql \
+            > v0.50.0-evidence/synthetic-shadow-seed.log 2>&1; then
+            cat v0.50.0-evidence/synthetic-shadow-seed.log
+            exit 1
+          fi
+          python3 tests/integrations/pg-mdm/test_v050_synthetic_shadow.py \
+            "$container" --output-directory v0.50.0-evidence/synthetic-shadow
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
             -U postgres -f /tests/e2e_policy.sql \
             > v0.50.0-evidence/populated-mdm-policy.log 2>&1; then
             cat v0.50.0-evidence/populated-mdm-policy.log
@@ -177,6 +186,18 @@ jobs:
             -f /workspace/tests/integrations/pg-mdm/v0.48-live.sql \
             > v0.50.0-evidence/v0.48-live.log 2>&1; then
             cat v0.50.0-evidence/v0.48-live.log
+            exit 1
+          fi
+          if ! python3 tests/integrations/pg-mdm/time/audit.py \
+            pgreact:v050-real-source v0.50.0-evidence/populated-logical-restore \
+            --logical-restore > v0.50.0-evidence/populated-logical-restore.log 2>&1; then
+            cat v0.50.0-evidence/populated-logical-restore.log
+            exit 1
+          fi
+          if ! python3 tests/integrations/pg-mdm/time/audit.py \
+            pgreact:v050-real-source v0.50.0-evidence/populated-clean-clone \
+            --clean-clone > v0.50.0-evidence/populated-clean-clone.log 2>&1; then
+            cat v0.50.0-evidence/populated-clean-clone.log
             exit 1
           fi
       - name: Derive candidate qualification status
