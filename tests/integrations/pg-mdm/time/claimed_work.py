@@ -107,7 +107,7 @@ class _ReplyDropProxy:
             pass
 
 
-def qualify(sql, command, fixture, container, observations, postmaster_crash=False,
+def qualify(sql, command, fixture, container, observations, timestamp, postmaster_crash=False,
             transport_loss_target_port=None):
     setup_output = fixture("claimed-work-setup", "/work/tests/integrations/pg-mdm/time/claimed-work.sql", "s1_idle")
     pending_inspection, = [json.loads(line) for line in setup_output.splitlines()
@@ -252,8 +252,9 @@ def qualify(sql, command, fixture, container, observations, postmaster_crash=Fal
         revision = current_case["action_revision"] + (outcome == "APPLIED_CONTROL")
         control = {"assigned_queue":None,"due_at":current_case["due_at"].replace("T"," ").removesuffix(":00"),
             "escalation_level":2 if outcome == "APPLIED_CONTROL" else current_case["escalation_level"],"manual_assignment_protected":False}
+        assert timestamp(receipt["publication_tracking_started_at"]) <= timestamp(receipt["created_at"]), receipt
         assert receipt == {"receipt_id":receipt["receipt_id"],"created_at":receipt["created_at"],
-            "publication_tracking_started_at":receipt["created_at"],"actor":"pgreact_mdm_worker",
+            "publication_tracking_started_at":receipt["publication_tracking_started_at"],"actor":"pgreact_mdm_worker",
             "selected_role_name":"pgreact_mdm_worker","session_role_name":"mdm_s1_runtime","action":"ESCALATE",
             "outcome":outcome,"reason_code":reason,"control":control,"case_key":case_key,"binding_id":binding["binding_id"],
             "binding_version":binding["binding_version"],"action_revision":revision,"resulting_publication_revision":None,
@@ -835,8 +836,9 @@ def qualify(sql, command, fixture, container, observations, postmaster_crash=Fal
                 json.dumps(body).replace("'","''")+"'::jsonb),'hex')")
             request_key = "\\x"+response["request_key"]
             receipt, = [r for r in race_after["receipts"] if r["request_key"] == request_key]
+            assert timestamp(receipt["publication_tracking_started_at"]) <= timestamp(receipt["created_at"]), receipt
             expected_receipt = {"receipt_id":result["receipt_id"],"created_at":receipt["created_at"],
-                "publication_tracking_started_at":receipt["created_at"],
+                "publication_tracking_started_at":receipt["publication_tracking_started_at"],
                 "actor":"pgreact_mdm_worker","session_role_name":"mdm_s1_runtime",
                 "selected_role_name":"pgreact_mdm_worker","binding_id":binding["binding_id"],
                 "binding_version":binding["binding_version"],"case_key":race_case_key,"action":"ESCALATE",

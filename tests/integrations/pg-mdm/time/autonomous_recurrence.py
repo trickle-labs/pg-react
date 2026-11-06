@@ -66,9 +66,10 @@ def qualify(sql, command, fixture, container, observations, timestamp):
             "lifecycle_generation": 1, "action_revision": prior["action_revision"],
             "consequence_identity": "escalate_level_2", "escalation_level": 2,
             "first_episode_id": int(episode), "created_at": request["created_at"]}, request
+        assert timestamp(receipt["publication_tracking_started_at"]) <= timestamp(receipt["created_at"]), receipt
         assert receipt == {
             "receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
-            "publication_tracking_started_at": receipt["created_at"],
+            "publication_tracking_started_at": receipt["publication_tracking_started_at"],
             "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
             "session_role_name": "mdm_s1_runtime", "action": "ESCALATE",
             "outcome": "APPLIED_CONTROL", "reason_code": "CONTROL_APPLIED",

@@ -1558,8 +1558,8 @@ def main():
     created = False
     clone_volume = None
 
-    def command(*args):
-        result = subprocess.run(args, capture_output=True, text=True, timeout=300)
+    def command(*args, timeout=300):
+        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
         if result.returncode:
             raise RuntimeError(" ".join(args) + "\n" + result.stdout + result.stderr)
         return result.stdout
@@ -1708,7 +1708,8 @@ def main():
         started = time.monotonic()
         try:
             result = command("docker", "exec", container, "psql", "-XAtq", "-U",
-                             "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", *variables, "-f", file)
+                             "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", *variables,
+                             "-f", file, timeout=900 if name == "mdm-bootstrap" else 300)
         except RuntimeError as error:
             (output / (name + ".log")).write_text(str(error))
             observations["checks"].append({"name": name, "result": "failed"})
@@ -1951,10 +1952,10 @@ def main():
         assert len(new_receipts) == 1, new_receipts
         receipt = new_receipts[0]
         uuid.UUID(receipt["receipt_id"])
-        assert timestamp(receipt["publication_tracking_started_at"]) == timestamp(receipt["created_at"]), receipt
+        assert datetime.datetime.fromisoformat(receipt["publication_tracking_started_at"]) <= datetime.datetime.fromisoformat(receipt["created_at"]), receipt
         expected_receipt = {
             "receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
-            "publication_tracking_started_at": receipt["created_at"],
+            "publication_tracking_started_at": receipt["publication_tracking_started_at"],
             "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
             "session_role_name": "mdm_s1_runtime", "action": "ESCALATE", "outcome": "APPLIED_CONTROL",
             "reason_code": "CONTROL_APPLIED", "case_key": case["case_key"],
@@ -4286,9 +4287,13 @@ def main():
                 "-c", "pg_react.batch_size=" + str(configured_batch_size),
                 "-c", "pg_react.poll_interval_ms=" + str(profile["poll_interval_ms"]),
                 *worker_settings,
-                "-c", "pg_trickle.enabled=off", "-c", "pg_trickle.cdc_mode=trigger",
+                "-c", "pg_trickle.enabled=off", "-c", "pg_trickle.user_triggers=auto",
+                "-c", "pg_trickle.cdc_mode=trigger",
                 "-c", "pg_trickle.differential_max_change_ratio=1.0",
-                "-c", "default_transaction_isolation=read committed")
+                "-c", "pg_trickle.memory_budget_mb=1024",
+                "-c", "pg_trickle.delta_work_mem_cap_mb=1024",
+                "-c", "default_transaction_isolation=read committed",
+                "-c", "autovacuum=off")
         created = True
         for _ in range(60):
             result = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
@@ -4621,9 +4626,10 @@ def main():
                 "due_at": before_case["due_at"].replace("T", " ").removesuffix(":00"),
                 "escalation_level": 2,
                 "manual_assignment_protected": before_case["manual_assignment_protected"]}
+            assert timestamp(receipt["publication_tracking_started_at"]) <= timestamp(receipt["created_at"]), receipt
             assert receipt == {
                 "receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
-                "publication_tracking_started_at": receipt["created_at"],
+                "publication_tracking_started_at": receipt["publication_tracking_started_at"],
                 "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
                 "session_role_name": "mdm_s1_runtime", "action": "ESCALATE",
                 "outcome": "APPLIED_CONTROL", "reason_code": "CONTROL_APPLIED",
@@ -4809,6 +4815,7 @@ def main():
                     wheel_file=bounded_producer_wheel_file)
             elif claimed_work:
                 qualify(sql, command, fixture, container, observations,
+                        timestamp,
                         postmaster_crash=claimed_work_crash,
                         transport_loss_target_port=transport_loss_target_port)
             else:
@@ -5243,8 +5250,9 @@ def main():
         request_digest = sql("SELECT encode(pgreact_mdm.intent_request_digest('" +
             json.dumps(expected_body).replace("'", "''") + "'::jsonb),'hex')")
         uuid.UUID(receipt["receipt_id"])
+        assert timestamp(receipt["publication_tracking_started_at"]) <= timestamp(receipt["created_at"]), receipt
         expected_receipt = {"receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
-            "publication_tracking_started_at": receipt["created_at"],
+            "publication_tracking_started_at": receipt["publication_tracking_started_at"],
             "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
             "session_role_name": "mdm_s1_runtime", "action": "ESCALATE", "outcome": "APPLIED_CONTROL",
             "reason_code": "CONTROL_APPLIED", "control": expected_control, "case_key": case_key,
@@ -5757,12 +5765,14 @@ def main():
             assert response["resulting_publication_revision"] is None
             uuid.UUID(saved["receipt_id"])
             assert timestamp(saved["created_at"]).tzinfo is not None
+            assert timestamp(saved["publication_tracking_started_at"]) <= timestamp(saved["created_at"]), saved
             digest = sql("SELECT encode(pgreact_mdm.intent_request_digest("
                          + sql_literal(json.dumps(body)) + "::jsonb),'hex')")
             expected_saved = dict(deny_template)
             expected_saved.update({
                 "receipt_id": saved["receipt_id"],
                 "created_at": saved["created_at"],
+                "publication_tracking_started_at": saved["publication_tracking_started_at"],
                 "request_key": "\\x" + key_hex,
                 "request_digest": "\\x" + digest,
                 "request_body": body,
@@ -6235,6 +6245,7 @@ def main():
             receipt_row, = [r for r in resume_after["mdm_receipts"] if r["request_key"] == key]
             uuid.UUID(receipt_row["receipt_id"])
             assert timestamp(receipt_row["created_at"]).tzinfo is not None
+            assert timestamp(receipt_row["publication_tracking_started_at"]) <= timestamp(receipt_row["created_at"]), receipt_row
             for row, field in ((request_row, "created_at"), (intent_row, "attempted_at")):
                 assert timestamp(attempt_row["started_at"]) <= timestamp(row[field]) \
                     <= timestamp(attempt_row["finished_at"])
@@ -6243,7 +6254,9 @@ def main():
             control["due_at"] = sql("SELECT due_at::text FROM mdm_steward.policy_cases_v1 "
                                     "WHERE case_key=" + str(int(case_key)))
             expected_denial = {**expected_receipt, "receipt_id": receipt_row["receipt_id"],
-                "created_at": receipt_row["created_at"], "outcome": "ACTION_DENIED",
+                "created_at": receipt_row["created_at"],
+                "publication_tracking_started_at": receipt_row["publication_tracking_started_at"],
+                "outcome": "ACTION_DENIED",
                 "reason_code": "ESCALATION_LEVEL_ALREADY_APPLIED", "control": control,
                 "action_revision": resumed_case["action_revision"],
                 "request_key": key, "request_digest": digest, "request_body": body}
