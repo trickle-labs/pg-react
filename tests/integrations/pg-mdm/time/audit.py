@@ -1067,8 +1067,9 @@ def qualify_bounded_producer(sql, command, container, root, output, observations
         runs = []
         states = []
         for run_number in (1, 2):
+            # The producer's batch retry window is 300 seconds.
             result = subprocess.run(command_args, cwd=root, env=environment,
-                capture_output=True, text=True, timeout=90)
+                capture_output=True, text=True, timeout=330)
             (output / ("bounded-producer-run-" + str(run_number) + ".log")).write_text(
                 result.stdout + result.stderr)
             assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
@@ -1294,8 +1295,9 @@ def qualify_bounded_producer(sql, command, container, root, output, observations
             "--key-columns", "id", "--entity", "policy_qualification",
             "--policy", "ALLOW", "--input", str(bulk_input),
             "--batch-size", "5", "--rate-per-minute", "60"]
+        # The asserted 40-admissions/minute floor takes at most 450 seconds.
         result = subprocess.run(bulk_args, cwd=root, env=environment,
-            capture_output=True, text=True, timeout=420)
+            capture_output=True, text=True, timeout=540)
         (output / "bounded-producer-300-run.log").write_text(result.stdout + result.stderr)
         assert result.returncode == 0, (result.returncode, result.stdout, result.stderr)
         events = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
@@ -1556,8 +1558,8 @@ def main():
     created = False
     clone_volume = None
 
-    def command(*args):
-        result = subprocess.run(args, capture_output=True, text=True, timeout=300)
+    def command(*args, timeout=300):
+        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
         if result.returncode:
             raise RuntimeError(" ".join(args) + "\n" + result.stdout + result.stderr)
         return result.stdout
@@ -1706,7 +1708,8 @@ def main():
         started = time.monotonic()
         try:
             result = command("docker", "exec", container, "psql", "-XAtq", "-U",
-                             "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", *variables, "-f", file)
+                             "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", *variables,
+                             "-f", file, timeout=900 if name == "mdm-bootstrap" else 300)
         except RuntimeError as error:
             (output / (name + ".log")).write_text(str(error))
             observations["checks"].append({"name": name, "result": "failed"})
@@ -1949,8 +1952,10 @@ def main():
         assert len(new_receipts) == 1, new_receipts
         receipt = new_receipts[0]
         uuid.UUID(receipt["receipt_id"])
+        assert datetime.datetime.fromisoformat(receipt["publication_tracking_started_at"]) <= datetime.datetime.fromisoformat(receipt["created_at"]), receipt
         expected_receipt = {
             "receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
+            "publication_tracking_started_at": receipt["publication_tracking_started_at"],
             "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
             "session_role_name": "mdm_s1_runtime", "action": "ESCALATE", "outcome": "APPLIED_CONTROL",
             "reason_code": "CONTROL_APPLIED", "case_key": case["case_key"],
@@ -3050,6 +3055,7 @@ def main():
         assert capture_database_oid != observations["logical_restore"]["restored_database_oid"], capture_state_before
         assert any(stream["stored_oid"] != stream["named_oid"]
                    for stream in capture_state_before["output_delta_stream_relations"]), capture_state_before
+        failed_adoption_attempt = None
         try:
             sql("SELECT pgtrickle.recover_capture_instance()", "s1_logical")
         except RuntimeError as error:
@@ -3066,95 +3072,104 @@ def main():
                 "capture_before": capture_state_before, "capture_after": capture_state_after}
             assert react_state_after == recovered_state, \
                 "failed capture adoption changed React or MDM state"
-            observations["logical_restore"]["capture_recovery"] = {
-                "result": "blocked", "reason": "PGT_EXT_GRAPH_INVALID", "detail": detail,
+            failed_adoption_attempt = {
+                "reason": "PGT_EXT_GRAPH_INVALID", "detail": detail,
                 "failed_recovery_state_unchanged": True,
                 "capture_state_before": capture_state_before, "capture_state_after": capture_state_after}
             observations["checks"].append({
                 "name": "logical-restore-failed-capture-recovery-no-mutation", "result": "passed"})
-            observations["checks"].append({
-                "name": "logical-restore-pgtrickle-capture-recovery", "result": "blocked",
-                "reason": "PGT_EXT_GRAPH_INVALID"})
-            observations["entry_decision"] = "FOCUSED_REACT_LOGICAL_RESTORE_QUALIFIED"
-            observations["remaining_gates"] = [
-                "pg_trickle capture identity recovery after logical restore",
-                "pending React work delivery after MDM reactivation"]
-            print("BLOCKED: logical restore requires pg_trickle capture graph repair", flush=True)
-            return
         recovery = json.loads(sql("SELECT pgtrickle.validate_recovery()", "s1_logical"))
-        assert recovery["status"] in ("SAFE", "REINITIALIZATION_REQUIRED"), recovery
-        capture_state_after = json.loads(sql(capture_state_query, "s1_logical"))
-        assert capture_state_after["capture_instance"]["database_oid"] == \
-            observations["logical_restore"]["restored_database_oid"], capture_state_after
-        assert all(item["stored_oid"] == item["named_oid"]
-                   for item in capture_state_after["output_delta_stream_relations"]), capture_state_after
-        assert all(item["stored_delta_oid"] == item["named_delta_oid"]
-                   for item in capture_state_after["output_delta_stream_relations"]), capture_state_after
-        assert all(log["database_instance_id"] == capture_state_after["capture_instance"]["instance_id"]
-                   for log in capture_state_after["output_delta_logs"]), capture_state_after
-        stable_log_fields = ("pgt_id", "log_head", "output_contract_digest",
-                             "row_identity_version", "created_at")
-        assert [{key: log[key] for key in stable_log_fields}
-                for log in capture_state_after["output_delta_logs"]] == [
-                    {key: log[key] for key in stable_log_fields}
-                    for log in capture_state_before["output_delta_logs"]], {
-                        "logs_before": capture_state_before["output_delta_logs"],
-                        "logs_after": capture_state_after["output_delta_logs"]}
-        assert capture_state_after["output_delta_batches"] == capture_state_before["output_delta_batches"], {
-            "batches_before": capture_state_before["output_delta_batches"],
-            "batches_after": capture_state_after["output_delta_batches"]}
-        stable_consumer_fields = (
-            "consumer_id", "pgt_id", "database_instance_id", "owner_oid", "consumer_name",
-            "expected_contract_digest", "output_contract_digest", "row_identity_version",
-            "acknowledged_batch_token", "acknowledged_at", "created_at")
-        consumers_before = capture_state_before["output_delta_consumers"]
-        consumers_after = capture_state_after["output_delta_consumers"]
-        assert [{key: consumer[key] for key in stable_consumer_fields}
-                for consumer in consumers_after] == [
-                    {key: consumer[key] for key in stable_consumer_fields}
-                    for consumer in consumers_before], {
-                        "consumers_before": consumers_before, "consumers_after": consumers_after}
-        for before_consumer, after_consumer in zip(consumers_before, consumers_after):
-            if before_consumer["state"] == "DROPPED":
-                assert (after_consumer["state"], after_consumer["state_reason"]) == (
-                    "DROPPED", before_consumer["state_reason"]), after_consumer
-            else:
-                assert (after_consumer["state"], after_consumer["state_reason"]) == (
-                    "INVALIDATED", "DATABASE_INSTANCE_CHANGED"), after_consumer
-        if delta_fixture_before is not None:
-            delta_fixture_after_adoption = json.loads(sql(delta_fixture_query, "s1_logical"))
-            assert delta_fixture_after_adoption["log"]["log_head"] == delta_pending_token, \
-                delta_fixture_after_adoption
-            assert delta_fixture_after_adoption["batches"] == delta_fixture_before["batches"], \
-                delta_fixture_after_adoption
-            assert delta_fixture_after_adoption["consumer"]["acknowledged_batch_token"] == \
-                delta_first_token, delta_fixture_after_adoption
-            assert (delta_fixture_after_adoption["consumer"]["state"],
-                    delta_fixture_after_adoption["consumer"]["state_reason"]) == (
-                        "INVALIDATED", "DATABASE_INSTANCE_CHANGED"), delta_fixture_after_adoption
-            assert delta_fixture_after_adoption["pending_payload"] == \
-                delta_fixture_before["pending_payload"], delta_fixture_after_adoption
-            public_pending_batches = sql(
-                "SELECT count(*) FROM pgtrickle.output_delta_batches('" +
-                delta_consumer_id + "'::uuid, NULL)", "s1_logical")
-            assert public_pending_batches == "0", public_pending_batches
-            observations["logical_restore"]["output_delta_fixture"]["after_adoption"] = {
-                "log_head": delta_fixture_after_adoption["log"]["log_head"],
-                "acknowledged_batch_token": delta_fixture_after_adoption["consumer"][
-                    "acknowledged_batch_token"],
-                "consumer_state": delta_fixture_after_adoption["consumer"]["state"],
-                "consumer_state_reason": delta_fixture_after_adoption["consumer"]["state_reason"],
-                "pending_batch": delta_fixture_after_adoption["batches"][-1],
-                "pending_payload": delta_fixture_after_adoption["pending_payload"],
-                "public_pending_batch_count": int(public_pending_batches)}
-            observations["checks"].append({
-                "name": "logical-restore-output-delta-preserved-after-adoption", "result": "passed"})
+        assert recovery["status"] in (
+            "SAFE", "REINITIALIZATION_REQUIRED", "OPERATOR_INTERVENTION_REQUIRED"), recovery
+        if failed_adoption_attempt is None:
+            assert recovery["status"] in ("SAFE", "REINITIALIZATION_REQUIRED"), recovery
+            capture_state_after = json.loads(sql(capture_state_query, "s1_logical"))
+            assert capture_state_after["capture_instance"]["database_oid"] == \
+                observations["logical_restore"]["restored_database_oid"], capture_state_after
+            assert all(item["stored_oid"] == item["named_oid"]
+                       for item in capture_state_after["output_delta_stream_relations"]), capture_state_after
+            assert all(item["stored_delta_oid"] == item["named_delta_oid"]
+                       for item in capture_state_after["output_delta_stream_relations"]), capture_state_after
+            assert all(log["database_instance_id"] == capture_state_after["capture_instance"]["instance_id"]
+                       for log in capture_state_after["output_delta_logs"]), capture_state_after
+            stable_log_fields = ("pgt_id", "log_head", "output_contract_digest",
+                                 "row_identity_version", "created_at")
+            assert [{key: log[key] for key in stable_log_fields}
+                    for log in capture_state_after["output_delta_logs"]] == [
+                        {key: log[key] for key in stable_log_fields}
+                        for log in capture_state_before["output_delta_logs"]], {
+                            "logs_before": capture_state_before["output_delta_logs"],
+                            "logs_after": capture_state_after["output_delta_logs"]}
+            assert capture_state_after["output_delta_batches"] == capture_state_before["output_delta_batches"], {
+                "batches_before": capture_state_before["output_delta_batches"],
+                "batches_after": capture_state_after["output_delta_batches"]}
+            stable_consumer_fields = (
+                "consumer_id", "pgt_id", "database_instance_id", "owner_oid", "consumer_name",
+                "expected_contract_digest", "output_contract_digest", "row_identity_version",
+                "acknowledged_batch_token", "acknowledged_at", "created_at")
+            consumers_before = capture_state_before["output_delta_consumers"]
+            consumers_after = capture_state_after["output_delta_consumers"]
+            assert [{key: consumer[key] for key in stable_consumer_fields}
+                    for consumer in consumers_after] == [
+                        {key: consumer[key] for key in stable_consumer_fields}
+                        for consumer in consumers_before], {
+                            "consumers_before": consumers_before, "consumers_after": consumers_after}
+            for before_consumer, after_consumer in zip(consumers_before, consumers_after):
+                if before_consumer["state"] == "DROPPED":
+                    assert (after_consumer["state"], after_consumer["state_reason"]) == (
+                        "DROPPED", before_consumer["state_reason"]), after_consumer
+                else:
+                    assert (after_consumer["state"], after_consumer["state_reason"]) == (
+                        "INVALIDATED", "DATABASE_INSTANCE_CHANGED"), after_consumer
+            if delta_fixture_before is not None:
+                delta_fixture_after_adoption = json.loads(sql(delta_fixture_query, "s1_logical"))
+                assert delta_fixture_after_adoption["log"]["log_head"] == delta_pending_token, \
+                    delta_fixture_after_adoption
+                assert delta_fixture_after_adoption["batches"] == delta_fixture_before["batches"], \
+                    delta_fixture_after_adoption
+                assert delta_fixture_after_adoption["consumer"]["acknowledged_batch_token"] == \
+                    delta_first_token, delta_fixture_after_adoption
+                assert (delta_fixture_after_adoption["consumer"]["state"],
+                        delta_fixture_after_adoption["consumer"]["state_reason"]) == (
+                            "INVALIDATED", "DATABASE_INSTANCE_CHANGED"), delta_fixture_after_adoption
+                assert delta_fixture_after_adoption["pending_payload"] == \
+                    delta_fixture_before["pending_payload"], delta_fixture_after_adoption
+                public_pending_batches = sql(
+                    "SELECT count(*) FROM pgtrickle.output_delta_batches('" +
+                    delta_consumer_id + "'::uuid, NULL)", "s1_logical")
+                assert public_pending_batches == "0", public_pending_batches
+                observations["logical_restore"]["output_delta_fixture"]["after_adoption"] = {
+                    "log_head": delta_fixture_after_adoption["log"]["log_head"],
+                    "acknowledged_batch_token": delta_fixture_after_adoption["consumer"][
+                        "acknowledged_batch_token"],
+                    "consumer_state": delta_fixture_after_adoption["consumer"]["state"],
+                    "consumer_state_reason": delta_fixture_after_adoption["consumer"]["state_reason"],
+                    "pending_batch": delta_fixture_after_adoption["batches"][-1],
+                    "pending_payload": delta_fixture_after_adoption["pending_payload"],
+                    "public_pending_batch_count": int(public_pending_batches)}
+                observations["checks"].append({
+                    "name": "logical-restore-output-delta-preserved-after-adoption", "result": "passed"})
+        else:
+            assert recovery["status"] == "OPERATOR_INTERVENTION_REQUIRED", recovery
+            recovery_check_statuses = {
+                check["name"]: check["status"] for check in recovery["checks"]}
+            assert recovery_check_statuses == {
+                "capture_instance": "OPERATOR_INTERVENTION_REQUIRED",
+                "catalog_dependencies": "BLOCKER",
+                "capture_triggers": "REINITIALIZATION_REQUIRED",
+                "capture_buffers": "SAFE",
+                "capture_buffer_relations": "SAFE",
+                "capture_buffer_schema": "SAFE",
+                "capture_slots": "SAFE",
+                "capture_wal": "SAFE",
+                "frontiers": "SAFE"}, recovery
         assert json.loads(sql(state_query, "s1_logical")) == recovered_state
         adoption_validation = recovery
         recovery_blocked = recovery["status"] != "SAFE"
         reinitialization = None
         if recovery_blocked:
-            assert recovery["status"] == "REINITIALIZATION_REQUIRED", recovery
+            assert recovery["status"] in (
+                "REINITIALIZATION_REQUIRED", "OPERATOR_INTERVENTION_REQUIRED"), recovery
             observations["logical_restore"]["capture_adoption_validation"] = recovery
             drop_names = ",".join("'" + item["name"].replace("'", "''") + "'"
                                    for item in stream_definitions)
@@ -3176,6 +3191,7 @@ def main():
                     worker_role = "pgreact_mdm_worker"
                     sql("GRANT MAINTAIN ON TABLE " + item["name"] + " TO " + worker_role, "s1_logical")
             sql("SELECT pgtrickle.rebuild_cdc_triggers()", "s1_logical")
+            sql("SELECT pgtrickle.recover_capture_instance()", "s1_logical")
             recreated_streams = json.loads(sql(
                 "SELECT COALESCE(jsonb_agg(jsonb_build_object("
                 "'name',format('%I.%I',st.pgt_schema,st.pgt_name),"
@@ -3227,6 +3243,8 @@ def main():
         observations["logical_restore"]["capture_recovery"] = {
             "result": "passed" if recovery["status"] == "SAFE" else "blocked",
             "validation": recovery,
+            **({"failed_adoption_attempt": failed_adoption_attempt}
+               if failed_adoption_attempt else {}),
             **({"adoption_validation": adoption_validation,
                 "producer_reinitialization": reinitialization} if reinitialization else {}),
             "database_identity_rebound": True,
@@ -4269,9 +4287,13 @@ def main():
                 "-c", "pg_react.batch_size=" + str(configured_batch_size),
                 "-c", "pg_react.poll_interval_ms=" + str(profile["poll_interval_ms"]),
                 *worker_settings,
-                "-c", "pg_trickle.enabled=off", "-c", "pg_trickle.cdc_mode=trigger",
+                "-c", "pg_trickle.enabled=off", "-c", "pg_trickle.user_triggers=auto",
+                "-c", "pg_trickle.cdc_mode=trigger",
                 "-c", "pg_trickle.differential_max_change_ratio=1.0",
-                "-c", "default_transaction_isolation=read committed")
+                "-c", "pg_trickle.memory_budget_mb=1024",
+                "-c", "pg_trickle.delta_work_mem_cap_mb=1024",
+                "-c", "default_transaction_isolation=read committed",
+                "-c", "autovacuum=off")
         created = True
         for _ in range(60):
             result = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
@@ -4604,8 +4626,10 @@ def main():
                 "due_at": before_case["due_at"].replace("T", " ").removesuffix(":00"),
                 "escalation_level": 2,
                 "manual_assignment_protected": before_case["manual_assignment_protected"]}
+            assert timestamp(receipt["publication_tracking_started_at"]) <= timestamp(receipt["created_at"]), receipt
             assert receipt == {
                 "receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
+                "publication_tracking_started_at": receipt["publication_tracking_started_at"],
                 "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
                 "session_role_name": "mdm_s1_runtime", "action": "ESCALATE",
                 "outcome": "APPLIED_CONTROL", "reason_code": "CONTROL_APPLIED",
@@ -4791,6 +4815,7 @@ def main():
                     wheel_file=bounded_producer_wheel_file)
             elif claimed_work:
                 qualify(sql, command, fixture, container, observations,
+                        timestamp,
                         postmaster_crash=claimed_work_crash,
                         transport_loss_target_port=transport_loss_target_port)
             else:
@@ -5225,7 +5250,9 @@ def main():
         request_digest = sql("SELECT encode(pgreact_mdm.intent_request_digest('" +
             json.dumps(expected_body).replace("'", "''") + "'::jsonb),'hex')")
         uuid.UUID(receipt["receipt_id"])
+        assert timestamp(receipt["publication_tracking_started_at"]) <= timestamp(receipt["created_at"]), receipt
         expected_receipt = {"receipt_id": receipt["receipt_id"], "created_at": receipt["created_at"],
+            "publication_tracking_started_at": receipt["publication_tracking_started_at"],
             "actor": "pgreact_mdm_worker", "selected_role_name": "pgreact_mdm_worker",
             "session_role_name": "mdm_s1_runtime", "action": "ESCALATE", "outcome": "APPLIED_CONTROL",
             "reason_code": "CONTROL_APPLIED", "control": expected_control, "case_key": case_key,
@@ -5738,12 +5765,14 @@ def main():
             assert response["resulting_publication_revision"] is None
             uuid.UUID(saved["receipt_id"])
             assert timestamp(saved["created_at"]).tzinfo is not None
+            assert timestamp(saved["publication_tracking_started_at"]) <= timestamp(saved["created_at"]), saved
             digest = sql("SELECT encode(pgreact_mdm.intent_request_digest("
                          + sql_literal(json.dumps(body)) + "::jsonb),'hex')")
             expected_saved = dict(deny_template)
             expected_saved.update({
                 "receipt_id": saved["receipt_id"],
                 "created_at": saved["created_at"],
+                "publication_tracking_started_at": saved["publication_tracking_started_at"],
                 "request_key": "\\x" + key_hex,
                 "request_digest": "\\x" + digest,
                 "request_body": body,
@@ -6216,6 +6245,7 @@ def main():
             receipt_row, = [r for r in resume_after["mdm_receipts"] if r["request_key"] == key]
             uuid.UUID(receipt_row["receipt_id"])
             assert timestamp(receipt_row["created_at"]).tzinfo is not None
+            assert timestamp(receipt_row["publication_tracking_started_at"]) <= timestamp(receipt_row["created_at"]), receipt_row
             for row, field in ((request_row, "created_at"), (intent_row, "attempted_at")):
                 assert timestamp(attempt_row["started_at"]) <= timestamp(row[field]) \
                     <= timestamp(attempt_row["finished_at"])
@@ -6224,7 +6254,9 @@ def main():
             control["due_at"] = sql("SELECT due_at::text FROM mdm_steward.policy_cases_v1 "
                                     "WHERE case_key=" + str(int(case_key)))
             expected_denial = {**expected_receipt, "receipt_id": receipt_row["receipt_id"],
-                "created_at": receipt_row["created_at"], "outcome": "ACTION_DENIED",
+                "created_at": receipt_row["created_at"],
+                "publication_tracking_started_at": receipt_row["publication_tracking_started_at"],
+                "outcome": "ACTION_DENIED",
                 "reason_code": "ESCALATION_LEVEL_ALREADY_APPLIED", "control": control,
                 "action_revision": resumed_case["action_revision"],
                 "request_key": key, "request_digest": digest, "request_body": body}

@@ -55,7 +55,7 @@ SELECT pgreact_mdm.publish_intent_package(
     jsonb_build_object(
         'deadline', jsonb_build_object(
             'duration_seconds', 86400, 'min_seconds', 60, 'max_seconds', 86400,
-            'replace_existing_deadline', false),
+            'replace_existing_deadline', true),
         'routes', jsonb_build_array(
             jsonb_build_object(
                 'reason_code', :'queue_reason_code', 'entity_name', :'queue_entity_name',
@@ -477,10 +477,14 @@ BEGIN
     PERFORM pgreact_mdm.sync_intent_case_identities();
     SELECT * INTO STRICT queue_candidate
     FROM pgreact_mdm.intent_queue_candidates ORDER BY case_key LIMIT 1;
-    SELECT * INTO STRICT due_candidate
-    FROM pgreact_mdm.intent_due_candidates ORDER BY case_key LIMIT 1;
     SELECT * INTO STRICT escalation_candidate
     FROM pgreact_mdm.intent_escalation_candidates ORDER BY case_key LIMIT 1;
+    -- Intent submissions can remove their case from the other candidate view.
+    -- Prefer an independent case; some fixtures expose only one due candidate.
+    SELECT * INTO STRICT due_candidate
+    FROM pgreact_mdm.intent_due_candidates
+    ORDER BY case_key = escalation_candidate.case_key, case_key
+    LIMIT 1;
     SELECT * INTO STRICT conflict_candidate
     FROM pgreact_mdm.intent_queue_candidates
     WHERE case_key <> queue_candidate.case_key
@@ -584,8 +588,23 @@ BEGIN
         'v0.48-outcome-escalation')::pgreact.activation_context;
     PERFORM set_config('role', 'pgreact_mdm_worker', true);
     PERFORM pgreact_mdm.submit_queue_intent(queue_context, queue_case);
+    -- A single overdue case can appear in both views; test escalation without
+    -- leaving it pending before the deadline probe.
+    BEGIN
+        PERFORM pgreact_mdm.submit_escalation_intent(escalation_context, escalation_case);
+        SELECT * INTO STRICT escalation_attempt
+        FROM pgreact_mdm.intent_attempts
+        WHERE episode_id = (escalation_context).episode_id AND attempt_no = 1;
+        SELECT * INTO STRICT escalation_inspection
+        FROM pgreact_mdm.delivery_inspection_v1
+        WHERE work_ref = 'pgreact:' || escalation_version_id::text || ':' ||
+                        (escalation_context).episode_id::text;
+        RAISE EXCEPTION USING ERRCODE = 'PZ001',
+            MESSAGE = 'rollback isolated escalation probe';
+    EXCEPTION
+        WHEN SQLSTATE 'PZ001' THEN NULL;
+    END;
     PERFORM pgreact_mdm.submit_due_intent(due_context, due_case);
-    PERFORM pgreact_mdm.submit_escalation_intent(escalation_context, escalation_case);
     PERFORM pgreact_mdm.submit_intent(conflict_context, to_jsonb(conflict_candidate));
 
     SELECT * INTO STRICT queue_attempt
@@ -594,9 +613,6 @@ BEGIN
     SELECT * INTO STRICT due_attempt
     FROM pgreact_mdm.intent_attempts
     WHERE episode_id = (due_context).episode_id AND attempt_no = 1;
-    SELECT * INTO STRICT escalation_attempt
-    FROM pgreact_mdm.intent_attempts
-    WHERE episode_id = (escalation_context).episode_id AND attempt_no = 1;
     SELECT * INTO STRICT conflict_attempt
     FROM pgreact_mdm.intent_attempts
     WHERE episode_id = (conflict_context).episode_id AND attempt_no = 1;
@@ -608,10 +624,6 @@ BEGIN
     FROM pgreact_mdm.delivery_inspection_v1
     WHERE work_ref = 'pgreact:' || due_version_id::text || ':' ||
                     (due_context).episode_id::text;
-    SELECT * INTO STRICT escalation_inspection
-    FROM pgreact_mdm.delivery_inspection_v1
-    WHERE work_ref = 'pgreact:' || escalation_version_id::text || ':' ||
-                    (escalation_context).episode_id::text;
     SELECT * INTO STRICT conflict_inspection
     FROM pgreact_mdm.delivery_inspection_v1
     WHERE work_ref = conflict_work_ref;
@@ -1368,7 +1380,7 @@ BEGIN
               AND rule.state = 'ACTIVE'
             ORDER BY CASE rule.rule_name
                 WHEN 'v0.48-live-worker-queue' THEN 1
-                WHEN 'v0.48-live-worker-due' THEN 2
+                WHEN 'v0.48-live-worker-escalation' THEN 2
                 ELSE 3 END
         LOOP
             attempts := 0;

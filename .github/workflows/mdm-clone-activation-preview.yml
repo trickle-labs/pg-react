@@ -15,13 +15,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: trickle-labs/pg-mdm
-          ref: ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3
+          ref: a9ac204cebac87a8aae8e9c6137cd4ffaab1b18f
           path: .producer/mdm
       - name: Record source and profile identity
         run: |
           set -euo pipefail
           mkdir -p clone-evidence
-          test "$(git -C .producer/mdm rev-parse HEAD)" = "ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3"
+          test "$(git -C .producer/mdm rev-parse HEAD)" = "a9ac204cebac87a8aae8e9c6137cd4ffaab1b18f"
           git rev-parse HEAD > clone-evidence/react-source.txt
           git -C .producer/mdm rev-parse HEAD > clone-evidence/mdm-source.txt
           git archive --format=tar HEAD | sha256sum > clone-evidence/react-archive-sha256.txt
@@ -34,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           docker build -f .producer/mdm/tests/Dockerfile.e2e \
-            --build-arg PG_MDM_SOURCE_REVISION=ad2597f72ee657cb946c5bbd7ae5eb2bfd1ac1b3 \
+            --build-arg PG_MDM_SOURCE_REVISION=a9ac204cebac87a8aae8e9c6137cd4ffaab1b18f \
             --build-arg PG_TRICKLE_REVISION=eb44093bbeca4f276a92733fe2bbc740d8ef254a \
             --build-arg PG_TRICKLE_SHA256=c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487 \
             --label pg_trickle.source_revision=eb44093bbeca4f276a92733fe2bbc740d8ef254a \
@@ -70,7 +70,7 @@ jobs:
               if [ "$result" -ne 0 ]; then
                 status=1
               else
-              python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); mode=sys.argv[2]; passed={c["name"] for c in o["checks"] if c["result"]=="passed"}; required={"clean-clone":{"clean-clone-preactivation","pending-recovery-s1_idle-5432"},"clean-clone-direct":{"clean-clone-direct-delivery-blocked"},"claimed-work":{"claimed-pause-barrier","pause-first-runtime-freshness","paused-before-claim","human-edit-claim-orders","binding-replacement-claim-orders","fresh-after-terminal-pause","cross-key-after-human-reduction","delivery-inspection-output-matrix","read-only-route-explanation"},"autonomous-recurrence":{"autonomous-recurrence"},"logical-restore":{"logical-restore-dump-config","logical-restore-guard","logical-restore-blocked-cycles","logical-restore-preactivation","logical-restore-application-role-rebind","logical-restore-restricted-recovery-role","logical-restore-react-recovery","logical-restore-mdm-helper-config","logical-restore-reconcile-replay","logical-restore-pgtrickle-capture-recovery","logical-restore-producer-reinitialization"}}[mode]; assert required <= passed, o.get("failure"); assert mode != "clean-clone" or o["entry_decision"]=="FOCUSED_CLEAN_CLONE_RECOVERY_QUALIFIED"; assert mode != "claimed-work" or (o["entry_decision"]=="FOCUSED_CLAIMED_PAUSE_QUALIFIED" and not o["claimed_pause"]["pause_acknowledged_before_delivery_release"]); assert mode != "autonomous-recurrence" or (o["entry_decision"]=="FOCUSED_AUTONOMOUS_RECURRENCE_QUALIFIED" and o["autonomous_recurrence"]["old_receipts_unchanged"] and o["autonomous_recurrence"]["no_replay_across_cycles_and_restart"]); assert mode != "logical-restore" or (o["entry_decision"]=="FOCUSED_REACT_LOGICAL_RESTORE_QUALIFIED" and not o["release_qualified"] and o["logical_restore"]["capture_adoption_validation"]["status"]=="REINITIALIZATION_REQUIRED" and o["logical_restore"]["producer_reinitialization"]["result"]=="passed" and o["logical_restore"]["producer_reinitialization"]["validation"]["status"]=="SAFE" and o["logical_restore"]["producer_reinitialization"]["validation"]["ok"])' "clone-evidence/$mode-$run/observations.json" "$mode" > "clone-evidence/$mode-$run.validation.log" 2>&1
+              python3 -c 'import json,sys; o=json.load(open(sys.argv[1])); mode=sys.argv[2]; passed={c["name"] for c in o["checks"] if c["result"]=="passed"}; required={"clean-clone":{"clean-clone-preactivation","pending-recovery-s1_idle-5432"},"clean-clone-direct":{"clean-clone-direct-delivery-blocked"},"claimed-work":{"claimed-pause-barrier","pause-first-runtime-freshness","paused-before-claim","human-edit-claim-orders","binding-replacement-claim-orders","fresh-after-terminal-pause","cross-key-after-human-reduction","delivery-inspection-output-matrix","read-only-route-explanation"},"autonomous-recurrence":{"autonomous-recurrence"},"logical-restore":{"logical-restore-dump-config","logical-restore-guard","logical-restore-blocked-cycles","logical-restore-preactivation","logical-restore-application-role-rebind","logical-restore-restricted-recovery-role","logical-restore-react-recovery","logical-restore-mdm-helper-config","logical-restore-reconcile-replay","logical-restore-pgtrickle-capture-recovery","logical-restore-producer-reinitialization"}}[mode]; assert required <= passed, o.get("failure"); assert mode != "clean-clone" or o["entry_decision"]=="FOCUSED_CLEAN_CLONE_RECOVERY_QUALIFIED"; assert mode != "claimed-work" or (o["entry_decision"]=="FOCUSED_CLAIMED_PAUSE_QUALIFIED" and not o["claimed_pause"]["pause_acknowledged_before_delivery_release"]); assert mode != "autonomous-recurrence" or (o["entry_decision"]=="FOCUSED_AUTONOMOUS_RECURRENCE_QUALIFIED" and o["autonomous_recurrence"]["old_receipts_unchanged"] and o["autonomous_recurrence"]["no_replay_across_cycles_and_restart"]); assert mode != "logical-restore" or (o["entry_decision"]=="FOCUSED_REACT_LOGICAL_RESTORE_QUALIFIED" and not o["release_qualified"] and o["logical_restore"]["capture_adoption_validation"]["status"] in ("REINITIALIZATION_REQUIRED","OPERATOR_INTERVENTION_REQUIRED") and o["logical_restore"]["producer_reinitialization"]["result"]=="passed" and o["logical_restore"]["producer_reinitialization"]["validation"]["status"]=="SAFE" and o["logical_restore"]["producer_reinitialization"]["validation"]["ok"])' "clone-evidence/$mode-$run/observations.json" "$mode" > "clone-evidence/$mode-$run.validation.log" 2>&1
                 validation=$?
                 printf '%s\n' "$validation" > "clone-evidence/$mode-$run.validation.exit"
                 if [ "$validation" -ne 0 ]; then status=1; fi
