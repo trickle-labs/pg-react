@@ -12,7 +12,7 @@ from derive_v050_qualification import _valid_shadow_coverage
 
 POPULATION_ID = "v050-ci-review-admission"
 CURRENT_REVISION = "v0.47-upgrade-seed"
-PROPOSED_REVISION = "v0.48-live-policy"
+PROPOSED_REVISION = "v0.50-synthetic-shadow-proposed"
 QUERY = f"""\
 WITH snapshot AS (
     SELECT statement_timestamp() AS captured_at

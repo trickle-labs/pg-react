@@ -158,6 +158,15 @@ jobs:
             exit 1
           fi
           if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
+            -U postgres -d foundation \
+            -f /workspace/tests/integrations/pg-mdm/v0.50-synthetic-shadow-seed.sql \
+            > v0.50.0-evidence/synthetic-shadow-seed.log 2>&1; then
+            cat v0.50.0-evidence/synthetic-shadow-seed.log
+            exit 1
+          fi
+          python3 tests/integrations/pg-mdm/test_v050_synthetic_shadow.py \
+            "$container" --output-directory v0.50.0-evidence/synthetic-shadow
+          if ! docker exec "$container" psql -X -v ON_ERROR_STOP=1 \
             -U postgres -f /tests/e2e_policy.sql \
             > v0.50.0-evidence/populated-mdm-policy.log 2>&1; then
             cat v0.50.0-evidence/populated-mdm-policy.log
@@ -177,8 +186,6 @@ jobs:
             cat v0.50.0-evidence/v0.48-live.log
             exit 1
           fi
-          python3 tests/integrations/pg-mdm/test_v050_synthetic_shadow.py \
-            "$container" --output-directory v0.50.0-evidence/synthetic-shadow
       - name: Derive candidate qualification status
         run: |
           python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
