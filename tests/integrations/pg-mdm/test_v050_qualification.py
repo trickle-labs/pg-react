@@ -20,6 +20,7 @@ from derive_v050_qualification import (
     GATE_IDS,
     OBJECT_FIELDS,
     RECORD_FIELDS,
+    _record_timestamp,
     _valid_shadow_competitors,
     derive,
 )
@@ -209,6 +210,12 @@ class V050QualificationTests(unittest.TestCase):
                 _valid_shadow_competitors([assignment_with_level]),
             ],
             [True, True, False, False, False],
+        )
+
+    def test_postgres_timestamp_with_trimmed_fraction_is_normalized(self):
+        self.assertEqual(
+            _record_timestamp("2026-11-06T08:52:20.63709Z").isoformat(),
+            "2026-11-06T08:52:20.637090+00:00",
         )
 
     def test_coordinator_owner_must_remain_pg_react(self):

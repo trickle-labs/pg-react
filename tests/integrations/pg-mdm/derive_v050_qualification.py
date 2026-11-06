@@ -278,8 +278,13 @@ def _record_value(record, dotted_path):
 def _record_timestamp(value):
     if not isinstance(value, str):
         return None
+    value = re.sub(
+        r"\.(\d{1,5})(?=[+-]\d{2}:\d{2}$)",
+        lambda match: "." + match.group(1).ljust(6, "0"),
+        value.replace("Z", "+00:00"),
+    )
     try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(value)
     except ValueError:
         return None
     return parsed if parsed.tzinfo is not None else None
