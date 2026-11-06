@@ -118,6 +118,10 @@ R4_STAGE_IDS = (
     "bounded_escalation",
     "supported_profile",
 )
+R3_OWNER_REVIEW_SECTIONS = (
+    "assignments", "due_dates", "no_ops", "protected_cases", "escalation_plans",
+    "ambiguities", "expected_manual_exceptions",
+)
 R4_STAGE_FIELDS = {
     "installed_effects_disabled": {
         "effects_enabled", "admission_verified", "grants_verified", "contract_verified",
@@ -357,6 +361,40 @@ def _approval_errors(value, label, manifest_directory):
     if error:
         errors.append(error)
     return errors
+
+
+def _valid_owner_approval(value, record, manifest_directory):
+    if not isinstance(value, dict):
+        return False
+    report, error = _read_json_evidence(
+        value.get("evidence"), manifest_directory, "shadow.owner_approval"
+    )
+    coverage = _record_value(record, "shadow.coverage_manifest")
+    exceptions = _record_value(record, "cohort.expected_exceptions")
+    expected_fields = {
+        "schema_version", "workload_id", "owner", "signed_at",
+        "cohort_membership_sha256", "package_sha256", "coverage_manifest_sha256",
+        "policy_revisions", "expected_exceptions_sha256", "reviewed_sections",
+    }
+    return (
+        error is None
+        and isinstance(report, dict)
+        and set(report) == expected_fields
+        and type(report["schema_version"]) is int
+        and report["schema_version"] == 1
+        and report["workload_id"] == _record_value(record, "workload.id")
+        and report["owner"] == _record_value(record, "workload.owner") == value.get("name")
+        and report["signed_at"] == value.get("signed_at")
+        and _record_timestamp(report["signed_at"]) is not None
+        and report["cohort_membership_sha256"] == _record_value(record, "cohort.membership_sha256")
+        and report["package_sha256"] == _record_value(record, "cohort.package_digest")
+        and isinstance(coverage, dict)
+        and report["coverage_manifest_sha256"] == coverage.get("sha256")
+        and report["policy_revisions"] == _record_value(record, "cohort.policy_revisions")
+        and isinstance(exceptions, dict)
+        and report["expected_exceptions_sha256"] == exceptions.get("sha256")
+        and report["reviewed_sections"] == list(R3_OWNER_REVIEW_SECTIONS)
+    )
 
 
 def _json_sha256(value):
@@ -791,6 +829,12 @@ def _validate_release_record(manifest, manifest_directory, gate_map, artifact_tu
         if _present(value):
             invalid.extend(_approval_errors(value, field, manifest_directory))
 
+    owner_approval = _record_value(record, "shadow.owner_approval")
+    if _present(owner_approval) and not _valid_owner_approval(
+        owner_approval, record, manifest_directory
+    ):
+        invalid.append("shadow.owner_approval")
+
     thresholds = _record_value(record, "operating_envelope.thresholds")
     for field, role in (
         ("operating_envelope.operator_threshold_approval", "operator"),
@@ -1011,6 +1055,8 @@ def derive(manifest, manifest_directory=None):
         blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R6"}]
     if "R4.stage_evidence" in invalid_release_fields:
         blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R4"}]
+    if "shadow.owner_approval" in invalid_release_fields:
+        blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R3", "R4"}]
 
     return {
         "release_qualified": (

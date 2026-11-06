@@ -71,6 +71,22 @@ def complete_manifest(evidence_directory):
                 "baseline_sha256": baseline_reference["sha256"],
                 "thresholds": thresholds,
             })
+        elif gate_id == "R3":
+            reference = retain_json("owner-approval", {
+                "schema_version": 1,
+                "workload_id": "workload-1",
+                "owner": name,
+                "signed_at": signed_at,
+                "cohort_membership_sha256": membership["sha256"],
+                "package_sha256": package["sha256"],
+                "coverage_manifest_sha256": coverage["sha256"],
+                "policy_revisions": ["policy-r1", "policy-r2"],
+                "expected_exceptions_sha256": evidence_references["R3"]["sha256"],
+                "reviewed_sections": [
+                    "assignments", "due_dates", "no_ops", "protected_cases",
+                    "escalation_plans", "ambiguities", "expected_manual_exceptions",
+                ],
+            })
         return {
             "name": name,
             "signed_at": signed_at,
@@ -205,6 +221,7 @@ def complete_manifest(evidence_directory):
     next(gate for gate in gates if gate["id"] == "R6")["evidence"] = [
         final_reference, evidence_references["R6"]
     ]
+    owner_approval = approval("owner", "R3")
     stage_evidence = {}
     for stage_id in R4_STAGE_IDS:
         path = f"logs/R4-{stage_id}.log"
@@ -227,7 +244,7 @@ def complete_manifest(evidence_directory):
             "started_at": "2026-10-24T11:00:00Z", "ended_at": "2026-10-24T12:00:00Z",
             "evidence": [stage_evidence["shadow_review"]],
             "coverage_manifest_sha256": coverage["sha256"],
-            "owner_approval_sha256": evidence_references["R3"]["sha256"],
+            "owner_approval_sha256": owner_approval["evidence"]["sha256"],
             "complete_population": True, "owner_reviewed": True,
         },
         {
@@ -290,7 +307,7 @@ def complete_manifest(evidence_directory):
                 "observed_case_count": 100,
                 "partial": False,
                 "duplicate_case_count": 0,
-                "owner_approval": approval("owner", "R3"),
+                "owner_approval": owner_approval,
             },
             "operating_envelope": {
                 "baseline_evidence": baseline_reference,
@@ -331,6 +348,31 @@ class V050QualificationTests(unittest.TestCase):
         content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
         path.write_bytes(content)
         reference["sha256"] = hashlib.sha256(content).hexdigest()
+
+    def rewrite_owner_approval(self, manifest, update):
+        reference = manifest["release_record"]["shadow"]["owner_approval"]["evidence"]
+        path = self.evidence_directory / reference["path"]
+        report = json.loads(path.read_text())
+        update(report)
+        content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+
+    def assert_invalid_owner_approval(self, manifest):
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R3", "R4"],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["shadow.owner_approval", "R4.stage_evidence"],
+                "release_record_complete": False,
+            },
+        )
 
     def assert_invalid_r4(self, manifest):
         self.assertEqual(
@@ -473,7 +515,24 @@ class V050QualificationTests(unittest.TestCase):
         manifest["release_record"]["shadow"]["owner_approval"]["signed_at"] = (
             "2026-10-24T13:00:00Z"
         )
-        self.assert_invalid_r4(manifest)
+        self.assert_invalid_owner_approval(manifest)
+
+    def test_r3_owner_approval_binds_workload_evidence_and_review_scope(self):
+        updates = (
+            lambda report: report.__setitem__(
+                "reviewed_sections", ["assignments", "due_dates"]
+            ),
+            lambda report: report.__setitem__("package_sha256", "0" * 64),
+            lambda report: report.__setitem__("coverage_manifest_sha256", "0" * 64),
+            lambda report: report.__setitem__("expected_exceptions_sha256", "0" * 64),
+            lambda report: report.__setitem__("policy_revisions", ["policy-r1"]),
+            lambda report: report.__setitem__("owner", "another-owner"),
+        )
+        for update in updates:
+            with self.subTest(update=update):
+                manifest = complete_manifest(self.evidence_directory)
+                self.rewrite_owner_approval(manifest, update)
+                self.assert_invalid_owner_approval(manifest)
 
     def test_r4_supported_profile_must_match_the_observation_window(self):
         manifest = complete_manifest(self.evidence_directory)
@@ -902,10 +961,14 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": ["R4"],
+                "blocking_gates": ["R3", "R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": ["shadow.coverage_manifest", "R4.stage_evidence"],
+                "invalid_release_fields": [
+                    "shadow.coverage_manifest",
+                    "shadow.owner_approval",
+                    "R4.stage_evidence",
+                ],
                 "release_record_complete": False,
             },
         )
@@ -931,12 +994,13 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": ["R4"],
+                "blocking_gates": ["R3", "R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "shadow.coverage_manifest",
                     "shadow.observed_case_count",
+                    "shadow.owner_approval",
                     "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
@@ -954,10 +1018,14 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": ["R4"],
+                "blocking_gates": ["R3", "R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": ["cohort.package_digest", "R4.stage_evidence"],
+                "invalid_release_fields": [
+                    "cohort.package_digest",
+                    "shadow.owner_approval",
+                    "R4.stage_evidence",
+                ],
                 "release_record_complete": False,
             },
         )
@@ -977,10 +1045,14 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": ["R4"],
+                "blocking_gates": ["R3", "R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": ["shadow.coverage_manifest", "R4.stage_evidence"],
+                "invalid_release_fields": [
+                    "shadow.coverage_manifest",
+                    "shadow.owner_approval",
+                    "R4.stage_evidence",
+                ],
                 "release_record_complete": False,
             },
         )
@@ -1002,12 +1074,13 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": ["R4"],
+                "blocking_gates": ["R3", "R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "shadow.coverage_manifest",
                     "shadow.duplicate_case_count",
+                    "shadow.owner_approval",
                     "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
