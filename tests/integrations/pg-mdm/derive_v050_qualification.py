@@ -92,6 +92,25 @@ LIMIT_FIELDS = (
     "operating_envelope.thresholds.retention_horizon_seconds",
     "operating_envelope.thresholds.recovery_rto_seconds_max",
 )
+OPERATING_SCENARIOS = (
+    "no_change_cycles",
+    "bursts",
+    "hot_case_conflicts",
+    "stale_token_churn",
+    "deadline_bursts",
+    "backlog_drain",
+    "restart",
+    "populated_restore",
+)
+OPERATING_SUMMARY_FIELDS = {
+    "case_count",
+    "churn_per_hour",
+    "queue_backlog",
+    "latency_p95_ms",
+    "retention_horizon_seconds",
+    "recovery_rto_seconds",
+}
+OPERATING_RESOURCE_FIELDS = {"database_writes", "wal_bytes", "storage_bytes"}
 TEXT_FIELDS = tuple(
     field for field in ARTIFACT_FIELDS
     if field not in DIGEST_FIELDS + COMMIT_FIELDS + OBJECT_FIELDS
@@ -285,6 +304,13 @@ def _record_timestamp(value):
     return parsed if parsed.tzinfo is not None else None
 
 
+def _finite_nonnegative_number(value):
+    return (
+        type(value) is int and value >= 0
+        or type(value) is float and math.isfinite(value) and value >= 0
+    )
+
+
 def _approval_errors(value, label, manifest_directory):
     if not isinstance(value, dict) or set(value) != {"name", "signed_at", "evidence"}:
         return [f"{label} must contain exactly name, signed_at, and evidence"]
@@ -299,7 +325,127 @@ def _approval_errors(value, label, manifest_directory):
     return errors
 
 
-def _validate_release_record(manifest, manifest_directory):
+def _json_sha256(value):
+    try:
+        content = json.dumps(
+            value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+        )
+    except (TypeError, ValueError):
+        return None
+    return hashlib.sha256(content.encode()).hexdigest()
+
+
+def _valid_operating_run(value, record, artifact_tuple):
+    fields = {
+        "schema_version", "run_id", "workload_id", "cohort_membership_sha256",
+        "artifact_tuple_sha256", "started_at", "ended_at", "truncated",
+        "safety_degraded", "scenarios", "summary", "unavailable_metrics",
+    }
+    if not isinstance(value, dict) or set(value) != fields:
+        return False
+    started = _record_timestamp(value["started_at"])
+    ended = _record_timestamp(value["ended_at"])
+    if (
+        type(value["schema_version"]) is not int
+        or value["schema_version"] != 1
+        or not isinstance(value["run_id"], str)
+        or not value["run_id"].strip()
+        or value["workload_id"] != _record_value(record, "workload.id")
+        or value["cohort_membership_sha256"] != _record_value(record, "cohort.membership_sha256")
+        or value["artifact_tuple_sha256"] != _json_sha256(artifact_tuple)
+        or started is None
+        or ended is None
+        or ended <= started
+        or value["truncated"] is not False
+        or value["safety_degraded"] is not False
+    ):
+        return False
+    scenarios = value["scenarios"]
+    if not isinstance(scenarios, dict) or set(scenarios) != set(OPERATING_SCENARIOS):
+        return False
+    recovery_times = []
+    for name, scenario in scenarios.items():
+        scenario_fields = {"conditions", *OPERATING_RESOURCE_FIELDS}
+        if name in {"restart", "populated_restore"}:
+            scenario_fields.add("recovery_rto_seconds")
+            recovery_times.append(
+                scenario.get("recovery_rto_seconds")
+                if isinstance(scenario, dict) else None
+            )
+        if name == "backlog_drain":
+            scenario_fields.add("drain_duration_seconds")
+        if (
+            not isinstance(scenario, dict)
+            or set(scenario) != scenario_fields
+            or not isinstance(scenario["conditions"], str)
+            or not scenario["conditions"].strip()
+            or any(
+                type(scenario[field]) is not int or scenario[field] < 0
+                for field in scenario_fields - {"conditions"}
+            )
+        ):
+            return False
+    summary = value["summary"]
+    if not isinstance(summary, dict) or set(summary) != OPERATING_SUMMARY_FIELDS:
+        return False
+    integer_fields = {"case_count", "queue_backlog", "retention_horizon_seconds",
+                      "recovery_rto_seconds"}
+    if (
+        any(type(summary[field]) is not int or summary[field] < 0 for field in integer_fields)
+        or summary["case_count"] != _record_value(record, "cohort.member_count")
+        or summary["retention_horizon_seconds"] <= 0
+        or any(
+            not _finite_nonnegative_number(summary[field])
+            for field in ("churn_per_hour", "latency_p95_ms")
+        )
+        or summary["recovery_rto_seconds"] != max(recovery_times)
+    ):
+        return False
+    unavailable = value["unavailable_metrics"]
+    return (
+        isinstance(unavailable, list)
+        and all(
+            isinstance(item, dict)
+            and set(item) == {"name", "reason"}
+            and isinstance(item["name"], str)
+            and item["name"].strip()
+            and isinstance(item["reason"], str)
+            and item["reason"].strip()
+            for item in unavailable
+        )
+        and len({item["name"] for item in unavailable}) == len(unavailable)
+        and not (
+            {item["name"] for item in unavailable}
+            & (OPERATING_SUMMARY_FIELDS | OPERATING_RESOURCE_FIELDS | {"drain_duration_seconds"})
+        )
+    )
+
+
+def _valid_threshold_approval(value, role, thresholds, baseline_reference, manifest_directory):
+    if not isinstance(value, dict) or not isinstance(baseline_reference, dict):
+        return False
+    evidence, error = _read_json_evidence(
+        value.get("evidence"), manifest_directory, "operating_envelope threshold approval"
+    )
+    signed_at = _record_timestamp(value.get("signed_at"))
+    return (
+        not error
+        and isinstance(evidence, dict)
+        and set(evidence) == {
+            "schema_version", "role", "approver", "signed_at", "baseline_sha256", "thresholds"
+        }
+        and type(evidence["schema_version"]) is int
+        and evidence["schema_version"] == 1
+        and evidence["role"] == role
+        and evidence["approver"] == value.get("name")
+        and evidence["signed_at"] == value.get("signed_at")
+        and signed_at is not None
+        and evidence["baseline_sha256"] == baseline_reference.get("sha256")
+        and evidence["thresholds"] == thresholds
+    )
+
+
+def _validate_release_record(manifest, manifest_directory, gate_map, artifact_tuple):
     record = manifest.get("release_record")
     if not isinstance(record, dict):
         record = {}
@@ -427,12 +573,7 @@ def _validate_release_record(manifest, manifest_directory):
 
     for field in LIMIT_FIELDS:
         value = _record_value(record, field)
-        if _present(value) and (
-            isinstance(value, bool)
-            or not isinstance(value, (int, float))
-            or not math.isfinite(value)
-            or value < 0
-        ):
+        if _present(value) and not _finite_nonnegative_number(value):
             invalid.append(field)
     for field in (
         "operating_envelope.thresholds.case_count_max",
@@ -458,7 +599,6 @@ def _validate_release_record(manifest, manifest_directory):
         "cohort.package_manifest",
         "cohort.expected_exceptions",
         "shadow.coverage_manifest",
-        "operating_envelope.baseline_evidence",
     )
     for field in evidence_fields:
         value = _record_value(record, field)
@@ -466,6 +606,16 @@ def _validate_release_record(manifest, manifest_directory):
             error = _verify_evidence(value, manifest_directory, field, 0)
             if error:
                 invalid.append(error)
+
+    baseline_reference = _record_value(record, "operating_envelope.baseline_evidence")
+    baseline_data = None
+    if _present(baseline_reference):
+        baseline_data, error = _read_json_evidence(
+            baseline_reference, manifest_directory, "operating_envelope.baseline_evidence"
+        )
+        if error or not _valid_operating_run(baseline_data, record, artifact_tuple):
+            invalid.append("operating_envelope.baseline_evidence")
+            baseline_data = None
 
     for field in (
         "shadow.owner_approval",
@@ -475,6 +625,80 @@ def _validate_release_record(manifest, manifest_directory):
         value = _record_value(record, field)
         if _present(value):
             invalid.extend(_approval_errors(value, field, manifest_directory))
+
+    thresholds = _record_value(record, "operating_envelope.thresholds")
+    for field, role in (
+        ("operating_envelope.operator_threshold_approval", "operator"),
+        ("operating_envelope.release_owner_threshold_approval", "release_owner"),
+    ):
+        approval = _record_value(record, field)
+        if _present(approval) and not _valid_threshold_approval(
+            approval, role, thresholds, baseline_reference, manifest_directory
+        ):
+            invalid.append(field)
+
+    final_data = None
+    gate = gate_map.get("R6")
+    evidence = gate.get("evidence") if isinstance(gate, dict) else None
+    if isinstance(gate, dict) and gate.get("status") == "passed":
+        if isinstance(evidence, list) and evidence:
+            final_data, error = _read_json_evidence(
+                evidence[0], manifest_directory, "operating_envelope.final_evidence"
+            )
+        else:
+            error = "operating_envelope.final_evidence is missing"
+        if error or not _valid_operating_run(final_data, record, artifact_tuple):
+            invalid.append("operating_envelope.final_evidence")
+            final_data = None
+
+    baseline_end = (
+        _record_timestamp(baseline_data["ended_at"]) if baseline_data is not None else None
+    )
+    final_start = _record_timestamp(final_data["started_at"]) if final_data is not None else None
+    for field in (
+        "operating_envelope.operator_threshold_approval",
+        "operating_envelope.release_owner_threshold_approval",
+    ):
+        approval = _record_value(record, field)
+        signed_at = _record_timestamp(approval.get("signed_at")) if isinstance(approval, dict) else None
+        if baseline_end is not None and signed_at is not None and signed_at <= baseline_end:
+            invalid.append(field)
+        if final_start is not None and signed_at is not None and signed_at >= final_start:
+            invalid.append(field)
+
+    if final_data is not None:
+        observation_start = _record_timestamp(
+            _record_value(record, "operating_envelope.observation.started_at")
+        )
+        observation_end = _record_timestamp(
+            _record_value(record, "operating_envelope.observation.ended_at")
+        )
+        if (
+            observation_start != _record_timestamp(final_data["started_at"])
+            or observation_end != _record_timestamp(final_data["ended_at"])
+        ):
+            invalid.append("operating_envelope.observation")
+        summary = final_data["summary"]
+        bounds = (
+            ("case_count", "case_count_max", "max"),
+            ("churn_per_hour", "churn_per_hour_max", "max"),
+            ("queue_backlog", "queue_backlog_max", "max"),
+            ("latency_p95_ms", "latency_p95_ms_max", "max"),
+            ("retention_horizon_seconds", "retention_horizon_seconds", "min"),
+            ("recovery_rto_seconds", "recovery_rto_seconds_max", "max"),
+        )
+        for measured, threshold, direction in bounds:
+            limit = _record_value(record, f"operating_envelope.thresholds.{threshold}")
+            if (
+                _present(limit)
+                and _finite_nonnegative_number(limit)
+                and (
+                    summary[measured] > limit
+                    if direction == "max"
+                    else summary[measured] < limit
+                )
+            ):
+                invalid.append(f"operating_envelope.thresholds.{threshold}")
 
     for field in ("release_notes", "support_matrix", "operator_guide"):
         value = _record_value(record, f"support_documents.{field}")
@@ -589,8 +813,13 @@ def derive(manifest, manifest_directory=None):
         errors.append("release must identify pg-react MDM adapter 0.50.0")
 
     missing_release_fields, invalid_release_fields = _validate_release_record(
-        manifest, manifest_directory
+        manifest, manifest_directory, gate_map, artifact_tuple
     )
+    if any(
+        field.startswith("operating_envelope.")
+        for field in missing_release_fields + invalid_release_fields
+    ):
+        blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R6"}]
 
     return {
         "release_qualified": (
