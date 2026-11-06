@@ -51,11 +51,28 @@ def complete_manifest(evidence_directory):
             "status": "passed",
             "evidence": [reference],
         })
+    baseline_reference = None
+    thresholds = None
+
     def approval(name, gate_id):
+        signed_at = (
+            "2026-11-05T00:00:00Z" if gate_id == "R8" else "2026-10-24T10:00:00+00:00"
+        )
+        reference = evidence_references[gate_id]
+        if gate_id == "R6":
+            role = "operator" if name == "operator" else "release_owner"
+            reference = retain_json(f"approval-{role}", {
+                "schema_version": 1,
+                "role": role,
+                "approver": name,
+                "signed_at": signed_at,
+                "baseline_sha256": baseline_reference["sha256"],
+                "thresholds": thresholds,
+            })
         return {
             "name": name,
-            "signed_at": "2026-11-04T10:00:00+00:00",
-            "evidence": evidence_references[gate_id],
+            "signed_at": signed_at,
+            "evidence": reference,
         }
 
     def retain_json(name, value):
@@ -125,6 +142,67 @@ def complete_manifest(evidence_directory):
     package_path = "logs/adapter-package.bin"
     (evidence_directory / package_path).write_bytes(package_content)
     package = {"path": package_path, "sha256": hashlib.sha256(package_content).hexdigest()}
+    thresholds = {
+        "case_count_max": 100,
+        "churn_per_hour_max": 20,
+        "queue_backlog_max": 50,
+        "latency_p95_ms_max": 2000,
+        "retention_horizon_seconds": 7776000,
+        "recovery_rto_seconds_max": 3600,
+    }
+    artifact_tuple_sha256 = hashlib.sha256(
+        json.dumps(artifact_tuple, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+    def operating_run(run_id, started_at, ended_at):
+        return {
+            "schema_version": 1,
+            "run_id": run_id,
+            "workload_id": "workload-1",
+            "cohort_membership_sha256": membership["sha256"],
+            "artifact_tuple_sha256": artifact_tuple_sha256,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "truncated": False,
+            "safety_degraded": False,
+            "scenarios": {
+                scenario: {
+                    "conditions": f"synthetic {scenario.replace('_', ' ')} profile",
+                    "database_writes": 100,
+                    "wal_bytes": 2048,
+                    "storage_bytes": 4096,
+                    **(
+                        {"recovery_rto_seconds": 1800}
+                        if scenario in {"restart", "populated_restore"} else {}
+                    ),
+                    **({"drain_duration_seconds": 60} if scenario == "backlog_drain" else {}),
+                }
+                for scenario in (
+                    "no_change_cycles", "bursts", "hot_case_conflicts",
+                    "stale_token_churn", "deadline_bursts", "backlog_drain",
+                    "restart", "populated_restore",
+                )
+            },
+            "summary": {
+                "case_count": 100,
+                "churn_per_hour": 10,
+                "queue_backlog": 25,
+                "latency_p95_ms": 1000,
+                "retention_horizon_seconds": 7776000,
+                "recovery_rto_seconds": 1800,
+            },
+            "unavailable_metrics": [],
+        }
+
+    baseline_reference = retain_json("baseline", operating_run(
+        "baseline-1", "2026-10-20T00:00:00Z", "2026-10-21T00:00:00Z"
+    ))
+    final_reference = retain_json("final-operating-run", operating_run(
+        "final-1", "2026-11-01T00:00:00Z", "2026-11-04T00:00:00Z"
+    ))
+    next(gate for gate in gates if gate["id"] == "R6")["evidence"] = [
+        final_reference, evidence_references["R6"]
+    ]
     return {
         "schema_version": 1,
         "release": "pg-react MDM adapter 0.50.0",
@@ -151,15 +229,8 @@ def complete_manifest(evidence_directory):
                 "owner_approval": approval("owner", "R3"),
             },
             "operating_envelope": {
-                "baseline_evidence": evidence_references["R6"],
-                "thresholds": {
-                    "case_count_max": 100,
-                    "churn_per_hour_max": 20,
-                    "queue_backlog_max": 50,
-                    "latency_p95_ms_max": 2000,
-                    "retention_horizon_seconds": 7776000,
-                    "recovery_rto_seconds_max": 3600,
-                },
+                "baseline_evidence": baseline_reference,
+                "thresholds": thresholds,
                 "observation": {
                     "started_at": "2026-11-01T00:00:00Z",
                     "ended_at": "2026-11-04T00:00:00Z",
@@ -221,11 +292,14 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["coordinator_owner"],
-                "blocking_gates": [],
+                "blocking_gates": ["R6"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": [],
-                "release_record_complete": True,
+                "invalid_release_fields": [
+                    "operating_envelope.baseline_evidence",
+                    "operating_envelope.final_evidence",
+                ],
+                "release_record_complete": False,
             },
         )
 
@@ -297,6 +371,172 @@ class V050QualificationTests(unittest.TestCase):
             },
         )
 
+    def test_final_signoff_must_follow_observation_end(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["final_signoffs"]["operator"]["signed_at"] = (
+            "2026-11-04T00:00:00Z"
+        )
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["final_signoffs.operator"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_baseline_requires_all_scenario_measurements(self):
+        manifest = complete_manifest(self.evidence_directory)
+        reference = manifest["release_record"]["operating_envelope"]["baseline_evidence"]
+        path = self.evidence_directory / reference["path"]
+        report = json.loads(path.read_text())
+        report["scenarios"].pop("hot_case_conflicts")
+        content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        for field in (
+            "operator_threshold_approval",
+            "release_owner_threshold_approval",
+        ):
+            approval_reference = manifest["release_record"]["operating_envelope"][field]["evidence"]
+            approval_path = self.evidence_directory / approval_reference["path"]
+            approval = json.loads(approval_path.read_text())
+            approval["baseline_sha256"] = reference["sha256"]
+            approval_content = json.dumps(
+                approval, sort_keys=True, separators=(",", ":")
+            ).encode()
+            approval_path.write_bytes(approval_content)
+            approval_reference["sha256"] = hashlib.sha256(approval_content).hexdigest()
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R6"],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["operating_envelope.baseline_evidence"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_final_operating_run_must_meet_every_approved_bound(self):
+        manifest = complete_manifest(self.evidence_directory)
+        reference = next(
+            gate for gate in manifest["gates"] if gate["id"] == "R6"
+        )["evidence"][0]
+        path = self.evidence_directory / reference["path"]
+        report = json.loads(path.read_text())
+        report["summary"]["latency_p95_ms"] = 2001
+        content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R6"],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [
+                    "operating_envelope.thresholds.latency_p95_ms_max"
+                ],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_required_metrics_cannot_be_marked_unavailable(self):
+        manifest = complete_manifest(self.evidence_directory)
+        reference = next(
+            gate for gate in manifest["gates"] if gate["id"] == "R6"
+        )["evidence"][0]
+        path = self.evidence_directory / reference["path"]
+        report = json.loads(path.read_text())
+        report["unavailable_metrics"] = [
+            {"name": "latency_p95_ms", "reason": "not measured"}
+        ]
+        content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R6"],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["operating_envelope.final_evidence"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_threshold_approvals_must_bind_the_baseline_and_exact_limits(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["operating_envelope"]["thresholds"][
+            "latency_p95_ms_max"
+        ] = 3000
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R6"],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [
+                    "operating_envelope.operator_threshold_approval",
+                    "operating_envelope.release_owner_threshold_approval",
+                ],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_threshold_approval_must_precede_the_final_run(self):
+        manifest = complete_manifest(self.evidence_directory)
+        approval = manifest["release_record"]["operating_envelope"][
+            "operator_threshold_approval"
+        ]
+        approval["signed_at"] = "2026-11-02T00:00:00Z"
+        reference = approval["evidence"]
+        path = self.evidence_directory / reference["path"]
+        evidence = json.loads(path.read_text())
+        evidence["signed_at"] = approval["signed_at"]
+        content = json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R6"],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": [
+                    "operating_envelope.operator_threshold_approval"
+                ],
+                "release_record_complete": False,
+            },
+        )
+
     def test_skipped_required_gate_cannot_qualify(self):
         manifest = complete_manifest(self.evidence_directory)
         manifest["gates"][0]["status"] = "skipped"
@@ -346,11 +586,14 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["pg_mdm_shared_library_sha256"],
-                "blocking_gates": [],
+                "blocking_gates": ["R6"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": [],
-                "release_record_complete": True,
+                "invalid_release_fields": [
+                    "operating_envelope.baseline_evidence",
+                    "operating_envelope.final_evidence",
+                ],
+                "release_record_complete": False,
             },
         )
 
@@ -366,11 +609,14 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["pg_react_version", "temporal_configuration"],
-                "blocking_gates": [],
+                "blocking_gates": ["R6"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": [],
-                "release_record_complete": True,
+                "invalid_release_fields": [
+                    "operating_envelope.baseline_evidence",
+                    "operating_envelope.final_evidence",
+                ],
+                "release_record_complete": False,
             },
         )
 
