@@ -2,12 +2,13 @@
 -- The MDM cross-key fixture deliberately leaves the visible level lowered to zero.
 -- Set up the next-level-2 idle probe through MDM's authorized human control API.
 SELECT c.case_key,c.action_revision,COALESCE(c.assigned_queue::text,'') AS assigned_queue,
-       c.due_at::text AS due_at,c.manual_assignment_protected,
+       COALESCE(c.due_at,statement_timestamp()-interval '1 hour')::text AS due_at,
+       c.manual_assignment_protected,
        to_jsonb(c)::text AS before_case
 FROM mdm_steward.policy_cases_v1 c
 WHERE c.entity_name='policy_qualification' AND c.status='open'
   AND NOT c.pending_stewardship AND c.opened_at IS NOT NULL
-  AND c.due_at < statement_timestamp() AND c.escalation_level=0
+  AND (c.due_at IS NULL OR c.due_at < statement_timestamp()) AND c.escalation_level=0
   AND 'ESCALATE'=ANY(c.permitted_actions)
   AND NOT EXISTS (SELECT FROM mdm_steward.policy_receipts_v1 r
       WHERE r.case_key=c.case_key AND r.outcome='APPLIED_CONTROL'
