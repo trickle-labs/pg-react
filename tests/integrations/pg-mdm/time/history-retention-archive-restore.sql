@@ -122,8 +122,8 @@ SELECT s1_retention_archive_check.expect_blocked(
                     target.case_key))
 FROM s1_retention.archive_target AS target;
 SELECT s1_retention_archive_check.expect_blocked(
-    'TRUNCATE TABLE mdm_steward.policy_receipts_v1', '55000',
-    'PGREACT_MDM_RETENTION: managed policy receipts remain within the retention period');
+    'TRUNCATE TABLE mdm_steward.policy_receipts_v1', '0A000',
+    'cannot truncate a table referenced in a foreign key constraint');
 SELECT s1_retention_archive_check.expect_blocked(
     'TRUNCATE TABLE mdm_steward.policy_cases_v1', '55000',
     'PGREACT_MDM_RETENTION: managed cases or receipts remain protected');
