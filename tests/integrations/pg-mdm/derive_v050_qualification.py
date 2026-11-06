@@ -111,6 +111,35 @@ OPERATING_SUMMARY_FIELDS = {
     "recovery_rto_seconds",
 }
 OPERATING_RESOURCE_FIELDS = {"database_writes", "wal_bytes", "storage_bytes"}
+R4_STAGE_IDS = (
+    "installed_effects_disabled",
+    "shadow_review",
+    "cohort_routing_deadlines",
+    "bounded_escalation",
+    "supported_profile",
+)
+R4_STAGE_FIELDS = {
+    "installed_effects_disabled": {
+        "effects_enabled", "admission_verified", "grants_verified", "contract_verified",
+        "core_no_effect_verified",
+    },
+    "shadow_review": {
+        "coverage_manifest_sha256", "owner_approval_sha256", "complete_population",
+        "owner_reviewed",
+    },
+    "cohort_routing_deadlines": {
+        "enabled_actions", "applied_queue_controls", "applied_due_at_controls",
+        "unauthorized_control_count", "out_of_cohort_control_count",
+        "manual_protection_violation_count",
+    },
+    "bounded_escalation": {
+        "enabled_action", "enabled_after", "maximum_level", "applied_escalation_control_count",
+        "routing_deadline_tests_healthy", "real_time_tests_healthy", "applied_above_maximum_count",
+        "duplicate_applied_control_count", "stale_binding_acceptance_count",
+        "manual_protection_violation_count",
+    },
+    "supported_profile": {"thresholds_met", "truncated", "safety_degraded"},
+}
 TEXT_FIELDS = tuple(
     field for field in ARTIFACT_FIELDS
     if field not in DIGEST_FIELDS + COMMIT_FIELDS + OBJECT_FIELDS
@@ -450,6 +479,137 @@ def _valid_threshold_approval(value, role, thresholds, baseline_reference, manif
     )
 
 
+def _valid_staged_enablement(value, record, artifact_tuple, manifest_directory):
+    if (
+        not isinstance(value, dict)
+        or set(value) != {
+            "schema_version", "workload_id", "cohort_membership_sha256",
+            "cohort_package_sha256", "policy_revisions", "artifact_tuple_sha256", "stages",
+        }
+        or type(value["schema_version"]) is not int
+        or value["schema_version"] != 1
+        or not isinstance(value["workload_id"], str)
+        or not value["workload_id"].strip()
+        or value["workload_id"] != _record_value(record, "workload.id")
+        or not isinstance(value["cohort_membership_sha256"], str)
+        or not re.fullmatch(r"[0-9a-f]{64}", value["cohort_membership_sha256"])
+        or value["cohort_membership_sha256"] != _record_value(record, "cohort.membership_sha256")
+        or not isinstance(value["cohort_package_sha256"], str)
+        or not re.fullmatch(r"[0-9a-f]{64}", value["cohort_package_sha256"])
+        or value["cohort_package_sha256"] != _record_value(record, "cohort.package_digest")
+        or not isinstance(value["policy_revisions"], list)
+        or not value["policy_revisions"]
+        or any(not isinstance(item, str) or not item for item in value["policy_revisions"])
+        or value["policy_revisions"] != _record_value(record, "cohort.policy_revisions")
+        or value["artifact_tuple_sha256"] != _json_sha256(artifact_tuple)
+        or not isinstance(value["stages"], list)
+        or len(value["stages"]) != len(R4_STAGE_IDS)
+    ):
+        return False
+
+    coverage = _record_value(record, "shadow.coverage_manifest")
+    owner_approval = _record_value(record, "shadow.owner_approval")
+    owner_evidence = owner_approval.get("evidence") if isinstance(owner_approval, dict) else None
+    observation_start = _record_timestamp(
+        _record_value(record, "operating_envelope.observation.started_at")
+    )
+    observation_end = _record_timestamp(
+        _record_value(record, "operating_envelope.observation.ended_at")
+    )
+    if (
+        not isinstance(coverage, dict)
+        or not isinstance(owner_evidence, dict)
+        or not isinstance(coverage.get("sha256"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", coverage["sha256"])
+        or not isinstance(owner_evidence.get("sha256"), str)
+        or not re.fullmatch(r"[0-9a-f]{64}", owner_evidence["sha256"])
+        or observation_start is None
+        or observation_end is None
+    ):
+        return False
+
+    previous_end = None
+    for stage_id, stage in zip(R4_STAGE_IDS, value["stages"]):
+        fields = {"id", "status", "started_at", "ended_at", "evidence"} | R4_STAGE_FIELDS[stage_id]
+        if (
+            not isinstance(stage, dict)
+            or set(stage) != fields
+            or stage["id"] != stage_id
+            or stage["status"] != "passed"
+        ):
+            return False
+        started = _record_timestamp(stage["started_at"])
+        ended = _record_timestamp(stage["ended_at"])
+        evidence = stage["evidence"]
+        if (
+            started is None
+            or ended is None
+            or ended <= started
+            or previous_end is not None and started < previous_end
+            or not isinstance(evidence, list)
+            or not evidence
+            or any(
+                _verify_evidence(reference, manifest_directory, f"R4.{stage_id}", index)
+                for index, reference in enumerate(evidence)
+            )
+        ):
+            return False
+        previous_end = ended
+
+        if stage_id == "installed_effects_disabled" and (
+            stage["effects_enabled"] is not False
+            or any(stage[field] is not True for field in (
+                "admission_verified", "grants_verified", "contract_verified",
+                "core_no_effect_verified",
+            ))
+        ):
+            return False
+        if stage_id == "shadow_review" and (
+            stage["coverage_manifest_sha256"] != coverage.get("sha256")
+            or stage["owner_approval_sha256"] != owner_evidence.get("sha256")
+            or stage["complete_population"] is not True
+            or stage["owner_reviewed"] is not True
+            or _record_timestamp(owner_approval.get("signed_at")) is None
+            or _record_timestamp(owner_approval["signed_at"]) > ended
+        ):
+            return False
+        if stage_id == "cohort_routing_deadlines" and (
+            stage["enabled_actions"] != ["ASSIGN_QUEUE", "SET_DUE_AT"]
+            or any(type(stage[field]) is not int or stage[field] <= 0 for field in (
+                "applied_queue_controls", "applied_due_at_controls",
+            ))
+            or any(type(stage[field]) is not int or stage[field] != 0 for field in (
+                "unauthorized_control_count", "out_of_cohort_control_count",
+                "manual_protection_violation_count",
+            ))
+        ):
+            return False
+        if stage_id == "bounded_escalation" and (
+            stage["enabled_action"] != "ESCALATE"
+            or stage["enabled_after"] != "cohort_routing_deadlines"
+            or type(stage["maximum_level"]) is not int
+            or stage["maximum_level"] < 1
+            or type(stage["applied_escalation_control_count"]) is not int
+            or stage["applied_escalation_control_count"] <= 0
+            or stage["routing_deadline_tests_healthy"] is not True
+            or stage["real_time_tests_healthy"] is not True
+            or any(type(stage[field]) is not int or stage[field] != 0 for field in (
+                "applied_above_maximum_count", "duplicate_applied_control_count",
+                "stale_binding_acceptance_count", "manual_protection_violation_count",
+            ))
+        ):
+            return False
+        if stage_id == "supported_profile" and (
+            started != observation_start
+            or ended != observation_end
+            or stage["thresholds_met"] is not True
+            or stage["truncated"] is not False
+            or stage["safety_degraded"] is not False
+        ):
+            return False
+    return True
+
+
 def _validate_release_record(manifest, manifest_directory, gate_map, artifact_tuple):
     record = manifest.get("release_record")
     if not isinstance(record, dict):
@@ -731,6 +891,23 @@ def _validate_release_record(manifest, manifest_directory, gate_map, artifact_tu
     if len(signer_names) == 3 and len(set(signer_names)) != 3:
         invalid.append("final_signoffs must name three distinct reviewers")
 
+    r4_gate = gate_map.get("R4")
+    r4_references = r4_gate.get("evidence") if isinstance(r4_gate, dict) else None
+    if isinstance(r4_gate, dict) and (
+        r4_gate.get("status") == "passed" or _present(r4_references)
+    ):
+        r4_data = None
+        if isinstance(r4_references, list) and len(r4_references) == 1:
+            r4_data, error = _read_json_evidence(
+                r4_references[0], manifest_directory, "R4.stage_evidence"
+            )
+        else:
+            error = "R4.stage_evidence must be one retained JSON report"
+        if error or not _valid_staged_enablement(
+            r4_data, record, artifact_tuple, manifest_directory
+        ):
+            invalid.append("R4.stage_evidence")
+
     return missing, list(dict.fromkeys(invalid))
 
 
@@ -832,6 +1009,8 @@ def derive(manifest, manifest_directory=None):
         for field in missing_release_fields + invalid_release_fields
     ):
         blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R6"}]
+    if "R4.stage_evidence" in invalid_release_fields:
+        blocking_gates = [gate_id for gate_id in GATE_IDS if gate_id in set(blocking_gates) | {"R4"}]
 
     return {
         "release_qualified": (
