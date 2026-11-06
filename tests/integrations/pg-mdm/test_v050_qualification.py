@@ -487,9 +487,17 @@ class V050QualificationTests(unittest.TestCase):
 
     def test_threshold_approval_must_precede_the_final_run(self):
         manifest = complete_manifest(self.evidence_directory)
-        manifest["release_record"]["operating_envelope"]["operator_threshold_approval"][
-            "signed_at"
-        ] = "2026-11-02T00:00:00Z"
+        approval = manifest["release_record"]["operating_envelope"][
+            "operator_threshold_approval"
+        ]
+        approval["signed_at"] = "2026-11-02T00:00:00Z"
+        reference = approval["evidence"]
+        path = self.evidence_directory / reference["path"]
+        evidence = json.loads(path.read_text())
+        evidence["signed_at"] = approval["signed_at"]
+        content = json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
         self.assertEqual(
             derive(manifest, self.evidence_directory),
             {
