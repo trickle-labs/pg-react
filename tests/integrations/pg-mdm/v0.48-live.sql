@@ -588,8 +588,22 @@ BEGIN
         'v0.48-outcome-escalation')::pgreact.activation_context;
     PERFORM set_config('role', 'pgreact_mdm_worker', true);
     PERFORM pgreact_mdm.submit_queue_intent(queue_context, queue_case);
-    -- SET_DUE_AT can make the same case no longer eligible for escalation.
-    PERFORM pgreact_mdm.submit_escalation_intent(escalation_context, escalation_case);
+    -- A single overdue case can appear in both views; test escalation without
+    -- leaving it pending before the deadline probe.
+    BEGIN
+        PERFORM pgreact_mdm.submit_escalation_intent(escalation_context, escalation_case);
+        SELECT * INTO STRICT escalation_attempt
+        FROM pgreact_mdm.intent_attempts
+        WHERE episode_id = (escalation_context).episode_id AND attempt_no = 1;
+        SELECT * INTO STRICT escalation_inspection
+        FROM pgreact_mdm.delivery_inspection_v1
+        WHERE work_ref = 'pgreact:' || escalation_version_id::text || ':' ||
+                        (escalation_context).episode_id::text;
+        RAISE EXCEPTION USING ERRCODE = 'PZ001',
+            MESSAGE = 'rollback isolated escalation probe';
+    EXCEPTION
+        WHEN SQLSTATE 'PZ001' THEN NULL;
+    END;
     PERFORM pgreact_mdm.submit_due_intent(due_context, due_case);
     PERFORM pgreact_mdm.submit_intent(conflict_context, to_jsonb(conflict_candidate));
 
@@ -599,9 +613,6 @@ BEGIN
     SELECT * INTO STRICT due_attempt
     FROM pgreact_mdm.intent_attempts
     WHERE episode_id = (due_context).episode_id AND attempt_no = 1;
-    SELECT * INTO STRICT escalation_attempt
-    FROM pgreact_mdm.intent_attempts
-    WHERE episode_id = (escalation_context).episode_id AND attempt_no = 1;
     SELECT * INTO STRICT conflict_attempt
     FROM pgreact_mdm.intent_attempts
     WHERE episode_id = (conflict_context).episode_id AND attempt_no = 1;
@@ -613,10 +624,6 @@ BEGIN
     FROM pgreact_mdm.delivery_inspection_v1
     WHERE work_ref = 'pgreact:' || due_version_id::text || ':' ||
                     (due_context).episode_id::text;
-    SELECT * INTO STRICT escalation_inspection
-    FROM pgreact_mdm.delivery_inspection_v1
-    WHERE work_ref = 'pgreact:' || escalation_version_id::text || ':' ||
-                    (escalation_context).episode_id::text;
     SELECT * INTO STRICT conflict_inspection
     FROM pgreact_mdm.delivery_inspection_v1
     WHERE work_ref = conflict_work_ref;
