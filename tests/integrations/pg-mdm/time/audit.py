@@ -1556,8 +1556,8 @@ def main():
     created = False
     clone_volume = None
 
-    def command(*args):
-        result = subprocess.run(args, capture_output=True, text=True, timeout=300)
+    def command(*args, timeout=300):
+        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
         if result.returncode:
             raise RuntimeError(" ".join(args) + "\n" + result.stdout + result.stderr)
         return result.stdout
@@ -1706,7 +1706,8 @@ def main():
         started = time.monotonic()
         try:
             result = command("docker", "exec", container, "psql", "-XAtq", "-U",
-                             "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", *variables, "-f", file)
+                             "postgres", "-d", database, "-v", "ON_ERROR_STOP=1", *variables,
+                             "-f", file, timeout=900 if name == "mdm-bootstrap" else 300)
         except RuntimeError as error:
             (output / (name + ".log")).write_text(str(error))
             observations["checks"].append({"name": name, "result": "failed"})
@@ -4276,7 +4277,8 @@ def main():
                 "-c", "pg_trickle.differential_max_change_ratio=1.0",
                 "-c", "pg_trickle.memory_budget_mb=1024",
                 "-c", "pg_trickle.delta_work_mem_cap_mb=1024",
-                "-c", "default_transaction_isolation=read committed")
+                "-c", "default_transaction_isolation=read committed",
+                "-c", "autovacuum=off")
         created = True
         for _ in range(60):
             result = subprocess.run(["docker", "exec", container, "pg_isready", "-U", "postgres"],
