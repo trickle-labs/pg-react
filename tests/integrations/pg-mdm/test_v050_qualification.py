@@ -304,6 +304,44 @@ class V050QualificationTests(unittest.TestCase):
             },
         )
 
+    def test_duplicate_final_signers_are_rejected_case_and_whitespace_insensitively(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["final_signoffs"]["release_owner"]["name"] = "  OPERATOR  "
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["final_signoffs must name three distinct reviewers"],
+                "release_record_complete": False,
+            },
+        )
+
+    def test_whitespace_only_final_signer_name_is_invalid(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["final_signoffs"]["operator"]["name"] = " \t "
+        result = derive(manifest, self.evidence_directory)
+        self.assertEqual(
+            result,
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["final_signoffs.operator name is invalid"],
+                "release_record_complete": False,
+            },
+        )
+
     def test_skipped_required_gate_cannot_qualify(self):
         manifest = complete_manifest(self.evidence_directory)
         manifest["gates"][0]["status"] = "skipped"

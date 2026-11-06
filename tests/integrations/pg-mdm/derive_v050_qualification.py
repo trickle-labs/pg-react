@@ -294,7 +294,7 @@ def _approval_errors(value, label, manifest_directory):
     if not isinstance(value, dict) or set(value) != {"name", "signed_at", "evidence"}:
         return [f"{label} must contain exactly name, signed_at, and evidence"]
     errors = []
-    if not isinstance(value["name"], str) or not value["name"]:
+    if not isinstance(value["name"], str) or not value["name"].strip():
         errors.append(f"{label} name is invalid")
     if _record_timestamp(value["signed_at"]) is None:
         errors.append(f"{label} signed_at must be a timezone-aware timestamp")
@@ -496,7 +496,7 @@ def _validate_release_record(manifest, manifest_directory):
         if _present(value):
             invalid.extend(_approval_errors(value, f"final_signoffs.{field}", manifest_directory))
             if isinstance(value, dict) and isinstance(value.get("name"), str):
-                signer_names.append(value["name"])
+                signer_names.append(" ".join(value["name"].split()).casefold())
     if len(signer_names) == 3 and len(set(signer_names)) != 3:
         invalid.append("final_signoffs must name three distinct reviewers")
 
