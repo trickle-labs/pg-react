@@ -44,7 +44,6 @@ WHERE case_row.entity_name = 'policy_qualification'
   AND case_row.status = 'open'
   AND NOT case_row.pending_stewardship
   AND case_row.due_at < statement_timestamp()
-  AND case_row.opened_at IS NOT NULL
   AND case_row.escalation_level = 1
   AND 'ESCALATE' = ANY(case_row.permitted_actions)
 ORDER BY case_row.case_key
