@@ -11,14 +11,19 @@ SET TIME ZONE 'UTC';
 DO $$
 DECLARE
     actual jsonb;
+    expected_findings jsonb;
 BEGIN
+    SELECT CASE WHEN count(*) = 0 THEN '[]'::jsonb ELSE jsonb_build_array(jsonb_build_object(
+        'code', 'MDM_INPUT_OPENING_UNKNOWN',
+        'rows', count(*),
+        'message', 'open cases without an authorized opening time cannot receive a due-date proposal')) END
+    INTO expected_findings
+    FROM mdm_steward.policy_cases_v1
+    WHERE status = 'open' AND opened_at IS NULL AND opened_at_source = 'unknown';
     actual := pgreact_mdm.validate_inputs('mdm_steward.policy_cases_v1'::regclass);
     IF actual IS DISTINCT FROM jsonb_build_object(
         'state', 'valid',
-        'findings', jsonb_build_array(jsonb_build_object(
-            'code', 'MDM_INPUT_OPENING_UNKNOWN',
-            'rows', 1,
-            'message', 'open cases without an authorized opening time cannot receive a due-date proposal')),
+        'findings', expected_findings,
         'source_relation', 'mdm_steward.policy_cases_v1') THEN
         RAISE EXCEPTION 'live MDM input validation mismatch: %', actual;
     END IF;
