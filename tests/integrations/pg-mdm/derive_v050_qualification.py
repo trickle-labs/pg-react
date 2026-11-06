@@ -714,6 +714,13 @@ def _validate_release_record(manifest, manifest_directory, gate_map, artifact_tu
         value = _record_value(record, f"final_signoffs.{field}")
         if _present(value):
             invalid.extend(_approval_errors(value, f"final_signoffs.{field}", manifest_directory))
+            signed_at = (
+                _record_timestamp(value.get("signed_at"))
+                if isinstance(value, dict)
+                else None
+            )
+            if end is not None and signed_at is not None and signed_at <= end:
+                invalid.append(f"final_signoffs.{field}")
             if isinstance(value, dict) and isinstance(value.get("name"), str):
                 signer_names.append(value["name"])
     if len(signer_names) == 3 and len(set(signer_names)) != 3:

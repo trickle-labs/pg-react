@@ -55,7 +55,9 @@ def complete_manifest(evidence_directory):
     thresholds = None
 
     def approval(name, gate_id):
-        signed_at = "2026-10-24T10:00:00+00:00"
+        signed_at = (
+            "2026-11-05T00:00:00Z" if gate_id == "R8" else "2026-10-24T10:00:00+00:00"
+        )
         reference = evidence_references[gate_id]
         if gate_id == "R6":
             role = "operator" if name == "operator" else "release_owner"
@@ -366,6 +368,26 @@ class V050QualificationTests(unittest.TestCase):
                 "missing_release_fields": [],
                 "invalid_release_fields": [],
                 "release_record_complete": True,
+            },
+        )
+
+    def test_final_signoff_must_follow_observation_end(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["final_signoffs"]["operator"]["signed_at"] = (
+            "2026-11-04T00:00:00Z"
+        )
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": [],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["final_signoffs.operator"],
+                "release_record_complete": False,
             },
         )
 
