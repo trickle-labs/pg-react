@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "scope": "candidate-local-integration-only; not release qualification",
+  "result": "passed",
+  "recorded_at_utc": "2026-11-06T11:11:09Z",
+  "test": {
+    "script": "tests/integrations/pg-mdm/v0.48-live.sql",
+    "test_source_commit": "90f3d76a9dc2384bc24b5c890ff623f597015f93",
+    "runtime_source_commit": "72124dddb045ee548517dd3a0ac3d8156b3cdf91"
+  },
+  "environment": {
+    "postgresql_server_version": "18.4 (Debian 18.4-1.pgdg12+1)",
+    "pg_react_image": "pgreac:v050-r2-pending",
+    "pg_mdm_image": "pg_mdm:v050-pr25-check",
+    "pg_mdm_source_revision": "c9006c32fdc1fbf5cbe4ef3d246429dea2c7e8d4",
+    "pg_trickle_e2e_artifact_sha256": "b8d4c59ca3770c305659255e09adde303b4d220228392c415ae363aa7be0a2da"
+  },
+  "assertions": {
+    "accepted_controls_visible_after_publication_failure": "passed",
+    "original_request_attempt_and_receipt_identity_unchanged_after_worker_retry": "passed",
+    "successful_publication_resolves_operator_state": "passed"
+  },
+  "log": {
+    "path": "r2-publication-recovery-postgres-18.4.log",
+    "sha256": "0e0b86f7346fe2a27774f2227618294f285acd54b821ebc357d89dc8d52f9c55"
+  },
+  "qualification_eligible": false,
+  "qualification_limit": "This run used a PR candidate MDM image and synthetic policy data; it does not prove final-artifact or named-cohort acceptance."
+}
