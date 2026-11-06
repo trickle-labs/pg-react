@@ -215,7 +215,7 @@ jobs:
             > v0.50.0-evidence/qualification-result.json
           cat v0.50.0-evidence/qualification-result.json
       - name: Require complete real-stack release evidence
-        if: ${{ github.event_name == 'workflow_call' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'require-qualified') }}
+        if: ${{ github.event_name != 'pull_request' && inputs.mode != 'rehearsal' }}
         run: |
           python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
             --require-qualified > v0.50.0-evidence/qualification-result.json
