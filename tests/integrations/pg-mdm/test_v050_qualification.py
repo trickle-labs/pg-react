@@ -19,6 +19,7 @@ from derive_v050_qualification import (
     DIGEST_FIELDS,
     GATE_IDS,
     OBJECT_FIELDS,
+    R4_STAGE_IDS,
     RECORD_FIELDS,
     _record_timestamp,
     _valid_shadow_competitors,
@@ -204,6 +205,68 @@ def complete_manifest(evidence_directory):
     next(gate for gate in gates if gate["id"] == "R6")["evidence"] = [
         final_reference, evidence_references["R6"]
     ]
+    stage_evidence = {}
+    for stage_id in R4_STAGE_IDS:
+        path = f"logs/R4-{stage_id}.log"
+        content = f"retained stage evidence for {stage_id}\n".encode()
+        (evidence_directory / path).write_bytes(content)
+        stage_evidence[stage_id] = {
+            "path": path,
+            "sha256": hashlib.sha256(content).hexdigest(),
+        }
+    stages = [
+        {
+            "id": "installed_effects_disabled", "status": "passed",
+            "started_at": "2026-10-24T10:00:00Z", "ended_at": "2026-10-24T11:00:00Z",
+            "evidence": [stage_evidence["installed_effects_disabled"]],
+            "effects_enabled": False, "admission_verified": True, "grants_verified": True,
+            "contract_verified": True, "core_no_effect_verified": True,
+        },
+        {
+            "id": "shadow_review", "status": "passed",
+            "started_at": "2026-10-24T11:00:00Z", "ended_at": "2026-10-24T12:00:00Z",
+            "evidence": [stage_evidence["shadow_review"]],
+            "coverage_manifest_sha256": coverage["sha256"],
+            "owner_approval_sha256": evidence_references["R3"]["sha256"],
+            "complete_population": True, "owner_reviewed": True,
+        },
+        {
+            "id": "cohort_routing_deadlines", "status": "passed",
+            "started_at": "2026-10-24T12:00:00Z", "ended_at": "2026-10-24T14:00:00Z",
+            "evidence": [stage_evidence["cohort_routing_deadlines"]],
+            "enabled_actions": ["ASSIGN_QUEUE", "SET_DUE_AT"],
+            "applied_queue_controls": 10, "applied_due_at_controls": 10,
+            "unauthorized_control_count": 0, "out_of_cohort_control_count": 0,
+            "manual_protection_violation_count": 0,
+        },
+        {
+            "id": "bounded_escalation", "status": "passed",
+            "started_at": "2026-10-24T14:00:00Z", "ended_at": "2026-10-24T16:00:00Z",
+            "evidence": [stage_evidence["bounded_escalation"]],
+            "enabled_action": "ESCALATE", "enabled_after": "cohort_routing_deadlines",
+            "maximum_level": 1, "applied_escalation_control_count": 1,
+            "routing_deadline_tests_healthy": True,
+            "real_time_tests_healthy": True, "applied_above_maximum_count": 0,
+            "duplicate_applied_control_count": 0, "stale_binding_acceptance_count": 0,
+            "manual_protection_violation_count": 0,
+        },
+        {
+            "id": "supported_profile", "status": "passed",
+            "started_at": "2026-11-01T00:00:00Z", "ended_at": "2026-11-04T00:00:00Z",
+            "evidence": [stage_evidence["supported_profile"]],
+            "thresholds_met": True, "truncated": False, "safety_degraded": False,
+        },
+    ]
+    r4_reference = retain_json("r4-stage-evidence", {
+        "schema_version": 1,
+        "workload_id": "workload-1",
+        "cohort_membership_sha256": membership["sha256"],
+        "cohort_package_sha256": package["sha256"],
+        "policy_revisions": ["policy-r1", "policy-r2"],
+        "artifact_tuple_sha256": artifact_tuple_sha256,
+        "stages": stages,
+    })
+    next(gate for gate in gates if gate["id"] == "R4")["evidence"] = [r4_reference]
     return {
         "schema_version": 1,
         "release": "pg-react MDM adapter 0.50.0",
@@ -260,6 +323,31 @@ class V050QualificationTests(unittest.TestCase):
         self.evidence_directory = Path(self.temporary_directory.name)
         self.addCleanup(self.temporary_directory.cleanup)
 
+    def rewrite_r4_report(self, manifest, update):
+        reference = next(gate for gate in manifest["gates"] if gate["id"] == "R4")["evidence"][0]
+        path = self.evidence_directory / reference["path"]
+        report = json.loads(path.read_text())
+        update(report)
+        content = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+        path.write_bytes(content)
+        reference["sha256"] = hashlib.sha256(content).hexdigest()
+
+    def assert_invalid_r4(self, manifest):
+        self.assertEqual(
+            derive(manifest, self.evidence_directory),
+            {
+                "release_qualified": False,
+                "artifact_tuple_complete": True,
+                "missing_artifact_fields": [],
+                "invalid_artifact_fields": [],
+                "blocking_gates": ["R4"],
+                "manifest_errors": [],
+                "missing_release_fields": [],
+                "invalid_release_fields": ["R4.stage_evidence"],
+                "release_record_complete": False,
+            },
+        )
+
     def test_shadow_competitors_preserve_assignment_and_escalation_shapes(self):
         assignment = {
             "reason_code": "POSSIBLE_DUPLICATE", "entity_name": None,
@@ -299,12 +387,13 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["coordinator_owner"],
-                "blocking_gates": ["R6"],
+                "blocking_gates": ["R4", "R6"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "operating_envelope.baseline_evidence",
                     "operating_envelope.final_evidence",
+                    "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
             },
@@ -342,6 +431,57 @@ class V050QualificationTests(unittest.TestCase):
                 "release_record_complete": False,
             },
         )
+
+    def test_r4_cannot_pass_with_an_opaque_log(self):
+        manifest = complete_manifest(self.evidence_directory)
+        path = "logs/opaque-r4.log"
+        content = b"retained evidence for R4\n"
+        (self.evidence_directory / path).write_bytes(content)
+        next(gate for gate in manifest["gates"] if gate["id"] == "R4")["evidence"] = [{
+            "path": path,
+            "sha256": hashlib.sha256(content).hexdigest(),
+        }]
+        self.assert_invalid_r4(manifest)
+
+    def test_r4_requires_all_stages_in_order(self):
+        manifest = complete_manifest(self.evidence_directory)
+
+        def swap_routing_and_escalation(report):
+            report["stages"][2], report["stages"][3] = report["stages"][3], report["stages"][2]
+
+        self.rewrite_r4_report(
+            manifest,
+            swap_routing_and_escalation,
+        )
+        self.assert_invalid_r4(manifest)
+
+    def test_r4_rejects_a_missing_stage(self):
+        manifest = complete_manifest(self.evidence_directory)
+        self.rewrite_r4_report(manifest, lambda report: report["stages"].pop())
+        self.assert_invalid_r4(manifest)
+
+    def test_r4_rejects_controls_outside_the_frozen_cohort(self):
+        manifest = complete_manifest(self.evidence_directory)
+        self.rewrite_r4_report(
+            manifest,
+            lambda report: report["stages"][2].__setitem__("out_of_cohort_control_count", 1),
+        )
+        self.assert_invalid_r4(manifest)
+
+    def test_r4_owner_approval_must_precede_cohort_controls(self):
+        manifest = complete_manifest(self.evidence_directory)
+        manifest["release_record"]["shadow"]["owner_approval"]["signed_at"] = (
+            "2026-10-24T13:00:00Z"
+        )
+        self.assert_invalid_r4(manifest)
+
+    def test_r4_supported_profile_must_match_the_observation_window(self):
+        manifest = complete_manifest(self.evidence_directory)
+        self.rewrite_r4_report(
+            manifest,
+            lambda report: report["stages"][4].__setitem__("ended_at", "2026-11-03T00:00:00Z"),
+        )
+        self.assert_invalid_r4(manifest)
 
     def test_require_qualified_exit_status_matches_the_derived_decision(self):
         blocked_path = HERE / "evidence/v0.50.0/manifest.json"
@@ -629,12 +769,13 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["pg_mdm_shared_library_sha256"],
-                "blocking_gates": ["R6"],
+                "blocking_gates": ["R4", "R6"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "operating_envelope.baseline_evidence",
                     "operating_envelope.final_evidence",
+                    "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
             },
@@ -652,12 +793,13 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": False,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": ["pg_react_version", "temporal_configuration"],
-                "blocking_gates": ["R6"],
+                "blocking_gates": ["R4", "R6"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "operating_envelope.baseline_evidence",
                     "operating_envelope.final_evidence",
+                    "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
             },
@@ -760,10 +902,10 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [],
+                "blocking_gates": ["R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": ["shadow.coverage_manifest"],
+                "invalid_release_fields": ["shadow.coverage_manifest", "R4.stage_evidence"],
                 "release_record_complete": False,
             },
         )
@@ -789,12 +931,13 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [],
+                "blocking_gates": ["R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "shadow.coverage_manifest",
                     "shadow.observed_case_count",
+                    "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
             },
@@ -811,10 +954,10 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [],
+                "blocking_gates": ["R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": ["cohort.package_digest"],
+                "invalid_release_fields": ["cohort.package_digest", "R4.stage_evidence"],
                 "release_record_complete": False,
             },
         )
@@ -834,10 +977,10 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [],
+                "blocking_gates": ["R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
-                "invalid_release_fields": ["shadow.coverage_manifest"],
+                "invalid_release_fields": ["shadow.coverage_manifest", "R4.stage_evidence"],
                 "release_record_complete": False,
             },
         )
@@ -859,12 +1002,13 @@ class V050QualificationTests(unittest.TestCase):
                 "artifact_tuple_complete": True,
                 "missing_artifact_fields": [],
                 "invalid_artifact_fields": [],
-                "blocking_gates": [],
+                "blocking_gates": ["R4"],
                 "manifest_errors": [],
                 "missing_release_fields": [],
                 "invalid_release_fields": [
                     "shadow.coverage_manifest",
                     "shadow.duplicate_case_count",
+                    "R4.stage_evidence",
                 ],
                 "release_record_complete": False,
             },
