@@ -177,6 +177,8 @@ jobs:
             cat v0.50.0-evidence/v0.48-live.log
             exit 1
           fi
+          python3 tests/integrations/pg-mdm/test_v050_synthetic_shadow.py \
+            "$container" --output-directory v0.50.0-evidence/synthetic-shadow
       - name: Derive candidate qualification status
         run: |
           python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
