@@ -17,6 +17,15 @@ on:
       - src/**
       - tests/integrations/pg-mdm/**
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Run the candidate rehearsal or require full release qualification
+        type: choice
+        required: true
+        default: rehearsal
+        options:
+          - rehearsal
+          - require-qualified
   workflow_call:
 
 permissions:
@@ -206,7 +215,7 @@ jobs:
             > v0.50.0-evidence/qualification-result.json
           cat v0.50.0-evidence/qualification-result.json
       - name: Require complete real-stack release evidence
-        if: ${{ github.event_name != 'pull_request' }}
+        if: ${{ github.event_name == 'workflow_call' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'require-qualified') }}
         run: |
           python3 tests/integrations/pg-mdm/derive_v050_qualification.py \
             --require-qualified > v0.50.0-evidence/qualification-result.json
