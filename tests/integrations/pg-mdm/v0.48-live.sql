@@ -1440,22 +1440,6 @@ BEGIN
 END
 $delivery_inspection$;
 
-CREATE TEMP TABLE v048_attempt_baseline AS
-SELECT COALESCE((
-           SELECT jsonb_agg(to_jsonb(request)
-                            ORDER BY request.binding_id, request.request_key)
-           FROM pgreact_mdm.intent_requests AS request
-           JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
-           WHERE binding.entity_name = 'policy_qualification'), '[]'::jsonb)
-           AS request_identity,
-       COALESCE((
-           SELECT jsonb_agg(to_jsonb(attempt)
-                            ORDER BY attempt.episode_id, attempt.attempt_no)
-           FROM pgreact_mdm.intent_attempts AS attempt
-           JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
-           WHERE binding.entity_name = 'policy_qualification'), '[]'::jsonb)
-           AS attempt_identity;
-
 DO $correlation$
 DECLARE
     expected_work text[];
@@ -1565,6 +1549,334 @@ BEGIN
 END
 $correlation$;
 
+\ir ../../../integrations/pg-mdm/sql/operational-activity.sql
+CREATE TEMP TABLE v050_expected_pending_receipts AS
+SELECT DISTINCT receipt.receipt_id, receipt.case_key, receipt.action_revision,
+       to_jsonb(receipt) AS receipt_state
+FROM v048_expected_intents AS expected
+JOIN pgreact_mdm.intent_requests AS request
+  ON request.binding_id = expected.binding_id
+ AND request.case_key = expected.case_key
+ AND request.policy_revision = 'v0.48-live-policy'
+ AND request.request_body ->> 'action' = expected.action
+JOIN pgreact_mdm.intent_attempts AS attempt
+  ON attempt.binding_id = request.binding_id
+ AND attempt.request_key = request.request_key
+JOIN mdm_steward.policy_receipts_v1 AS receipt
+  ON receipt.receipt_id = attempt.receipt_id
+WHERE expected.entity_name = 'policy_qualification'
+  AND attempt.outcome = 'APPLIED_CONTROL'
+  AND receipt.outcome = 'APPLIED_CONTROL';
+CREATE TEMP TABLE v050_pending_identity_baseline AS
+SELECT COALESCE((
+           SELECT array_agg(expected.receipt_id ORDER BY expected.receipt_id)
+           FROM v050_expected_pending_receipts AS expected), '{}'::uuid[])
+           AS receipt_ids,
+       COALESCE((
+           SELECT jsonb_agg(to_jsonb(request)
+                            ORDER BY request.binding_id, request.request_key)
+           FROM pgreact_mdm.intent_requests AS request
+           WHERE EXISTS (
+               SELECT 1
+               FROM pgreact_mdm.intent_attempts AS attempt
+               JOIN v050_expected_pending_receipts AS expected
+                 USING (receipt_id)
+               WHERE attempt.binding_id = request.binding_id
+                 AND attempt.request_key = request.request_key)), '[]'::jsonb)
+           AS request_identity,
+       COALESCE((
+           SELECT jsonb_agg(to_jsonb(attempt)
+                            ORDER BY attempt.episode_id, attempt.attempt_no)
+           FROM pgreact_mdm.intent_attempts AS attempt
+           JOIN v050_expected_pending_receipts AS expected USING (receipt_id)),
+           '[]'::jsonb) AS attempt_identity,
+       COALESCE((
+           SELECT jsonb_agg(to_jsonb(receipt) ORDER BY receipt.receipt_id)
+           FROM mdm_steward.policy_receipts_v1 AS receipt
+           JOIN v050_expected_pending_receipts AS expected USING (receipt_id)),
+           '[]'::jsonb) AS receipt_identity;
+CREATE TEMP TABLE v050_pending_case_baseline AS
+SELECT DISTINCT case_row.case_key, to_jsonb(case_row) AS case_state
+FROM v050_expected_pending_receipts AS expected
+JOIN mdm_steward.policy_cases_v1 AS case_row USING (case_key);
+DO $pending_receipt_cases$
+BEGIN
+    IF (SELECT count(*) FROM v050_pending_case_baseline) <>
+       (SELECT count(DISTINCT case_key)
+        FROM v050_expected_pending_receipts) THEN
+        RAISE EXCEPTION 'accepted policy receipts do not map to every current case';
+    END IF;
+END
+$pending_receipt_cases$;
+GRANT SELECT ON v050_expected_pending_receipts
+    TO :"escalation_entity_execution_role";
+
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"escalation_entity_execution_role";
+DO $pending_receipts_visible$
+DECLARE
+    expected_ids uuid[];
+    visible_ids uuid[];
+BEGIN
+    SELECT array_agg(receipt_id ORDER BY receipt_id)
+    INTO expected_ids
+    FROM v050_expected_pending_receipts;
+    SELECT array_agg(DISTINCT activity.mdm_receipt_id
+                     ORDER BY activity.mdm_receipt_id)
+    INTO visible_ids
+    FROM pgreact_mdm.operational_activity_v1 AS activity
+    JOIN v050_expected_pending_receipts AS expected
+      ON expected.receipt_id = activity.mdm_receipt_id
+    WHERE activity.mdm_publication_state = 'PENDING_PUBLICATION'
+      AND activity.mdm_pending_publication_age IS NOT NULL
+      AND activity.react_work_state = 'COMPLETED'
+      AND activity.delivery_outcome = 'APPLIED_CONTROL'
+      AND activity.mdm_outcome = 'APPLIED_CONTROL';
+    IF expected_ids IS NULL OR visible_ids IS DISTINCT FROM expected_ids THEN
+        RAISE EXCEPTION 'accepted policy controls were not all visible as pending publication: expected %, visible %',
+            expected_ids, visible_ids;
+    END IF;
+END
+$pending_receipts_visible$;
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+CREATE FUNCTION public.v050_reject_receipt_publication()
+RETURNS trigger LANGUAGE plpgsql AS $function$
+BEGIN
+    RAISE EXCEPTION 'injected v0.50 receipt publication failure';
+END
+$function$;
+CREATE TRIGGER v050_reject_receipt_publication
+BEFORE INSERT ON mdm_steward.policy_receipt_publications_v1
+FOR EACH ROW EXECUTE FUNCTION public.v050_reject_receipt_publication();
+SET SESSION AUTHORIZATION mdm_legacy_login;
+SET ROLE mdm_legacy_administrator;
+DO $pending_publication_failure$
+BEGIN
+    BEGIN
+        PERFORM mdm.refresh('policy_qualification', 'ALLOW');
+        RAISE EXCEPTION 'publication unexpectedly passed the injected failure';
+    EXCEPTION WHEN OTHERS THEN
+        IF pg_catalog.strpos(SQLERRM,
+            'injected v0.50 receipt publication failure') = 0 THEN
+            RAISE;
+        END IF;
+    END;
+END
+$pending_publication_failure$;
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+DO $pending_publication_rollback$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM v050_expected_pending_receipts AS expected
+        LEFT JOIN mdm_steward.policy_receipts_v1 AS receipt USING (receipt_id)
+        WHERE receipt.receipt_id IS NULL
+           OR to_jsonb(receipt) IS DISTINCT FROM expected.receipt_state)
+       OR EXISTS (
+           SELECT 1
+           FROM v050_expected_pending_receipts AS expected
+           JOIN mdm_steward.policy_receipt_publications_v1 AS publication
+             USING (receipt_id))
+       OR EXISTS (
+           SELECT 1
+           FROM v050_pending_case_baseline AS baseline
+           JOIN mdm_steward.policy_cases_v1 AS case_row USING (case_key)
+           WHERE to_jsonb(case_row) IS DISTINCT FROM baseline.case_state) THEN
+        RAISE EXCEPTION 'failed publication changed a policy control, receipt, or React identity';
+    END IF;
+END
+$pending_publication_rollback$;
+
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"escalation_entity_execution_role";
+DO $pending_receipts_survive_failure$
+DECLARE
+    expected_ids uuid[];
+    visible_ids uuid[];
+BEGIN
+    SELECT array_agg(receipt_id ORDER BY receipt_id)
+    INTO expected_ids
+    FROM v050_expected_pending_receipts;
+    SELECT array_agg(DISTINCT activity.mdm_receipt_id
+                     ORDER BY activity.mdm_receipt_id)
+    INTO visible_ids
+    FROM pgreact_mdm.operational_activity_v1 AS activity
+    JOIN v050_expected_pending_receipts AS expected
+      ON expected.receipt_id = activity.mdm_receipt_id
+    WHERE activity.mdm_publication_state = 'PENDING_PUBLICATION'
+      AND activity.mdm_pending_publication_age IS NOT NULL
+      AND activity.react_work_state = 'COMPLETED'
+      AND activity.delivery_outcome = 'APPLIED_CONTROL'
+      AND activity.mdm_outcome = 'APPLIED_CONTROL';
+    IF expected_ids IS NULL OR visible_ids IS DISTINCT FROM expected_ids THEN
+        RAISE EXCEPTION 'failed publication hid or resolved accepted controls: expected %, visible %',
+            expected_ids, visible_ids;
+    END IF;
+END
+$pending_receipts_survive_failure$;
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+SET SESSION AUTHORIZATION mdm_m2_runner;
+DO $pending_publication_worker_retry$
+DECLARE
+    rule_row record;
+    episode_id bigint;
+    attempts integer;
+    passes integer := 0;
+    pass_has_work boolean;
+    original_role text := current_setting('role');
+BEGIN
+    PERFORM pgreact_mdm.sync_intent_case_identities();
+    LOOP
+        pass_has_work := false;
+        FOR rule_row IN
+            SELECT rule.rule_version_id, rule.rule_name
+            FROM pgreact.rules AS rule
+            WHERE rule.rule_name IN (
+                'v0.48-live-worker-queue',
+                'v0.48-live-worker-due',
+                'v0.48-live-worker-escalation')
+              AND rule.state = 'ACTIVE'
+            ORDER BY CASE rule.rule_name
+                WHEN 'v0.48-live-worker-queue' THEN 1
+                WHEN 'v0.48-live-worker-due' THEN 2
+                ELSE 3 END
+        LOOP
+            attempts := 0;
+            LOOP
+                PERFORM pgreact.refresh_rule(rule_row.rule_version_id);
+                PERFORM set_config('role', 'pgreact_mdm_worker', true);
+                episode_id := pgreact_mdm.execute_intent_episode(
+                    rule_row.rule_version_id, 'v0.50-pending-publication-probe');
+                PERFORM set_config('role', original_role, true);
+                EXIT WHEN episode_id IS NULL;
+                pass_has_work := true;
+                attempts := attempts + 1;
+                IF attempts > 100 THEN
+                    RAISE EXCEPTION 'v0.50 pending-publication retry did not drain its episode queue';
+                END IF;
+            END LOOP;
+        END LOOP;
+        EXIT WHEN NOT pass_has_work;
+        passes := passes + 1;
+        IF passes > 100 THEN
+            RAISE EXCEPTION 'v0.50 pending-publication retry did not reach a quiescent queue';
+        END IF;
+    END LOOP;
+END
+$pending_publication_worker_retry$;
+RESET SESSION AUTHORIZATION;
+
+INSERT INTO v050_expected_pending_receipts
+SELECT DISTINCT receipt.receipt_id, receipt.case_key, receipt.action_revision,
+       to_jsonb(receipt)
+FROM pgreact_mdm.intent_requests AS request
+JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+JOIN pgreact_mdm.intent_attempts AS attempt
+  ON attempt.binding_id = request.binding_id
+ AND attempt.request_key = request.request_key
+JOIN mdm_steward.policy_receipts_v1 AS receipt
+  ON receipt.receipt_id = attempt.receipt_id
+WHERE binding.entity_name = 'policy_qualification'
+  AND request.policy_revision = 'v0.48-live-policy'
+  AND attempt.outcome = 'APPLIED_CONTROL'
+  AND receipt.outcome = 'APPLIED_CONTROL'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM mdm_steward.policy_receipt_publications_v1 AS publication
+      WHERE publication.receipt_id = receipt.receipt_id)
+  AND NOT EXISTS (
+      SELECT 1
+      FROM v050_expected_pending_receipts AS expected
+      WHERE expected.receipt_id = receipt.receipt_id);
+
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"escalation_entity_execution_role";
+DO $pending_receipts_after_retry$
+DECLARE
+    expected_ids uuid[];
+    visible_ids uuid[];
+BEGIN
+    SELECT array_agg(receipt_id ORDER BY receipt_id)
+    INTO expected_ids
+    FROM v050_expected_pending_receipts;
+    SELECT array_agg(DISTINCT activity.mdm_receipt_id
+                     ORDER BY activity.mdm_receipt_id)
+    INTO visible_ids
+    FROM pgreact_mdm.operational_activity_v1 AS activity
+    JOIN v050_expected_pending_receipts AS expected
+      ON expected.receipt_id = activity.mdm_receipt_id
+    WHERE activity.mdm_publication_state = 'PENDING_PUBLICATION'
+      AND activity.mdm_pending_publication_age IS NOT NULL
+      AND activity.react_work_state = 'COMPLETED'
+      AND activity.delivery_outcome = 'APPLIED_CONTROL'
+      AND activity.mdm_outcome = 'APPLIED_CONTROL';
+    IF expected_ids IS NULL OR visible_ids IS DISTINCT FROM expected_ids THEN
+        RAISE EXCEPTION 'worker retry hid or resolved accepted pending controls: expected %, visible %',
+            expected_ids, visible_ids;
+    END IF;
+END
+$pending_receipts_after_retry$;
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+DO $pending_publication_no_resend$
+BEGIN
+    IF (SELECT attempt_identity FROM v050_pending_identity_baseline) IS DISTINCT FROM
+       COALESCE((
+           SELECT jsonb_agg(to_jsonb(attempt)
+                            ORDER BY attempt.episode_id, attempt.attempt_no)
+           FROM pgreact_mdm.intent_attempts AS attempt
+           JOIN unnest((SELECT receipt_ids
+                        FROM v050_pending_identity_baseline)) AS original(receipt_id)
+             USING (receipt_id)), '[]'::jsonb)
+       OR (SELECT request_identity FROM v050_pending_identity_baseline) IS DISTINCT FROM
+          COALESCE((
+              SELECT jsonb_agg(to_jsonb(request)
+                               ORDER BY request.binding_id, request.request_key)
+              FROM pgreact_mdm.intent_requests AS request
+              WHERE EXISTS (
+                  SELECT 1
+                  FROM pgreact_mdm.intent_attempts AS attempt
+                  JOIN unnest((SELECT receipt_ids
+                               FROM v050_pending_identity_baseline)) AS original(receipt_id)
+                    USING (receipt_id)
+                  WHERE attempt.binding_id = request.binding_id
+                    AND attempt.request_key = request.request_key)), '[]'::jsonb)
+       OR (SELECT receipt_identity FROM v050_pending_identity_baseline) IS DISTINCT FROM
+          COALESCE((
+              SELECT jsonb_agg(to_jsonb(receipt) ORDER BY receipt.receipt_id)
+              FROM mdm_steward.policy_receipts_v1 AS receipt
+              JOIN unnest((SELECT receipt_ids
+                           FROM v050_pending_identity_baseline)) AS original(receipt_id)
+                USING (receipt_id)), '[]'::jsonb) THEN
+        RAISE EXCEPTION 'pending publication retry changed exact policy request or attempt identities';
+    END IF;
+END
+$pending_publication_no_resend$;
+SELECT 'v0.50 accepted controls stay pending after publication failure without resend: PASS' AS result;
+
+CREATE TEMP TABLE v048_attempt_baseline AS
+SELECT COALESCE((
+           SELECT jsonb_agg(to_jsonb(request)
+                            ORDER BY request.binding_id, request.request_key)
+           FROM pgreact_mdm.intent_requests AS request
+           JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+           WHERE binding.entity_name = 'policy_qualification'), '[]'::jsonb)
+           AS request_identity,
+       COALESCE((
+           SELECT jsonb_agg(to_jsonb(attempt)
+                            ORDER BY attempt.episode_id, attempt.attempt_no)
+           FROM pgreact_mdm.intent_attempts AS attempt
+           JOIN pgreact_mdm.policy_intent_bindings AS binding USING (binding_id)
+           WHERE binding.entity_name = 'policy_qualification'), '[]'::jsonb)
+           AS attempt_identity;
+
 DO $source_update$
 DECLARE affected integer;
 BEGIN
@@ -1579,6 +1891,10 @@ BEGIN
     END IF;
 END
 $source_update$;
+
+DROP TRIGGER v050_reject_receipt_publication
+    ON mdm_steward.policy_receipt_publications_v1;
+DROP FUNCTION public.v050_reject_receipt_publication();
 SET SESSION AUTHORIZATION mdm_legacy_login;
 SET ROLE mdm_legacy_administrator;
 DO $observation$
@@ -1592,8 +1908,68 @@ BEGIN
 END
 $observation$;
 RESET ROLE;
-
 RESET SESSION AUTHORIZATION;
+
+DO $pending_publication_recovered$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM v050_expected_pending_receipts AS expected
+        LEFT JOIN mdm_steward.policy_receipts_v1 AS receipt USING (receipt_id)
+        LEFT JOIN mdm_steward.policy_cases_v1 AS case_row
+          ON case_row.case_key = expected.case_key
+        LEFT JOIN mdm_steward.policy_receipt_publications_v1 AS publication
+          USING (receipt_id)
+        WHERE receipt.receipt_id IS NULL
+           OR case_row.case_key IS NULL
+           OR to_jsonb(receipt) IS DISTINCT FROM expected.receipt_state
+           OR publication.receipt_id IS NULL
+           OR to_jsonb(publication) IS DISTINCT FROM pg_catalog.jsonb_build_object(
+                'receipt_id', expected.receipt_id,
+                'case_key', expected.case_key,
+                'action_revision', expected.action_revision,
+                'publication_revision', case_row.publication_revision,
+                'publication_state', CASE
+                    WHEN (receipt.action = 'ASSIGN_QUEUE'
+                          AND receipt.control ->> 'assigned_queue'
+                              IS NOT DISTINCT FROM case_row.assigned_queue::text)
+                      OR (receipt.action = 'SET_DUE_AT'
+                          AND (receipt.control ->> 'due_at')::timestamptz
+                              IS NOT DISTINCT FROM case_row.due_at)
+                      OR (receipt.action = 'ESCALATE'
+                          AND (receipt.control ->> 'escalation_level')::integer
+                              = case_row.escalation_level)
+                    THEN 'PUBLISHED'
+                    ELSE 'SUPERSEDED_BEFORE_PUBLICATION'
+                END,
+                'observed_at', case_row.last_observed_at)) THEN
+        RAISE EXCEPTION 'successful MDM refresh did not retain exact receipt publication correlations';
+    END IF;
+END
+$pending_publication_recovered$;
+SET SESSION AUTHORIZATION mdm_test_login;
+SET ROLE :"escalation_entity_execution_role";
+DO $pending_receipts_published$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM v050_expected_pending_receipts AS expected
+        LEFT JOIN pgreact_mdm.operational_activity_v1 AS activity
+          ON activity.mdm_receipt_id = expected.receipt_id
+        WHERE activity.mdm_receipt_id IS NULL
+           OR activity.mdm_publication_state NOT IN (
+                'PUBLISHED', 'SUPERSEDED_BEFORE_PUBLICATION')
+           OR activity.mdm_publication_revision IS NULL
+           OR activity.mdm_publication_observed_at IS NULL
+           OR activity.mdm_pending_publication_age IS NOT NULL) THEN
+        RAISE EXCEPTION 'successful MDM publication did not resolve the operator pending state';
+    END IF;
+END
+$pending_receipts_published$;
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+SELECT 'v0.50 accepted-control publication state resolves after successful MDM refresh: PASS' AS result;
+
 SET SESSION AUTHORIZATION mdm_m2_runner;
 DO $observation_refresh$
 DECLARE
