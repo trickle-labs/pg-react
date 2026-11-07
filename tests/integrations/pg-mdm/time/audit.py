@@ -5805,12 +5805,8 @@ def main():
             "name": "stale-vs-current-human-token", "result": "passed"
         })
 
-        # Reuse MDM's real resolution/publication recurrence fixture, where
-        # the same issue_key was reopened as a different case_key. The original
-        # applied-level history must remain scoped to its own occurrence, not
-        # block a permitted first level-2 application in the new occurrence.
-        # This test invokes the real MDM human/worker APIs: it does not claim
-        # React's ordinary managed worker discovered the new case.
+        # Reuse MDM's real resolution/publication recurrence fixture. The
+        # managed source can already have applied level 2 to the new occurrence.
         before_recurrence = json.loads(sql(quiescence_sql))
         fixture("recurrence-independent",
                 "/work/tests/integrations/pg-mdm/time/recurrence-independent.sql",
@@ -5823,21 +5819,19 @@ def main():
                          "rule_work", "rule_attempts",
                          "business_source", "technical_source"):
             assert after_recurrence[category] == before_recurrence[category], category
-        assert len(after_recurrence["mdm_receipts"]) == len(before_recurrence["mdm_receipts"]) + 1
+        receipt_delta = 0 if recurrence["preexisting_level2"] else 1
+        assert len(after_recurrence["mdm_receipts"]) == len(before_recurrence["mdm_receipts"]) + receipt_delta
         assert len(after_recurrence["cases"]) == len(before_recurrence["cases"])
         assert all(before == after for before, after in zip(
             before_recurrence["cases"], after_recurrence["cases"])
-            if before["case_key"] != recurrence["new_case_key"])
+            if recurrence["preexisting_level2"] or
+            before["case_key"] != recurrence["new_case_key"])
         observations["recurrence_independent"] = recurrence
         observations["checks"].append({
             "name": "recurrence-new-occurrence", "result": "passed"
         })
-        # After the real recurrence's authorized MDM control, keep the
-        # ordinary managed worker running. Because the enrolled React rule
-        # selects a different case_key, a subsequent managed poll must neither
-        # replay the new occurrence nor mutate unrelated old cases/sources.
-        # This is an observation-only quiescence test, not proof that the
-        # React scheduler autonomously enrolls every new MDM occurrence.
+        # Keep the ordinary managed worker running and verify later cycles do
+        # not replay work or mutate the durable state captured above.
         recurrence_status = json.loads(sql("SELECT pgreact_api.managed_status()"))
         process = recurrence_status.get("process") or {}
         assert process.get("state") == "ready" and process.get("heartbeat_at"), recurrence_status
