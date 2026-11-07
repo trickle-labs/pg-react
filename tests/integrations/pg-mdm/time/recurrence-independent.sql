@@ -64,6 +64,151 @@ $pair$;
 SELECT * FROM s1_recurrence.authoritative_pair
 \gset occurrence_
 
+SELECT count(*) = 1 AS preexisting_level2
+FROM mdm_steward.policy_receipts_v1
+WHERE case_key = :occurrence_new_key AND action = 'ESCALATE'
+  AND outcome = 'APPLIED_CONTROL' AND control->>'escalation_level' = '2'
+\gset
+\if :preexisting_level2
+CREATE TABLE s1_recurrence.old_case AS
+SELECT pg_catalog.to_jsonb(c) AS vector FROM mdm_steward.policy_cases_v1 c
+WHERE case_key = :occurrence_old_key;
+CREATE TABLE s1_recurrence.old_receipts AS
+SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r)
+       ORDER BY created_at,receipt_id),'[]'::jsonb) AS vector
+FROM mdm_steward.policy_receipts_v1 r WHERE case_key = :occurrence_old_key;
+CREATE TABLE s1_recurrence.before_new AS
+SELECT pg_catalog.to_jsonb(c) AS vector FROM mdm_steward.policy_cases_v1 c
+WHERE case_key = :occurrence_new_key;
+CREATE TABLE s1_recurrence.before_cases AS
+SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(c) ORDER BY case_key),'[]'::jsonb) AS vector
+FROM mdm_steward.policy_cases_v1 c;
+CREATE TABLE s1_recurrence.before_receipts AS
+SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r)
+       ORDER BY created_at,receipt_id),'[]'::jsonb) AS vector
+FROM mdm_steward.policy_receipts_v1 r;
+
+-- The ordinary managed path may already have applied this occurrence's level 2.
+SELECT receipt_id::text AS receipt_id, binding_id::text AS binding_id,
+       binding_version, encode(request_key,'hex') AS request_key,
+       request_body::text AS request_body, request_body->>'action' AS action,
+       (request_body->'arguments')::text AS arguments,
+       request_body->>'expected_review_version' AS review_version,
+       request_body->>'expected_definition_version' AS definition_version,
+       request_body->>'expected_publication_revision' AS publication_revision,
+       request_body->>'expected_stewardship_epoch' AS stewardship_epoch,
+       request_body->>'expected_evidence_basis_digest' AS evidence_digest,
+       request_body->>'expected_action_revision' AS expected_action_revision,
+       request_body->>'expected_policy_digest' AS policy_digest,
+       request_body->>'policy_revision' AS policy_revision,
+       request_body->>'evaluation_ref' AS evaluation_ref,
+       request_body->>'work_ref' AS work_ref,
+       encode(request_digest,'hex') AS request_digest,
+       outcome,reason_code,case_key,action_revision,
+       control::text AS control,
+       resulting_publication_revision,
+       actor,session_role_name,selected_role_name
+FROM mdm_steward.policy_receipts_v1
+WHERE case_key = :occurrence_new_key AND action = 'ESCALATE'
+  AND outcome = 'APPLIED_CONTROL' AND control->>'escalation_level' = '2'
+ORDER BY created_at,receipt_id LIMIT 1
+\gset applied_
+
+SET SESSION AUTHORIZATION mdm_s1_runtime;
+SET ROLE pgreact_mdm_worker;
+SELECT receipt_id,outcome,reason_code,case_key,action_revision,control,
+       resulting_publication_revision
+FROM mdm_steward.submit_policy_intent(
+    :'applied_binding_id'::uuid,decode(:'applied_request_key','hex'),
+    :occurrence_new_key,:'applied_action',:'applied_arguments'::jsonb,
+    :applied_review_version,:applied_definition_version,
+    :applied_publication_revision,:applied_stewardship_epoch,
+    decode(:'applied_evidence_digest','hex'),:applied_expected_action_revision,
+    decode(:'applied_policy_digest','hex'),:'applied_policy_revision',
+    :'applied_evaluation_ref',:'applied_work_ref')
+\gset replay1_
+SELECT receipt_id,outcome,reason_code,case_key,action_revision,control,
+       resulting_publication_revision
+FROM mdm_steward.submit_policy_intent(
+    :'applied_binding_id'::uuid,decode(:'applied_request_key','hex'),
+    :occurrence_new_key,:'applied_action',:'applied_arguments'::jsonb,
+    :applied_review_version,:applied_definition_version,
+    :applied_publication_revision,:applied_stewardship_epoch,
+    decode(:'applied_evidence_digest','hex'),:applied_expected_action_revision,
+    decode(:'applied_policy_digest','hex'),:'applied_policy_revision',
+    :'applied_evaluation_ref',:'applied_work_ref')
+\gset replay2_
+RESET ROLE;
+RESET SESSION AUTHORIZATION;
+
+SELECT :'applied_outcome'='APPLIED_CONTROL'
+ AND :'applied_reason_code'='CONTROL_APPLIED'
+ AND :applied_case_key=:occurrence_new_key
+ AND :applied_action_revision=:applied_expected_action_revision+1
+ AND (:'applied_control'::jsonb->>'escalation_level')='2'
+ AND :'replay1_receipt_id'::uuid=:'applied_receipt_id'::uuid
+ AND :'replay2_receipt_id'::uuid=:'applied_receipt_id'::uuid
+ AND :'replay1_outcome'=:'applied_outcome'
+ AND :'replay2_outcome'=:'applied_outcome'
+ AND :'replay1_reason_code'=:'applied_reason_code'
+ AND :'replay2_reason_code'=:'applied_reason_code'
+ AND :replay1_action_revision=:applied_action_revision
+ AND :replay2_action_revision=:applied_action_revision
+ AND :'replay1_control'::jsonb=:'applied_control'::jsonb
+ AND :'replay2_control'::jsonb=:'applied_control'::jsonb
+ AND :'replay1_resulting_publication_revision'=''
+ AND :'replay2_resulting_publication_revision'=''
+ AND :'applied_resulting_publication_revision'=''
+ AND :'applied_request_digest'=pg_catalog.encode(
+       pgreact_mdm.intent_request_digest(:'applied_request_body'::jsonb),'hex')
+ AND :'applied_actor'='pgreact_mdm_worker'
+ AND :'applied_session_role_name'='mdm_s1_runtime'
+ AND :'applied_selected_role_name'='pgreact_mdm_worker'
+ AND (SELECT pg_catalog.to_jsonb(c)=(SELECT vector FROM s1_recurrence.before_new)
+      FROM mdm_steward.policy_cases_v1 c WHERE case_key=:occurrence_new_key)
+ AND (SELECT pg_catalog.to_jsonb(c)=(SELECT vector FROM s1_recurrence.old_case)
+      FROM mdm_steward.policy_cases_v1 c WHERE case_key=:occurrence_old_key)
+ AND (SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r)
+            ORDER BY created_at,receipt_id),'[]'::jsonb)
+      FROM mdm_steward.policy_receipts_v1 r WHERE case_key=:occurrence_old_key)
+      = (SELECT vector FROM s1_recurrence.old_receipts)
+ AND (SELECT vector FROM s1_recurrence.before_cases)
+      = (SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(c) ORDER BY case_key),'[]'::jsonb)
+         FROM mdm_steward.policy_cases_v1 c)
+ AND (SELECT vector FROM s1_recurrence.before_receipts)
+      = (SELECT COALESCE(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r)
+            ORDER BY created_at,receipt_id),'[]'::jsonb)
+         FROM mdm_steward.policy_receipts_v1 r)
+ AND (SELECT count(*)=1 FROM mdm_steward.policy_receipts_v1
+      WHERE case_key=:occurrence_new_key AND action='ESCALATE'
+        AND outcome='APPLIED_CONTROL' AND control->>'escalation_level'='2')
+ AS recurrence_reuse_exact_ok
+\gset
+\if :recurrence_reuse_exact_ok
+\else
+DO $precondition$
+BEGIN
+    RAISE EXCEPTION 'MDM recurrence fixture could not replay the existing level-2 receipt exactly';
+END
+$precondition$;
+\endif
+
+CREATE TABLE s1_recurrence.evidence AS SELECT jsonb_build_object(
+ 'old_case_key',:occurrence_old_key,'new_case_key',:occurrence_new_key,
+ 'old_case',(SELECT vector FROM s1_recurrence.old_case),
+ 'new_before',(SELECT vector FROM s1_recurrence.before_new),
+ 'new_prepared',(SELECT (pg_catalog.to_jsonb(c)-'action_revision'-'escalation_level')
+     || jsonb_build_object('action_revision',:applied_expected_action_revision,
+                           'escalation_level',1)
+     FROM mdm_steward.policy_cases_v1 c WHERE c.case_key=:occurrence_new_key),
+ 'new_after',(SELECT vector FROM s1_recurrence.before_new),
+ 'receipt',(SELECT pg_catalog.to_jsonb(r) FROM mdm_steward.policy_receipts_v1 r
+            WHERE receipt_id=:'applied_receipt_id'::uuid),
+ 'same_key_replay',:'replay2_receipt_id',
+ 'old_receipts_unchanged',true,'preexisting_level2',true,'exact',true
+) AS vector;
+\echo PASS: existing recurrence level-2 receipt replays exactly; original occurrence unchanged
+\else
 SELECT :occurrence_old_key <> :occurrence_new_key
    AND :occurrence_new_key > :occurrence_old_key
    AND :occurrence_old_occurrence = 1
@@ -79,7 +224,11 @@ SELECT :occurrence_old_key <> :occurrence_new_key
 \gset
 \if :recurrence_precondition_ok
 \else
-\quit 1
+DO $precondition$
+BEGIN
+    RAISE EXCEPTION 'MDM recurrence fixture precondition failed';
+END
+$precondition$;
 \endif
 
 SELECT b.binding_id::text AS id, b.binding_version AS version,
@@ -134,7 +283,11 @@ SELECT :prepared_action_revision = :occurrence_action_revision + 1
 \gset
 \if :recurrence_prepared_exact_ok
 \else
-\quit 1
+DO $precondition$
+BEGIN
+    RAISE EXCEPTION 'MDM recurrence fixture could not prepare the new occurrence exactly';
+END
+$precondition$;
 \endif
 
 -- A genuinely new occurrence must be eligible independently of the
@@ -223,7 +376,11 @@ SELECT :'applied_outcome'='APPLIED_CONTROL'
 \gset
 \if :recurrence_independent_exact_ok
 \else
-\quit 1
+DO $precondition$
+BEGIN
+    RAISE EXCEPTION 'MDM recurrence fixture did not apply and replay the new occurrence exactly';
+END
+$precondition$;
 \endif
 
 CREATE TABLE s1_recurrence.evidence AS SELECT jsonb_build_object(
@@ -236,6 +393,8 @@ CREATE TABLE s1_recurrence.evidence AS SELECT jsonb_build_object(
      WHERE request_key=decode(repeat('fa',32),'hex') AND binding_id=:'binding_id'::uuid),
  'same_key_replay',:'replay_receipt_id',
  'old_receipts_unchanged',true,
+ 'preexisting_level2',false,
  'exact',true
 ) AS vector;
 \echo PASS: genuine same-issue new MDM occurrence independently applies level 2, original occurrence unchanged
+\endif
