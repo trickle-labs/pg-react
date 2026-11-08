@@ -29,6 +29,14 @@ GRANT CONNECT ON DATABASE s1_idle TO mdm_s1_runtime;
 SELECT pgreact_api.configure_roles('mdm_s1_runner', 's1_operator',
     'pgreact_mdm_worker', 's1_reader', 's1_advanced_reader');
 SELECT pgreact_mdm.configure_intent_deployer('mdm_s1_runner');
+DO $assert_escalation_clock_privilege$
+BEGIN
+    IF NOT pg_catalog.has_function_privilege(
+        'mdm_s1_runner', 'pgreact_mdm.ensure_intent_escalation_clock()', 'EXECUTE') THEN
+        RAISE EXCEPTION 'configured deployer must be able to install the M31 escalation clock';
+    END IF;
+END
+$assert_escalation_clock_privilege$;
 CREATE SCHEMA s1_audit;
 CREATE TABLE s1_audit.source (
     case_key bigint PRIMARY KEY,
@@ -265,6 +273,8 @@ BEGIN
 
     IF stream_owner <> 'mdm_s1_runner'
        OR NOT pg_catalog.has_table_privilege('pgreact_mdm_worker', stream_relation, 'MAINTAIN')
+       OR NOT pg_catalog.has_table_privilege('pgreact_mdm_worker',
+            'pgreact_mdm.intent_deployer_policy_cases_v1', 'SELECT')
        OR pg_catalog.has_table_privilege('pgreact_mdm_worker', 's1_audit.source', 'SELECT')
        OR pg_catalog.has_schema_privilege('pgreact_mdm_worker', 's1_audit', 'USAGE') THEN
         RAISE EXCEPTION 'worker refresh grant must preserve stream owner and withhold source access';

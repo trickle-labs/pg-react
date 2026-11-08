@@ -1498,6 +1498,7 @@ def main():
     logical_restore = sys.argv[3:] == ["--logical-restore"] or logical_restore_react_only
     clean_clone = sys.argv[3:] == ["--clean-clone"]
     direct_clone = sys.argv[3:] == ["--clean-clone-direct"]
+    joint_demo = sys.argv[3:] == ["--joint-demo"]
     autonomous_recurrence = sys.argv[3:] == ["--autonomous-recurrence"]
     claimed_work_crash = sys.argv[3:] == ["--claimed-work-crash"]
     claimed_work_transport_loss = sys.argv[3:] == ["--claimed-work-transport-loss"]
@@ -1515,7 +1516,7 @@ def main():
     history_retention = sys.argv[3:] == ["--history-retention"]
     managed_admission_32 = sys.argv[3:] == ["--managed-admission-32"]
     managed_fairness = sys.argv[3:] == ["--managed-fairness"]
-    if sys.argv[3:] and not (maintenance or compatibility_only or outage_mode or multi_outage or pending_recovery or logical_restore or clean_clone or direct_clone or autonomous_recurrence or claimed_work or bounded_producer or temporal_limit or dispatcher_recovery or statement_time_retry or binding_ddl_lock or history_retention or managed_admission_32 or managed_fairness):
+    if sys.argv[3:] and not (maintenance or compatibility_only or outage_mode or multi_outage or pending_recovery or logical_restore or clean_clone or direct_clone or joint_demo or autonomous_recurrence or claimed_work or bounded_producer or temporal_limit or dispatcher_recovery or statement_time_retry or binding_ddl_lock or history_retention or managed_admission_32 or managed_fairness):
         raise ValueError("unsupported audit mode after IMAGE OUTPUT")
     output = Path(output).resolve()
     root = Path(__file__).resolve().parents[4]
@@ -4253,6 +4254,8 @@ def main():
                                set((root / "tests/integrations/pg-mdm/time").glob("*")) |
                                {root / "sql/pg_react--0.46.1.sql",
                                 root / "sql/pg_react--0.46.0--0.46.1.sql",
+                                root / "sql/pg_react--0.46.2.sql",
+                                root / "sql/pg_react--0.46.1--0.46.2.sql",
                                 root / "integrations/pg-mdm/bounded_refresh_producer.py",
                                 root / "integrations/pg-mdm/retention_guard_monitor.py",
                                 root / "pg_react.control"})
@@ -4270,12 +4273,22 @@ def main():
                            "-c", "pg_react.worker_role=mdm_s1_runtime"]
                           if statement_time_retry else [])
         platform_args = ["--platform", "linux/" + observations["image_architecture"]]
-        binding_lock_mounts = ([
-            "--volume", str(root / "sql/pg_react--0.46.1.sql") +
-            ":/usr/share/postgresql/18/extension/pg_react--0.46.1.sql:ro",
-            "--volume", str(root / "sql/pg_react--0.46.0--0.46.1.sql") +
-            ":/usr/share/postgresql/18/extension/pg_react--0.46.0--0.46.1.sql:ro",
-        ] if binding_ddl_lock or logical_restore or managed_fairness or claimed_work else [])
+        if joint_demo:
+            binding_lock_mounts = [
+                "--volume", str(root / "sql/pg_react--0.46.2.sql") +
+                ":/usr/share/postgresql/18/extension/pg_react--0.46.2.sql:ro",
+                "--volume", str(root / "sql/pg_react--0.46.1.sql") +
+                ":/usr/share/postgresql/18/extension/pg_react--0.46.1.sql:ro",
+                "--volume", str(root / "sql/pg_react--0.46.1--0.46.2.sql") +
+                ":/usr/share/postgresql/18/extension/pg_react--0.46.1--0.46.2.sql:ro",
+            ]
+        else:
+            binding_lock_mounts = ([
+                "--volume", str(root / "sql/pg_react--0.46.1.sql") +
+                ":/usr/share/postgresql/18/extension/pg_react--0.46.1.sql:ro",
+                "--volume", str(root / "sql/pg_react--0.46.0--0.46.1.sql") +
+                ":/usr/share/postgresql/18/extension/pg_react--0.46.0--0.46.1.sql:ro",
+            ] if binding_ddl_lock or logical_restore or managed_fairness or claimed_work else [])
         network_args = (["--network", "bridge", "--add-host", "host.docker.internal:host-gateway",
                          "--publish", "127.0.0.1::5432"] if claimed_work_transport_loss or bounded_producer
                         else ["--network", "none"])
@@ -4776,6 +4789,314 @@ def main():
             observations["checks"].append({"name": "fresh-and-upgrade-concurrent-global-claim-fairness",
                                            "result": "passed"})
             print("PASS: managed-cycle ordering, concurrent workers and global conflict-aware claim ordering passed", flush=True)
+            return
+        if joint_demo:
+            fixture("autonomous-bootstrap", "/work/tests/integrations/pg-mdm/time/autonomous-bootstrap.sql", "postgres")
+            fixture("idle-setup", "/work/tests/integrations/pg-mdm/time/idle.sql", "s1_idle",
+                    ("-v", "multi=false", "-v", "VERBOSITY=verbose"))
+            fresh_version = sql("SELECT extversion FROM pg_extension WHERE extname='pg_react'", "s1_idle")
+            assert fresh_version == "0.46.2", fresh_version
+            fresh_claim_scope = fixture("claim-scope-fresh", "/work/tests/v0.46.2-claim-scope.sql", "s1_idle")
+            assert fresh_claim_scope == "v0.46.2 M31 scoped-claim worker parameter passed\n", fresh_claim_scope
+            command("docker", "exec", container, "createdb", "-U", "postgres", "s1_claim_scope_upgrade")
+            sql("CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react VERSION '0.46.1'; "
+                "ALTER EXTENSION pg_react UPDATE TO '0.46.2'", "s1_claim_scope_upgrade")
+            upgrade_claim_scope = fixture("claim-scope-upgrade", "/work/tests/v0.46.2-claim-scope.sql",
+                                          "s1_claim_scope_upgrade")
+            assert upgrade_claim_scope == "v0.46.2 M31 scoped-claim worker parameter passed\n", upgrade_claim_scope
+            observations["claim_scope_fresh_and_upgrade"] = {
+                "fresh_install_version": fresh_version,
+                "fresh_install_assertion": fresh_claim_scope,
+                "adjacent_upgrade": "0.46.1 -> 0.46.2",
+                "upgraded_assertion": upgrade_claim_scope,
+                "result": "passed",
+            }
+            observations["checks"].append({"name": "0.46.2 fresh-install-and-adjacent-upgrade", "result": "passed"})
+            cohort_profile_path = root / "tests/integrations/pg-mdm/time/issue5-synthetic-profile.json"
+            cohort_profile = json.loads(cohort_profile_path.read_text())
+            observations["joint_demo_cohort_profile"] = cohort_profile
+            observations["joint_demo_cohort_profile_sha256"] = hashlib.sha256(
+                cohort_profile_path.read_bytes()).hexdigest()
+            observations["joint_demo_cohort_fixture_sha256"] = {
+                path: hashlib.sha256((root / path).read_bytes()).hexdigest()
+                for path in ("showcase/mdm-stewardship/README.md",
+                             "showcase/mdm-stewardship/01-fixture.sql",
+                             "showcase/mdm-stewardship/02-read-only-package.sql")
+            }
+            fixture("issue5-shadow-cohort-fixture",
+                    "/work/showcase/mdm-stewardship/01-fixture.sql", "s1_idle")
+            shadow_started = time.monotonic()
+            shadow_output = fixture("issue5-shadow-cohort-comparison",
+                    "/work/showcase/mdm-stewardship/02-read-only-package.sql", "s1_idle")
+            shadow_comparison = json.loads(shadow_output.splitlines()[-1])
+            shadow_seconds = time.monotonic() - shadow_started
+            coverage = shadow_comparison["coverage"]
+            assert shadow_comparison["state"] == "complete" and shadow_comparison["read_only"]
+            assert coverage["population_id"] == "fixture-all"
+            assert (coverage["expected_count"], coverage["observed_count"], coverage["partial"]) == (7, 7, False)
+            assert [row["case_key"] for row in shadow_comparison["rows"]] == list(range(1, 8))
+            assert shadow_seconds <= cohort_profile["limits"]["shadow_package_and_comparison_seconds_max"], shadow_seconds
+            observations["joint_demo_shadow_comparison"] = {
+                "result": shadow_comparison,
+                "elapsed_seconds": shadow_seconds,
+                "canonical_result_sha256": hashlib.sha256(json.dumps(
+                    shadow_comparison, sort_keys=True, separators=(",", ":")).encode()).hexdigest(),
+            }
+            observations["joint_demo_resource_start"] = json.loads(sql(
+                "SELECT jsonb_build_object('database_size_bytes',pg_database_size(current_database()),"
+                "'wal_lsn',pg_current_wal_insert_lsn()::text,'captured_at',clock_timestamp())"))
+            setup_output = fixture("issue5-joint-demo-setup",
+                "/work/tests/integrations/pg-mdm/time/issue5-joint-demo.sql", "s1_idle")
+            setup = json.loads(setup_output.splitlines()[-1])
+            observations["joint_demo_setup"] = setup
+            observations["joint_demo_fixture_sha256"] = hashlib.sha256(
+                (root / "tests/integrations/pg-mdm/time/issue5-joint-demo.sql").read_bytes()
+            ).hexdigest()
+            binding_id = setup["binding_id"]
+            case_key = setup["case_key"]
+            observations["joint_demo_runtime_after_deploy"] = json.loads(sql(
+                "SELECT jsonb_build_object("
+                "'rules',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY r.rule_name),'[]'::jsonb) "
+                "FROM pgreact.rules r WHERE r.rule_name LIKE 's1-issue5-joint-%'),"
+                "'matches',(SELECT COALESCE(jsonb_agg(to_jsonb(m) ORDER BY m.rule_name,m.activation_id),'[]'::jsonb) "
+                "FROM pgreact.matches m WHERE m.rule_name LIKE 's1-issue5-joint-%'),"
+                "'work',(SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY w.name,w.work_id),'[]'::jsonb) "
+                "FROM pgreact.work w WHERE w.name LIKE 's1-issue5-joint-%'),"
+                "'health',(SELECT COALESCE(jsonb_agg(to_jsonb(h) ORDER BY h.code,h.target),'[]'::jsonb) FROM pgreact.health h),"
+                "'managed_status',pgreact_api.managed_status(),"
+                "'deployer_case',(SELECT to_jsonb(c) FROM pgreact_mdm.intent_deployer_policy_cases_v1 c "
+                "WHERE c.case_key=" + str(case_key) + "))"))
+            state_query = (
+                "SELECT jsonb_build_object("
+                "'case',(SELECT to_jsonb(c) FROM mdm_steward.policy_cases_v1 c WHERE c.case_key=" + str(case_key) + "),"
+                "'review',(SELECT to_jsonb(r) FROM mdm_internal.reviews r WHERE r.review_id='" + setup["review_id"] + "'::uuid),"
+                "'source',(SELECT COALESCE(jsonb_agg(to_jsonb(s) ORDER BY s.id),'[]'::jsonb) FROM public.issue5_joint_source s),"
+                "'bindings',(SELECT COALESCE(jsonb_agg(to_jsonb(b) ORDER BY b.binding_id),'[]'::jsonb) "
+                "FROM pgreact_mdm.policy_intent_bindings b WHERE b.entity_name='issue5_joint'),"
+                "'requests',(SELECT COALESCE(jsonb_agg(jsonb_build_object("
+                "'work_ref',i.work_ref,'request_body',i.request_body,"
+                "'request_bytes_hex',encode(convert_to(pgreact_mdm.canonical_json(i.request_body),'UTF8'),'hex'),"
+                "'request_key_hex',encode(i.request_key,'hex'),"
+                "'request_digest_hex',encode(i.request_digest,'hex'),"
+                "'created_at',i.created_at,'lifecycle_generation',i.lifecycle_generation,"
+                "'expected_action_revision',i.action_revision) ORDER BY i.created_at,i.work_ref),'[]'::jsonb) "
+                "FROM pgreact_mdm.intent_requests i WHERE i.case_key=" + str(case_key) + "),"
+                "'receipts',(SELECT COALESCE(jsonb_agg(to_jsonb(r) ORDER BY r.created_at,r.receipt_id),'[]'::jsonb) "
+                "FROM mdm_steward.policy_receipts_v1 r WHERE r.case_key=" + str(case_key) + "),"
+                "'intent_attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY a.episode_id,a.attempt_no),'[]'::jsonb) "
+                "FROM pgreact_mdm.intent_attempts a WHERE a.case_key=" + str(case_key) + "),"
+                "'react_work',(SELECT COALESCE(jsonb_agg(to_jsonb(w) ORDER BY w.name,w.work_id),'[]'::jsonb) "
+                "FROM pgreact.work w WHERE w.name LIKE 's1-issue5-joint-%'),"
+                "'react_attempts',(SELECT COALESCE(jsonb_agg(to_jsonb(a) ORDER BY a.started_at,a.execution_id),'[]'::jsonb) "
+                "FROM pgreact.attempts a WHERE a.name LIKE 's1-issue5-joint-%'),"
+                "'policy_set_runtime_barriers',(SELECT COALESCE(jsonb_agg(jsonb_build_object("
+                "'code',b.code,'details',b.details,'cleared_at',b.cleared_at) ORDER BY b.created_at),'[]'::jsonb) "
+                "FROM pgreact_internal.policy_set_runtime_barriers b "
+                "JOIN pgreact_internal.policy_set_versions v USING (policy_set_version_id) "
+                "JOIN pgreact_internal.policy_sets s USING (policy_set_id) "
+                "WHERE s.set_name IN ('s1-issue5-joint-live','s1-issue5-joint-escalation')) ,"
+                "'policy_set_scope_support_count',(SELECT count(*) FROM pgreact_internal.policy_set_scope_supports support "
+                "JOIN pgreact_internal.policy_set_versions v USING (policy_set_version_id) "
+                "JOIN pgreact_internal.policy_sets s USING (policy_set_id) "
+                "WHERE s.set_name IN ('s1-issue5-joint-live','s1-issue5-joint-escalation')) ,"
+                "'publications',(SELECT COALESCE(jsonb_agg(jsonb_build_object("
+                "'revision',p.publication_revision,'digest',encode(p.result_digest,'hex'),"
+                "'published_at',p.published_at) ORDER BY p.publication_revision),'[]'::jsonb) "
+                "FROM mdm_internal.publications p JOIN mdm_internal.entities e USING(entity_id) "
+                "WHERE e.entity_name='issue5_joint'))"
+            )
+
+            def joint_state():
+                return json.loads(sql(state_query))
+
+            def applied_actions(state):
+                return [receipt["request_body"]["action"] for receipt in state["receipts"]
+                        if receipt["outcome"] == "APPLIED_CONTROL"]
+
+            managed_cycles = []
+
+            def run_joint_cycle(schedule=True):
+                if schedule:
+                    sql("SELECT pgreact_api.run()")
+                if "joint_demo_worker_privileges" not in observations:
+                    observations["joint_demo_worker_privileges"] = json.loads(sql(
+                        "SET SESSION AUTHORIZATION mdm_s1_runtime; SET ROLE pgreact_mdm_worker; "
+                        "SELECT jsonb_build_object('session_user',session_user,'current_user',current_user,"
+                        "'source_select',has_table_privilege(session_user,"
+                        "'pgreact_mdm.intent_deployer_policy_cases_v1','SELECT'))"))
+                result = sql("SET SESSION AUTHORIZATION mdm_s1_runtime; SET ROLE pgreact_mdm_worker; "
+                             "SELECT pgreact_api.managed_cycle()")
+                managed_cycles.append(json.loads(result) if result.startswith("{") else result)
+                observations["joint_demo_managed_cycles"] = managed_cycles
+
+            action_deadline = time.monotonic() + 30
+            while time.monotonic() < action_deadline:
+                run_joint_cycle()
+                state = joint_state()
+                actions = applied_actions(state)
+                if "ASSIGN_QUEUE" in actions and "SET_DUE_AT" in actions:
+                    break
+                time.sleep(0.25)
+            else:
+                raise AssertionError({"error": "React did not apply both queue and due controls", "state": state})
+            assert state["case"]["status"] == "open", state
+            assert state["case"]["assigned_queue"] == "priority_review", state["case"]
+            assert state["case"]["due_at"], state["case"]
+            assert len(state["publications"]) == 1, state["publications"]
+            observations["joint_demo_after_queue_due"] = state
+            escalation_setup_output = fixture("issue5-joint-escalation",
+                "/work/tests/integrations/pg-mdm/time/issue5-joint-escalation.sql", "s1_idle",
+                ("-v", "reason_code=" + setup["reason_code"],
+                 "-v", "case_key=" + str(case_key),
+                 "-v", "old_binding_id=" + binding_id,
+                 "-v", "old_binding_version=" + str(setup["binding"]["binding_version"])))
+            escalation_setup = json.loads(escalation_setup_output.splitlines()[-1])
+            observations["joint_demo_escalation_setup"] = escalation_setup
+            state = joint_state()
+            new_binding = escalation_setup["binding"]
+            assert new_binding["binding_id"] != binding_id, escalation_setup
+            assert new_binding["allowed_actions"] == ["ESCALATE"], new_binding
+            source_before_time = state["source"]
+            opening_publication = state["publications"][-1]
+            due_at = timestamp(state["case"]["due_at"])
+            now = datetime.datetime.now(datetime.timezone.utc)
+            assert due_at > now, {"error": "React deadline was not future-dated", "due_at": due_at.isoformat()}
+            observations["joint_demo_before_time_advance"] = state
+            while datetime.datetime.now(datetime.timezone.utc) <= due_at:
+                run_joint_cycle()
+                time.sleep(min(1.0, max((due_at - datetime.datetime.now(datetime.timezone.utc)).total_seconds(), 0.05)))
+            escalation_deadline = time.monotonic() + 30
+            while time.monotonic() < escalation_deadline:
+                run_joint_cycle()
+                state = joint_state()
+                escalations = [receipt for receipt in state["receipts"]
+                               if receipt["request_body"]["action"] == "ESCALATE"
+                               and receipt["outcome"] == "APPLIED_CONTROL"]
+                if escalations:
+                    break
+                time.sleep(0.25)
+            else:
+                raise AssertionError({"error": "React did not deliver the due escalation", "state": state})
+            assert state["source"] == source_before_time, "MDM source rows changed while managed time advanced"
+            assert len(state["publications"]) == 1 and state["publications"][0] == opening_publication, state["publications"]
+            assert state["case"]["status"] == "open", state["case"]
+            assert state["case"]["escalation_level"] == 1, state["case"]
+            assert len(escalations) == 1 and escalations[0]["request_body"]["arguments"]["level"] == 1, escalations
+            assert {r["request_body"]["action"] for r in state["receipts"]
+                    if r["outcome"] == "APPLIED_CONTROL"} == {"ASSIGN_QUEUE", "SET_DUE_AT", "ESCALATE"}, state["receipts"]
+            observations["joint_demo_after_escalation"] = state
+            actor = json.loads(sql(
+                "SET SESSION AUTHORIZATION mdm_legacy_login; SET ROLE mdm_legacy_administrator; "
+                "SELECT jsonb_build_object('session_user',session_user,'current_user',current_user)"))
+            sql("SET SESSION AUTHORIZATION mdm_legacy_login; SET ROLE mdm_legacy_administrator; "
+                "UPDATE public.issue5_joint_source SET email_address='joint-human-decision@example.test', "
+                "updated_at=statement_timestamp() WHERE id=3")
+            pending_publication = joint_state()
+            assert pending_publication["case"]["status"] == "open", pending_publication["case"]
+            assert pending_publication["publications"] == state["publications"], pending_publication["publications"]
+            refresh_result = json.loads(sql(
+                "SET SESSION AUTHORIZATION mdm_legacy_login; SET ROLE mdm_legacy_administrator; "
+                "SELECT mdm.refresh('issue5_joint','ALLOW')"))
+            final_state = joint_state()
+            review = final_state["review"]
+            assert refresh_result["changed"] is True, refresh_result
+            assert final_state["case"]["status"] == "resolved", final_state["case"]
+            assert len(final_state["publications"]) == 2, final_state["publications"]
+            resolution_publication = final_state["publications"][-1]
+            assert review["resolved_revision"] == resolution_publication["revision"], review
+            assert final_state["case"]["resolved_at"] == resolution_publication["published_at"], final_state["case"]
+            assert resolution_publication["revision"] > opening_publication["revision"], final_state["publications"]
+            observations["joint_demo_human_decision"] = actor
+            observations["joint_demo_managed_cycles"] = managed_cycles
+            observations["joint_demo_pending_refresh"] = pending_publication
+            observations["joint_demo_refresh_result"] = refresh_result
+            observations["joint_demo_after_publication"] = final_state
+            profile_limits = cohort_profile["limits"]
+            initial_publication_at = timestamp(final_state["publications"][0]["published_at"])
+            controls = [receipt for receipt in final_state["receipts"]
+                        if receipt["outcome"] == "APPLIED_CONTROL"]
+            attempts = [attempt for attempt in final_state["intent_attempts"]
+                        if attempt["outcome"] == "APPLIED_CONTROL"]
+            control_latency = max((timestamp(attempt["attempted_at"]) - initial_publication_at).total_seconds()
+                                  for attempt in attempts if attempt["request_body"]["action"] in {"ASSIGN_QUEUE", "SET_DUE_AT"})
+            escalation = next(attempt for attempt in attempts if attempt["request_body"]["action"] == "ESCALATE")
+            escalation_latency = (timestamp(escalation["attempted_at"]) - timestamp(final_state["case"]["due_at"])).total_seconds()
+            human_edit_at = timestamp(next(row["updated_at"] for row in final_state["source"] if row["id"] == 3))
+            publication_latency = (timestamp(resolution_publication["published_at"]) - human_edit_at).total_seconds()
+            assert len(controls) == 3, controls
+            assert control_latency <= profile_limits["queue_and_due_control_seconds_from_publication_max"], control_latency
+            assert 0 <= escalation_latency <= profile_limits["escalation_seconds_after_due_max"], escalation_latency
+            assert 0 <= publication_latency <= profile_limits["human_edit_to_publication_seconds_max"], publication_latency
+            drain_started = time.monotonic()
+            drained_state = final_state
+            while any(work["state"] in {"PENDING", "LEASED"} for work in drained_state["react_work"]):
+                if time.monotonic() - drain_started > profile_limits["pending_jobs_drain_seconds_after_publication_max"]:
+                    raise AssertionError({"error": "React work did not drain within the frozen limit",
+                                          "state": drained_state})
+                run_joint_cycle(schedule=False)
+                drained_state = joint_state()
+            drain_seconds = time.monotonic() - drain_started
+            assert applied_actions(drained_state) == applied_actions(final_state), drained_state["receipts"]
+            quiet_started = time.monotonic()
+            quiet_backlog = []
+            while time.monotonic() - quiet_started < 30:
+                run_joint_cycle(schedule=False)
+                drained_state = joint_state()
+                assert applied_actions(drained_state) == applied_actions(final_state), drained_state["receipts"]
+                assert len(drained_state["publications"]) == 2, drained_state["publications"]
+                pending = sum(work["state"] == "PENDING" for work in drained_state["react_work"])
+                leased = sum(work["state"] == "LEASED" for work in drained_state["react_work"])
+                assert pending <= profile_limits["pending_jobs_peak_max"], drained_state["react_work"]
+                assert leased <= profile_limits["leased_jobs_at_end_max"], drained_state["react_work"]
+                quiet_backlog.append({"pending": pending, "leased": leased})
+                time.sleep(0.5)
+            quiet_seconds = time.monotonic() - quiet_started
+            peak_pending = max((cycle.get("pending_jobs", 0) for cycle in managed_cycles), default=0)
+            pending_at_end = quiet_backlog[-1]["pending"]
+            assert peak_pending <= profile_limits["pending_jobs_peak_max"], peak_pending
+            assert pending_at_end <= profile_limits["pending_jobs_at_end_max"], quiet_backlog
+            assert quiet_backlog[-1]["leased"] <= profile_limits["leased_jobs_at_end_max"], quiet_backlog
+            assert drain_seconds <= profile_limits["pending_jobs_drain_seconds_after_publication_max"], drain_seconds
+            observations["joint_demo_final_state"] = drained_state
+            resource_end = json.loads(sql(
+                "SELECT jsonb_build_object('database_size_bytes',pg_database_size(current_database()),"
+                "'wal_lsn',pg_current_wal_insert_lsn()::text,'captured_at',clock_timestamp())"))
+            wal_bytes = int(sql("SELECT pg_wal_lsn_diff(pg_current_wal_insert_lsn(),'" +
+                                observations["joint_demo_resource_start"]["wal_lsn"] + "'::pg_lsn)::bigint"))
+            database_growth = resource_end["database_size_bytes"] - observations["joint_demo_resource_start"]["database_size_bytes"]
+            assert 0 <= database_growth <= profile_limits["database_growth_bytes_max_inclusive"], database_growth
+            assert 0 <= wal_bytes <= profile_limits["wal_bytes_max_inclusive"], wal_bytes
+            observation_seconds = (timestamp(resource_end["captured_at"]) - initial_publication_at).total_seconds()
+            assert observation_seconds <= cohort_profile["observation_window"]["maximum_seconds"], observation_seconds
+            assert quiet_seconds >= 30, quiet_seconds
+            observations["joint_demo_operating_measurements"] = {
+                "queue_and_due_control_seconds_from_publication_max": control_latency,
+                "escalation_seconds_after_due": escalation_latency,
+                "human_edit_to_publication_seconds": publication_latency,
+                "pending_jobs_peak": peak_pending,
+                "pending_jobs_during_quiescence": quiet_backlog,
+                "pending_jobs_at_end": pending_at_end,
+                "pending_jobs_drain_seconds_after_publication": drain_seconds,
+                "post_publication_quiescence_seconds": quiet_seconds,
+                "observation_window_seconds": observation_seconds,
+                "database_growth_bytes": database_growth,
+                "wal_bytes": wal_bytes,
+                "resource_end": resource_end,
+            }
+            observations["joint_demo_managed_cycles"] = managed_cycles
+            observations["joint_demo_checks"] = [
+                "seven-case read-only comparison returned exact full coverage",
+                "one ambiguous open review exposes ASSIGN_QUEUE, SET_DUE_AT and ESCALATE",
+                "React applies queue and deadline with exact request bytes and receipts",
+                "time advances past the deadline with source rows unchanged and no MDM publication",
+                "exactly one level-1 escalation is applied and the review remains open",
+                "authenticated human source decision remains unpublished until MDM refresh",
+                "successful independent MDM publication closes the same review at its publication time",
+                "pending React work drains, no controls replay during 30-second observation, storage and WAL stay within synthetic limits"]
+            observations["checks"].append({"name": "issue5-joint-ambiguous-review-to-publication", "result": "passed"})
+            observations["entry_decision"] = "FOCUSED_ISSUE5_JOINT_DEMO"
+            observations["release_qualified"] = False
+            print("PASS: issue 5 joint routing, due-time, single escalation, human decision and MDM publication trace", flush=True)
             return
         if logical_restore or clean_clone or direct_clone:
             observations["fixture_sha256"] = command("docker", "exec", container, "sha256sum",

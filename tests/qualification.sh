@@ -50,9 +50,12 @@ static_audit() {
     tests/integrations/pg-mdm/contract/README.md showcase/mdm-stewardship/README.md \
     tests/m55-comparison.sql tests/m55-m35.sql tests/m55-benchmark.sh \
     tests/m55-benchmark-case.sh tests/m55-benchmark-case.sql \
-    sql/current/assembly.txt sql/current/README.md \
+    sql/current/assembly.txt sql/current/README.md sql/current/claim-scope-withdrawal.sql \
+    sql/current/upgrade-0.46.1-to-0.46.2.txt \
+    tests/v0.46.2-claim-scope.sql docs/v0.46.2-maintenance.md \
     sql/current/upgrade-0.45.0-to-0.46.0.txt \
-    sql/pg_react--0.45.0--0.46.0.sql sql/pg_react--0.46.0.sql; do
+    sql/pg_react--0.45.0--0.46.0.sql sql/pg_react--0.46.0.sql \
+    sql/pg_react--0.46.2.sql sql/pg_react--0.46.1--0.46.2.sql; do
     test -s "$file"
   done
   bash -n bin/assemble-sql tests/qualification.sh tests/v0.46.0-ddl-lock-order.sh tests/m55-benchmark.sh \

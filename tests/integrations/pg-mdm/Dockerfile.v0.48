@@ -12,7 +12,15 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     && cp target/release/libpg_react.so /build/libpg_react.so
 
 FROM pg_mdm
-ENV PG_REACT_INIT_VERSION=0.46.1
+ARG PG_REACT_INIT_VERSION=0.46.1
+ARG PG_REACT_SOURCE_REVISION=unknown
+ARG PG_REACT_CANDIDATE_KEY=unknown
+ARG PG_REACT_SHARED_LIBRARY_SHA256=unknown
+ENV PG_REACT_INIT_VERSION=${PG_REACT_INIT_VERSION}
+LABEL pg_react.source_commit=${PG_REACT_SOURCE_REVISION} \
+    pg_react.source_revision=${PG_REACT_SOURCE_REVISION} \
+    pg_react.candidate_key=${PG_REACT_CANDIDATE_KEY} \
+    pg_react.shared_library_sha256=${PG_REACT_SHARED_LIBRARY_SHA256}
 COPY pg_react.control /usr/share/postgresql/18/extension/pg_react.control
 COPY sql/ /usr/share/postgresql/18/extension/
 COPY --from=builder /build/libpg_react.so /usr/lib/postgresql/18/lib/pg_react.so

@@ -43,6 +43,11 @@ integrations/pg-mdm/sql/operational-activity.sql  # v0.50 role-scoped read view
 integrations/pg-mdm/sql/retention-guard.sql  # run as superuser after the adapter files
 ```
 
+For managed escalation, call `pgreact_mdm.ensure_intent_escalation_clock()` as
+the configured deployer that owns `pgreact_mdm.intent_deployer_policy_cases_v1`
+before activating the policy. Repeated calls leave an existing rule unchanged.
+The worker can read only the approved deployer projection needed by that clock.
+
 Install `operational-activity.sql` after `intent-worker.sql` as a database
 administrator with access to the adapter's intent tables and `pgreact.work`.
 It requires the frozen MDM M1/M2 policy-case and receipt contract; the shared
