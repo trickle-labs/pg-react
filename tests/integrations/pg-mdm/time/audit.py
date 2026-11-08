@@ -1725,11 +1725,13 @@ def main():
         original = command("docker", "exec", container, "cat", "/tests/e2e.sql")
         original_sha256 = command(
             "docker", "exec", container, "sha256sum", "/tests/e2e.sql").split()[0]
-        old_pin = "CREATE EXTENSION pg_trickle VERSION '0.108.3';"
-        if original.count(old_pin) != 1:
+        versioned_installs = [
+            line.strip() for line in original.splitlines()
+            if line.strip().startswith("CREATE EXTENSION pg_trickle VERSION ")]
+        if len(versioned_installs) != 1:
             raise AssertionError(
-                "pinned pg-mdm e2e.sql must contain exactly one pg_trickle 0.108.3 install")
-        adapted = original.replace(old_pin, "CREATE EXTENSION pg_trickle;", 1)
+                "pinned pg-mdm e2e.sql must contain exactly one versioned pg_trickle install")
+        adapted = original.replace(versioned_installs[0], "CREATE EXTENSION pg_trickle;", 1)
         target = "/tests/e2e-current-pgtrickle.sql"
         adapted_path = output / "mdm-e2e-current-pgtrickle.sql"
         adapted_path.write_text(adapted)
