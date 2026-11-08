@@ -2096,7 +2096,8 @@ def main():
         previous_frontier = after["clock_frontier"]["frontier"]
         previous_event_id = after["clock_history_sequence"]
         for event in new_clock_events:
-            assert event["clock_event_id"] == previous_event_id + 1, event
+            # PostgreSQL identity sequences may skip values; persisted events still must increase.
+            assert event["clock_event_id"] > previous_event_id, event
             assert event["previous_frontier"] == previous_frontier, event
             assert timestamp(event["frontier"]) > timestamp(previous_frontier), event
             assert event["affected_keys"] == event["affected_rules"] == 0, event
