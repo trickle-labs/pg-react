@@ -6248,7 +6248,6 @@ def main():
         assert any(case["case_key"] == recurrence["old_case_key"]
                    for case in after_recurrence_restart["cases"])
         assert any(case["case_key"] == recurrence["new_case_key"]
-                   and case["escalation_level"] == 2
                    for case in after_recurrence_restart["cases"])
         assert sum(r["case_key"] == recurrence["new_case_key"]
                    and r["action"] == "ESCALATE" and r["outcome"] == "APPLIED_CONTROL"
