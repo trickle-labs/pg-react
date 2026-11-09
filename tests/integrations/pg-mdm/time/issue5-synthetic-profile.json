@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "profile_id": "issue5-synthetic-seven-case-shadow-plus-one-live-case-v3",
+  "frozen_at": "2026-11-08",
+  "authority": "Thresholds and synthetic cohort selected by Codex under the user's explicit delegation. The first candidate diagnostic exceeded the initial 8-job/10-second backlog limits; the next run showed the temporal dispatcher can refill four pending jobs during a 30-second quiet interval. This version freezes 12 peak jobs, 15 seconds to drain, at most 6 pending and 0 leased at the end. No production cohort or human owner exists.",
+  "cohort": {
+    "shadow_fixture": "showcase/mdm-stewardship/01-fixture.sql",
+    "shadow_package": "showcase/mdm-stewardship/02-read-only-package.sql",
+    "population_id": "fixture-all",
+    "population_membership": [1, 2, 3, 4, 5, 6, 7],
+    "categories": {
+      "1": "possible duplicate with current general queue",
+      "2": "tied route",
+      "3": "unmatched route",
+      "4": "manual assignment protected",
+      "5": "deadline rule with unknown opening time",
+      "6": "existing deadline preserved or replaced by policy",
+      "7": "possible duplicate with priority queue"
+    },
+    "comparison": "policy-1 to policy-2, exact full coverage, read-only",
+    "live_lifecycle_cases": 1,
+    "live_actions": ["ASSIGN_QUEUE", "SET_DUE_AT", "ESCALATE"],
+    "live_queue": "priority_review",
+    "live_deadline_seconds_after_open": 60,
+    "live_escalation_levels_applied": [1],
+    "live_timer": "fixture-authored deadline rule; adapter timer wiring is not qualified",
+    "expected_source_edits": 1,
+    "concurrent_cases": 0
+  },
+  "limits": {
+    "shadow_package_and_comparison_seconds_max": 15,
+    "queue_and_due_control_seconds_from_publication_max": 8,
+    "escalation_seconds_after_due_max": 5,
+    "human_edit_to_publication_seconds_max": 10,
+    "pending_jobs_peak_max": 12,
+    "pending_jobs_drain_seconds_after_publication_max": 15,
+    "pending_jobs_at_end_max": 6,
+    "leased_jobs_at_end_max": 0,
+    "database_growth_bytes_max_inclusive": 67108864,
+    "wal_bytes_max_inclusive": 67108864,
+    "recovery_point_objective_seconds": 0,
+    "recovery_time_objective_seconds_max": 180
+  },
+  "observation_window": {
+    "start": "initial live MDM publication",
+    "end": "at least 30 seconds after the first zero-backlog drain, with pending work capped at 6 and no leased work",
+    "maximum_seconds": 120
+  },
+  "retention": "Keep all synthetic receipts and request evidence for this run; production retention remains unapproved and unresolved.",
+  "signoff": {
+    "production_workload_owner": "not applicable; no production cohort",
+    "release_owner": "pending",
+    "independent_reviewer": "pending"
+  },
+  "scope_limit": "A deterministic synthetic regression profile, not a production workload, capacity, reliability, or release qualification. Recovery limits are frozen targets and require separate final-artifact evidence."
+}

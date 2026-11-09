@@ -11,7 +11,8 @@ Published history remains frozen.
 Starting from the actual published predecessor preserves coordinator locking
 and the package-preview patch that differ from the older 0.43.3-based assembly.
 
-Both 0.46.1 artifacts are assembled from these inputs. Focused temporal-limit
+The 0.46.2 fresh-install artifact and adjacent 0.46.1-to-0.46.2 upgrade are
+assembled from these inputs. Focused temporal-limit
 and missing-dispatcher recovery audits pass on fresh install and 0.46.0 upgrade
 paths. A focused logical-restore audit on the merged pg-trickle #1288 candidate
 also passes through pending-work delivery; it is not full release qualification.

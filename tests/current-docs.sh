@@ -2,7 +2,7 @@
 set -euo pipefail
 
 expected=0.46.0
-packaged=0.46.1
+packaged=0.46.2
 test -s docs/current-release.json
 jq -e --arg version "$expected" --arg previous 0.45.0 \
    '.schema_version == 1 and .milestone == "R0" and .extension_version == $version and
@@ -13,8 +13,11 @@ jq -e --arg version "$expected" --arg previous 0.45.0 \
 grep -qx "default_version = '$packaged'" pg_react.control
 grep -Fq "version == \"$packaged\"" src/managed.rs
 test -s "sql/pg_react--$packaged.sql"
-test -s "sql/pg_react--$expected--$packaged.sql"
+test -s sql/pg_react--0.46.0--0.46.1.sql
+test -s sql/pg_react--0.46.1--0.46.2.sql
 grep -Fxq "# $packaged core claim maintenance" "docs/v$packaged-maintenance.md"
+test -s tests/v0.46.2-claim-scope.sql
+grep -Fq 'agenda.worker_id = claim_episode.worker_id' sql/current/claim-scope-withdrawal.sql
 grep -Fq "version == \"$expected\"" src/managed.rs
 grep -Fq "PG_REACT_INIT_VERSION=$expected" Dockerfile
 grep -Fq "pg-react:$expected" docker-compose.yml

@@ -1287,6 +1287,28 @@ GRANT EXECUTE ON FUNCTION pgreact_mdm.submit_queue_intent(
 GRANT EXECUTE ON FUNCTION pgreact_mdm.execute_intent_episode(uuid, text)
     TO pgreact_mdm_worker;
 
+CREATE OR REPLACE FUNCTION pgreact_mdm.ensure_intent_escalation_clock()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $function$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pgreact.rules
+        WHERE rule_name = 'mdm-intent-escalation-clock') THEN
+        PERFORM pgreact_api.author_deadline_rule(
+            rule_name => 'mdm-intent-escalation-clock',
+            condition => 'pgreact_mdm.intent_deployer_policy_cases_v1'::regclass,
+            semantic_key => 'case_identity', deadline_column => 'due_at',
+            kind => 'COMMAND',
+            on_activate => 'pgreact_mdm.submit_escalation_intent(pgreact.activation_context,pgreact_mdm.intent_deployer_policy_cases_v1)');
+    END IF;
+END
+$function$;
+
+REVOKE ALL ON FUNCTION pgreact_mdm.ensure_intent_escalation_clock() FROM PUBLIC;
+
 CREATE OR REPLACE FUNCTION pgreact_mdm.configure_intent_deployer(deployer name)
 RETURNS void
 LANGUAGE plpgsql
@@ -1326,6 +1348,8 @@ BEGIN
     EXECUTE format('GRANT SELECT ON TABLE pgreact_mdm.policy_packages, pgreact_mdm.policy_intent_packages, pgreact_mdm.policy_intent_bindings, pgreact_mdm.policy_intent_runtime TO %I', $1);
     EXECUTE format('GRANT SELECT ON TABLE pgreact.rules TO %I', $1);
     EXECUTE format('GRANT SELECT ON TABLE pgreact_mdm.authorized_policy_cases_v1, pgreact_mdm.intent_deployer_policy_cases_v1, pgreact_mdm.intent_queue_candidates, pgreact_mdm.intent_due_candidates, pgreact_mdm.intent_escalation_candidates TO %I', $1);
+    -- M31 refreshes its applicability source as the authenticated worker.
+    EXECUTE 'GRANT SELECT ON TABLE pgreact_mdm.intent_deployer_policy_cases_v1 TO pgreact_mdm_worker';
     EXECUTE format('GRANT EXECUTE ON FUNCTION pgreact_mdm.intent_escalation_candidate_for_case(uuid, bigint) TO %I', $1);
     EXECUTE format('GRANT CREATE ON SCHEMA pgreact_mdm TO %I', $1);
     IF (SELECT relowner FROM pg_catalog.pg_class
@@ -1376,6 +1400,7 @@ BEGIN
     EXECUTE 'REVOKE CREATE ON SCHEMA pgreact_runtime FROM pgreact_mdm_worker';
     EXECUTE format('REVOKE CREATE ON SCHEMA pgreact_mdm FROM %I', $1);
     EXECUTE format('GRANT EXECUTE ON FUNCTION pgreact.preview(pgreact_api.declaration, jsonb), pgreact.review_token(jsonb), pgreact.deploy(pgreact_api.declaration, text, jsonb), pgreact_mdm.submit_intent(pgreact.activation_context, jsonb), pgreact_mdm.submit_intent_as_worker(pgreact.activation_context, jsonb), pgreact_mdm.execute_intent_episode(uuid, text), pgreact_mdm.sync_intent_case_identities(), pgreact.refresh_rule(uuid) TO %I', $1);
+    EXECUTE format('GRANT EXECUTE ON FUNCTION pgreact_mdm.ensure_intent_escalation_clock() TO %I', $1);
 END
 $function$;
 

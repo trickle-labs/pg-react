@@ -106,7 +106,7 @@ SELECT receipt_id::text AS receipt_id, binding_id::text AS binding_id,
        encode(request_digest,'hex') AS request_digest,
        outcome,reason_code,case_key,action_revision,
        control::text AS control,
-       resulting_publication_revision,
+       COALESCE(resulting_publication_revision::text, '') AS resulting_publication_revision,
        actor,session_role_name,selected_role_name
 FROM mdm_steward.policy_receipts_v1
 WHERE case_key = :occurrence_new_key AND action = 'ESCALATE'
@@ -117,7 +117,7 @@ ORDER BY created_at,receipt_id LIMIT 1
 SET SESSION AUTHORIZATION mdm_s1_runtime;
 SET ROLE pgreact_mdm_worker;
 SELECT receipt_id,outcome,reason_code,case_key,action_revision,control,
-       resulting_publication_revision
+       COALESCE(resulting_publication_revision::text, '') AS resulting_publication_revision
 FROM mdm_steward.submit_policy_intent(
     :'applied_binding_id'::uuid,decode(:'applied_request_key','hex'),
     :occurrence_new_key,:'applied_action',:'applied_arguments'::jsonb,
@@ -128,7 +128,7 @@ FROM mdm_steward.submit_policy_intent(
     :'applied_evaluation_ref',:'applied_work_ref')
 \gset replay1_
 SELECT receipt_id,outcome,reason_code,case_key,action_revision,control,
-       resulting_publication_revision
+       COALESCE(resulting_publication_revision::text, '') AS resulting_publication_revision
 FROM mdm_steward.submit_policy_intent(
     :'applied_binding_id'::uuid,decode(:'applied_request_key','hex'),
     :occurrence_new_key,:'applied_action',:'applied_arguments'::jsonb,
@@ -295,7 +295,7 @@ $precondition$;
 SET SESSION AUTHORIZATION mdm_s1_runtime;
 SET ROLE pgreact_mdm_worker;
 SELECT receipt_id,outcome,reason_code,case_key,action_revision,control,
-       resulting_publication_revision
+       COALESCE(resulting_publication_revision::text, '') AS resulting_publication_revision
 FROM mdm_steward.submit_policy_intent(
     :'binding_id'::uuid,decode(repeat('fa',32),'hex'),
     :occurrence_new_key,'ESCALATE','{"level":2}'::jsonb,
@@ -306,7 +306,7 @@ FROM mdm_steward.submit_policy_intent(
     's1-idle-feasibility','recurrence-new-occurrence','recurrence-new-work')
 \gset applied_
 SELECT receipt_id,outcome,reason_code,case_key,action_revision,control,
-       resulting_publication_revision
+       COALESCE(resulting_publication_revision::text, '') AS resulting_publication_revision
 FROM mdm_steward.submit_policy_intent(
     :'binding_id'::uuid,decode(repeat('fa',32),'hex'),
     :occurrence_new_key,'ESCALATE','{"level":2}'::jsonb,
