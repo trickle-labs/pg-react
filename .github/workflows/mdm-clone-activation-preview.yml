@@ -15,13 +15,13 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: trickle-labs/pg-mdm
-          ref: a9ac204cebac87a8aae8e9c6137cd4ffaab1b18f
+          ref: 8707cae80e7e0a6aec70d6d91d563231ca61b575
           path: .producer/mdm
       - name: Record source and profile identity
         run: |
           set -euo pipefail
           mkdir -p clone-evidence
-          test "$(git -C .producer/mdm rev-parse HEAD)" = "a9ac204cebac87a8aae8e9c6137cd4ffaab1b18f"
+          test "$(git -C .producer/mdm rev-parse HEAD)" = "8707cae80e7e0a6aec70d6d91d563231ca61b575"
           git rev-parse HEAD > clone-evidence/react-source.txt
           git -C .producer/mdm rev-parse HEAD > clone-evidence/mdm-source.txt
           git archive --format=tar HEAD | sha256sum > clone-evidence/react-archive-sha256.txt
@@ -34,11 +34,11 @@ jobs:
         run: |
           set -euo pipefail
           docker build -f .producer/mdm/tests/Dockerfile.e2e \
-            --build-arg PG_MDM_SOURCE_REVISION=a9ac204cebac87a8aae8e9c6137cd4ffaab1b18f \
-            --build-arg PG_TRICKLE_REVISION=eb44093bbeca4f276a92733fe2bbc740d8ef254a \
-            --build-arg PG_TRICKLE_SHA256=c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487 \
-            --label pg_trickle.source_revision=eb44093bbeca4f276a92733fe2bbc740d8ef254a \
-            --label pg_trickle.source_archive_sha256=c869c490fe3f7188b179ad07cf4db61f734350e21dde50eb7cd06e4952ac1487 \
+            --build-arg PG_MDM_SOURCE_REVISION=8707cae80e7e0a6aec70d6d91d563231ca61b575 \
+            --build-arg PG_TRICKLE_REVISION=c36783a9889014a01f0a34694a40608975211560 \
+            --build-arg PG_TRICKLE_SHA256=b7ac0dd0c97514c081015e30153d1287f2f21ae008a9401ebc3c14073e4b400c \
+            --label pg_trickle.source_revision=c36783a9889014a01f0a34694a40608975211560 \
+            --label pg_trickle.source_archive_sha256=b7ac0dd0c97514c081015e30153d1287f2f21ae008a9401ebc3c14073e4b400c \
             -t pgreact:mdm-clone-candidate .producer/mdm > clone-evidence/mdm-build.log 2>&1
           docker build -f tests/integrations/pg-mdm/Dockerfile.v0.48 \
             --build-arg PG_MDM_IMAGE=pgreact:mdm-clone-candidate \

@@ -72,12 +72,12 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           repository: trickle-labs/pg-mdm
-          ref: c9006c32fdc1fbf5cbe4ef3d246429dea2c7e8d4
+          ref: 8707cae80e7e0a6aec70d6d91d563231ca61b575
           path: .producer/mdm
       - name: Build the exact MDM source and pg-react adapter
         run: |
           set -euo pipefail
-          mdm_revision=c9006c32fdc1fbf5cbe4ef3d246429dea2c7e8d4
+          mdm_revision=8707cae80e7e0a6aec70d6d91d563231ca61b575
           test "$(git -C .producer/mdm rev-parse HEAD)" = "$mdm_revision"
           git rev-parse HEAD > v0.50.0-evidence/pg-react-source-revision.txt
           git -C .producer/mdm rev-parse HEAD > v0.50.0-evidence/mdm-source-revision.txt
