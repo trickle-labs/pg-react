@@ -2,7 +2,7 @@
 
 [Reference](reference/index.md) · [Authoring guide](authoring.md)
 
-This reference describes the ordinary public SQL interface in the qualified **pg-react 0.46.0 core profile**. It is organized by the work you do: construct a declaration, inspect it, deploy it, and observe its results. Specialized advanced and administrative interfaces remain installed where documented; the [advanced learning guide](explanation/advanced-use.md) and [API inventory](api-inventory.json) help you choose them deliberately.
+This reference describes the ordinary public SQL interface in the qualified **pg-react 0.46.0 core profile**. It is organized by the work you do: construct a declaration, inspect it, deploy it, and observe its results. Specialized advanced and administrative interfaces remain installed where documented; the [advanced learning guide](explanation/advanced-use.md) and the [machine-readable API inventory](api-inventory.json) help you choose them deliberately.
 
 ## Ordinary
 
