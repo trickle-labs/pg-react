@@ -1,164 +1,81 @@
 # pg-react
 
-**Turn changing PostgreSQL facts into durable, inspectable policy state and work.**
+**Turn changing PostgreSQL data into decisions and durable work you can explain.**
 
-pg-react is a PostgreSQL-native rule and policy engine. Conditions are ordinary
-relations or views; declarations are typed SQL values; lifecycle, decisions,
-work, attempts, and explanations remain queryable in PostgreSQL.
+An order becomes risky, a review becomes overdue, or a customer becomes eligible for a different policy. Your application already knows these facts in PostgreSQL. pg-react lets you describe the condition with SQL, give each result a stable business identity, and keep the resulting decisions, work, retries, and explanations in the same database. You can ask what is true now, what happened when it changed, and what a proposed policy would do before you deploy it.
 
-R0 / extension `0.46.0` is the current release. It qualifies pg_trickle 0.108.0
-with stable Graph and Delta capabilities available upstream while pg-react keeps
-its explicit coordinator. The optional MDM adapter remains disabled pending M1.
-`1.0.0` is postponed indefinitely. Start with the
-[documentation home](docs/index.md).
+The project is **pg-react**; the PostgreSQL extension is `pg_react`, and its main SQL interface is `pgreact`. You do not need a separate rule language to get started. A condition view, a typed declaration, and a few inspection queries are enough for your first useful rule.
 
-## Choose a path
+## Start here
 
-| Audience | Start here | Main question |
-|---|---|---|
-| Application developer | [Getting Started](docs/getting-started.md) | How do I define and deploy a first rule? |
-| PostgreSQL developer | [Order review showcase](showcase/order-review/README.md) | How do facts, views, consequences, and durable work fit together? |
-| Operator | [Operations](docs/operations.md) | How do I inspect, retry, pause, replace, and remove work? |
-| Reviewer or architect | [Explain an Outcome](docs/explaining-outcomes.md), [Concepts](docs/concepts.md), and [Changing Policies Safely](docs/changing-policies.md) | What happened, what changed, and where are the boundaries? |
+Follow [Your first rule](docs/getting-started.md) to bring up a disposable database, create a review rule, change an order, and watch a database function create a review task. The tutorial includes every prerequisite, the complete SQL, expected results, and cleanup. It uses the qualified core release **0.46.0**, PostgreSQL **18.3**, and pg_trickle **0.108.0** on Linux **amd64**.
 
-```text
-authoritative PostgreSQL facts
-             |
-             v
-      condition relation
-             |
-             v
-     lifecycle / decision
-             |
-             v
-       durable work
+If you want to prepare that environment now, run these commands in a new checkout:
+
+```bash
+git clone https://github.com/trickle-labs/pg-react.git
+cd pg-react
+export COMPOSE_PROJECT_NAME=pgreact-learning
+export PG_REACT_IMAGE=ghcr.io/trickle-labs/pg-react:v0.46.0
+export PG_REACT_INIT_VERSION=0.46.0
+docker compose pull postgres
+docker compose up -d --wait --no-build postgres
+for attempt in $(seq 1 60); do
+    docker compose exec -T postgres pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1 && break
+    sleep 1
+done
+docker compose exec -T postgres pg_isready -h 127.0.0.1 -U postgres -d postgres && \
+    docker compose exec postgres psql -X -U postgres -d postgres
 ```
+
+Docker Engine or Docker Desktop with Compose is required. The readiness check waits up to a minute for the final PostgreSQL server to accept TCP connections; if it does not, inspect `docker compose logs postgres` before continuing. The Compose service initializes the extensions and runs the managed worker; its password and superuser connection are for this local lesson. At the `psql` prompt, continue with [Verify your starting point](docs/getting-started.md#2-verify-your-starting-point). For an existing PostgreSQL deployment, use the [installation guide](docs/installation.md) instead.
 
 ## A first rule
 
-This constraint rule records the high-risk orders that currently require
-review:
+A rule connects a named condition to its semantic key: the business identity that lets pg-react recognize the same subject across changes. In the tutorial, the condition is a view of high-value risky orders and the key is `order_id`. After creating that view, this declaration describes a constraint that records its matches:
 
 ```sql
-CREATE VIEW rule_def.high_value_risky_order AS
-SELECT o.order_id, o.customer_id, o.amount
-FROM app.orders AS o
-WHERE o.risk_level = 'HIGH'
-  AND o.amount > 10000;
-
 SELECT pgreact.validate(pgreact.rule(
     name         => 'manual-review-required',
     condition    => 'rule_def.high_value_risky_order'::regclass,
     semantic_key => 'order_id'::name
 ));
-
-SELECT pgreact.preview(pgreact.rule(
-    name         => 'manual-review-required',
-    condition    => 'rule_def.high_value_risky_order'::regclass,
-    semantic_key => 'order_id'::name
-));
-
-WITH proposal AS (
-    SELECT pgreact.rule(
-        name         => 'manual-review-required',
-        condition    => 'rule_def.high_value_risky_order'::regclass,
-        semantic_key => 'order_id'::name
-    ) AS value
-), review AS (
-    SELECT value, pgreact.preview(value) AS result FROM proposal
-)
-SELECT pgreact.deploy(value, pgreact.review_token(result)) FROM review;
 ```
 
-`pgreact.rule()` defaults to `kind => 'CONSTRAINT'`. A rule with
-`on_activate`, `on_change`, or `on_deactivate` consequences must explicitly use
-`kind => 'COMMAND'`. See [Getting Started](docs/getting-started.md) for the
-complete managed-runtime workflow.
+Validation checks the declaration without deploying it. You then preview the proposed change and deploy the reviewed declaration. To create work when a match activates, changes, or deactivates, make it a `COMMAND` rule and attach typed PostgreSQL functions. The tutorial walks through that complete path, including the difference between coordinating a rule and waiting for its consequence to finish.
+
+## Choose a path
+
+The documentation follows [Diátaxis](https://diataxis.fr/), so you can choose the kind of help you need without reading everything in order.
+
+| Your goal | Where to go |
+| --- | --- |
+| Learn by building something that works | [Tutorials](docs/tutorials/index.md): your first rule, then an order-review policy with decisions and retries. |
+| Complete a specific task | [How-to guides](docs/how-to/index.md): author, compare, deploy, secure, operate, recover, and upgrade. |
+| Look up a signature, default, setting, or limit | [Reference](docs/reference/index.md): SQL API, configuration, support boundaries, and release identity. |
+| Understand the behavior and make design choices | [Explanation](docs/explanation/index.md): lifecycle, identity, consistency, delivery, and advanced capabilities. |
+
+The [documentation home](docs/index.md) connects those paths into a progression. Once the first rule feels familiar, the [order-review tutorial](docs/order-review-tutorial.md) adds routing decisions, policy applicability, lifecycle changes, failure recovery, and a side-effect-free comparison. The [advanced learning guide](docs/explanation/advanced-use.md) helps you choose the next capability for your actual problem.
 
 ## What pg-react provides
 
-- **Rules:** stable semantic identity, current matches, activation generations,
-  revisions, typed consequences, retries, and explanations.
-- **Decisions:** candidate evaluation with explicit winner, ambiguity, and
-  no-candidate states.
-- **Policy sets:** versioned membership and relational applicability.
-- **Safe changes:** `pgreact.compare()` and `pgreact.compare_results()` compare
-  current and proposed declarations over current authoritative facts without
-  deploying or executing effects.
-- **Why a result changed:** add `{"why_changed": true}` to a supported
-  comparison, replay, or backtest call to receive bounded causes and public
-  evidence. Leave it out to keep the earlier result unchanged.
-- **Why a result is absent:** add a `why_not` object to `pgreact.explain` when
-  you need a bounded answer for one expected rule match, decision result, or
-  policy eligibility result.
-- **Why a result exists:** add `causal_path` to follow a bounded path from a
-  decision or work item to public facts. Retain a complete path as an evidence
-  snapshot when the answer must outlive current source evidence. See
-  [Explain an Outcome](docs/explaining-outcomes.md).
-- **Advanced reasoning:** installed public surfaces include maintained derived
-  facts and logical support, bounded positive recursion, stratified negation
-  and aggregation, shared conditions, temporal and effective-dated policies,
-  parameter families, provenance, and decision analysis. These are advanced
-  APIs, not required for the ordinary first-rule path.
+Rules retain current matches, activation generations, watched changes, and durable consequence work. Decisions select among relational candidates and expose a winner, ambiguity, or no-candidate result. Policy sets bring related declarations together with explicit applicability, and comparison lets you examine the current and proposed outcomes over the same facts before making a change. These features share a PostgreSQL-native inspection model, so operational questions can be answered with public views and stable names.
 
-PostgreSQL-managed workers are the normal runtime. One managed worker is
-started for each configured database, polls on
-`pg_react.poll_interval_ms`, coordinates maintenance, and drains eligible
-work. The external `pg-reactd` program is a compatibility path; it can call
-`pgreact_api.run()` and therefore can create work as well as drain it.
-
-## Compare before deploying
-
-Comparison varies the declaration, not the facts:
-
-```text
-current facts + deployed declaration
-versus
-current facts + proposed declaration
-```
-
-It reports bounded `current`, `proposed`, `delta`, `lifecycle`, and would-be
-`work` evidence. M35 also accepts typed hypothetical inserts, updates, and
-deletes for direct table sources. M36 replays caller-supplied history, and M37
-backtests at most two policies over that history. Rule comparison is limited to
-one `bigint` key even though separate advanced installed authoring APIs support
-broader typed keys.
+There is room to grow beyond ordinary rules. Installed advanced interfaces include derived facts, bounded recursion, temporal policies, shared conditions, parameter families, replay, backtesting, causal explanations, and retained evidence. Each has its own supported inputs and resource limits; [advanced use](docs/explanation/advanced-use.md) explains how to approach them without assuming that one feature's guarantees apply to another.
 
 ## Guarantees and boundaries
 
-- PostgreSQL remains the authoritative fact store.
-- Database consequences and their pg-react state changes use PostgreSQL
-  transactions.
-- External delivery is at least once; consumers must deduplicate.
-- Private schemas and internal UUIDs are not part of the ordinary API.
-- Comparison is bounded and may be `partial`; it has no continuation token.
-- pg-react is not a synchronous write-path hook, a global-ordering service, a
-  distributed transaction coordinator, or a general workflow/BPM engine.
+PostgreSQL remains authoritative for application facts and pg-react state. A database-local consequence and its recorded execution participate in PostgreSQL transactions, while delivery to an external system is at least once and requires consumer deduplication. Managed workers run asynchronously, one per configured database, so a successful application write does not mean that every consequence has already completed. pg-react is intended for durable policy evaluation and work; synchronous write rejection, distributed transactions, and general workflow orchestration are outside its contract.
 
-The qualified `0.46.0` environment is PostgreSQL 18.3, pg_trickle 0.108.0,
-pgrx 0.18.0, Linux `amd64`, `READ COMMITTED`, trigger CDC, scheduler off, and
-the PostgreSQL-managed runtime. Graph V1.2 and Delta V1.1 remain unused by
-pg-react. See the [Support Matrix](docs/support-matrix.md) before adopting it.
+The public learning path is pinned to the qualified **0.46.0 core release**. This repository also contains **0.46.2 core maintenance SQL**, a distinct Rust package version, and separately versioned MDM integration work. Those numbers do not describe the same release. Read [Versions and release identity](docs/reference/release-identity.md) before installing from source or choosing an upgrade, and use the [support matrix](docs/support-matrix.md) to check your environment. The R0 profile keeps pg_trickle's scheduler off and retains explicit pg-react coordination.
 
 ## Documentation
 
-- [Glossary](GLOSSARY.md)
-- [Getting Started](docs/getting-started.md)
-- [Order review showcase](showcase/order-review/README.md): a runnable PostgreSQL example covering rules, durable review work, routing decisions, retries, policy applicability, and side-effect-free comparison.
-- [Concepts](docs/concepts.md)
-- [Authoring Rules and Policies](docs/authoring.md)
-- [Changing Policies Safely](docs/changing-policies.md)
-- [Operations](docs/operations.md)
-- [API Reference](docs/api-reference.md)
-- [Known Limitations](docs/known-limitations.md)
-
-Release and milestone evidence is available through
-[History](docs/history.md), not required for normal use.
+Start with [Troubleshooting](docs/troubleshooting.md) when the result differs from your expectation, or [Operations](docs/operations.md) when work stops progressing. The [glossary](GLOSSARY.md) defines the vocabulary used throughout the guides. Release notes, qualification records, and earlier design decisions remain available through [History](docs/history.md); the [roadmap](ROADMAP.md) describes work beyond the current core release.
 
 ## Naming
 
-The project is **pg-react**. PostgreSQL and Rust identifiers use underscores:
-install `pg_react` and call the public `pgreact` or `pgreact_api` SQL surfaces.
+Use `pg-react` for the project, `pg_react` for the installed extension, and `pgreact` or `pgreact_api` for the documented public SQL surfaces.
 
 ## License
 

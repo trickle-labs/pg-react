@@ -1,6 +1,10 @@
 # Review marketplace orders with pg-react
 
-An order crosses the review threshold, pg-react records a new activation, and a PostgreSQL consequence opens one durable task for that activation generation. Change the amount and the same task is revised. Make the order safe and the task closes. Make it risky again and a fresh generation begins. Meanwhile, a decision chooses a queue, an applicability relation says which orders belong to the policy, and a comparison tells us exactly what a lower threshold would change without creating work. That is the whole story, and it is enough to make the database feel pleasantly busy without pretending it has become a fraud model or a workflow product.
+[Tutorials](tutorials/index.md) · [Previous lesson: Your first rule](getting-started.md)
+
+In this lesson, you will take the first rule's building blocks and connect them into a small review policy. An order crosses the threshold, pg-react records an activation, and a PostgreSQL consequence opens a task. Changing the amount revises that task; making the order safe closes it; making it risky again starts a fresh generation. You will also see a routing decision, policy applicability, a failed attempt followed by a retry, and a comparison that predicts the effect of a lower threshold without creating work.
+
+Complete [Your first rule](getting-started.md) first, then work from the repository root with Docker and Compose available. The supplied scripts handle the SQL so you can concentrate on reading the results and understanding how they relate. This lesson creates its own disposable Compose project and database. Its core profile is pg-react `0.46.0`, PostgreSQL `18.3`, and pg_trickle `0.108.0` on Linux `amd64`; keep those versions explicit even if your checkout contains newer maintenance SQL.
 
 The finished example leaves this visible current truth after the scripted lifecycle. Orders `1001` and `1003` satisfy the independent constraint rule, while the policy considers `1001`, `1002`, and `1003` eligible. Those are different questions on purpose: eligibility says an order may participate, current truth says the order satisfies the risk condition, and routing says what to do when candidates exist.
 
@@ -10,10 +14,12 @@ The finished example leaves this visible current truth after the scripted lifecy
 
 ## 1. Build the order review policy
 
-Start with the acceptance runner. It creates an isolated database, loads every core script, compares the complete normalized state with exact expected JSON, checks the reader-visible transcript byte for byte, runs cleanup, and removes its Compose project. This is the quickest way to establish that the image and repository agree before walking through the example by hand, and the four-line result is deliberately uneventful.
+Start by running the complete example once. The runner creates an isolated database, loads the core scripts, checks the normalized state and expected transcript, and removes its disposable project on exit. Using an explicit project name keeps this check separate from the first lesson's `pgreact-learning` database, while the explicit image argument avoids the runner's historical default image.
 
 ```bash
-./tests/order-review-showcase.sh
+docker pull ghcr.io/trickle-labs/pg-react:v0.46.0
+COMPOSE_PROJECT_NAME=pgreact-order-review-check PG_REACT_INIT_VERSION=0.46.0 \
+  ./tests/order-review-showcase.sh ghcr.io/trickle-labs/pg-react:v0.46.0
 ```
 
 ```text
@@ -31,15 +37,27 @@ Bring up the qualified image and create a disposable database. The Compose file 
 
 ```bash
 export COMPOSE_PROJECT_NAME=pgreact-order-review
+export PG_REACT_IMAGE=ghcr.io/trickle-labs/pg-react:v0.46.0
+export PG_REACT_INIT_VERSION=0.46.0
 export DB=order_review
 docker compose up -d --wait --no-build
+for attempt in $(seq 1 60); do
+  docker compose exec -T postgres pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1 && break
+  sleep 1
+done
+docker compose exec -T postgres pg_isready -h 127.0.0.1 -U postgres -d postgres
+```
+
+Continue only when the last command reports accepting connections. If it does not, inspect `docker compose logs postgres`. Now create the lesson database; the drop affects only the disposable `order_review` database in this project's container.
+
+```bash
 docker compose exec -T postgres psql -X -U postgres -d postgres \
   -v ON_ERROR_STOP=1 \
   -c "DROP DATABASE IF EXISTS $DB WITH (FORCE)" \
   -c "CREATE DATABASE $DB"
 docker compose exec -T postgres psql -XAtq -U postgres -d "$DB" \
   -v ON_ERROR_STOP=1 \
-  -c "CREATE EXTENSION pg_trickle; CREATE EXTENSION pg_react"
+  -c "CREATE EXTENSION pg_trickle VERSION '0.108.0'; CREATE EXTENSION pg_react VERSION '0.46.0'"
 docker compose exec -T postgres psql -XAt -U postgres -d "$DB" \
   -c "SELECT extname || '=' || extversion FROM pg_extension WHERE extname IN ('pg_react','pg_trickle') ORDER BY extname" \
   -c "SELECT pgreact_api.worker_protocol_compatible(2)"
@@ -87,7 +105,7 @@ docker compose exec -T -e 'PGOPTIONS=-c client_min_messages=error' postgres \
 
 ```text
 {"step": "validate constraint", "state": "ready", "findings": 0}
-{"step": "preview constraint", "deployment": "create", "current_state": null}
+{"step": "preview constraint", "deployment": "create", "current_state": "absent"}
 {"step": "deploy constraint", "state": "deployed"}
 ```
 
@@ -130,7 +148,7 @@ docker compose exec -T -e 'PGOPTIONS=-c client_min_messages=error' postgres \
 0
 ```
 
-The second command also deploys the routing decision and previews the policy set because the next script exercises all three together. The command consequence is database-local. A future outbox or remote consumer would be an at-least-once delivery path and would need its own idempotent consumer; this example does not smuggle that second reliability story into the first one.
+The first command's task-count query returns `0`; the script that follows also prints its validation, preview, deployment, and routing results. It deploys the routing decision and previews the policy set because the next script exercises all three together. The consequence remains database-local, which lets you verify its transaction result directly. If you later send work to a remote service, design the outbox and consumer deduplication for that separate at-least-once delivery boundary.
 
 ## 7. Change facts and follow the lifecycle
 
@@ -152,7 +170,7 @@ grep -E 'activate order|change order|supporting customer|deactivate order' \
 {"step":"deactivate order 1003",..."state":"CLOSED",..."event_kind":"DEACTIVATE"}
 ```
 
-Generation identifies an activation episode; revision counts watched changes inside that episode. The amount and customer fact update the same generation 1 task, deactivation closes it, and reactivation creates generation 2 instead of reopening history under a new name.
+The excerpt above highlights selected fields; the saved transcript contains complete JSON. Generation identifies an activation episode, while revision counts watched changes inside that episode. The amount and customer fact update the same generation 1 task, deactivation closes it, and reactivation creates generation 2. You can now distinguish the business order's stable identity from the identity of one continuous review episode.
 
 The lifecycle in one view:
 
@@ -179,7 +197,7 @@ order 1002: AMBIGUOUS
 order 1003: NO_CANDIDATE
 ```
 
-Ambiguity is application work, not a secret tiebreaker. A caller may ask for another candidate, send the order to an explicit fallback, or stop release, but the database result remains `AMBIGUOUS` until the candidate facts change.
+The text above summarizes the JSON returned by the transcript query. For an ambiguous result, your application can request more information, choose an explicitly modeled fallback, or wait for the candidate facts to change. The useful property is that the policy exposes the tie instead of concealing it behind an arbitrary row choice.
 
 ## 9. Limit the policy with applicability
 
@@ -203,6 +221,8 @@ Before policy-set deployment changes command scope, the scenario compares `rule_
 grep -E 'compare lower threshold|comparison has no effects' \
   /tmp/order-review-scenarios.txt
 ```
+
+The JSON contains the following facts, shown here as a compact summary:
 
 ```text
 added_orders=[1002], current_count=2, proposed_count=3, complete=true
@@ -231,7 +251,7 @@ docker compose exec -T postgres psql -XAt -U postgres -d "$DB" -c \
 2|COMPLETED||ACTIVATE
 ```
 
-The error remains durable and visible after success, which is exactly what an operator needs. Retrying does not erase the first attempt or rewrite it as a happy ending.
+The error remains durable and visible after success, so an operator can explain both the temporary failure and the final application result. The excerpt highlights the two reactivation attempts; the query also includes the earlier successful lifecycle attempts. Retrying creates a new attempt without erasing the evidence of the first one.
 
 ## 12. Remove the core example objects
 
@@ -243,45 +263,32 @@ docker compose exec -T postgres psql -XAtq -U postgres -d "$DB" \
 docker compose down --volumes --remove-orphans
 ```
 
-```text
-All order-review declarations are removed; app, rule_def, and rule_action are absent.
-```
+The expected end state is that no order-review declaration remains deployed and the disposable `app`, `rule_def`, and `rule_action` schemas are gone. The complete example runner checks that state before removing its container; the manual cleanup above also deletes this lesson project's data volume.
 
-## 13. Optional: add deadline escalation
+## 13. Understand the scope of this lesson
 
-The advanced script currently reports deadline escalation as omitted. The repository has specialized deadline machinery, but this package does not publish a call until that exact public API, its direct deadline-column contract, boundary behavior, resource limit, and transcript all pass against the current `0.46.0` boundary. A deadline is database-time crossing work, not a general wall-clock scheduler, and it deserves a real fixture rather than hopeful prose.
+You have now observed a constraint, a command, a decision, policy applicability, a lifecycle with revisions and reactivation, retry history, comparison, and cleanup. The fixture deliberately keeps its effects inside PostgreSQL, which gives each checkpoint an inspectable application result. It does not exercise deadline escalation, maintained derived facts, effective-dated policy versions, or external delivery, and a passing transcript should not be used as evidence for those workloads.
 
-```bash
-docker compose up -d --wait --no-build
-docker compose exec -T postgres psql -XAtq -U postgres -d postgres \
-  -v ON_ERROR_STOP=1 -f - < showcase/order-review/06-advanced.sql
-```
+The package's [advanced-scope record](../showcase/order-review/06-advanced.sql) identifies those omissions; you do not need to start another container to read it. Keeping that boundary explicit helps you choose the next exercise without confusing a listed feature with something this lesson has demonstrated.
 
-```json
-{"step":"advanced chapters","state":"omitted","chapters":["deadline escalation","derived facts and provenance","effective-dated policy versions"],"reason":"no specialized API call is qualified by this fixture"}
-```
+## 14. Continue to advanced policy design
 
-## 14. Optional: explain a derived customer fact
+If the next business question is when a review becomes overdue, start with the time models in [Advanced use](explanation/advanced-use.md#introduce-time-deliberately). If several policies need the same maintained conclusion, read [Derived facts with explicit support](explanation/advanced-use.md#derive-facts-with-explicit-support). If a reviewer needs to explain a routing result after the source evidence changes, follow [Explain an outcome](explaining-outcomes.md) and its retained-evidence reference.
 
-Derived facts and bounded provenance are omitted for the same reason. A later chapter should prove at least two independent supports, show that one surviving support keeps the fact true, retract the fact only after the last support disappears, and identify the surviving or removed support in public explanation output. Until that script exists, `customer_requires_enhanced_review` is a good design note and a bad tutorial promise.
-
-```bash
-grep -n 'derived facts and provenance' showcase/order-review/06-advanced.sql
-```
-
-```text
-The chapter is listed in the explicit omission report.
-```
+Each of those paths introduces a distinct concept and its own bounds. Keep the same habit you developed here: choose a small input, predict the visible result, execute the public operation, and inspect the complete evidence before expanding the workload. The [advanced API guide](reference/advanced-apis.md) supplies the detailed contracts without making you infer the right feature from milestone numbers.
 
 ## 15. Read the limits and choose the next guide
 
 The example proves one bigint semantic key, relational current truth, typed database-local consequences, activation and change lifecycle, retries, decision winner states, applicability, bounded explanation, side-effect-free comparison, and cleanup. It does not prove synchronous source-write rejection, machine-learning classification, exactly-once remote delivery, a total firing order across workers, human case management, historical replay, effective-dated business policy, or advanced provenance.
 
-Run the acceptance test once more after experimenting, then continue with [Authoring Rules and Policies](authoring.md), [Changing Policies Safely](changing-policies.md), or [Operations](operations.md), depending on whether the next job is writing, reviewing, or running a policy. The pleasant part is that all three guides begin from the same stable names and public projections used here.
+Run the complete example once more after experimenting, using the same explicit image and isolated check project. Then continue with [Authoring rules and policies](authoring.md), [Changing policies safely](changing-policies.md), or [Operations](operations.md), depending on whether the next job is writing, reviewing, or running a policy. All three guides build on the stable names and public projections you have just used.
 
 ```bash
-./tests/order-review-showcase.sh
+COMPOSE_PROJECT_NAME=pgreact-order-review-check PG_REACT_INIT_VERSION=0.46.0 \
+  ./tests/order-review-showcase.sh ghcr.io/trickle-labs/pg-react:v0.46.0
 ```
+
+The last summary line confirms that the complete example passed:
 
 ```text
 order-review showcase passed
