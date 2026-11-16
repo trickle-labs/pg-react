@@ -1,23 +1,12 @@
 # Changing Policies Safely
 
-This guide describes the current pg-react `0.46.0` replacement workflow.
+[How-to guides](how-to/index.md) · [SQL reference](api-reference.md)
 
-Use comparison before replacing a deployed rule, decision, or policy set.
-Comparison varies the declaration while holding authoritative facts at the
-current source frontier.
+Use this guide when an existing rule, decision, or policy set needs to change and you want to understand the impact before deploying it. The pg-react `0.46.0` workflow compares the deployed and proposed declarations over the same current authoritative facts, then uses a fresh reviewed preview for the actual replacement. The comparison does not deploy the proposal or execute its would-be effects, so you can examine the affected subjects and work before choosing a cutover.
 
-```text
-deployed target + current facts
-versus
-proposal        + current facts
-```
+The example continues [Your first rule](getting-started.md), with its database still available before cleanup. You will lower the review threshold, add an order that only the proposal matches, and inspect exactly how the outcomes differ. Keep the original condition and consequence intact while preparing the new versions; changing an active dependency in place would introduce drift instead of a reviewed proposal.
 
-It does not deploy the proposal or execute effects.
-
-This guide covers current-fact comparison. For hypothetical facts, supplied
-history, backtesting, and why-changed evidence, use the simulation references
-listed in the [API Reference](api-reference.md). For a bounded explanation of one missing current
-result, use [Explain an Outcome](explaining-outcomes.md).
+For hypothetical row changes, caller-supplied history, backtesting, and why-changed evidence, use the [advanced API guide](reference/advanced-apis.md#hypothetical-comparison-replay-and-backtesting). To investigate a missing current result, use [Explain an outcome](explaining-outcomes.md).
 
 ## 1. Start with a deployed target
 
@@ -368,11 +357,7 @@ After review, choose one:
 For a changed policy set, deploy a new immutable policy-set version after a
 fresh preview.
 
-Use the same ordinary workflow for an active replacement: preview the
-proposal, pass `pgreact.review_token(preview)`, and provide
-`jsonb_build_object('old_work', 'DRAIN_OLD')` or `CANCEL_OLD` when executable
-old work exists. The UUID-oriented `pgreact.replace_rule(...)` remains a
-compatibility path documented in [Operations](operations.md).
+Use the same ordinary workflow for an active replacement: preview the exact proposal, retain the successful preview result you reviewed, and pass its token to deployment. When executable old work exists, provide `jsonb_build_object('old_work', 'DRAIN_OLD')` or choose `CANCEL_OLD` according to the business change. Draining lets eligible old work finish under its recorded version; cancelling chooses to stop that work. A successful comparison does not make that decision for you, and a stale token requires a fresh review. The UUID-oriented `pgreact.replace_rule` remains a compatibility path described in [Operations](operations.md).
 
 After any qualified deployment, allow the managed runtime to process current
 facts and verify `pgreact.status`, `pgreact.matches` or

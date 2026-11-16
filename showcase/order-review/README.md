@@ -28,16 +28,19 @@ scenario without first understanding every internal table.
 
 ## Prerequisites
 
-Run from the repository root with Docker available and the `pg-react:0.46.0` image already built. The qualified environment is pg-react `0.46.0`, PostgreSQL 18.3, pg_trickle 0.108.0, and Linux `amd64`, which is the platform pinned by `docker-compose.yml`. The runner creates a disposable Compose project and an isolated database, then removes both on exit.
+Run from the repository root with Docker and Compose available. The qualified core environment is pg-react `0.46.0`, PostgreSQL 18.3, pg_trickle 0.108.0, and Linux `amd64`, which is the platform pinned by `docker-compose.yml`. Pull the published image and pass it explicitly: the runner retains a historical default image. The explicit project name below also keeps its disposable database and cleanup separate from any learning environment you already have open.
 
 ```bash
-./tests/order-review-showcase.sh
+docker pull ghcr.io/trickle-labs/pg-react:v0.46.0
+COMPOSE_PROJECT_NAME=pgreact-order-review-check PG_REACT_INIT_VERSION=0.46.0 \
+  ./tests/order-review-showcase.sh ghcr.io/trickle-labs/pg-react:v0.46.0
 ```
 
-To run the same fixture against a locally built image, pass its tag:
+To investigate the same fixture against a locally built image, pass its tag explicitly and use a distinct disposable project. The result then describes that local artifact; it does not replace the published release's qualification record.
 
 ```bash
-./tests/order-review-showcase.sh pg-react:my-local-image
+COMPOSE_PROJECT_NAME=pgreact-order-review-local-check \
+  ./tests/order-review-showcase.sh pg-react:my-local-image
 ```
 
 A passing run prints four summary lines: SQL assertions, transcript, cleanup, and the complete example all pass. Failures print the captured PostgreSQL or transcript diff output instead of burying the useful line in routine server notices.
@@ -58,7 +61,7 @@ human case, or guarantee exactly-once external delivery. It creates durable
 PostgreSQL work and executes a database-local function.
 
 ```mermaid
-flowchart LR
+flowchart TD
 	A[Order facts change] --> B[Condition view refreshes]
 	B --> C{Match state}
 	C -->|Activate| D[Durable work]
@@ -82,8 +85,7 @@ Read [the tutorial](../../docs/order-review-tutorial.md) for the guided path, [A
 
 ## Inspect the result
 
-After running the scenario, these queries show current matches, durable work,
-execution attempts, application tasks, and routing decisions.
+The acceptance runner removes its database on exit. To keep a database available for inspection, follow the manual steps in [the tutorial](../../docs/order-review-tutorial.md) through the scenario and stop before cleanup. In that database, the queries below show current matches, durable work, execution attempts, application tasks, and routing decisions.
 
 ```sql
 SELECT *

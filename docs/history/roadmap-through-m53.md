@@ -2,8 +2,8 @@
 
 > **Status:** Living delivery plan
 > **Last updated:** 2026-09-01\
-> **Contract authority:** [`docs/v1-contract.md`](docs/v1-contract.md), subject
-> to installed behavior. [`DESIGN.md`](DESIGN.md) is historical M13
+> **Contract authority:** [`docs/v1-contract.md`](../v1-contract.md), subject
+> to installed behavior. [`DESIGN.md`](../../DESIGN.md) is historical M13
 > architecture.
 
 > [!IMPORTANT]
@@ -344,7 +344,7 @@ The first GA should prefer a small, explicit support matrix over broad best-effo
 
 M4 completes the repository implementation for extension `0.1.1`, worker protocol `1`, and outbox envelope `1` without widening the M3 compatibility boundary. The initial contract freezes the public composite type, five views, 41 effective public function overloads, direct `0.1.0 -> 0.1.1` migration, external-delivery guarantee, and known limitations. The release-artifact gate builds one `linux/amd64` image and runs the complete M0–M3 suite, frozen API inventory, exact README workflow through the packaged worker, internal install/normal/failure/physical-restore/continued-operation pilot, retention checks, and direct upgrade. Task-oriented guides cover installation, authoring, operations, security, physical backup/restore, upgrades, and troubleshooting.
 
-The recovery audit deliberately excludes logical `pg_dump`/`pg_restore` of live rules: pinned pg_trickle `0.81.0` cannot publicly rebuild restored source OIDs and differential change tracking, which could silently miss later work. Physical backup/PITR and physical failover are the supported v1 recovery mechanisms. [`docs/m4-evidence.md`](docs/history/m4-evidence.md) and [`docs/m4-pilot.md`](docs/history/m4-pilot.md) record the evidence; the exact `v0.1.1` tag runs the publication workflow for the tested OCI image, digest, archive checksum, release notes, and limitations.
+The recovery audit deliberately excludes logical `pg_dump`/`pg_restore` of live rules: pinned pg_trickle `0.81.0` cannot publicly rebuild restored source OIDs and differential change tracking, which could silently miss later work. Physical backup/PITR and physical failover are the supported v1 recovery mechanisms. [`docs/m4-evidence.md`](m4-evidence.md) and [`docs/m4-pilot.md`](m4-pilot.md) record the evidence; the exact `v0.1.1` tag runs the publication workflow for the tested OCI image, digest, archive checksum, release notes, and limitations.
 
 ---
 
@@ -393,9 +393,9 @@ The recovery audit deliberately excludes logical `pg_dump`/`pg_restore` of live 
 
 ### M5 completion record — 2026-08-09
 
-The extension `0.2.0` repository candidate implements the pack definition, validation, preview digest, atomic deployment, explicit dependency/removal and old-work policies, portable object/role mapping, public history, diagnostics, direct `0.1.1 -> 0.2.0` upgrade, and documented development-to-production workflow. `tests/m5.sh` reruns every earlier compatibility/reference/recovery gate and adds exact-output failure-phase rollback, stale preview, invalid graph/binding/ownership/removal, immutable old-work, concurrent deployment/source/function DDL, history/diagnostics, upgrade, and two-environment promotion evidence recorded in [`docs/m5-evidence.md`](docs/history/m5-evidence.md).
+The extension `0.2.0` repository candidate implements the pack definition, validation, preview digest, atomic deployment, explicit dependency/removal and old-work policies, portable object/role mapping, public history, diagnostics, direct `0.1.1 -> 0.2.0` upgrade, and documented development-to-production workflow. `tests/m5.sh` reruns every earlier compatibility/reference/recovery gate and adds exact-output failure-phase rollback, stale preview, invalid graph/binding/ownership/removal, immutable old-work, concurrent deployment/source/function DDL, history/diagnostics, upgrade, and two-environment promotion evidence recorded in [`docs/m5-evidence.md`](m5-evidence.md).
 
-The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs/pg-react/releases/tag/v0.1.1) publishes the tested `31a2b4d85f6bb1cdd94a21337d94a98b40ee6b3d` bytes through successful [release run 31312006930](https://github.com/trickle-labs/pg-react/actions/runs/31312006930), with verified archive checksum, OCI digest, release notes, and limitations. The complete M5 gate was rerun against implementation commit `0d6d37a749fe25ad0a44c860af548720f081f85e`; all entry, deliverable, and exit requirements pass. [`docs/m5-readiness.md`](docs/history/m5-readiness.md) records the verification.
+The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs/pg-react/releases/tag/v0.1.1) publishes the tested `31a2b4d85f6bb1cdd94a21337d94a98b40ee6b3d` bytes through successful [release run 31312006930](https://github.com/trickle-labs/pg-react/actions/runs/31312006930), with verified archive checksum, OCI digest, release notes, and limitations. The complete M5 gate was rerun against implementation commit `0d6d37a749fe25ad0a44c860af548720f081f85e`; all entry, deliverable, and exit requirements pass. [`docs/m5-readiness.md`](m5-readiness.md) records the verification.
 
 ---
 
@@ -454,7 +454,7 @@ The external entry gate is satisfied: [`v0.1.1`](https://github.com/trickle-labs
 
 **Outcome:** maintain non-recursive derived facts as durable PostgreSQL state whose current truth, retraction, provenance, and recovery are explained by explicit logical supports rather than imperative consequence history.
 
-**Entry gate:** the exact `v0.3.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. The [fixed reference model](docs/history/m7-entry.md) requires two independent derivations of one fact, removal of one and then the last support, downstream rule observation, reconciliation, and physical recovery; its expected public state and explanation output are frozen before the API contract is fixed.
+**Entry gate:** the exact `v0.3.0` release artifacts, checksums, disclosures, and direct-upgrade path are published and verified. The [fixed reference model](m7-entry.md) requires two independent derivations of one fact, removal of one and then the last support, downstream rule observation, reconciliation, and physical recovery; its expected public state and explanation output are frozen before the API contract is fixed.
 
 ### Deliverables
 
@@ -2237,8 +2237,8 @@ complete source and authoritative-state checksums.
 
 ### M35 contract decisions
 
-The M35 contract is frozen by [`docs/m35-contract.md`](docs/m35-contract.md)
-and [`docs/m35-known-limitations.md`](docs/m35-known-limitations.md). The
+The M35 contract is frozen by [`docs/m35-contract.md`](../m35-contract.md)
+and [`docs/m35-known-limitations.md`](../m35-known-limitations.md). The
 release deliberately supports direct table sources with one non-null `bigint`
 identity column; unsupported source and identity shapes fail closed.
 
@@ -4721,4 +4721,4 @@ Feature count is never a substitute for this evidence. Each row becomes mandator
 - Fairness window, backpressure thresholds, claim bounds, lock ordering, and deadlock retry limits.
 - Performance budgets and pilot workload.
 
-Normative decisions belong in [`DESIGN.md`](DESIGN.md). Add an ADR only for a hard-to-reverse, surprising trade-off whose alternatives and consequences would otherwise be lost; link it from the implementing issue and pull request.
+Normative decisions belong in [`DESIGN.md`](../../DESIGN.md). Add an ADR only for a hard-to-reverse, surprising trade-off whose alternatives and consequences would otherwise be lost; link it from the implementing issue and pull request.
